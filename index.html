@@ -2083,7 +2083,7 @@
     }
 
     // --- CHART ---
-    let chart, candleSeries;
+    let chart, candleSeries, trendLineUp, trendLineDown;
 
     function initChart() {
       const container = document.getElementById('chartContainer');
@@ -2103,9 +2103,122 @@
         wickUpColor: '#00ff88', wickDownColor: '#ff4466'
       });
 
+      // Línea de tendencia alcista (soporte)
+      trendLineUp = chart.addLineSeries({
+        color: '#00ff88',
+        lineWidth: 2,
+        lineStyle: 0, // Solid
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      // Línea de tendencia bajista (resistencia)
+      trendLineDown = chart.addLineSeries({
+        color: '#ff4466',
+        lineWidth: 2,
+        lineStyle: 0, // Solid
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
       new ResizeObserver(() => {
         chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       }).observe(container);
+    }
+
+    // ============================================
+    // AUTO TREND LINES
+    // ============================================
+
+    function findSwingPoints(candles, lookback = 5) {
+      if (candles.length < lookback * 2 + 1) return { highs: [], lows: [] };
+      
+      const highs = [];
+      const lows = [];
+      
+      for (let i = lookback; i < candles.length - lookback; i++) {
+        let isSwingHigh = true;
+        let isSwingLow = true;
+        
+        for (let j = 1; j <= lookback; j++) {
+          if (candles[i].high <= candles[i - j].high || candles[i].high <= candles[i + j].high) {
+            isSwingHigh = false;
+          }
+          if (candles[i].low >= candles[i - j].low || candles[i].low >= candles[i + j].low) {
+            isSwingLow = false;
+          }
+        }
+        
+        if (isSwingHigh) {
+          highs.push({ time: candles[i].time, value: candles[i].high });
+        }
+        if (isSwingLow) {
+          lows.push({ time: candles[i].time, value: candles[i].low });
+        }
+      }
+      
+      return { highs, lows };
+    }
+
+    function calculateTrendLine(points) {
+      if (points.length < 2) return null;
+      
+      // Tomar los últimos 2-3 puntos significativos
+      const recentPoints = points.slice(-3);
+      if (recentPoints.length < 2) return null;
+      
+      const p1 = recentPoints[0];
+      const p2 = recentPoints[recentPoints.length - 1];
+      
+      // Calcular pendiente
+      const timeDiff = p2.time - p1.time;
+      if (timeDiff === 0) return null;
+      
+      const slope = (p2.value - p1.value) / timeDiff;
+      
+      // Extender la línea hacia el futuro
+      const futureTime = p2.time + (timeDiff * 0.5);
+      const futureValue = p2.value + (slope * timeDiff * 0.5);
+      
+      return [
+        { time: p1.time, value: p1.value },
+        { time: p2.time, value: p2.value },
+        { time: futureTime, value: futureValue }
+      ];
+    }
+
+    function updateTrendLines() {
+      if (!state.candles || state.candles.length < 20) return;
+      
+      const { highs, lows } = findSwingPoints(state.candles, 3);
+      
+      // Línea de soporte (conectando mínimos ascendentes)
+      const ascendingLows = lows.filter((p, i) => {
+        if (i === 0) return true;
+        return p.value >= lows[i - 1].value * 0.995; // Tolerancia del 0.5%
+      });
+      
+      const supportLine = calculateTrendLine(ascendingLows);
+      if (supportLine && trendLineUp) {
+        try {
+          trendLineUp.setData(supportLine);
+        } catch (e) {}
+      }
+      
+      // Línea de resistencia (conectando máximos descendentes)
+      const descendingHighs = highs.filter((p, i) => {
+        if (i === 0) return true;
+        return p.value <= highs[i - 1].value * 1.005; // Tolerancia del 0.5%
+      });
+      
+      const resistanceLine = calculateTrendLine(descendingHighs);
+      if (resistanceLine && trendLineDown) {
+        try {
+          trendLineDown.setData(resistanceLine);
+        } catch (e) {}
+      }
     }
 
     // ============================================
@@ -3129,6 +3242,9 @@
         
         if (candleSeries) candleSeries.setData(state.candles);
         
+        // Actualizar líneas de tendencia
+        updateTrendLines();
+        
         if (state.candles.length > 0) {
           state.currentPrice = state.candles[state.candles.length - 1].close;
           runPredictionEngine(state.currentPrice);
@@ -3185,6 +3301,8 @@
             state.candles.push(candle);
             if (state.candles.length > CONFIG.HISTORY_SIZE) state.candles.shift();
             runPredictionEngine(candle.close);
+            // Actualizar líneas de tendencia cuando se cierra una vela
+            updateTrendLines();
           }
         }
 
@@ -3405,6 +3523,9 @@
       
       // Actualizar Multi-TF cada 30 segundos
       setInterval(updateMultiTimeframe, 30000);
+      
+      // Actualizar líneas de tendencia cada 30 segundos
+      setInterval(updateTrendLines, 30000);
     });
 
   </script>
