@@ -3412,7 +3412,7 @@
           ui.cvdText.innerHTML = `CVD: <span class="${state.cvd >= 0 ? 'c-green' : 'c-red'}">${state.cvd >= 0 ? '+' : ''}${(state.cvd / 1000).toFixed(1)}K</span>`;
           
           if (qty >= CONFIG.WHALE_THRESHOLD) {
-            addWhaleAlert(qty, price, isBuy);
+            addWhaleAlert(qty, price, isBuy, 'BINANCE');
             if (isBuy) state.whaleBuyVol += qty;
             else state.whaleSellVol += qty;
           }
@@ -3497,7 +3497,7 @@
       });
     }
 
-    function addWhaleAlert(qty, price, isBuy) {
+    function addWhaleAlert(qty, price, isBuy, exchange = 'BINANCE') {
       state.whaleCount++;
       ui.whaleCount.innerText = state.whaleCount;
       
@@ -3512,13 +3512,26 @@
       const time = new Date().toLocaleTimeString();
       const value = (qty * price / 1000).toFixed(1);
       
+      // Colores por exchange
+      const exchangeColors = {
+        'BINANCE': { bg: 'rgba(243,186,47,0.2)', color: '#f3ba2f' },
+        'KRAKEN': { bg: 'rgba(113,84,255,0.2)', color: '#7154ff' },
+        'BITSTAMP': { bg: 'rgba(57,181,74,0.2)', color: '#39b54a' },
+        'BYBIT': { bg: 'rgba(247,147,26,0.2)', color: '#f7931a' },
+        'COINBASE': { bg: 'rgba(0,82,255,0.2)', color: '#0052ff' },
+        'CRYPTO.COM': { bg: 'rgba(17,60,92,0.3)', color: '#00b4e6' },
+        'OKX': { bg: 'rgba(0,0,0,0.3)', color: '#ffffff' }
+      };
+      
+      const exColor = exchangeColors[exchange] || exchangeColors['BINANCE'];
+      
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
           <span>
             <span class="${isBuy ? 'c-green' : 'c-red'}">● ${isBuy ? 'BUY' : 'SELL'}</span>
-            <strong>${(qty/1000).toFixed(0)}K</strong>
+            <strong>${(qty/1000).toFixed(1)}K</strong>
           </span>
-          <span style="font-size:8px; background:rgba(255,149,0,0.2); color:var(--accent-orange); padding:1px 4px; border-radius:2px;">BINANCE</span>
+          <span style="font-size:8px; background:${exColor.bg}; color:${exColor.color}; padding:1px 4px; border-radius:2px; font-weight:600;">${exchange}</span>
           <span style="color:var(--text-dim); font-size:9px;">${value}K$ ${time}</span>
         </div>
       `;
@@ -3527,11 +3540,11 @@
       
       // Alert for big whales (>25K ahora que el threshold base es 5K)
       if (qty >= 25000) {
-        addAlert(`🐋 BIG WHALE: ${isBuy ? 'BUY' : 'SELL'} ${(qty/1000).toFixed(0)}K XRP ($${value}K) on Binance`, isBuy ? 'bullish' : 'bearish');
+        addAlert(`🐋 BIG WHALE: ${isBuy ? 'BUY' : 'SELL'} ${(qty/1000).toFixed(0)}K XRP ($${value}K) on ${exchange}`, isBuy ? 'bullish' : 'bearish');
         if (state.soundEnabled) playSound('whale');
       }
       
-      while (ui.whaleList.children.length > 12) {
+      while (ui.whaleList.children.length > 15) {
         ui.whaleList.lastChild.remove();
       }
     }
@@ -3594,7 +3607,226 @@
       
       // Actualizar líneas de tendencia cada 30 segundos
       setInterval(updateTrendLines, 30000);
+      
+      // Conectar a otros exchanges para whale tracking
+      connectKraken();
+      connectBitstamp();
+      connectBybit();
+      connectCoinbase();
+      connectCryptoCom();
     });
+
+    // ============================================
+    // MULTI-EXCHANGE WHALE TRACKING
+    // ============================================
+
+    // KRAKEN WebSocket
+    let wsKraken;
+    function connectKraken() {
+      try {
+        wsKraken = new WebSocket('wss://ws.kraken.com');
+        
+        wsKraken.onopen = () => {
+          console.log('Kraken WebSocket connected');
+          // Suscribirse a trades de XRP/USD
+          wsKraken.send(JSON.stringify({
+            event: 'subscribe',
+            pair: ['XRP/USD'],
+            subscription: { name: 'trade' }
+          }));
+        };
+        
+        wsKraken.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            // Los trades vienen como array: [channelID, [[price, volume, time, side, orderType, misc]], "trade", "XRP/USD"]
+            if (Array.isArray(data) && data[2] === 'trade') {
+              const trades = data[1];
+              trades.forEach(trade => {
+                const price = parseFloat(trade[0]);
+                const qty = parseFloat(trade[1]);
+                const isBuy = trade[3] === 'b';
+                
+                if (qty >= CONFIG.WHALE_THRESHOLD) {
+                  addWhaleAlert(qty, price, isBuy, 'KRAKEN');
+                  if (isBuy) state.whaleBuyVol += qty;
+                  else state.whaleSellVol += qty;
+                }
+              });
+            }
+          } catch (e) {}
+        };
+        
+        wsKraken.onerror = () => console.log('Kraken WebSocket error');
+        wsKraken.onclose = () => setTimeout(connectKraken, 10000);
+      } catch (e) {
+        console.log('Kraken connection failed');
+      }
+    }
+
+    // BITSTAMP WebSocket
+    let wsBitstamp;
+    function connectBitstamp() {
+      try {
+        wsBitstamp = new WebSocket('wss://ws.bitstamp.net');
+        
+        wsBitstamp.onopen = () => {
+          console.log('Bitstamp WebSocket connected');
+          // Suscribirse a live trades de XRP/USD
+          wsBitstamp.send(JSON.stringify({
+            event: 'bts:subscribe',
+            data: { channel: 'live_trades_xrpusd' }
+          }));
+        };
+        
+        wsBitstamp.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.event === 'trade' && msg.data) {
+              const price = parseFloat(msg.data.price);
+              const qty = parseFloat(msg.data.amount);
+              const isBuy = msg.data.type === 0; // 0 = buy, 1 = sell
+              
+              if (qty >= CONFIG.WHALE_THRESHOLD) {
+                addWhaleAlert(qty, price, isBuy, 'BITSTAMP');
+                if (isBuy) state.whaleBuyVol += qty;
+                else state.whaleSellVol += qty;
+              }
+            }
+          } catch (e) {}
+        };
+        
+        wsBitstamp.onerror = () => console.log('Bitstamp WebSocket error');
+        wsBitstamp.onclose = () => setTimeout(connectBitstamp, 10000);
+      } catch (e) {
+        console.log('Bitstamp connection failed');
+      }
+    }
+
+    // BYBIT WebSocket  
+    let wsBybit;
+    function connectBybit() {
+      try {
+        wsBybit = new WebSocket('wss://stream.bybit.com/v5/public/spot');
+        
+        wsBybit.onopen = () => {
+          console.log('Bybit WebSocket connected');
+          // Suscribirse a trades de XRPUSDT
+          wsBybit.send(JSON.stringify({
+            op: 'subscribe',
+            args: ['publicTrade.XRPUSDT']
+          }));
+        };
+        
+        wsBybit.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.topic === 'publicTrade.XRPUSDT' && msg.data) {
+              msg.data.forEach(trade => {
+                const price = parseFloat(trade.p);
+                const qty = parseFloat(trade.v);
+                const isBuy = trade.S === 'Buy';
+                
+                if (qty >= CONFIG.WHALE_THRESHOLD) {
+                  addWhaleAlert(qty, price, isBuy, 'BYBIT');
+                  if (isBuy) state.whaleBuyVol += qty;
+                  else state.whaleSellVol += qty;
+                }
+              });
+            }
+          } catch (e) {}
+        };
+        
+        wsBybit.onerror = () => console.log('Bybit WebSocket error');
+        wsBybit.onclose = () => setTimeout(connectBybit, 10000);
+      } catch (e) {
+        console.log('Bybit connection failed');
+      }
+    }
+
+    // COINBASE WebSocket
+    let wsCoinbase;
+    function connectCoinbase() {
+      try {
+        wsCoinbase = new WebSocket('wss://ws-feed.exchange.coinbase.com');
+        
+        wsCoinbase.onopen = () => {
+          console.log('Coinbase WebSocket connected');
+          // Suscribirse a trades de XRP-USD
+          wsCoinbase.send(JSON.stringify({
+            type: 'subscribe',
+            product_ids: ['XRP-USD'],
+            channels: ['matches']
+          }));
+        };
+        
+        wsCoinbase.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'match' || data.type === 'last_match') {
+              const price = parseFloat(data.price);
+              const qty = parseFloat(data.size);
+              const isBuy = data.side === 'buy';
+              
+              if (qty >= CONFIG.WHALE_THRESHOLD) {
+                addWhaleAlert(qty, price, isBuy, 'COINBASE');
+                if (isBuy) state.whaleBuyVol += qty;
+                else state.whaleSellVol += qty;
+              }
+            }
+          } catch (e) {}
+        };
+        
+        wsCoinbase.onerror = () => console.log('Coinbase WebSocket error');
+        wsCoinbase.onclose = () => setTimeout(connectCoinbase, 10000);
+      } catch (e) {
+        console.log('Coinbase connection failed');
+      }
+    }
+
+    // CRYPTO.COM WebSocket
+    let wsCryptoCom;
+    function connectCryptoCom() {
+      try {
+        wsCryptoCom = new WebSocket('wss://stream.crypto.com/v2/market');
+        
+        wsCryptoCom.onopen = () => {
+          console.log('Crypto.com WebSocket connected');
+          // Suscribirse a trades de XRP_USD
+          wsCryptoCom.send(JSON.stringify({
+            id: 1,
+            method: 'subscribe',
+            params: {
+              channels: ['trade.XRP_USD']
+            }
+          }));
+        };
+        
+        wsCryptoCom.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.method === 'subscribe' && msg.result && msg.result.data) {
+              msg.result.data.forEach(trade => {
+                const price = parseFloat(trade.p);
+                const qty = parseFloat(trade.q);
+                const isBuy = trade.s === 'BUY';
+                
+                if (qty >= CONFIG.WHALE_THRESHOLD) {
+                  addWhaleAlert(qty, price, isBuy, 'CRYPTO.COM');
+                  if (isBuy) state.whaleBuyVol += qty;
+                  else state.whaleSellVol += qty;
+                }
+              });
+            }
+          } catch (e) {}
+        };
+        
+        wsCryptoCom.onerror = () => console.log('Crypto.com WebSocket error');
+        wsCryptoCom.onclose = () => setTimeout(connectCryptoCom, 10000);
+      } catch (e) {
+        console.log('Crypto.com connection failed');
+      }
+    }
 
   </script>
 
