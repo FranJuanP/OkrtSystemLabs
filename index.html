@@ -1466,18 +1466,55 @@
     <div class="side-left">
       <div class="panel" style="flex:1.3">
         <div class="panel-head">
-          🧠 PREDICTIVE ENGINE V3 
+          🧠 AI ENGINE v2.0 
           <span class="pulse" style="color:var(--accent-green)">●</span>
         </div>
         
         <div class="prediction-box">
-          <div style="font-size:9px; text-transform:uppercase; color:var(--text-dim)">Ensemble Target (5min)</div>
+          <!-- Market Regime -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:6px 8px; background:rgba(0,212,255,0.08); border-radius:6px;">
+            <div>
+              <div style="font-size:8px; text-transform:uppercase; color:var(--text-dim);">MARKET REGIME</div>
+              <div id="marketRegime" style="font-size:14px; font-weight:bold; color:var(--accent-cyan);">ANALYZING...</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:8px; text-transform:uppercase; color:var(--text-dim);">SIGNAL QUALITY</div>
+              <div id="signalQuality" style="font-size:14px; font-weight:bold; color:var(--accent-green);">--%</div>
+            </div>
+          </div>
+          
+          <!-- Probability Display -->
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <div style="text-align:center; flex:1;">
+              <div style="font-size:8px; color:var(--accent-green);">▲ BULL</div>
+              <div id="probBull" style="font-size:20px; font-weight:bold; color:var(--accent-green);">50%</div>
+            </div>
+            <div style="text-align:center; flex:1;">
+              <div style="font-size:8px; color:var(--accent-red);">▼ BEAR</div>
+              <div id="probBear" style="font-size:20px; font-weight:bold; color:var(--accent-red);">50%</div>
+            </div>
+          </div>
+          
+          <!-- Target Price -->
+          <div style="font-size:9px; text-transform:uppercase; color:var(--text-dim)">AI Target Price</div>
           <div id="aiTarget" style="font-size:26px; font-weight:bold; color:var(--accent-cyan); margin:4px 0;">Calculating...</div>
           <div style="font-size:10px;">
             Confidence: <span id="confLevel" style="color:var(--accent-green)">--%</span>
             <span style="margin-left:10px;">Accuracy: <span id="modelAccuracy">--%</span></span>
           </div>
           <div class="accuracy-bar"><div id="accuracyBar" class="accuracy-fill" style="width:0%"></div></div>
+          
+          <!-- Confluence Counter -->
+          <div style="display:flex; justify-content:space-around; margin-top:8px; padding:6px; background:rgba(168,85,247,0.08); border-radius:6px;">
+            <div style="text-align:center;">
+              <div style="font-size:8px; color:var(--text-dim);">CONFLUENCES</div>
+              <div id="confluenceCount" style="font-size:16px; font-weight:bold; color:var(--accent-purple);">0</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:8px; color:var(--text-dim);">NOISE LVL</div>
+              <div id="noiseLevel" style="font-size:16px; font-weight:bold; color:var(--accent-orange);">--%</div>
+            </div>
+          </div>
           
           <!-- Mini gráfico de historial de predicciones -->
           <div style="margin-top:5px;">
@@ -2063,7 +2100,14 @@
       divergenceBadge: document.getElementById('divergenceBadge'),
       patternsContainer: document.getElementById('patternsContainer'),
       etfAum: document.getElementById('etfAum'),
-      xrpLocked: document.getElementById('xrpLocked')
+      xrpLocked: document.getElementById('xrpLocked'),
+      // AI Engine v2 elements
+      marketRegime: document.getElementById('marketRegime'),
+      signalQuality: document.getElementById('signalQuality'),
+      probBull: document.getElementById('probBull'),
+      probBear: document.getElementById('probBear'),
+      confluenceCount: document.getElementById('confluenceCount'),
+      noiseLevel: document.getElementById('noiseLevel')
     };
 
     // --- TAB SWITCH ---
@@ -2778,7 +2822,555 @@
     }
 
     // ============================================
-    // MAIN PREDICTION ENGINE
+    // AI ENGINE v2.0 - ADVANCED PREDICTIVE SYSTEM
+    // ============================================
+    
+    // Estado del motor AI
+    const aiState = {
+      marketRegime: 'unknown',        // trending_up, trending_down, ranging, volatile
+      regimeStrength: 0,              // 0-100
+      supportLevels: [],              // Niveles de soporte dinámicos
+      resistanceLevels: [],           // Niveles de resistencia dinámicos
+      signalQuality: 0,               // 0-100 calidad de la señal actual
+      confluenceScore: 0,             // Número de indicadores en confluencia
+      probabilityBull: 50,            // Probabilidad alcista %
+      probabilityBear: 50,            // Probabilidad bajista %
+      noiseLevel: 0,                  // Nivel de ruido del mercado
+      lastSignals: [],                // Historial de señales para backtesting
+      predictionAccuracy: [],         // Tracking de precisión
+      volumeProfile: [],              // Perfil de volumen
+      priceAction: {                  // Análisis de price action
+        higherHighs: 0,
+        lowerLows: 0,
+        swingHigh: 0,
+        swingLow: 0
+      }
+    };
+
+    // ============================================
+    // 1. MARKET REGIME DETECTION
+    // ============================================
+    
+    function detectMarketRegime(candles, closes) {
+      if (candles.length < 50) return { regime: 'unknown', strength: 0, details: {} };
+      
+      // Calcular EMAs para tendencia
+      const ema20 = calcEMA(closes, 20);
+      const ema50 = calcEMA(closes, 50);
+      const currentPrice = closes[closes.length - 1];
+      
+      // Calcular ATR para volatilidad
+      const atr = calcATR(candles, 14);
+      const avgPrice = closes.slice(-20).reduce((a,b) => a+b, 0) / 20;
+      const atrPercent = (atr / avgPrice) * 100;
+      
+      // Calcular ADX para fuerza de tendencia
+      const adx = calcADX(candles, 14);
+      
+      // Analizar estructura de precios (higher highs, lower lows)
+      let higherHighs = 0, lowerLows = 0;
+      const recentCandles = candles.slice(-20);
+      
+      for (let i = 2; i < recentCandles.length; i++) {
+        if (recentCandles[i].high > recentCandles[i-1].high && recentCandles[i-1].high > recentCandles[i-2].high) {
+          higherHighs++;
+        }
+        if (recentCandles[i].low < recentCandles[i-1].low && recentCandles[i-1].low < recentCandles[i-2].low) {
+          lowerLows++;
+        }
+      }
+      
+      // Calcular pendiente de precio
+      const priceSlope = (closes[closes.length-1] - closes[closes.length-20]) / closes[closes.length-20] * 100;
+      
+      // Determinar régimen
+      let regime = 'ranging';
+      let strength = 0;
+      let details = {
+        emaAlignment: ema20 > ema50 ? 'bullish' : 'bearish',
+        atrPercent: atrPercent.toFixed(2),
+        adxValue: adx ? adx.adx.toFixed(1) : 0,
+        priceSlope: priceSlope.toFixed(2),
+        higherHighs,
+        lowerLows
+      };
+      
+      // Alta volatilidad = mercado volátil
+      if (atrPercent > 3) {
+        regime = 'volatile';
+        strength = Math.min(100, atrPercent * 20);
+      }
+      // ADX alto + estructura clara = tendencia
+      else if (adx && adx.adx > 25) {
+        if (ema20 > ema50 && higherHighs >= 3 && currentPrice > ema20) {
+          regime = 'trending_up';
+          strength = Math.min(100, adx.adx * 2 + higherHighs * 10);
+        } else if (ema20 < ema50 && lowerLows >= 3 && currentPrice < ema20) {
+          regime = 'trending_down';
+          strength = Math.min(100, adx.adx * 2 + lowerLows * 10);
+        } else if (adx.plusDI > adx.minusDI + 10) {
+          regime = 'trending_up';
+          strength = Math.min(100, (adx.plusDI - adx.minusDI) * 3);
+        } else if (adx.minusDI > adx.plusDI + 10) {
+          regime = 'trending_down';
+          strength = Math.min(100, (adx.minusDI - adx.plusDI) * 3);
+        }
+      }
+      // ADX bajo = rango/consolidación
+      else {
+        regime = 'ranging';
+        strength = Math.max(0, 100 - (adx ? adx.adx * 3 : 50));
+      }
+      
+      aiState.priceAction = { higherHighs, lowerLows, swingHigh: Math.max(...recentCandles.map(c => c.high)), swingLow: Math.min(...recentCandles.map(c => c.low)) };
+      
+      return { regime, strength, details };
+    }
+
+    // ============================================
+    // 2. SUPPORT & RESISTANCE DETECTION
+    // ============================================
+    
+    function detectSupportResistance(candles) {
+      if (candles.length < 50) return { supports: [], resistances: [] };
+      
+      const supports = [];
+      const resistances = [];
+      const lookback = Math.min(candles.length, 100);
+      const recentCandles = candles.slice(-lookback);
+      
+      // Método 1: Pivot Points
+      const pivotCandles = recentCandles.slice(-20);
+      for (let i = 2; i < pivotCandles.length - 2; i++) {
+        const candle = pivotCandles[i];
+        const prevHigh = Math.max(pivotCandles[i-1].high, pivotCandles[i-2].high);
+        const nextHigh = Math.max(pivotCandles[i+1].high, pivotCandles[i+2].high);
+        const prevLow = Math.min(pivotCandles[i-1].low, pivotCandles[i-2].low);
+        const nextLow = Math.min(pivotCandles[i+1].low, pivotCandles[i+2].low);
+        
+        if (candle.high > prevHigh && candle.high > nextHigh) {
+          resistances.push({ price: candle.high, strength: 1, type: 'pivot' });
+        }
+        if (candle.low < prevLow && candle.low < nextLow) {
+          supports.push({ price: candle.low, strength: 1, type: 'pivot' });
+        }
+      }
+      
+      // Método 2: Volume Profile (zonas de alto volumen)
+      const priceRange = Math.max(...recentCandles.map(c => c.high)) - Math.min(...recentCandles.map(c => c.low));
+      const bucketSize = priceRange / 20;
+      const volumeProfile = {};
+      
+      recentCandles.forEach(c => {
+        const bucket = Math.floor((c.close - Math.min(...recentCandles.map(x => x.low))) / bucketSize);
+        volumeProfile[bucket] = (volumeProfile[bucket] || 0) + c.volume;
+      });
+      
+      // Encontrar High Volume Nodes (HVN)
+      const avgVolume = Object.values(volumeProfile).reduce((a,b) => a+b, 0) / Object.keys(volumeProfile).length;
+      Object.entries(volumeProfile).forEach(([bucket, vol]) => {
+        if (vol > avgVolume * 1.5) {
+          const price = Math.min(...recentCandles.map(c => c.low)) + (parseInt(bucket) + 0.5) * bucketSize;
+          const currentPrice = candles[candles.length-1].close;
+          if (price < currentPrice) {
+            supports.push({ price, strength: vol / avgVolume, type: 'volume' });
+          } else {
+            resistances.push({ price, strength: vol / avgVolume, type: 'volume' });
+          }
+        }
+      });
+      
+      // Método 3: Round Numbers (niveles psicológicos)
+      const currentPrice = candles[candles.length-1].close;
+      const roundInterval = currentPrice > 1 ? 0.1 : currentPrice > 0.1 ? 0.01 : 0.001;
+      const nearestRound = Math.round(currentPrice / roundInterval) * roundInterval;
+      
+      for (let i = -3; i <= 3; i++) {
+        if (i === 0) continue;
+        const level = nearestRound + (i * roundInterval);
+        if (level < currentPrice) {
+          supports.push({ price: level, strength: 0.5, type: 'psychological' });
+        } else {
+          resistances.push({ price: level, strength: 0.5, type: 'psychological' });
+        }
+      }
+      
+      // Consolidar niveles cercanos
+      const consolidate = (levels) => {
+        const consolidated = [];
+        const sorted = levels.sort((a, b) => a.price - b.price);
+        
+        sorted.forEach(level => {
+          const existing = consolidated.find(l => Math.abs(l.price - level.price) / level.price < 0.005);
+          if (existing) {
+            existing.strength += level.strength;
+            existing.touches = (existing.touches || 1) + 1;
+          } else {
+            consolidated.push({ ...level, touches: 1 });
+          }
+        });
+        
+        return consolidated.sort((a, b) => b.strength - a.strength).slice(0, 5);
+      };
+      
+      return {
+        supports: consolidate(supports),
+        resistances: consolidate(resistances)
+      };
+    }
+
+    // ============================================
+    // 3. CONFLUENCE ANALYSIS
+    // ============================================
+    
+    function analyzeConfluence(indicators) {
+      const bullishSignals = [];
+      const bearishSignals = [];
+      const neutralSignals = [];
+      
+      // RSI
+      if (indicators.rsi !== null) {
+        if (indicators.rsi < 30) bullishSignals.push({ name: 'RSI Oversold', weight: 1.5, value: indicators.rsi });
+        else if (indicators.rsi > 70) bearishSignals.push({ name: 'RSI Overbought', weight: 1.5, value: indicators.rsi });
+        else if (indicators.rsi > 50) bullishSignals.push({ name: 'RSI Bullish', weight: 0.5, value: indicators.rsi });
+        else bearishSignals.push({ name: 'RSI Bearish', weight: 0.5, value: indicators.rsi });
+      }
+      
+      // MACD
+      if (indicators.macd) {
+        if (indicators.macd.histogram > 0 && indicators.macd.macd > indicators.macd.signal) {
+          bullishSignals.push({ name: 'MACD Bullish', weight: 1.3, value: indicators.macd.histogram });
+        } else if (indicators.macd.histogram < 0 && indicators.macd.macd < indicators.macd.signal) {
+          bearishSignals.push({ name: 'MACD Bearish', weight: 1.3, value: indicators.macd.histogram });
+        }
+        // MACD Crossover detection
+        if (indicators.macdPrev && indicators.macd.macd > indicators.macd.signal && indicators.macdPrev.macd <= indicators.macdPrev.signal) {
+          bullishSignals.push({ name: 'MACD Cross Up', weight: 2, value: 'crossover' });
+        } else if (indicators.macdPrev && indicators.macd.macd < indicators.macd.signal && indicators.macdPrev.macd >= indicators.macdPrev.signal) {
+          bearishSignals.push({ name: 'MACD Cross Down', weight: 2, value: 'crossover' });
+        }
+      }
+      
+      // EMA Cross
+      if (indicators.emaFast && indicators.emaSlow) {
+        if (indicators.emaFast > indicators.emaSlow) {
+          bullishSignals.push({ name: 'EMA Bullish', weight: 1.2, value: (indicators.emaFast - indicators.emaSlow) / indicators.emaSlow * 100 });
+        } else {
+          bearishSignals.push({ name: 'EMA Bearish', weight: 1.2, value: (indicators.emaFast - indicators.emaSlow) / indicators.emaSlow * 100 });
+        }
+      }
+      
+      // Bollinger Bands
+      if (indicators.bb) {
+        if (indicators.currentPrice < indicators.bb.lower) {
+          bullishSignals.push({ name: 'BB Oversold', weight: 1.4, value: 'below lower' });
+        } else if (indicators.currentPrice > indicators.bb.upper) {
+          bearishSignals.push({ name: 'BB Overbought', weight: 1.4, value: 'above upper' });
+        }
+      }
+      
+      // Stochastic RSI
+      if (indicators.stochRSI !== null) {
+        if (indicators.stochRSI < 20) bullishSignals.push({ name: 'StochRSI Oversold', weight: 1.1, value: indicators.stochRSI });
+        else if (indicators.stochRSI > 80) bearishSignals.push({ name: 'StochRSI Overbought', weight: 1.1, value: indicators.stochRSI });
+      }
+      
+      // Williams %R
+      if (indicators.willR !== null) {
+        if (indicators.willR < -80) bullishSignals.push({ name: 'Williams %R Oversold', weight: 0.9, value: indicators.willR });
+        else if (indicators.willR > -20) bearishSignals.push({ name: 'Williams %R Overbought', weight: 0.9, value: indicators.willR });
+      }
+      
+      // OBV Trend
+      if (indicators.obv && indicators.obv.trend === 'bullish') {
+        bullishSignals.push({ name: 'OBV Bullish', weight: 1.0, value: indicators.obv.obv });
+      } else if (indicators.obv && indicators.obv.trend === 'bearish') {
+        bearishSignals.push({ name: 'OBV Bearish', weight: 1.0, value: indicators.obv.obv });
+      }
+      
+      // VWAP
+      if (indicators.vwap) {
+        if (indicators.currentPrice > indicators.vwap * 1.005) {
+          bullishSignals.push({ name: 'Above VWAP', weight: 1.0, value: indicators.vwap });
+        } else if (indicators.currentPrice < indicators.vwap * 0.995) {
+          bearishSignals.push({ name: 'Below VWAP', weight: 1.0, value: indicators.vwap });
+        }
+      }
+      
+      // ADX Trend Strength
+      if (indicators.adx && indicators.adx.adx > 25) {
+        if (indicators.adx.plusDI > indicators.adx.minusDI) {
+          bullishSignals.push({ name: 'ADX Bullish', weight: 1.3, value: indicators.adx.adx });
+        } else {
+          bearishSignals.push({ name: 'ADX Bearish', weight: 1.3, value: indicators.adx.adx });
+        }
+      }
+      
+      // RSI Divergence
+      if (indicators.divergence === 'bullish') {
+        bullishSignals.push({ name: 'RSI Bull Divergence', weight: 2.5, value: 'divergence' });
+      } else if (indicators.divergence === 'bearish') {
+        bearishSignals.push({ name: 'RSI Bear Divergence', weight: 2.5, value: 'divergence' });
+      }
+      
+      // CVD
+      if (indicators.cvd > 20000) bullishSignals.push({ name: 'CVD Bullish', weight: 0.8, value: indicators.cvd });
+      else if (indicators.cvd < -20000) bearishSignals.push({ name: 'CVD Bearish', weight: 0.8, value: indicators.cvd });
+      
+      // Whale Flow
+      if (indicators.whaleFlow > 100000) bullishSignals.push({ name: 'Whale Accumulation', weight: 1.5, value: indicators.whaleFlow });
+      else if (indicators.whaleFlow < -100000) bearishSignals.push({ name: 'Whale Distribution', weight: 1.5, value: indicators.whaleFlow });
+      
+      // Candle Patterns
+      if (indicators.patterns) {
+        indicators.patterns.forEach(p => {
+          if (p.type === 'bullish') bullishSignals.push({ name: p.name, weight: 0.7, value: 'pattern' });
+          else if (p.type === 'bearish') bearishSignals.push({ name: p.name, weight: 0.7, value: 'pattern' });
+        });
+      }
+      
+      // Calcular peso total
+      const bullWeight = bullishSignals.reduce((sum, s) => sum + s.weight, 0);
+      const bearWeight = bearishSignals.reduce((sum, s) => sum + s.weight, 0);
+      const totalWeight = bullWeight + bearWeight;
+      
+      // Calcular confluencia (señales en la misma dirección)
+      const maxConfluence = Math.max(bullishSignals.length, bearishSignals.length);
+      const confluenceRatio = maxConfluence / (bullishSignals.length + bearishSignals.length + neutralSignals.length || 1);
+      
+      return {
+        bullishSignals,
+        bearishSignals,
+        neutralSignals,
+        bullWeight,
+        bearWeight,
+        totalWeight,
+        confluenceCount: maxConfluence,
+        confluenceRatio,
+        dominantDirection: bullWeight > bearWeight ? 'bullish' : bearWeight > bullWeight ? 'bearish' : 'neutral'
+      };
+    }
+
+    // ============================================
+    // 4. PROBABILITY CALCULATION
+    // ============================================
+    
+    function calculateProbability(confluence, regime, srLevels, currentPrice, atr) {
+      let baseProbBull = 50;
+      let baseProbBear = 50;
+      
+      // Ajuste por confluencia de indicadores
+      const totalWeight = confluence.totalWeight || 1;
+      const bullRatio = confluence.bullWeight / totalWeight;
+      const bearRatio = confluence.bearWeight / totalWeight;
+      
+      baseProbBull = bullRatio * 100;
+      baseProbBear = bearRatio * 100;
+      
+      // Ajuste por régimen de mercado
+      if (regime.regime === 'trending_up') {
+        baseProbBull += regime.strength * 0.15;
+        baseProbBear -= regime.strength * 0.1;
+      } else if (regime.regime === 'trending_down') {
+        baseProbBear += regime.strength * 0.15;
+        baseProbBull -= regime.strength * 0.1;
+      } else if (regime.regime === 'volatile') {
+        // En mercado volátil, reducir certeza
+        baseProbBull = 50 + (baseProbBull - 50) * 0.7;
+        baseProbBear = 50 + (baseProbBear - 50) * 0.7;
+      }
+      
+      // Ajuste por proximidad a S/R
+      if (srLevels.supports.length > 0) {
+        const nearestSupport = srLevels.supports.reduce((a, b) => 
+          Math.abs(b.price - currentPrice) < Math.abs(a.price - currentPrice) ? b : a
+        );
+        const distanceToSupport = (currentPrice - nearestSupport.price) / atr;
+        
+        if (distanceToSupport > 0 && distanceToSupport < 1) {
+          // Cerca del soporte - más probable rebote alcista
+          baseProbBull += (1 - distanceToSupport) * 10 * nearestSupport.strength;
+        }
+      }
+      
+      if (srLevels.resistances.length > 0) {
+        const nearestResistance = srLevels.resistances.reduce((a, b) => 
+          Math.abs(b.price - currentPrice) < Math.abs(a.price - currentPrice) ? b : a
+        );
+        const distanceToResistance = (nearestResistance.price - currentPrice) / atr;
+        
+        if (distanceToResistance > 0 && distanceToResistance < 1) {
+          // Cerca de resistencia - más probable rechazo bajista
+          baseProbBear += (1 - distanceToResistance) * 10 * nearestResistance.strength;
+        }
+      }
+      
+      // Ajuste por número de confluencias
+      const confluenceBonus = Math.min(15, confluence.confluenceCount * 2);
+      if (confluence.dominantDirection === 'bullish') {
+        baseProbBull += confluenceBonus;
+      } else if (confluence.dominantDirection === 'bearish') {
+        baseProbBear += confluenceBonus;
+      }
+      
+      // Normalizar a 100%
+      const total = baseProbBull + baseProbBear;
+      baseProbBull = (baseProbBull / total) * 100;
+      baseProbBear = (baseProbBear / total) * 100;
+      
+      // Limitar extremos (nunca 100% o 0%)
+      baseProbBull = Math.max(5, Math.min(95, baseProbBull));
+      baseProbBear = 100 - baseProbBull;
+      
+      return {
+        bullish: baseProbBull,
+        bearish: baseProbBear,
+        confidence: Math.abs(baseProbBull - 50) * 2 // 0-100, mayor = más confianza
+      };
+    }
+
+    // ============================================
+    // 5. NOISE FILTER
+    // ============================================
+    
+    function calculateNoiseLevel(candles, atr, volume) {
+      if (candles.length < 20) return 50;
+      
+      const recentCandles = candles.slice(-20);
+      
+      // Factor 1: Relación body/wick (muchas mechas = ruido)
+      let wickRatio = 0;
+      recentCandles.forEach(c => {
+        const body = Math.abs(c.close - c.open);
+        const totalRange = c.high - c.low;
+        if (totalRange > 0) {
+          wickRatio += (totalRange - body) / totalRange;
+        }
+      });
+      wickRatio /= recentCandles.length;
+      
+      // Factor 2: Cambios de dirección frecuentes
+      let directionChanges = 0;
+      for (let i = 1; i < recentCandles.length; i++) {
+        const prevDir = recentCandles[i-1].close > recentCandles[i-1].open ? 1 : -1;
+        const currDir = recentCandles[i].close > recentCandles[i].open ? 1 : -1;
+        if (prevDir !== currDir) directionChanges++;
+      }
+      const directionChangeRatio = directionChanges / (recentCandles.length - 1);
+      
+      // Factor 3: Volumen bajo = más susceptible a ruido
+      const avgVolume = recentCandles.reduce((sum, c) => sum + c.volume, 0) / recentCandles.length;
+      const currentVolume = recentCandles[recentCandles.length - 1].volume;
+      const volumeRatio = currentVolume / avgVolume;
+      const lowVolumeNoise = volumeRatio < 0.5 ? 30 : volumeRatio < 0.8 ? 15 : 0;
+      
+      // Factor 4: ATR muy bajo = ruido de consolidación
+      const avgPrice = recentCandles.reduce((sum, c) => sum + c.close, 0) / recentCandles.length;
+      const atrPercent = (atr / avgPrice) * 100;
+      const lowVolatilityNoise = atrPercent < 0.5 ? 25 : atrPercent < 1 ? 10 : 0;
+      
+      // Calcular nivel de ruido total (0-100)
+      const noiseLevel = Math.min(100, 
+        (wickRatio * 40) + 
+        (directionChangeRatio * 30) + 
+        lowVolumeNoise + 
+        lowVolatilityNoise
+      );
+      
+      return {
+        level: noiseLevel,
+        isNoisy: noiseLevel > 50,
+        factors: {
+          wickRatio: (wickRatio * 100).toFixed(1) + '%',
+          directionChanges: directionChangeRatio.toFixed(2),
+          volumeRatio: volumeRatio.toFixed(2),
+          atrPercent: atrPercent.toFixed(3) + '%'
+        }
+      };
+    }
+
+    // ============================================
+    // 6. SIGNAL QUALITY SCORE
+    // ============================================
+    
+    function calculateSignalQuality(confluence, regime, noise, probability) {
+      let quality = 50;
+      
+      // +20 por alta confluencia
+      if (confluence.confluenceCount >= 6) quality += 20;
+      else if (confluence.confluenceCount >= 4) quality += 12;
+      else if (confluence.confluenceCount >= 3) quality += 5;
+      
+      // +15 por régimen claro
+      if (regime.regime !== 'ranging' && regime.regime !== 'volatile' && regime.strength > 60) {
+        quality += 15;
+      } else if (regime.regime === 'volatile') {
+        quality -= 10;
+      }
+      
+      // -20 por ruido alto
+      if (noise.level > 60) quality -= 20;
+      else if (noise.level > 40) quality -= 10;
+      else quality += 10;
+      
+      // +15 por probabilidad extrema
+      if (probability.confidence > 70) quality += 15;
+      else if (probability.confidence > 50) quality += 8;
+      
+      // +10 si hay divergencia RSI
+      if (confluence.bullishSignals.some(s => s.name.includes('Divergence')) ||
+          confluence.bearishSignals.some(s => s.name.includes('Divergence'))) {
+        quality += 10;
+      }
+      
+      return Math.max(0, Math.min(100, quality));
+    }
+
+    // ============================================
+    // 7. PRICE TARGET CALCULATION
+    // ============================================
+    
+    function calculatePriceTarget(currentPrice, atr, probability, regime, srLevels) {
+      const direction = probability.bullish > probability.bearish ? 1 : -1;
+      const confidence = probability.confidence / 100;
+      
+      // Base target: ATR-based
+      let baseMove = atr * (0.5 + confidence);
+      
+      // Ajuste por régimen
+      if (regime.regime === 'trending_up' && direction > 0) {
+        baseMove *= 1.3;
+      } else if (regime.regime === 'trending_down' && direction < 0) {
+        baseMove *= 1.3;
+      } else if (regime.regime === 'ranging') {
+        baseMove *= 0.6; // Movimientos más pequeños en rango
+      }
+      
+      let target = currentPrice + (baseMove * direction);
+      
+      // Ajustar target a niveles S/R cercanos
+      if (direction > 0 && srLevels.resistances.length > 0) {
+        const nearestResistance = srLevels.resistances.find(r => r.price > currentPrice);
+        if (nearestResistance && nearestResistance.price < target) {
+          target = nearestResistance.price * 0.998; // Justo antes de la resistencia
+        }
+      } else if (direction < 0 && srLevels.supports.length > 0) {
+        const nearestSupport = srLevels.supports.find(s => s.price < currentPrice);
+        if (nearestSupport && nearestSupport.price > target) {
+          target = nearestSupport.price * 1.002; // Justo antes del soporte
+        }
+      }
+      
+      return {
+        target,
+        direction: direction > 0 ? 'bullish' : 'bearish',
+        expectedMove: Math.abs(target - currentPrice),
+        expectedMovePercent: Math.abs((target - currentPrice) / currentPrice * 100)
+      };
+    }
+
+    // ============================================
+    // MAIN AI ENGINE v2
     // ============================================
 
     function runPredictionEngine(currentPrice) {
@@ -2788,269 +3380,217 @@
       }
 
       const closes = state.candles.map(c => c.close);
-      const signals = { bullish: 0, bearish: 0, neutral: 0 };
-      let totalWeight = 0;
-      let weightedScore = 0;
-
-      // Store price history for divergence
+      
+      // Store price history for divergence detection
       state.priceHistory.push(currentPrice);
       if (state.priceHistory.length > 50) state.priceHistory.shift();
 
-      // --- RSI ---
+      // ==========================================
+      // PHASE 1: Calculate All Indicators
+      // ==========================================
+      
       const rsi = calcRSI(closes, CONFIG.RSI_PERIOD);
       if (rsi !== null) {
         state.rsiHistory.push(rsi);
         if (state.rsiHistory.length > 50) state.rsiHistory.shift();
-        
+      }
+      
+      const macd = calcMACD(closes);
+      const stochRSI = calcStochRSI(closes, CONFIG.STOCH_PERIOD);
+      const willR = calcWilliamsR(state.candles, CONFIG.WILLR_PERIOD);
+      const bb = calcBollingerBands(closes, CONFIG.BB_PERIOD, CONFIG.BB_STD);
+      const emaFast = calcEMA(closes, CONFIG.EMA_FAST);
+      const emaSlow = calcEMA(closes, CONFIG.EMA_SLOW);
+      const adx = calcADX(state.candles, CONFIG.ADX_PERIOD);
+      const vwap = calcVWAP(state.candles);
+      const obv = calcOBV(state.candles);
+      const momentum = calcMomentum(closes, 10);
+      const atr = calcATR(state.candles, CONFIG.ATR_PERIOD);
+      const divergence = detectRSIDivergence(state.priceHistory, state.rsiHistory);
+      const patterns = detectCandlePatterns(state.candles);
+      const whaleFlow = state.whaleBuyVol - state.whaleSellVol;
+
+      // ==========================================
+      // PHASE 2: AI Analysis
+      // ==========================================
+      
+      // 2.1 Detect Market Regime
+      const regime = detectMarketRegime(state.candles, closes);
+      aiState.marketRegime = regime.regime;
+      aiState.regimeStrength = regime.strength;
+      
+      // 2.2 Detect Support/Resistance
+      const srLevels = detectSupportResistance(state.candles);
+      aiState.supportLevels = srLevels.supports;
+      aiState.resistanceLevels = srLevels.resistances;
+      
+      // 2.3 Calculate Confluence
+      const indicators = {
+        rsi, macd, stochRSI, willR, bb, emaFast, emaSlow, adx, vwap, obv,
+        momentum, divergence, patterns, currentPrice,
+        cvd: state.cvd, whaleFlow
+      };
+      const confluence = analyzeConfluence(indicators);
+      aiState.confluenceScore = confluence.confluenceCount;
+      
+      // 2.4 Calculate Noise Level
+      const avgVol = state.candles.slice(-20).reduce((s,c) => s + c.volume, 0) / 20;
+      const noise = calculateNoiseLevel(state.candles, atr || 0.001, avgVol);
+      aiState.noiseLevel = noise.level;
+      
+      // 2.5 Calculate Probability
+      const probability = calculateProbability(confluence, regime, srLevels, currentPrice, atr || 0.001);
+      aiState.probabilityBull = probability.bullish;
+      aiState.probabilityBear = probability.bearish;
+      
+      // 2.6 Calculate Signal Quality
+      const signalQuality = calculateSignalQuality(confluence, regime, noise, probability);
+      aiState.signalQuality = signalQuality;
+      
+      // 2.7 Calculate Price Target
+      const priceTarget = calculatePriceTarget(currentPrice, atr || 0.001, probability, regime, srLevels);
+
+      // ==========================================
+      // PHASE 3: Update UI - Indicators
+      // ==========================================
+      
+      // RSI
+      if (rsi !== null) {
         document.getElementById('rsiValue').innerText = rsi.toFixed(1);
         const rsiEl = document.getElementById('rsiSignal');
-        
-        if (rsi > 70) {
-          rsiEl.className = 'indicator-signal signal-sell'; rsiEl.innerText = 'OVERBOUGHT';
-          signals.bearish++; weightedScore -= 1;
-        } else if (rsi < 30) {
-          rsiEl.className = 'indicator-signal signal-buy'; rsiEl.innerText = 'OVERSOLD';
-          signals.bullish++; weightedScore += 1;
-        } else {
-          rsiEl.className = 'indicator-signal signal-neutral'; rsiEl.innerText = 'NEUTRAL';
-          signals.neutral++;
-        }
-        totalWeight++;
+        if (rsi > 70) { rsiEl.className = 'indicator-signal signal-sell'; rsiEl.innerText = 'OVERBOUGHT'; }
+        else if (rsi < 30) { rsiEl.className = 'indicator-signal signal-buy'; rsiEl.innerText = 'OVERSOLD'; }
+        else { rsiEl.className = 'indicator-signal signal-neutral'; rsiEl.innerText = 'NEUTRAL'; }
       }
 
-      // --- RSI DIVERGENCE ---
-      const divergence = detectRSIDivergence(state.priceHistory, state.rsiHistory);
+      // RSI Divergence
       const divEl = document.getElementById('divSignal');
       const divValEl = document.getElementById('divValue');
-      
       if (divergence === 'bullish') {
         divEl.className = 'indicator-signal signal-buy'; divEl.innerText = 'BULLISH';
         divValEl.innerText = '↗ DETECTED';
-        signals.bullish++; weightedScore += 2;
-        totalWeight += 2;
         ui.divergenceBadge.style.display = 'block';
         ui.divergenceBadge.className = 'divergence-badge div-bullish';
         ui.divergenceBadge.innerText = '↗ BULL DIV';
-        addAlert('RSI BULLISH DIVERGENCE detected!', 'bullish');
       } else if (divergence === 'bearish') {
         divEl.className = 'indicator-signal signal-sell'; divEl.innerText = 'BEARISH';
         divValEl.innerText = '↘ DETECTED';
-        signals.bearish++; weightedScore -= 2;
-        totalWeight += 2;
         ui.divergenceBadge.style.display = 'block';
         ui.divergenceBadge.className = 'divergence-badge div-bearish';
         ui.divergenceBadge.innerText = '↘ BEAR DIV';
-        addAlert('RSI BEARISH DIVERGENCE detected!', 'bearish');
       } else {
         divEl.className = 'indicator-signal signal-neutral'; divEl.innerText = 'NONE';
         divValEl.innerText = 'No signal';
         ui.divergenceBadge.style.display = 'none';
       }
 
-      // --- MACD ---
-      const macd = calcMACD(closes);
+      // MACD
       if (macd.macd !== null) {
         document.getElementById('macdValue').innerText = macd.histogram.toFixed(5);
         const macdEl = document.getElementById('macdSignal');
-        
         if (macd.histogram > 0 && macd.macd > macd.signal) {
           macdEl.className = 'indicator-signal signal-buy'; macdEl.innerText = 'BULLISH';
-          signals.bullish++; weightedScore += 1.5;
         } else if (macd.histogram < 0 && macd.macd < macd.signal) {
           macdEl.className = 'indicator-signal signal-sell'; macdEl.innerText = 'BEARISH';
-          signals.bearish++; weightedScore -= 1.5;
         } else {
           macdEl.className = 'indicator-signal signal-neutral'; macdEl.innerText = 'CROSSING';
-          signals.neutral++;
         }
-        totalWeight += 1.5;
       }
 
-      // --- Stochastic RSI ---
-      const stochRSI = calcStochRSI(closes, CONFIG.STOCH_PERIOD);
+      // Stochastic RSI
       if (stochRSI !== null) {
         document.getElementById('stochValue').innerText = stochRSI.toFixed(1);
         const stochEl = document.getElementById('stochSignal');
-        
-        if (stochRSI > 80) {
-          stochEl.className = 'indicator-signal signal-sell'; stochEl.innerText = 'OVERBOUGHT';
-          signals.bearish++; weightedScore -= 1;
-        } else if (stochRSI < 20) {
-          stochEl.className = 'indicator-signal signal-buy'; stochEl.innerText = 'OVERSOLD';
-          signals.bullish++; weightedScore += 1;
-        } else {
-          stochEl.className = 'indicator-signal signal-neutral'; stochEl.innerText = 'NEUTRAL';
-          signals.neutral++;
-        }
-        totalWeight++;
+        if (stochRSI > 80) { stochEl.className = 'indicator-signal signal-sell'; stochEl.innerText = 'OVERBOUGHT'; }
+        else if (stochRSI < 20) { stochEl.className = 'indicator-signal signal-buy'; stochEl.innerText = 'OVERSOLD'; }
+        else { stochEl.className = 'indicator-signal signal-neutral'; stochEl.innerText = 'NEUTRAL'; }
       }
 
-      // --- Williams %R ---
-      const willR = calcWilliamsR(state.candles, CONFIG.WILLR_PERIOD);
+      // Williams %R
       if (willR !== null) {
         document.getElementById('willrValue').innerText = willR.toFixed(1);
         const willEl = document.getElementById('willrSignal');
-        
-        if (willR > -20) {
-          willEl.className = 'indicator-signal signal-sell'; willEl.innerText = 'OVERBOUGHT';
-          signals.bearish++; weightedScore -= 0.8;
-        } else if (willR < -80) {
-          willEl.className = 'indicator-signal signal-buy'; willEl.innerText = 'OVERSOLD';
-          signals.bullish++; weightedScore += 0.8;
-        } else {
-          willEl.className = 'indicator-signal signal-neutral'; willEl.innerText = 'NEUTRAL';
-          signals.neutral++;
-        }
-        totalWeight += 0.8;
+        if (willR > -20) { willEl.className = 'indicator-signal signal-sell'; willEl.innerText = 'OVERBOUGHT'; }
+        else if (willR < -80) { willEl.className = 'indicator-signal signal-buy'; willEl.innerText = 'OVERSOLD'; }
+        else { willEl.className = 'indicator-signal signal-neutral'; willEl.innerText = 'NEUTRAL'; }
       }
 
-      // --- Bollinger Bands ---
-      const bb = calcBollingerBands(closes, CONFIG.BB_PERIOD, CONFIG.BB_STD);
+      // Bollinger Bands
       if (bb) {
         const bbPosition = ((currentPrice - bb.lower) / (bb.upper - bb.lower)) * 100;
         document.getElementById('bbValue').innerText = bbPosition.toFixed(0) + '%';
         const bbEl = document.getElementById('bbSignal');
-        
-        if (currentPrice > bb.upper) {
-          bbEl.className = 'indicator-signal signal-sell'; bbEl.innerText = 'ABOVE';
-          signals.bearish++; weightedScore -= 1.2;
-        } else if (currentPrice < bb.lower) {
-          bbEl.className = 'indicator-signal signal-buy'; bbEl.innerText = 'BELOW';
-          signals.bullish++; weightedScore += 1.2;
-        } else {
-          bbEl.className = 'indicator-signal signal-neutral'; bbEl.innerText = 'IN BAND';
-          signals.neutral++;
-        }
-        totalWeight += 1.2;
+        if (currentPrice > bb.upper) { bbEl.className = 'indicator-signal signal-sell'; bbEl.innerText = 'ABOVE'; }
+        else if (currentPrice < bb.lower) { bbEl.className = 'indicator-signal signal-buy'; bbEl.innerText = 'BELOW'; }
+        else { bbEl.className = 'indicator-signal signal-neutral'; bbEl.innerText = 'IN BAND'; }
       }
 
-      // --- EMA Cross ---
-      const emaFast = calcEMA(closes, CONFIG.EMA_FAST);
-      const emaSlow = calcEMA(closes, CONFIG.EMA_SLOW);
+      // EMA Cross
       if (emaFast && emaSlow) {
         const emaDiff = ((emaFast - emaSlow) / emaSlow) * 100;
         document.getElementById('emaValue').innerText = emaDiff.toFixed(3) + '%';
         const emaEl = document.getElementById('emaSignal');
-        
         if (emaFast > emaSlow && currentPrice > emaFast) {
           emaEl.className = 'indicator-signal signal-buy'; emaEl.innerText = 'BULLISH';
-          signals.bullish++; weightedScore += 1.3;
         } else if (emaFast < emaSlow && currentPrice < emaFast) {
           emaEl.className = 'indicator-signal signal-sell'; emaEl.innerText = 'BEARISH';
-          signals.bearish++; weightedScore -= 1.3;
         } else {
           emaEl.className = 'indicator-signal signal-neutral'; emaEl.innerText = 'MIXED';
-          signals.neutral++;
         }
-        totalWeight += 1.3;
       }
 
-      // --- ADX ---
-      const adx = calcADX(state.candles, CONFIG.ADX_PERIOD);
+      // ADX
       if (adx) {
         document.getElementById('adxValue').innerText = adx.adx.toFixed(1);
         const adxEl = document.getElementById('adxSignal');
-        
         if (adx.adx > 25) {
-          if (adx.plusDI > adx.minusDI) {
-            adxEl.className = 'indicator-signal signal-buy'; adxEl.innerText = 'STRONG ↑';
-            signals.bullish++; weightedScore += 1;
-          } else {
-            adxEl.className = 'indicator-signal signal-sell'; adxEl.innerText = 'STRONG ↓';
-            signals.bearish++; weightedScore -= 1;
-          }
+          if (adx.plusDI > adx.minusDI) { adxEl.className = 'indicator-signal signal-buy'; adxEl.innerText = 'STRONG ↑'; }
+          else { adxEl.className = 'indicator-signal signal-sell'; adxEl.innerText = 'STRONG ↓'; }
         } else {
           adxEl.className = 'indicator-signal signal-neutral'; adxEl.innerText = 'WEAK';
-          signals.neutral++;
         }
-        totalWeight++;
       }
 
-      // --- VWAP ---
-      const vwap = calcVWAP(state.candles);
+      // VWAP
       if (vwap) {
         document.getElementById('vwapValue').innerText = vwap.toFixed(4);
         const vwapEl = document.getElementById('vwapSignal');
-        
-        if (currentPrice > vwap * 1.002) {
-          vwapEl.className = 'indicator-signal signal-buy'; vwapEl.innerText = 'ABOVE';
-          signals.bullish++; weightedScore += 1;
-        } else if (currentPrice < vwap * 0.998) {
-          vwapEl.className = 'indicator-signal signal-sell'; vwapEl.innerText = 'BELOW';
-          signals.bearish++; weightedScore -= 1;
-        } else {
-          vwapEl.className = 'indicator-signal signal-neutral'; vwapEl.innerText = 'AT VWAP';
-          signals.neutral++;
-        }
-        totalWeight++;
+        if (currentPrice > vwap * 1.002) { vwapEl.className = 'indicator-signal signal-buy'; vwapEl.innerText = 'ABOVE'; }
+        else if (currentPrice < vwap * 0.998) { vwapEl.className = 'indicator-signal signal-sell'; vwapEl.innerText = 'BELOW'; }
+        else { vwapEl.className = 'indicator-signal signal-neutral'; vwapEl.innerText = 'AT VWAP'; }
       }
 
-      // --- OBV ---
-      const obv = calcOBV(state.candles);
+      // OBV
       document.getElementById('obvValue').innerText = (obv.obv / 1000000).toFixed(2) + 'M';
       const obvEl = document.getElementById('obvSignal');
-      
-      if (obv.trend === 'bullish') {
-        obvEl.className = 'indicator-signal signal-buy'; obvEl.innerText = 'BULLISH';
-        signals.bullish++; weightedScore += 0.8;
-      } else if (obv.trend === 'bearish') {
-        obvEl.className = 'indicator-signal signal-sell'; obvEl.innerText = 'BEARISH';
-        signals.bearish++; weightedScore -= 0.8;
-      } else {
-        obvEl.className = 'indicator-signal signal-neutral'; obvEl.innerText = 'NEUTRAL';
-        signals.neutral++;
-      }
-      totalWeight += 0.8;
+      if (obv.trend === 'bullish') { obvEl.className = 'indicator-signal signal-buy'; obvEl.innerText = 'BULLISH'; }
+      else if (obv.trend === 'bearish') { obvEl.className = 'indicator-signal signal-sell'; obvEl.innerText = 'BEARISH'; }
+      else { obvEl.className = 'indicator-signal signal-neutral'; obvEl.innerText = 'NEUTRAL'; }
 
-      // --- Momentum ---
-      const momentum = calcMomentum(closes, 10);
+      // Momentum
       if (momentum !== null) {
         document.getElementById('momValue').innerText = momentum.toFixed(2) + '%';
         const momEl = document.getElementById('momSignal');
-        
-        if (momentum > 0.5) {
-          momEl.className = 'indicator-signal signal-buy'; momEl.innerText = 'POSITIVE';
-          signals.bullish++; weightedScore += 0.8;
-        } else if (momentum < -0.5) {
-          momEl.className = 'indicator-signal signal-sell'; momEl.innerText = 'NEGATIVE';
-          signals.bearish++; weightedScore -= 0.8;
-        } else {
-          momEl.className = 'indicator-signal signal-neutral'; momEl.innerText = 'FLAT';
-          signals.neutral++;
-        }
-        totalWeight += 0.8;
+        if (momentum > 0.5) { momEl.className = 'indicator-signal signal-buy'; momEl.innerText = 'POSITIVE'; }
+        else if (momentum < -0.5) { momEl.className = 'indicator-signal signal-sell'; momEl.innerText = 'NEGATIVE'; }
+        else { momEl.className = 'indicator-signal signal-neutral'; momEl.innerText = 'FLAT'; }
       }
 
-      // --- CVD Signal ---
+      // CVD
       const cvdEl = document.getElementById('cvdSignal');
       document.getElementById('cvdValue').innerText = (state.cvd / 1000).toFixed(1) + 'K';
-      if (state.cvd > 10000) {
-        cvdEl.className = 'indicator-signal signal-buy'; cvdEl.innerText = 'BUYING';
-        weightedScore += 0.5;
-      } else if (state.cvd < -10000) {
-        cvdEl.className = 'indicator-signal signal-sell'; cvdEl.innerText = 'SELLING';
-        weightedScore -= 0.5;
-      } else {
-        cvdEl.className = 'indicator-signal signal-neutral'; cvdEl.innerText = 'NEUTRAL';
-      }
+      if (state.cvd > 10000) { cvdEl.className = 'indicator-signal signal-buy'; cvdEl.innerText = 'BUYING'; }
+      else if (state.cvd < -10000) { cvdEl.className = 'indicator-signal signal-sell'; cvdEl.innerText = 'SELLING'; }
+      else { cvdEl.className = 'indicator-signal signal-neutral'; cvdEl.innerText = 'NEUTRAL'; }
 
-      // --- Whale Flow ---
-      const netWhaleFlow = state.whaleBuyVol - state.whaleSellVol;
+      // Whale Flow
       const whaleFlowEl = document.getElementById('whaleFlowSignal');
-      document.getElementById('whaleFlowValue').innerText = (netWhaleFlow / 1000).toFixed(0) + 'K';
-      
-      if (netWhaleFlow > 100000) {
-        whaleFlowEl.className = 'indicator-signal signal-buy'; whaleFlowEl.innerText = 'ACCUMULATING';
-        weightedScore += 1;
-      } else if (netWhaleFlow < -100000) {
-        whaleFlowEl.className = 'indicator-signal signal-sell'; whaleFlowEl.innerText = 'DISTRIBUTING';
-        weightedScore -= 1;
-      } else {
-        whaleFlowEl.className = 'indicator-signal signal-neutral'; whaleFlowEl.innerText = 'NEUTRAL';
-      }
+      document.getElementById('whaleFlowValue').innerText = (whaleFlow / 1000).toFixed(0) + 'K';
+      if (whaleFlow > 100000) { whaleFlowEl.className = 'indicator-signal signal-buy'; whaleFlowEl.innerText = 'ACCUMULATING'; }
+      else if (whaleFlow < -100000) { whaleFlowEl.className = 'indicator-signal signal-sell'; whaleFlowEl.innerText = 'DISTRIBUTING'; }
+      else { whaleFlowEl.className = 'indicator-signal signal-neutral'; whaleFlowEl.innerText = 'NEUTRAL'; }
 
-      // --- ATR Levels ---
-      const atr = calcATR(state.candles, CONFIG.ATR_PERIOD);
+      // ATR Levels
       if (atr) {
         document.getElementById('r2').innerText = (currentPrice + atr * 2).toFixed(4);
         document.getElementById('r1').innerText = (currentPrice + atr).toFixed(4);
@@ -3059,55 +3599,31 @@
         document.getElementById('s2').innerText = (currentPrice - atr * 2).toFixed(4);
       }
 
-      // --- Candle Patterns ---
-      const patterns = detectCandlePatterns(state.candles);
+      // Candle Patterns
       if (patterns.length > 0) {
         ui.patternsContainer.innerHTML = patterns.map(p => 
           `<span class="pattern-tag" style="color:${p.type === 'bullish' ? 'var(--accent-green)' : (p.type === 'bearish' ? 'var(--accent-red)' : 'var(--accent-purple)')}">${p.name}</span>`
         ).join('');
-        
-        patterns.forEach(p => {
-          if (p.type === 'bullish') { weightedScore += 0.5; signals.bullish++; }
-          else if (p.type === 'bearish') { weightedScore -= 0.5; signals.bearish++; }
-        });
       } else {
         ui.patternsContainer.innerHTML = '<span style="color:var(--text-dim); font-size:10px;">No patterns</span>';
       }
 
-      // --- PROJECTION ---
-      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0, sumW = 0;
-      const n = Math.min(closes.length, 30);
+      // ==========================================
+      // PHASE 4: Update AI Dashboard
+      // ==========================================
       
-      for (let i = closes.length - n; i < closes.length; i++) {
-        const idx = i - (closes.length - n);
-        const weight = 1 + (idx / n);
-        sumX += idx * weight;
-        sumY += closes[i] * weight;
-        sumXY += idx * closes[i] * weight;
-        sumXX += idx * idx * weight;
-        sumW += weight;
-      }
-      
-      const slope = (sumW * sumXY - sumX * sumY) / (sumW * sumXX - sumX * sumX);
-      const intercept = (sumY - slope * sumX) / sumW;
-      const projection = slope * (n + 5) + intercept;
-      
-      const signalAdjustment = (weightedScore / totalWeight) * (atr || 0) * 0.5;
-      const finalTarget = projection + signalAdjustment;
+      // Track prediction for accuracy
+      trackPrediction(priceTarget.target, currentPrice);
 
-      // Track prediction
-      trackPrediction(finalTarget, currentPrice);
-
-      // --- UPDATE UI ---
-      ui.aiTarget.innerText = '$ ' + finalTarget.toFixed(4);
-      ui.aiTarget.style.color = finalTarget > currentPrice ? 'var(--accent-green)' : 'var(--accent-red)';
+      // Main Target Display
+      ui.aiTarget.innerText = '$ ' + priceTarget.target.toFixed(4);
+      ui.aiTarget.style.color = priceTarget.direction === 'bullish' ? 'var(--accent-green)' : 'var(--accent-red)';
       
-      const maxSignals = signals.bullish + signals.bearish + signals.neutral;
-      const dominantSignal = Math.max(signals.bullish, signals.bearish, signals.neutral);
-      const confidence = (dominantSignal / maxSignals) * 100;
-      ui.conf.innerText = confidence.toFixed(0) + '%';
+      // Confidence (now based on probability)
+      ui.conf.innerText = probability.confidence.toFixed(0) + '%';
 
-      const normalizedScore = (weightedScore / (totalWeight || 1)) * 50 + 50;
+      // Score Bar (based on probability)
+      const normalizedScore = probability.bullish;
       const fillWidth = Math.abs(normalizedScore - 50);
       const fillColor = normalizedScore > 50 ? 'var(--accent-green)' : 'var(--accent-red)';
       const fillLeft = normalizedScore > 50 ? '50%' : (50 - fillWidth) + '%';
@@ -3116,34 +3632,96 @@
       ui.scoreFill.style.left = fillLeft;
       ui.scoreFill.style.background = fillColor;
 
-      ui.bullCount.innerText = signals.bullish;
-      ui.neutCount.innerText = signals.neutral;
-      ui.bearCount.innerText = signals.bearish;
+      // Signal Counts
+      ui.bullCount.innerText = confluence.bullishSignals.length;
+      ui.neutCount.innerText = confluence.neutralSignals.length;
+      ui.bearCount.innerText = confluence.bearishSignals.length;
 
-      const scorePercent = ((weightedScore / totalWeight + 1) / 2 * 100).toFixed(0);
-      ui.totalScore.innerText = scorePercent + '/100';
-      ui.totalScore.style.color = weightedScore > 0 ? 'var(--accent-green)' : (weightedScore < 0 ? 'var(--accent-red)' : 'var(--text-main)');
+      // Total Score (Signal Quality)
+      ui.totalScore.innerText = signalQuality.toFixed(0) + '/100';
+      ui.totalScore.style.color = signalQuality > 70 ? 'var(--accent-green)' : (signalQuality > 40 ? 'var(--accent-orange)' : 'var(--accent-red)');
 
-      if (signals.bullish > signals.bearish + 2) {
-        ui.consensus.innerText = 'STRONG BULLISH';
+      // Consensus with Probability
+      const probBull = probability.bullish;
+      if (probBull >= 70 && signalQuality >= 60) {
+        ui.consensus.innerText = `STRONG BULL ${probBull.toFixed(0)}%`;
         ui.consensus.style.color = 'var(--accent-green)';
-        ui.scoreLabel.innerText = 'Strong buy pressure';
-      } else if (signals.bullish > signals.bearish) {
-        ui.consensus.innerText = 'BULLISH';
+        ui.scoreLabel.innerText = `${confluence.confluenceCount} signals aligned • ${regime.regime.replace('_', ' ').toUpperCase()}`;
+      } else if (probBull >= 55) {
+        ui.consensus.innerText = `BULLISH ${probBull.toFixed(0)}%`;
         ui.consensus.style.color = 'var(--accent-green)';
-        ui.scoreLabel.innerText = 'Buy pressure dominant';
-      } else if (signals.bearish > signals.bullish + 2) {
-        ui.consensus.innerText = 'STRONG BEARISH';
+        ui.scoreLabel.innerText = `${confluence.confluenceCount} confluences • Quality: ${signalQuality.toFixed(0)}%`;
+      } else if (probBull <= 30 && signalQuality >= 60) {
+        ui.consensus.innerText = `STRONG BEAR ${(100-probBull).toFixed(0)}%`;
         ui.consensus.style.color = 'var(--accent-red)';
-        ui.scoreLabel.innerText = 'Strong sell pressure';
-      } else if (signals.bearish > signals.bullish) {
-        ui.consensus.innerText = 'BEARISH';
+        ui.scoreLabel.innerText = `${confluence.confluenceCount} signals aligned • ${regime.regime.replace('_', ' ').toUpperCase()}`;
+      } else if (probBull <= 45) {
+        ui.consensus.innerText = `BEARISH ${(100-probBull).toFixed(0)}%`;
         ui.consensus.style.color = 'var(--accent-red)';
-        ui.scoreLabel.innerText = 'Sell pressure dominant';
+        ui.scoreLabel.innerText = `${confluence.confluenceCount} confluences • Quality: ${signalQuality.toFixed(0)}%`;
       } else {
-        ui.consensus.innerText = 'CONSOLIDATION';
+        ui.consensus.innerText = 'NEUTRAL 50%';
         ui.consensus.style.color = 'var(--accent-orange)';
-        ui.scoreLabel.innerText = 'Mixed signals';
+        ui.scoreLabel.innerText = noise.isNoisy ? '⚠️ Noisy market - wait for clarity' : 'Mixed signals - no clear direction';
+      }
+
+      // ==========================================
+      // PHASE 5: Update AI v2 Dashboard Elements
+      // ==========================================
+      
+      // Market Regime Display
+      if (ui.marketRegime) {
+        const regimeNames = {
+          'trending_up': '📈 TRENDING UP',
+          'trending_down': '📉 TRENDING DOWN',
+          'ranging': '↔️ RANGING',
+          'volatile': '⚡ VOLATILE',
+          'unknown': '❓ ANALYZING'
+        };
+        const regimeColors = {
+          'trending_up': 'var(--accent-green)',
+          'trending_down': 'var(--accent-red)',
+          'ranging': 'var(--accent-orange)',
+          'volatile': 'var(--accent-purple)',
+          'unknown': 'var(--text-dim)'
+        };
+        ui.marketRegime.innerText = regimeNames[regime.regime] || regime.regime.toUpperCase();
+        ui.marketRegime.style.color = regimeColors[regime.regime] || 'var(--accent-cyan)';
+      }
+      
+      // Signal Quality
+      if (ui.signalQuality) {
+        ui.signalQuality.innerText = signalQuality.toFixed(0) + '%';
+        ui.signalQuality.style.color = signalQuality >= 70 ? 'var(--accent-green)' : signalQuality >= 50 ? 'var(--accent-orange)' : 'var(--accent-red)';
+      }
+      
+      // Probability Display
+      if (ui.probBull) {
+        ui.probBull.innerText = probability.bullish.toFixed(0) + '%';
+        ui.probBull.style.color = probability.bullish >= 60 ? 'var(--accent-green)' : 'var(--text-dim)';
+      }
+      if (ui.probBear) {
+        ui.probBear.innerText = probability.bearish.toFixed(0) + '%';
+        ui.probBear.style.color = probability.bearish >= 60 ? 'var(--accent-red)' : 'var(--text-dim)';
+      }
+      
+      // Confluence Count
+      if (ui.confluenceCount) {
+        ui.confluenceCount.innerText = confluence.confluenceCount;
+        ui.confluenceCount.style.color = confluence.confluenceCount >= 6 ? 'var(--accent-green)' : confluence.confluenceCount >= 4 ? 'var(--accent-cyan)' : 'var(--accent-purple)';
+      }
+      
+      // Noise Level
+      if (ui.noiseLevel) {
+        ui.noiseLevel.innerText = noise.level.toFixed(0) + '%';
+        ui.noiseLevel.style.color = noise.level > 60 ? 'var(--accent-red)' : noise.level > 40 ? 'var(--accent-orange)' : 'var(--accent-green)';
+      }
+
+      // Alert on high-quality signals
+      if (signalQuality >= 75 && probability.confidence >= 60) {
+        const direction = probability.bullish > 50 ? 'BULLISH' : 'BEARISH';
+        const alertType = probability.bullish > 50 ? 'bullish' : 'bearish';
+        addAlert(`🎯 HIGH QUALITY ${direction} SIGNAL: ${probability.bullish > 50 ? probability.bullish.toFixed(0) : (100-probability.bullish).toFixed(0)}% prob, ${signalQuality.toFixed(0)}% quality`, alertType);
       }
     }
 
