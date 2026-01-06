@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Técnico: ORACULUM XRP</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent-color: #38bdf8;
+            --secondary-bg: #1e293b;
+            --border-color: #334155;
+            --highlight: #818cf8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--secondary-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-top: 0;
+            font-size: 2.2em;
+        }
+
+        h2 {
+            color: var(--highlight);
+            margin-top: 30px;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #cbd5e1;
+            margin-top: 25px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        li::before {
+            content: "•";
+            color: var(--accent-color);
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        strong {
+            color: #fff;
+        }
+
+        .meta-box {
+            background-color: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 30px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #64748b;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        code {
+            background-color: #0f172a;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: var(--accent-color);
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Informe Técnico: ORACULUM XRP </h1>
+    
+    <div class="meta-box">
+        <strong>Desarrollador:</strong> OkrtSystem Labs<br>
+        <strong>Versión del Motor:</strong> AI Engine v2.0<br>
+        <strong>Activo Principal:</strong> XRP (Ripple)
+    </div>
+
+    <h2>1. Resumen Ejecutivo</h2>
+    <p><strong>ORACULUM</strong> es un dashboard de trading avanzado y una aplicación web progresiva (PWA) diseñada específicamente para el monitoreo, análisis y predicción del precio de <strong>XRP/USDT</strong>. Funciona completamente del lado del cliente (Client-Side) utilizando WebSockets para obtener datos en tiempo real, principalmente de Binance, y procesarlos mediante un algoritmo lógico complejo denominado "AI Engine".</p>
+    <p>La herramienta destaca por su interfaz estilo "Cyberpunk/Sci-Fi", su capacidad de funcionar sin servidor backend propio (usa APIs públicas) y su conjunto de herramientas integradas para traders (gestión de riesgo, detección de ballenas, simulador de trading, etc.).</p>
+
+    <h2>2. Arquitectura Técnica</h2>
+    <ul>
+        <li><strong>Lenguajes:</strong> HTML5, CSS3 (Diseño responsivo y animaciones), JavaScript (Vanilla ES6+).</li>
+        <li><strong>Librerías Externas:</strong> <code>Lightweight Charts</code> (TradingView) para gráficos, <code>html2canvas</code> para capturas de pantalla.</li>
+        <li><strong>Fuentes de Datos:</strong>
+            <ul>
+                <li><strong>WebSockets:</strong> Conexión directa a Binance (Stream de Klines, Ticker, Depth, AggTrade) para datos de XRP.</li>
+                <li><strong>APIs REST:</strong> Binance (historial), Alternative.me (Fear & Greed Index), y fuentes personalizadas para datos de ETFs de XRP.</li>
+                <li><strong>Multi-Exchange:</strong> Conexiones WebSocket secundarias a Kraken, Bitstamp, Bybit, Coinbase y Crypto.com para el rastreo de "Ballenas" (grandes transacciones).</li>
+            </ul>
+        </li>
+        <li><strong>Almacenamiento:</strong> <code>localStorage</code> del navegador para guardar configuraciones, alertas personalizadas, historial de paper trading y estrategias.</li>
+    </ul>
+
+    <h2>3. Análisis del "AI Engine v2.0" (El Cerebro)</h2>
+    <p>El núcleo de la herramienta es una función lógica compleja que se ejecuta con cada actualización de precio. No es una IA neuronal (red neuronal profunda), sino un <strong>sistema experto basado en reglas y ponderaciones estadísticas</strong>.</p>
+    
+    <h3>Funcionamiento del Motor:</h3>
+    <ol style="padding-left: 20px;">
+        <li style="margin-bottom: 10px;"><strong>Detección de Régimen de Mercado:</strong> Analiza si el mercado está en tendencia alcista, bajista, en rango o es volátil basándose en EMAs, ATR (volatilidad) y ADX (fuerza de tendencia).</li>
+        <li style="margin-bottom: 10px;"><strong>Soporte y Resistencia Dinámicos:</strong> Calcula niveles clave usando Pivots, Perfil de Volumen (Volume Profile) y niveles psicológicos.</li>
+        <li style="margin-bottom: 10px;"><strong>Análisis de Confluencia:</strong> Evalúa múltiples indicadores simultáneamente:
+            <ul>
+                <li>RSI, MACD, StochRSI, Williams %R, Bollinger Bands.</li>
+                <li>Cruces de EMAs (9 y 21).</li>
+                <li>VWAP (Precio Medio Ponderado por Volumen).</li>
+                <li>OBV (Balance de Volúmenes) y CVD (Delta de Volumen Acumulado).</li>
+                <li>Patrones de Velas Japonesas (Doji, Engulfing, Hammer, etc.).</li>
+                <li>Divergencias RSI (Alcistas/Bajistas).</li>
+            </ul>
+        </li>
+        <li style="margin-bottom: 10px;"><strong>Cálculo de Probabilidad:</strong> Asigna un puntaje (0-100%) para escenarios <em>Bullish</em> (Alcista) y <em>Bearish</em> (Bajista) basado en la calidad de la señal y el ruido del mercado.</li>
+        <li style="margin-bottom: 10px;"><strong>Filtro de Ruido:</strong> Detecta si el mercado está "sucio" (muchas mechas, bajo volumen) para reducir la confianza de las señales.</li>
+    </ol>
+
+    <h2>4. Funcionalidades Clave</h2>
+
+    <h3>A. Panel de Control Principal (Dashboard)</h3>
+    <ul>
+        <li><strong>KPIs en Vivo:</strong> Precio, Volumen 24h, Fear & Greed Index, Funding Rate (tasas de financiación), Open Interest (Interés Abierto).</li>
+        <li><strong>Predicción IA:</strong> Muestra la probabilidad alcista/bajista, el precio objetivo (Target) y la calidad de la señal.</li>
+        <li><strong>Libro de Órdenes (Order Book):</strong> Visualización de Bid/Ask con detección de <strong>Muros</strong> (Walls) y <strong>Spoofing</strong> (órdenes falsas para manipular).</li>
+    </ul>
+
+    <h3>B. Herramientas de Análisis (Sidebar Izquierdo & Pestañas)</h3>
+    <ul>
+        <li><strong>Indicadores Técnicos:</strong> Desglose de valores de Momentum, Tendencia y Volumen.</li>
+        <li><strong>Rastreador de ETFs de XRP:</strong> Monitorea el AUM (Activos Bajo Gestión) y la cantidad de XRP bloqueado en diversos fondos (Bitwise, Grayscale, etc.).</li>
+    </ul>
+
+    <h3>C. Sistema de Alertas y Narrador</h3>
+    <ul>
+        <li><strong>AI Narrator:</strong> Un sistema de texto y voz (TTS) que "narra" lo que sucede en el mercado (ej. "Ballenas acumulando", "Divergencia detectada"). Soporta <strong>Inglés y Español</strong>.</li>
+        <li><strong>Alertas de Sonido:</strong> Distintos tonos para señales alcistas, bajistas o detección de ballenas.</li>
+    </ul>
+
+    <h3>D. Panel de Herramientas (Tools Panel)</h3>
+    <p>Este es un menú superpuesto muy potente que incluye:</p>
+    <ul>
+        <li><strong>Multi-TF (Multi-Timeframe):</strong> Ve el estado del mercado en 1m, 5m, 15m, 1h y 4h simultáneamente.</li>
+        <li><strong>Calculadora de Riesgo:</strong> Permite ingresar capital, riesgo %, entrada y stop loss para calcular el tamaño de la posición y apalancamiento.</li>
+        <li><strong>Alertas de Precio:</strong> Configurables por el usuario (notificaciones de navegador).</li>
+        <li><strong>Fibonacci Automático:</strong> Dibuja y calcula retrocesos basados en máximos y mínimos de 24h.</li>
+        <li><strong>Detector de Sesión:</strong> Indica qué mercado está abierto (Asia, Europa, USA) y su volatilidad esperada.</li>
+        <li><strong>Constructor de Estrategias:</strong> Permite crear lógica simple (ej: SI RSI < 30 Y Precio < VWAP -> ALERTA COMPRA).</li>
+        <li><strong>Correlaciones:</strong> Muestra si XRP se mueve igual o inverso a BTC, ETH y SOL.</li>
+        <li><strong>Watchlist & Multi-Chart:</strong> Permite ver gráficos en miniatura de otros activos o ver 4 gráficos a la vez.</li>
+    </ul>
+
+    <h3>E. Paper Trading (Simulador)</h3>
+    <p>Un módulo completo para practicar trading sin dinero real.</p>
+    <ul>
+        <li>Saldo inicial ficticio ($10,000).</li>
+        <li>Botones de Long/Short.</li>
+        <li>Cálculo automático de P&L (Ganancias y Pérdidas) y tasa de aciertos (Win Rate).</li>
+    </ul>
+
+    <h2>5. Guía de Uso Rápido</h2>
+    <p>Para utilizar esta herramienta, simplemente abre el archivo <code>index.html</code> en un navegador moderno (Chrome, Edge, Safari). No requiere instalación de servidor.</p>
+    
+    <h3>Interpretación de la Interfaz:</h3>
+    <ol>
+        <li><strong>La Cabecera:</strong> Verifica el estado "LIVE" (Punto verde). Usa los botones para activar Sonido, Voz o cambiar el idioma. El botón "TOOLS" abre el menú avanzado.</li>
+        <li><strong>El Gráfico Central:</strong> Muestra velas japonesas, EMAs y Soportes/Resistencias automáticos. El "AI Narrator" en la parte inferior te dirá qué buscar.</li>
+        <li><strong>Panel Izquierdo (AI Engine):</strong> Mira el medidor <strong>"Market Score"</strong>. Si está verde y alto, hay confluencia alcista. Revisa el "Market Regime" para evitar operar contra tendencia.</li>
+        <li><strong>Panel Derecho (Flujo):</strong> Usa el Paper Trading para probar entradas. Observa la lista "Whales" para ver actividad institucional.</li>
+        <li><strong>Multi-Chart (Tecla 'M'):</strong> Presiona la tecla <code>M</code> para ver una comparativa con otros activos del sector.</li>
+    </ol>
+
+    <h2>6. Conclusión</h2>
+    <p>ORACULUM es una herramienta impresionante para ser un archivo único local. Combina análisis técnico tradicional con lógica algorítmica moderna. Su principal ventaja es que centraliza datos dispersos (ETF, Ballenas, Derivados) en una sola pantalla visualmente eficiente y ofrece cálculos de riesgo rápidos, ideal para Scalping o Day Trading en XRP.</p>
+
+    <div class="footer">
+        OkrtSystem Labs - Informe Técnico
+    </div>
+</div>
+
+</body>
+</html>
