@@ -826,10 +826,10 @@
     main {
       flex: 1;
       display: grid;
-      grid-template-columns: 320px 1fr 340px;
-      grid-template-rows: 80px 1fr 190px;
-      gap: 10px;
-      padding: 10px;
+      grid-template-columns: 290px 1fr 280px;
+      grid-template-rows: 70px 1fr 150px;
+      gap: 8px;
+      padding: 8px;
       overflow: hidden;
     }
 
@@ -844,8 +844,8 @@
     }
     
     .panel-head {
-      font-family: var(--font-tech); font-size: 10px; color: var(--text-dim);
-      padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-family: var(--font-tech); font-size: 9px; color: var(--text-dim);
+      padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05);
       display: flex; justify-content: space-between; letter-spacing: 1px;
       flex-shrink: 0; align-items: center;
     }
@@ -1424,9 +1424,6 @@
         <option value="en">🇬🇧 EN</option>
         <option value="es">🇪🇸 ES</option>
       </select>
-      <button id="themeBtn" class="control-btn" onclick="toggleTheme()" title="Toggle Theme">
-        ☀️
-      </button>
       <button class="control-btn" onclick="exportData()" title="Export CSV">
         📥 CSV
       </button>
@@ -1754,97 +1751,95 @@
       <div id="divergenceBadge" class="divergence-badge" style="display:none;"></div>
       <div id="chartContainer"></div>
       <!-- Fibonacci Levels Display -->
-      <div id="fiboLevels" style="padding:4px 10px; font-size:9px; background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.05); overflow-x:auto; white-space:nowrap;">
+      <div id="fiboLevels" style="padding:3px 10px; font-size:8px; background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.05); overflow-x:auto; white-space:nowrap;">
         <span style="color:var(--accent-yellow)">◆ FIBO:</span> <span style="color:var(--text-dim)">Calculating...</span>
+      </div>
+      <!-- 🤖 AI NARRATOR -->
+      <div style="padding:6px 10px; background:linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,212,255,0.08)); border-top:1px solid rgba(168,85,247,0.2);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:9px; font-weight:bold; color:var(--accent-purple);">🤖 AI NARRATOR</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span id="narratorTimestamp" style="font-size:8px; color:var(--text-dim);">--:--</span>
+            <button onclick="speakNarrative()" style="background:rgba(168,85,247,0.2); border:1px solid var(--accent-purple); color:var(--accent-purple); padding:2px 6px; border-radius:3px; cursor:pointer; font-size:8px;" title="Read aloud">🔊</button>
+          </div>
+        </div>
+        <div id="aiNarratorText" style="font-size:10px; line-height:1.4; color:var(--text-primary); transition:opacity 0.2s;">
+          Analyzing market conditions...
+        </div>
       </div>
     </div>
 
     <!-- SIDEBAR DERECHA -->
     <div class="side-right">
-      <!-- ALERTS -->
-      <div class="panel" style="height:140px">
-        <div class="panel-head">
-          🚨 SMART ALERTS 
-          <span id="alertCount" style="background:var(--accent-red); color:#fff; padding:1px 6px; border-radius:10px; font-size:9px;">0</span>
+      <!-- ALERTS + SIGNALS en Tabs -->
+      <div class="panel" style="height:130px">
+        <div class="panel-head" style="padding:4px 8px;">
+          <div class="tab-buttons" style="padding:0; gap:2px;">
+            <button class="tab-btn active" onclick="switchRightTab('alerts')" style="padding:2px 6px; font-size:8px;">🚨 ALERTS <span id="alertCount" style="background:var(--accent-red); color:#fff; padding:0 3px; border-radius:6px; font-size:7px;">0</span></button>
+            <button class="tab-btn" onclick="switchRightTab('signals')" style="padding:2px 6px; font-size:8px;">📜 SIGNALS</button>
+          </div>
         </div>
-        <div id="alertsContainer" class="scrollable" style="padding:5px 0;"></div>
+        <div id="tab-alerts" class="tab-content active scrollable" style="flex:1;">
+          <div id="alertsContainer"></div>
+        </div>
+        <div id="tab-signals" class="tab-content scrollable" style="flex:1;">
+          <div id="signalHistoryList">
+            <div style="text-align:center; color:var(--text-dim); padding:8px; font-size:9px;">Waiting for signals...</div>
+          </div>
+        </div>
       </div>
 
-      <!-- SIGNAL HISTORY -->
-      <div class="panel" style="height:160px">
-        <div class="panel-head">
-          📜 SIGNAL HISTORY 
-          <span style="font-size:9px; color:var(--text-dim);">Last 10</span>
+      <!-- 💰 PAPER TRADING -->
+      <div class="panel" style="height:140px">
+        <div class="panel-head" style="padding:4px 8px;">
+          💰 PAPER TRADING
+          <button onclick="resetPaperTrading()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:8px;" title="Reset">🔄</button>
         </div>
-        <div id="signalHistoryList" class="scrollable" style="padding:3px 0;">
-          <div style="text-align:center; color:var(--text-dim); padding:10px; font-size:10px;">Waiting for signals...</div>
+        <div style="padding:5px 6px;">
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:2px; margin-bottom:5px; text-align:center;">
+            <div><div style="font-size:6px; color:var(--text-dim);">BAL</div><div id="ptBalance" style="font-size:9px; font-weight:bold; color:var(--accent-cyan);">$10K</div></div>
+            <div><div style="font-size:6px; color:var(--text-dim);">P&L</div><div id="ptPnL" style="font-size:9px; font-weight:bold; color:var(--accent-green);">$0</div></div>
+            <div><div style="font-size:6px; color:var(--text-dim);">WIN</div><div id="ptWinRate" style="font-size:9px; font-weight:bold;">0%</div></div>
+            <div><div style="font-size:6px; color:var(--text-dim);">#</div><div id="ptTrades" style="font-size:9px; font-weight:bold;">0</div></div>
+          </div>
+          <div style="display:flex; gap:3px; margin-bottom:5px;">
+            <input type="number" id="ptAmount" style="width:50px; padding:4px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:3px; color:#fff; font-size:9px;" value="100">
+            <button id="ptBuyBtn" onclick="openPaperTrade('long')" style="flex:1; padding:4px; background:rgba(0,255,136,0.2); border:1px solid var(--accent-green); color:var(--accent-green); border-radius:3px; cursor:pointer; font-weight:bold; font-size:8px;">LONG</button>
+            <button id="ptSellBtn" onclick="openPaperTrade('short')" style="flex:1; padding:4px; background:rgba(255,68,102,0.2); border:1px solid var(--accent-red); color:var(--accent-red); border-radius:3px; cursor:pointer; font-weight:bold; font-size:8px;">SHORT</button>
+            <button id="ptCloseBtn" onclick="closePaperTrade()" style="display:none; flex:1; padding:4px; background:rgba(168,85,247,0.2); border:1px solid var(--accent-purple); color:var(--accent-purple); border-radius:3px; cursor:pointer; font-weight:bold; font-size:8px;">CLOSE</button>
+          </div>
+          <div id="ptPosition" style="padding:4px; background:rgba(0,0,0,0.2); border-radius:3px; font-size:8px;"><span style="color:var(--text-dim);">No position</span></div>
         </div>
       </div>
 
       <!-- ORDER BOOK -->
-      <div class="panel" style="flex:1">
-        <div class="panel-head">📊 ORDER BOOK <span id="spoofWarning" style="display:none; color:var(--accent-orange);">⚠ SPOOF</span></div>
-        <div style="padding:3px 0; font-size:9px; color:var(--text-dim); text-align:center; border-bottom:1px solid rgba(255,255,255,0.05);">
-          ASK (SELL)
-        </div>
+      <div class="panel" style="flex:1; min-height:100px;">
+        <div class="panel-head" style="padding:4px 8px;">📊 ORDER BOOK <span id="spoofWarning" style="display:none; color:var(--accent-orange);">⚠</span></div>
         <div id="askSide" style="flex:1; overflow:hidden;"></div>
-        
-        <div style="padding:6px; text-align:center; background:rgba(0,212,255,0.1); border-top:1px solid rgba(0,212,255,0.3); border-bottom:1px solid rgba(0,212,255,0.3);">
-          <span style="font-family:var(--font-data); font-size:15px; font-weight:bold;" id="midPrice">--</span>
+        <div style="padding:3px; text-align:center; background:rgba(0,212,255,0.1);">
+          <span style="font-family:var(--font-data); font-size:13px; font-weight:bold;" id="midPrice">--</span>
         </div>
-        
         <div id="bidSide" style="flex:1; overflow:hidden;"></div>
-        <div style="padding:3px 0; font-size:9px; color:var(--text-dim); text-align:center; border-top:1px solid rgba(255,255,255,0.05);">
-          BID (BUY)
-        </div>
-        <div id="wallDetection" style="padding:3px;"></div>
+        <div id="wallDetection" style="padding:2px; font-size:7px;"></div>
       </div>
 
-      <!-- WHALE TRACKER + ETF DATA -->
-      <div class="panel" style="height:160px">
-        <div class="panel-head">
-          <span>🐋 WHALES / 📊 ETF FLOW</span>
-          <span id="whaleCount" style="background:var(--accent-purple); padding:1px 6px; border-radius:10px; font-size:9px;">0</span>
-        </div>
-        
-        <!-- Tabs para Whales y ETF -->
-        <div class="tab-buttons" style="padding:3px 5px;">
-          <button class="tab-btn active" onclick="switchWhaleTab('whales')">WHALES</button>
-          <button class="tab-btn" onclick="switchWhaleTab('etf')">ETF DATA</button>
-        </div>
-        
-        <!-- Tab: Whales -->
-        <div id="tab-whales" class="tab-content active scrollable" style="padding:3px 0;">
-          <div id="whaleList">
-            <div style="padding:10px; text-align:center; color:var(--text-dim); font-size:10px;">
-              Monitoring large trades...<br>
-              <span style="font-size:9px; opacity:0.6;">Trades >5K XRP will appear here</span>
-            </div>
+      <!-- WHALES / ETF -->
+      <div class="panel" style="height:110px">
+        <div class="panel-head" style="padding:4px 8px;">
+          <div class="tab-buttons" style="padding:0; gap:2px;">
+            <button class="tab-btn active" onclick="switchWhaleTab('whales')" style="padding:2px 6px; font-size:8px;">🐋 WHALES <span id="whaleCount" style="background:var(--accent-purple); padding:0 3px; border-radius:6px; font-size:7px;">0</span></button>
+            <button class="tab-btn" onclick="switchWhaleTab('etf')" style="padding:2px 6px; font-size:8px;">📊 ETF</button>
           </div>
         </div>
-        
-        <!-- Tab: XRP ETF Data -->
-        <div id="tab-etf" class="tab-content" style="padding:5px;">
-          <div class="etf-grid">
-            <div class="etf-item">
-              <div class="etf-label">XRP ETF AUM</div>
-              <div class="etf-value c-green">$1.41B</div>
-            </div>
-            <div class="etf-item">
-              <div class="etf-label">XRP Locked</div>
-              <div class="etf-value c-purple">746.3M</div>
-            </div>
-            <div class="etf-item">
-              <div class="etf-label">Active ETFs</div>
-              <div class="etf-value c-cyan">7</div>
-            </div>
-            <div class="etf-item">
-              <div class="etf-label">% of Supply</div>
-              <div class="etf-value">0.746%</div>
-            </div>
-          </div>
-          <div style="margin-top:5px; padding:4px 6px; background:rgba(0,255,136,0.1); border-radius:3px; font-size:9px; color:var(--text-dim);">
-            <span class="c-green">●</span> LIVE: XRPC, TOXR, XRP, GXRP, XRPZ, XRPR, BITW
+        <div id="tab-whales" class="tab-content active scrollable" style="flex:1;">
+          <div id="whaleList"><div style="padding:6px; text-align:center; color:var(--text-dim); font-size:8px;">Monitoring >5K XRP...</div></div>
+        </div>
+        <div id="tab-etf" class="tab-content" style="padding:4px; flex:1;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:8px;">
+            <div><span style="color:var(--text-dim);">AUM:</span> <span class="c-green">$1.41B</span></div>
+            <div><span style="color:var(--text-dim);">Locked:</span> <span class="c-purple">746M</span></div>
+            <div><span style="color:var(--text-dim);">ETFs:</span> <span class="c-cyan">7</span></div>
+            <div><span style="color:var(--text-dim);">Supply:</span> 0.75%</div>
           </div>
         </div>
       </div>
@@ -2064,7 +2059,35 @@
           starting: 'session starting.',
           volatility: 'Expected volatility:'
         },
-        langName: 'English'
+        langName: 'English',
+        narrator: {
+          analyzing: 'Analyzing market...',
+          bullishSetup: 'Bullish accumulation detected.',
+          bearishSetup: 'Bearish distribution detected.',
+          whalesAccumulating: 'Whales accumulating,',
+          whalesDistributing: 'Whales distributing,',
+          rsiOversold: 'RSI exiting oversold',
+          rsiOverbought: 'RSI exiting overbought',
+          rsiNeutral: 'RSI neutral',
+          strongBuyPressure: 'strong buy pressure.',
+          strongSellPressure: 'strong sell pressure.',
+          mixedSignals: 'mixed signals.',
+          nextResistance: 'Resistance:',
+          nextSupport: 'Support:',
+          regimeIs: 'Regime:',
+          probabilityAt: 'prob',
+          confluence: 'confluences',
+          noiseWarning: 'High noise - wait for clearer signals.',
+          trendingUp: 'TREND UP',
+          trendingDown: 'TREND DOWN',
+          ranging: 'RANGING',
+          volatile: 'VOLATILE',
+          recommendation: 'Action:',
+          wait: 'Wait',
+          lookForLongs: 'Look for longs',
+          lookForShorts: 'Look for shorts',
+          holdPosition: 'Hold position'
+        }
       },
       es: {
         activated: 'Alertas de voz activadas. Anunciaré señales de trading de alta calidad.',
@@ -2098,7 +2121,35 @@
           starting: 'sesión iniciando.',
           volatility: 'Volatilidad esperada:'
         },
-        langName: 'Español'
+        langName: 'Español',
+        narrator: {
+          analyzing: 'Analizando mercado...',
+          bullishSetup: 'Acumulación alcista detectada.',
+          bearishSetup: 'Distribución bajista detectada.',
+          whalesAccumulating: 'Ballenas acumulando,',
+          whalesDistributing: 'Ballenas distribuyendo,',
+          rsiOversold: 'RSI saliendo de sobreventa',
+          rsiOverbought: 'RSI saliendo de sobrecompra',
+          rsiNeutral: 'RSI neutral',
+          strongBuyPressure: 'fuerte presión compradora.',
+          strongSellPressure: 'fuerte presión vendedora.',
+          mixedSignals: 'señales mixtas.',
+          nextResistance: 'Resistencia:',
+          nextSupport: 'Soporte:',
+          regimeIs: 'Régimen:',
+          probabilityAt: 'prob',
+          confluence: 'confluencias',
+          noiseWarning: 'Alto ruido - esperar señales más claras.',
+          trendingUp: 'ALCISTA',
+          trendingDown: 'BAJISTA',
+          ranging: 'LATERAL',
+          volatile: 'VOLÁTIL',
+          recommendation: 'Acción:',
+          wait: 'Esperar',
+          lookForLongs: 'Buscar largos',
+          lookForShorts: 'Buscar cortos',
+          holdPosition: 'Mantener posición'
+        }
       }
     };
     
@@ -2280,6 +2331,185 @@
       if (!voiceState.enabled) return;
       speakAlert(`${session.name} ${t('session.starting')} ${t('session.volatility')} ${session.volatility}.`);
     }
+
+    // ============================================
+    // 💰 PAPER TRADING SIMULATOR
+    // ============================================
+    
+    const paperTrading = {
+      enabled: true,
+      balance: parseFloat(localStorage.getItem('pt_balance')) || 10000,
+      startingBalance: 10000,
+      position: JSON.parse(localStorage.getItem('pt_position')) || null,
+      history: JSON.parse(localStorage.getItem('pt_history')) || [],
+      stats: JSON.parse(localStorage.getItem('pt_stats')) || { wins: 0, losses: 0, totalPnL: 0 }
+    };
+    
+    function savePaperTradingState() {
+      localStorage.setItem('pt_balance', paperTrading.balance.toString());
+      localStorage.setItem('pt_position', JSON.stringify(paperTrading.position));
+      localStorage.setItem('pt_history', JSON.stringify(paperTrading.history.slice(-50)));
+      localStorage.setItem('pt_stats', JSON.stringify(paperTrading.stats));
+    }
+    
+    function openPaperTrade(type) {
+      if (paperTrading.position) {
+        addAlert('⚠️ Already have open position', 'warning');
+        return;
+      }
+      const amount = parseFloat(document.getElementById('ptAmount')?.value) || 0;
+      if (amount <= 0) { addAlert('⚠️ Enter amount', 'warning'); return; }
+      const cost = amount * state.currentPrice;
+      if (cost > paperTrading.balance) { addAlert('⚠️ Insufficient balance', 'warning'); return; }
+      
+      paperTrading.position = { type, amount, entryPrice: state.currentPrice, timestamp: Date.now() };
+      paperTrading.balance -= cost;
+      savePaperTradingState();
+      updatePaperTradingUI();
+      addAlert(`💰 ${type.toUpperCase()} ${amount} XRP @ $${state.currentPrice.toFixed(4)}`, type === 'long' ? 'bullish' : 'bearish');
+    }
+    
+    function closePaperTrade() {
+      if (!paperTrading.position) { addAlert('⚠️ No position', 'warning'); return; }
+      const pos = paperTrading.position;
+      const currentValue = pos.amount * state.currentPrice;
+      const entryValue = pos.amount * pos.entryPrice;
+      const pnl = pos.type === 'long' ? currentValue - entryValue : entryValue - currentValue;
+      
+      paperTrading.balance += entryValue + pnl;
+      paperTrading.history.unshift({ ...pos, exitPrice: state.currentPrice, pnl, timestamp: Date.now() });
+      if (pnl > 0) paperTrading.stats.wins++; else paperTrading.stats.losses++;
+      paperTrading.stats.totalPnL += pnl;
+      paperTrading.position = null;
+      savePaperTradingState();
+      updatePaperTradingUI();
+      addAlert(`💰 Closed: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, pnl >= 0 ? 'bullish' : 'bearish');
+    }
+    
+    function resetPaperTrading() {
+      if (confirm('Reset Paper Trading?')) {
+        paperTrading.balance = 10000;
+        paperTrading.position = null;
+        paperTrading.history = [];
+        paperTrading.stats = { wins: 0, losses: 0, totalPnL: 0 };
+        savePaperTradingState();
+        updatePaperTradingUI();
+      }
+    }
+    
+    function updatePaperTradingUI() {
+      const balanceEl = document.getElementById('ptBalance');
+      if (balanceEl) balanceEl.innerText = paperTrading.balance >= 1000 ? '$' + (paperTrading.balance/1000).toFixed(1) + 'K' : '$' + paperTrading.balance.toFixed(0);
+      
+      const totalPnL = paperTrading.balance - paperTrading.startingBalance;
+      const pnlEl = document.getElementById('ptPnL');
+      if (pnlEl) {
+        pnlEl.innerText = (totalPnL >= 0 ? '+$' : '-$') + Math.abs(totalPnL).toFixed(0);
+        pnlEl.style.color = totalPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+      }
+      
+      const winRateEl = document.getElementById('ptWinRate');
+      if (winRateEl) {
+        const total = paperTrading.stats.wins + paperTrading.stats.losses;
+        const wr = total > 0 ? (paperTrading.stats.wins / total * 100).toFixed(0) : 0;
+        winRateEl.innerText = wr + '%';
+        winRateEl.style.color = wr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)';
+      }
+      
+      const tradesEl = document.getElementById('ptTrades');
+      if (tradesEl) tradesEl.innerText = paperTrading.stats.wins + paperTrading.stats.losses;
+      
+      const positionEl = document.getElementById('ptPosition');
+      if (positionEl) {
+        if (paperTrading.position) {
+          const pos = paperTrading.position;
+          const pnl = pos.type === 'long' ? (state.currentPrice - pos.entryPrice) * pos.amount : (pos.entryPrice - state.currentPrice) * pos.amount;
+          const pnlPct = ((pnl / (pos.amount * pos.entryPrice)) * 100).toFixed(1);
+          positionEl.innerHTML = `<span>${pos.type === 'long' ? '🟢' : '🔴'} ${pos.amount} @ $${pos.entryPrice.toFixed(4)}</span> <span style="color:${pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; float:right;">${pnl >= 0 ? '+' : ''}${pnlPct}%</span>`;
+        } else {
+          positionEl.innerHTML = '<span style="color:var(--text-dim);">No position</span>';
+        }
+      }
+      
+      const buyBtn = document.getElementById('ptBuyBtn'), sellBtn = document.getElementById('ptSellBtn'), closeBtn = document.getElementById('ptCloseBtn');
+      if (buyBtn && sellBtn && closeBtn) {
+        if (paperTrading.position) {
+          buyBtn.style.display = 'none'; sellBtn.style.display = 'none'; closeBtn.style.display = 'block';
+        } else {
+          buyBtn.style.display = 'block'; sellBtn.style.display = 'block'; closeBtn.style.display = 'none';
+        }
+      }
+    }
+
+    // ============================================
+    // 🤖 AI MARKET NARRATOR
+    // ============================================
+    
+    let lastNarrativeUpdate = 0;
+    
+    function generateNarrative() {
+      const lang = voiceState.lang;
+      const nt = (key) => voiceTranslations[lang]?.narrator?.[key] || key;
+      const regime = aiState.marketRegime;
+      const probBull = aiState.probabilityBull;
+      const quality = aiState.signalQuality;
+      const noise = aiState.noiseLevel;
+      const rsi = state.rsiHistory?.[state.rsiHistory.length - 1] || 50;
+      const whaleFlow = (state.whaleBuyVol || 0) - (state.whaleSellVol || 0);
+      
+      let parts = [];
+      
+      if (noise > 60) return nt('noiseWarning');
+      
+      // Regime
+      const regimeText = { 'trending_up': nt('trendingUp'), 'trending_down': nt('trendingDown'), 'ranging': nt('ranging'), 'volatile': nt('volatile') };
+      parts.push(`${nt('regimeIs')} ${regimeText[regime] || regime} (${Math.round(probBull > 50 ? probBull : 100-probBull)}% ${nt('probabilityAt')}).`);
+      
+      // RSI
+      if (rsi < 35) parts.push(nt('rsiOversold'));
+      else if (rsi > 65) parts.push(nt('rsiOverbought'));
+      
+      // Whales
+      if (whaleFlow > 50000) parts.push(nt('whalesAccumulating') + ' ' + nt('strongBuyPressure'));
+      else if (whaleFlow < -50000) parts.push(nt('whalesDistributing') + ' ' + nt('strongSellPressure'));
+      
+      // Recommendation
+      parts.push(nt('recommendation'));
+      if (quality < 50 || noise > 45) parts.push(nt('wait'));
+      else if (probBull >= 65) parts.push(nt('lookForLongs'));
+      else if (probBull <= 35) parts.push(nt('lookForShorts'));
+      else parts.push(nt('wait'));
+      
+      return parts.join(' ');
+    }
+    
+    function updateNarratorUI() {
+      const now = Date.now();
+      if (now - lastNarrativeUpdate < 15000) return;
+      lastNarrativeUpdate = now;
+      
+      const el = document.getElementById('aiNarratorText');
+      if (el) {
+        el.style.opacity = '0.5';
+        setTimeout(() => { el.innerText = generateNarrative(); el.style.opacity = '1'; }, 150);
+      }
+      const ts = document.getElementById('narratorTimestamp');
+      if (ts) ts.innerText = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+    }
+    
+    function speakNarrative() {
+      if (!voiceState.enabled) { addAlert('⚠️ Enable voice first', 'warning'); return; }
+      speakAlert(generateNarrative(), 'high');
+    }
+
+    // Tab switching for right sidebar
+    function switchRightTab(tabName) {
+      const container = event.target.closest('.panel');
+      container.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      container.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      container.querySelector('#tab-' + tabName).classList.add('active');
+    }
     
     function toggleTheme() {
       document.body.classList.toggle('light-mode');
@@ -2446,8 +2676,18 @@
         layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#94a3b8' },
         grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-        rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
-        timeScale: { borderColor: 'rgba(255,255,255,0.1)', timeVisible: true }
+        rightPriceScale: { 
+          borderColor: 'rgba(255,255,255,0.1)', 
+          scaleMargins: { top: 0.05, bottom: 0.05 },
+          autoScale: true
+        },
+        timeScale: { 
+          borderColor: 'rgba(255,255,255,0.1)', 
+          timeVisible: true,
+          rightOffset: 5,
+          barSpacing: 10,
+          minBarSpacing: 5
+        }
       });
 
       candleSeries = chart.addCandlestickSeries({
@@ -2484,6 +2724,7 @@
         crosshairMarkerVisible: false,
         lastValueVisible: false,
         priceLineVisible: false,
+        autoscaleInfoProvider: () => null,
       });
 
       // Línea de tendencia bajista (resistencia)
@@ -2494,9 +2735,11 @@
         crosshairMarkerVisible: false,
         lastValueVisible: false,
         priceLineVisible: false,
+        autoscaleInfoProvider: () => null,
       });
 
       // Crear series para S/R levels (3 soportes + 3 resistencias)
+      // autoscaleInfoProvider: () => null evita que estas líneas expandan el rango del gráfico
       for (let i = 0; i < 3; i++) {
         supportLines.push(chart.addLineSeries({
           color: 'rgba(0, 255, 136, 0.6)',
@@ -2506,6 +2749,7 @@
           lastValueVisible: true,
           priceLineVisible: false,
           title: `S${i+1}`,
+          autoscaleInfoProvider: () => null,
         }));
         resistanceLines.push(chart.addLineSeries({
           color: 'rgba(255, 68, 102, 0.6)',
@@ -2515,6 +2759,7 @@
           lastValueVisible: true,
           priceLineVisible: false,
           title: `R${i+1}`,
+          autoscaleInfoProvider: () => null,
         }));
       }
 
@@ -2529,6 +2774,7 @@
           crosshairMarkerVisible: false,
           lastValueVisible: true,
           priceLineVisible: false,
+          autoscaleInfoProvider: () => null,
         }));
       }
 
@@ -4394,6 +4640,12 @@
           speakAlert(voiceText, 'high');
         }
       }
+      
+      // Update Paper Trading UI
+      updatePaperTradingUI();
+      
+      // Update AI Narrator
+      updateNarratorUI();
     }
 
     // ============================================
@@ -4564,6 +4816,15 @@
         if (state.candles.length > 0) {
           state.currentPrice = state.candles[state.candles.length - 1].close;
           runPredictionEngine(state.currentPrice);
+        }
+        
+        // Ajustar zoom inicial - mostrar últimas 50 velas para mejor visibilidad
+        if (chart && state.candles.length > 0) {
+          const visibleBars = Math.min(50, state.candles.length);
+          chart.timeScale().setVisibleLogicalRange({
+            from: state.candles.length - visibleBars,
+            to: state.candles.length
+          });
         }
         
         console.log(`Historical data loaded (${state.currentTimeframe}):`, state.candles.length, 'candles');
@@ -4841,6 +5102,7 @@
         fetchETFData();
         updatePredictionHistoryChart();
         updateSessionDisplay(); // Session detector
+        updatePaperTradingUI(); // Paper Trading
       }, 100);
       
       // Periodic updates
