@@ -6,21 +6,21 @@
   <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
   
   <!-- PWA Meta Tags -->
-  <meta name="application-name" content="XRP ORACULUM">
+  <meta name="application-name" content="ORACULUM">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="XRP ORACULUM">
+  <meta name="apple-mobile-web-app-title" content="ORACULUM">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#02060c">
   <meta name="msapplication-TileColor" content="#02060c">
   <meta name="msapplication-navbutton-color" content="#00d4ff">
   
   <!-- SEO & Social -->
-  <meta name="description" content="Advanced XRP Trading Dashboard with Real-Time Data, Predictive Engine, and Professional Analytics">
-  <meta name="keywords" content="XRP, trading, dashboard, crypto, analysis, ripple, ORACULUM">
+  <meta name="description" content="ORACULUM AI Engine v2.0 - Advanced XRP Trading Dashboard with Probability-Based Predictions, Market Regime Detection, S/R Levels, Fibonacci, and Signal Quality Analysis">
+  <meta name="keywords" content="XRP, trading, dashboard, crypto, AI, analysis, ORACULUM, fibonacci, support, resistance">
   <meta name="author" content="OkrtSystem Labs">
   
-  <title>XRP ORACULUM | OkrtSystem Labs</title>
+  <title>ORACULUM AI Engine v2.0 | OkrtSystem Labs</title>
   
   <!-- PWA Icons -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300d4ff'/%3E%3Cstop offset='100%25' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='100' fill='%2302060c'/%3E%3Crect x='128' y='128' width='256' height='256' rx='40' fill='url(%23g)' transform='rotate(45 256 256)'/%3E%3Ctext x='256' y='290' text-anchor='middle' font-family='Arial Black' font-size='180' font-weight='900' fill='%2302060c'%3EX%3C/text%3E%3C/svg%3E">
@@ -1380,17 +1380,14 @@
   <header>
     <div class="brand">
       <div style="width:15px; height:15px; background:var(--accent-cyan); transform:rotate(45deg);"></div>
-      <h1>◆ XRP ORACULUM <span style="opacity:0.5; font-weight:400; font-size:14px;">OkrtSystem Labs</span></h1>
+      <h1>◆ ORACULUM <span style="opacity:0.5; font-weight:400; font-size:14px;">AI Engine v2.0</span></h1>
     </div>
     <div class="header-center">
       <div class="header-stat">
         <span>BTC:</span> <span id="btcPrice" class="c-cyan">--</span>
       </div>
-      <div class="header-stat">
-        <span>ETF AUM:</span> <span id="etfAum" class="c-green">$1.41B</span>
-      </div>
-      <div class="header-stat">
-        <span>XRP Locked:</span> <span id="xrpLocked" class="c-purple">746.3M</span>
+      <div class="header-stat" id="sessionDisplay" style="min-width:140px;">
+        🌙 <span style="color:var(--text-dim)">LOADING...</span>
       </div>
       <div class="header-stat">
         <span>Accuracy:</span> <span id="accuracyPct" class="c-green">--%</span>
@@ -1414,6 +1411,9 @@
       </button>
       <button class="control-btn" onclick="exportData()" title="Export CSV">
         📥 CSV
+      </button>
+      <button class="control-btn" onclick="captureScreenshot()" title="Screenshot">
+        📸
       </button>
       <button id="toolsBtn" class="control-btn" onclick="toggleToolsPanel()" title="Trading Tools" style="background:linear-gradient(135deg, rgba(0,212,255,0.2), rgba(168,85,247,0.2)); border-color:var(--accent-cyan);">
         🛠️ TOOLS
@@ -1721,22 +1721,42 @@
     <!-- GRÁFICO CENTRAL -->
     <div class="panel chart-box">
       <div class="panel-head">
-        XRPUSDT • 1m 
+        <span id="chartLabel">XRP/USDT • 1m</span>
         <span style="color:var(--accent-cyan)">TradingView</span>
+        <span style="float:right; font-size:9px; color:var(--text-dim);">
+          <span style="color:rgba(0,255,136,0.6);">━━</span> Support
+          <span style="color:rgba(255,68,102,0.6); margin-left:5px;">━━</span> Resistance
+          <span style="color:var(--accent-yellow); margin-left:5px;">┈┈</span> Fibonacci
+        </span>
       </div>
       <div id="divergenceBadge" class="divergence-badge" style="display:none;"></div>
       <div id="chartContainer"></div>
+      <!-- Fibonacci Levels Display -->
+      <div id="fiboLevels" style="padding:4px 10px; font-size:9px; background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.05); overflow-x:auto; white-space:nowrap;">
+        <span style="color:var(--accent-yellow)">◆ FIBO:</span> <span style="color:var(--text-dim)">Calculating...</span>
+      </div>
     </div>
 
     <!-- SIDEBAR DERECHA -->
     <div class="side-right">
       <!-- ALERTS -->
-      <div class="panel" style="height:180px">
+      <div class="panel" style="height:140px">
         <div class="panel-head">
           🚨 SMART ALERTS 
           <span id="alertCount" style="background:var(--accent-red); color:#fff; padding:1px 6px; border-radius:10px; font-size:9px;">0</span>
         </div>
         <div id="alertsContainer" class="scrollable" style="padding:5px 0;"></div>
+      </div>
+
+      <!-- SIGNAL HISTORY -->
+      <div class="panel" style="height:160px">
+        <div class="panel-head">
+          📜 SIGNAL HISTORY 
+          <span style="font-size:9px; color:var(--text-dim);">Last 10</span>
+        </div>
+        <div id="signalHistoryList" class="scrollable" style="padding:3px 0;">
+          <div style="text-align:center; color:var(--text-dim); padding:10px; font-size:10px;">Waiting for signals...</div>
+        </div>
       </div>
 
       <!-- ORDER BOOK -->
@@ -2128,6 +2148,7 @@
 
     // --- CHART ---
     let chart, candleSeries, trendLineUp, trendLineDown, ema9Series, ema21Series;
+    let supportLines = [], resistanceLines = [], fiboLines = [];
 
     function initChart() {
       const container = document.getElementById('chartContainer');
@@ -2186,6 +2207,42 @@
         lastValueVisible: false,
         priceLineVisible: false,
       });
+
+      // Crear series para S/R levels (3 soportes + 3 resistencias)
+      for (let i = 0; i < 3; i++) {
+        supportLines.push(chart.addLineSeries({
+          color: 'rgba(0, 255, 136, 0.6)',
+          lineWidth: 1,
+          lineStyle: 2, // Dashed
+          crosshairMarkerVisible: false,
+          lastValueVisible: true,
+          priceLineVisible: false,
+          title: `S${i+1}`,
+        }));
+        resistanceLines.push(chart.addLineSeries({
+          color: 'rgba(255, 68, 102, 0.6)',
+          lineWidth: 1,
+          lineStyle: 2, // Dashed
+          crosshairMarkerVisible: false,
+          lastValueVisible: true,
+          priceLineVisible: false,
+          title: `R${i+1}`,
+        }));
+      }
+
+      // Crear series para Fibonacci (5 niveles: 0.236, 0.382, 0.5, 0.618, 0.786)
+      const fiboColors = ['#f4b942', '#f4b942', '#00d4ff', '#f4b942', '#f4b942'];
+      const fiboWidths = [1, 1, 2, 1, 1];
+      for (let i = 0; i < 5; i++) {
+        fiboLines.push(chart.addLineSeries({
+          color: fiboColors[i],
+          lineWidth: fiboWidths[i],
+          lineStyle: 1, // Dotted
+          crosshairMarkerVisible: false,
+          lastValueVisible: true,
+          priceLineVisible: false,
+        }));
+      }
 
       new ResizeObserver(() => {
         chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
@@ -2329,6 +2386,304 @@
           trendLineDown.setData(resistanceLine);
         } catch (e) {}
       }
+    }
+
+    // ============================================
+    // S/R LEVELS ON CHART
+    // ============================================
+    
+    function updateSROnChart() {
+      if (!state.candles || state.candles.length < 30) return;
+      if (!supportLines || supportLines.length === 0) return;
+      
+      const supports = aiState.supportLevels || [];
+      const resistances = aiState.resistanceLevels || [];
+      
+      const startTime = state.candles[0].time;
+      const endTime = state.candles[state.candles.length - 1].time;
+      
+      // Dibujar soportes
+      supports.slice(0, 3).forEach((s, i) => {
+        if (supportLines[i]) {
+          try {
+            supportLines[i].setData([
+              { time: startTime, value: s.price },
+              { time: endTime, value: s.price }
+            ]);
+          } catch (e) {}
+        }
+      });
+      
+      // Limpiar líneas no usadas
+      for (let i = supports.length; i < 3; i++) {
+        if (supportLines[i]) supportLines[i].setData([]);
+      }
+      
+      // Dibujar resistencias
+      resistances.slice(0, 3).forEach((r, i) => {
+        if (resistanceLines[i]) {
+          try {
+            resistanceLines[i].setData([
+              { time: startTime, value: r.price },
+              { time: endTime, value: r.price }
+            ]);
+          } catch (e) {}
+        }
+      });
+      
+      // Limpiar líneas no usadas
+      for (let i = resistances.length; i < 3; i++) {
+        if (resistanceLines[i]) resistanceLines[i].setData([]);
+      }
+    }
+
+    // ============================================
+    // FIBONACCI RETRACEMENT
+    // ============================================
+    
+    function updateFibonacciLevels() {
+      if (!state.candles || state.candles.length < 30) return;
+      if (!fiboLines || fiboLines.length === 0) return;
+      
+      // Encontrar swing high y swing low en los últimos 50 candles
+      const recentCandles = state.candles.slice(-50);
+      const swingHigh = Math.max(...recentCandles.map(c => c.high));
+      const swingLow = Math.min(...recentCandles.map(c => c.low));
+      const range = swingHigh - swingLow;
+      
+      // Determinar dirección de la tendencia
+      const closes = recentCandles.map(c => c.close);
+      const firstHalf = closes.slice(0, 25).reduce((a,b) => a+b, 0) / 25;
+      const secondHalf = closes.slice(25).reduce((a,b) => a+b, 0) / 25;
+      const isUptrend = secondHalf > firstHalf;
+      
+      // Niveles Fibonacci: 0.236, 0.382, 0.5, 0.618, 0.786
+      const fiboLevels = [0.236, 0.382, 0.5, 0.618, 0.786];
+      const startTime = state.candles[0].time;
+      const endTime = state.candles[state.candles.length - 1].time;
+      
+      fiboLevels.forEach((level, i) => {
+        if (fiboLines[i]) {
+          let price;
+          if (isUptrend) {
+            // En tendencia alcista, retrocesos desde el máximo
+            price = swingHigh - (range * level);
+          } else {
+            // En tendencia bajista, retrocesos desde el mínimo
+            price = swingLow + (range * level);
+          }
+          
+          try {
+            fiboLines[i].setData([
+              { time: startTime, value: price },
+              { time: endTime, value: price }
+            ]);
+          } catch (e) {}
+        }
+      });
+      
+      // Actualizar display de Fibonacci
+      const fiboDisplay = document.getElementById('fiboLevels');
+      if (fiboDisplay) {
+        const currentPrice = state.currentPrice;
+        const levels = fiboLevels.map((l, i) => {
+          const price = isUptrend ? swingHigh - (range * l) : swingLow + (range * l);
+          const diff = ((currentPrice - price) / price * 100).toFixed(2);
+          const color = Math.abs(parseFloat(diff)) < 0.5 ? 'var(--accent-cyan)' : 'var(--text-dim)';
+          return `<span style="color:${color}">${(l*100).toFixed(1)}%: ${price.toFixed(4)}</span>`;
+        }).join(' | ');
+        fiboDisplay.innerHTML = `<span style="color:var(--accent-yellow)">◆ FIBO:</span> ${levels}`;
+      }
+    }
+
+    // ============================================
+    // SESSION DETECTOR
+    // ============================================
+    
+    const tradingSessions = {
+      asia: { name: 'ASIA', start: 0, end: 9, emoji: '🌏', volatility: 'Low-Medium' },
+      europe: { name: 'EUROPE', start: 7, end: 16, emoji: '🌍', volatility: 'High' },
+      us: { name: 'US', start: 13, end: 22, emoji: '🌎', volatility: 'Very High' },
+      overlap_eu_us: { name: 'EU/US OVERLAP', start: 13, end: 16, emoji: '🔥', volatility: 'Maximum' }
+    };
+    
+    function detectTradingSession() {
+      const now = new Date();
+      const utcHour = now.getUTCHours();
+      
+      let activeSessions = [];
+      let sessionInfo = { name: 'OFF-HOURS', emoji: '🌙', volatility: 'Low', color: 'var(--text-dim)' };
+      
+      // Detectar sesiones activas
+      if (utcHour >= 0 && utcHour < 9) {
+        activeSessions.push('asia');
+      }
+      if (utcHour >= 7 && utcHour < 16) {
+        activeSessions.push('europe');
+      }
+      if (utcHour >= 13 && utcHour < 22) {
+        activeSessions.push('us');
+      }
+      
+      // Determinar sesión principal
+      if (utcHour >= 13 && utcHour < 16) {
+        sessionInfo = { 
+          name: 'EU/US OVERLAP', 
+          emoji: '🔥', 
+          volatility: 'Maximum',
+          color: 'var(--accent-red)'
+        };
+      } else if (activeSessions.includes('us')) {
+        sessionInfo = { 
+          name: 'US SESSION', 
+          emoji: '🌎', 
+          volatility: 'Very High',
+          color: 'var(--accent-green)'
+        };
+      } else if (activeSessions.includes('europe')) {
+        sessionInfo = { 
+          name: 'EUROPE SESSION', 
+          emoji: '🌍', 
+          volatility: 'High',
+          color: 'var(--accent-cyan)'
+        };
+      } else if (activeSessions.includes('asia')) {
+        sessionInfo = { 
+          name: 'ASIA SESSION', 
+          emoji: '🌏', 
+          volatility: 'Low-Medium',
+          color: 'var(--accent-purple)'
+        };
+      }
+      
+      return sessionInfo;
+    }
+    
+    function updateSessionDisplay() {
+      const session = detectTradingSession();
+      const sessionEl = document.getElementById('sessionDisplay');
+      if (sessionEl) {
+        sessionEl.innerHTML = `${session.emoji} <span style="color:${session.color}">${session.name}</span> <span style="font-size:9px; color:var(--text-dim)">Vol: ${session.volatility}</span>`;
+      }
+    }
+
+    // ============================================
+    // SIGNAL HISTORY LOG
+    // ============================================
+    
+    const signalHistory = [];
+    const MAX_SIGNAL_HISTORY = 50;
+    
+    function logSignal(type, probability, quality, price, regime) {
+      const now = new Date();
+      const signal = {
+        time: now.toLocaleTimeString(),
+        timestamp: now.getTime(),
+        type, // 'BULL' or 'BEAR'
+        probability,
+        quality,
+        price,
+        regime,
+        result: null // Se llena después
+      };
+      
+      signalHistory.unshift(signal);
+      if (signalHistory.length > MAX_SIGNAL_HISTORY) {
+        signalHistory.pop();
+      }
+      
+      updateSignalHistoryDisplay();
+      return signal;
+    }
+    
+    function updateSignalHistoryDisplay() {
+      const container = document.getElementById('signalHistoryList');
+      if (!container) return;
+      
+      if (signalHistory.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:var(--text-dim); padding:10px;">No signals yet...</div>';
+        return;
+      }
+      
+      container.innerHTML = signalHistory.slice(0, 10).map(s => {
+        const color = s.type === 'BULL' ? 'var(--accent-green)' : 'var(--accent-red)';
+        const arrow = s.type === 'BULL' ? '▲' : '▼';
+        const resultIcon = s.result === true ? '✅' : s.result === false ? '❌' : '⏳';
+        
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:10px;">
+            <span style="color:var(--text-dim)">${s.time}</span>
+            <span style="color:${color}">${arrow} ${s.type}</span>
+            <span>${s.probability.toFixed(0)}%</span>
+            <span style="color:var(--accent-purple)">Q:${s.quality.toFixed(0)}</span>
+            <span>${resultIcon}</span>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function verifySignalResults() {
+      const currentPrice = state.currentPrice;
+      const now = Date.now();
+      
+      signalHistory.forEach(s => {
+        if (s.result === null && now - s.timestamp > 300000) { // 5 minutos
+          const priceChange = (currentPrice - s.price) / s.price * 100;
+          if (s.type === 'BULL') {
+            s.result = priceChange > 0.1; // Subió más de 0.1%
+          } else {
+            s.result = priceChange < -0.1; // Bajó más de 0.1%
+          }
+        }
+      });
+      
+      updateSignalHistoryDisplay();
+    }
+
+    // ============================================
+    // SCREENSHOT FUNCTION
+    // ============================================
+    
+    async function captureScreenshot() {
+      try {
+        // Usar html2canvas si está disponible
+        if (typeof html2canvas === 'undefined') {
+          // Cargar html2canvas dinámicamente
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          script.onload = () => doCapture();
+          document.head.appendChild(script);
+        } else {
+          doCapture();
+        }
+      } catch (e) {
+        addAlert('Screenshot failed: ' + e.message, 'warning');
+      }
+    }
+    
+    function doCapture() {
+      const mainEl = document.querySelector('main');
+      if (!mainEl) return;
+      
+      addAlert('📸 Capturing screenshot...', 'info');
+      
+      html2canvas(mainEl, {
+        backgroundColor: '#02060c',
+        scale: 2,
+        logging: false,
+        useCORS: true
+      }).then(canvas => {
+        // Crear link de descarga
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        link.download = `ORACULUM_${timestamp}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        addAlert('✅ Screenshot saved!', 'bullish');
+      }).catch(e => {
+        addAlert('Screenshot error: ' + e.message, 'warning');
+      });
     }
 
     // ============================================
@@ -3717,11 +4072,23 @@
         ui.noiseLevel.style.color = noise.level > 60 ? 'var(--accent-red)' : noise.level > 40 ? 'var(--accent-orange)' : 'var(--accent-green)';
       }
 
-      // Alert on high-quality signals
-      if (signalQuality >= 75 && probability.confidence >= 60) {
-        const direction = probability.bullish > 50 ? 'BULLISH' : 'BEARISH';
+      // Update S/R and Fibonacci on chart
+      updateSROnChart();
+      updateFibonacciLevels();
+
+      // Alert and log high-quality signals
+      if (signalQuality >= 70 && probability.confidence >= 55) {
+        const direction = probability.bullish > 50 ? 'BULL' : 'BEAR';
         const alertType = probability.bullish > 50 ? 'bullish' : 'bearish';
-        addAlert(`🎯 HIGH QUALITY ${direction} SIGNAL: ${probability.bullish > 50 ? probability.bullish.toFixed(0) : (100-probability.bullish).toFixed(0)}% prob, ${signalQuality.toFixed(0)}% quality`, alertType);
+        const prob = probability.bullish > 50 ? probability.bullish : probability.bearish;
+        
+        // Log signal to history
+        logSignal(direction, prob, signalQuality, currentPrice, regime.regime);
+        
+        // Only alert on very high quality signals
+        if (signalQuality >= 75 && probability.confidence >= 60) {
+          addAlert(`🎯 HIGH QUALITY ${direction} SIGNAL: ${prob.toFixed(0)}% prob, ${signalQuality.toFixed(0)}% quality`, alertType);
+        }
       }
     }
 
@@ -4132,7 +4499,7 @@
     // ============================================
 
     window.addEventListener('DOMContentLoaded', () => {
-      console.log('XRP ORACULUM | OkrtSystem Labs - INITIALIZING...');
+      console.log('ORACULUM AI Engine v2.0 | OkrtSystem Labs - INITIALIZING...');
       
       // Clock
       setInterval(() => {
@@ -4161,6 +4528,7 @@
         fetchBTCPrice();
         fetchETFData();
         updatePredictionHistoryChart();
+        updateSessionDisplay(); // Session detector
       }, 100);
       
       // Periodic updates
@@ -4185,6 +4553,18 @@
       
       // Actualizar líneas de tendencia cada 30 segundos
       setInterval(updateTrendLines, 30000);
+      
+      // Actualizar S/R y Fibonacci cada 30 segundos
+      setInterval(() => {
+        updateSROnChart();
+        updateFibonacciLevels();
+      }, 30000);
+      
+      // Actualizar Session Display cada minuto
+      setInterval(updateSessionDisplay, 60000);
+      
+      // Verificar resultados de señales cada 5 minutos
+      setInterval(verifySignalResults, 300000);
       
       // Conectar a otros exchanges para whale tracking
       connectKraken();
