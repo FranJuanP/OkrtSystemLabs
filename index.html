@@ -2830,95 +2830,163 @@
     }
 
     // ============================================
-    // AUTO TREND LINES
+    // AUTO TREND LINES (Professional Algorithm)
     // ============================================
 
-    function findSwingPoints(candles, lookback = 5) {
-      if (candles.length < lookback * 2 + 1) return { highs: [], lows: [] };
+    // Encontrar pivotes/swings significativos
+    function findPivotPoints(candles, strength = 2) {
+      if (candles.length < strength * 2 + 1) return { pivotHighs: [], pivotLows: [] };
       
-      const highs = [];
-      const lows = [];
+      const pivotHighs = [];
+      const pivotLows = [];
+      const recentCandles = candles.slice(-50); // Solo últimas 50 velas
       
-      for (let i = lookback; i < candles.length - lookback; i++) {
-        let isSwingHigh = true;
-        let isSwingLow = true;
+      for (let i = strength; i < recentCandles.length - strength; i++) {
+        let isPivotHigh = true;
+        let isPivotLow = true;
         
-        for (let j = 1; j <= lookback; j++) {
-          if (candles[i].high <= candles[i - j].high || candles[i].high <= candles[i + j].high) {
-            isSwingHigh = false;
+        for (let j = 1; j <= strength; j++) {
+          if (recentCandles[i].high < recentCandles[i - j].high || 
+              recentCandles[i].high < recentCandles[i + j].high) {
+            isPivotHigh = false;
           }
-          if (candles[i].low >= candles[i - j].low || candles[i].low >= candles[i + j].low) {
-            isSwingLow = false;
+          if (recentCandles[i].low > recentCandles[i - j].low || 
+              recentCandles[i].low > recentCandles[i + j].low) {
+            isPivotLow = false;
           }
         }
         
-        if (isSwingHigh) {
-          highs.push({ time: candles[i].time, value: candles[i].high });
+        if (isPivotHigh) {
+          pivotHighs.push({ 
+            time: recentCandles[i].time, 
+            value: recentCandles[i].high,
+            index: candles.length - recentCandles.length + i
+          });
         }
-        if (isSwingLow) {
-          lows.push({ time: candles[i].time, value: candles[i].low });
+        if (isPivotLow) {
+          pivotLows.push({ 
+            time: recentCandles[i].time, 
+            value: recentCandles[i].low,
+            index: candles.length - recentCandles.length + i
+          });
         }
       }
       
-      return { highs, lows };
+      return { pivotHighs, pivotLows };
     }
 
-    function calculateTrendLine(points) {
-      if (points.length < 2) return null;
+    // Encontrar la mejor línea de tendencia usando los 2 puntos más significativos
+    function findBestTrendLine(pivots, isSupport = true) {
+      if (pivots.length < 2) return null;
       
-      // Tomar los últimos 2-3 puntos significativos
-      const recentPoints = points.slice(-3);
-      if (recentPoints.length < 2) return null;
+      // Tomar los últimos 4-5 pivotes
+      const recentPivots = pivots.slice(-5);
+      if (recentPivots.length < 2) return null;
       
-      const p1 = recentPoints[0];
-      const p2 = recentPoints[recentPoints.length - 1];
+      let bestLine = null;
+      let bestScore = -Infinity;
       
-      // Calcular pendiente
-      const timeDiff = p2.time - p1.time;
-      if (timeDiff === 0) return null;
+      // Probar combinaciones de 2 puntos
+      for (let i = 0; i < recentPivots.length - 1; i++) {
+        for (let j = i + 1; j < recentPivots.length; j++) {
+          const p1 = recentPivots[i];
+          const p2 = recentPivots[j];
+          
+          const timeDiff = p2.time - p1.time;
+          if (timeDiff <= 0) continue;
+          
+          const slope = (p2.value - p1.value) / timeDiff;
+          
+          // Para soporte: preferir pendiente positiva o neutral
+          // Para resistencia: preferir pendiente negativa o neutral
+          let score = 0;
+          
+          if (isSupport) {
+            // Soporte: contar cuántos puntos están por encima de la línea
+            score = slope >= 0 ? 1 : 0;
+            for (const p of recentPivots) {
+              const expectedValue = p1.value + slope * (p.time - p1.time);
+              if (p.value >= expectedValue * 0.998) score += 1;
+            }
+          } else {
+            // Resistencia: contar cuántos puntos están por debajo de la línea
+            score = slope <= 0 ? 1 : 0;
+            for (const p of recentPivots) {
+              const expectedValue = p1.value + slope * (p.time - p1.time);
+              if (p.value <= expectedValue * 1.002) score += 1;
+            }
+          }
+          
+          // Preferir líneas más recientes
+          score += (j - i) * 0.5;
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestLine = { p1, p2, slope };
+          }
+        }
+      }
       
-      const slope = (p2.value - p1.value) / timeDiff;
-      
-      // Extender la línea hacia el futuro
-      const futureTime = p2.time + (timeDiff * 0.5);
-      const futureValue = p2.value + (slope * timeDiff * 0.5);
-      
-      return [
-        { time: p1.time, value: p1.value },
-        { time: p2.time, value: p2.value },
-        { time: futureTime, value: futureValue }
-      ];
+      return bestLine;
     }
 
     function updateTrendLines() {
-      if (!state.candles || state.candles.length < 20) return;
-      
-      const { highs, lows } = findSwingPoints(state.candles, 3);
-      
-      // Línea de soporte (conectando mínimos ascendentes)
-      const ascendingLows = lows.filter((p, i) => {
-        if (i === 0) return true;
-        return p.value >= lows[i - 1].value * 0.995; // Tolerancia del 0.5%
-      });
-      
-      const supportLine = calculateTrendLine(ascendingLows);
-      if (supportLine && trendLineUp) {
-        try {
-          trendLineUp.setData(supportLine);
-        } catch (e) {}
+      if (!state.candles || state.candles.length < 20) {
+        if (trendLineUp) trendLineUp.setData([]);
+        if (trendLineDown) trendLineDown.setData([]);
+        return;
       }
       
-      // Línea de resistencia (conectando máximos descendentes)
-      const descendingHighs = highs.filter((p, i) => {
-        if (i === 0) return true;
-        return p.value <= highs[i - 1].value * 1.005; // Tolerancia del 0.5%
-      });
+      const { pivotHighs, pivotLows } = findPivotPoints(state.candles, 2);
       
-      const resistanceLine = calculateTrendLine(descendingHighs);
-      if (resistanceLine && trendLineDown) {
-        try {
-          trendLineDown.setData(resistanceLine);
-        } catch (e) {}
+      // Línea de soporte (conectando mínimos)
+      if (pivotLows.length >= 2 && trendLineUp) {
+        const supportTrend = findBestTrendLine(pivotLows, true);
+        if (supportTrend) {
+          const { p1, p2, slope } = supportTrend;
+          
+          // Extender ligeramente hacia el futuro (3 velas)
+          const lastCandle = state.candles[state.candles.length - 1];
+          const candleInterval = state.candles.length > 1 ? 
+            (lastCandle.time - state.candles[state.candles.length - 2].time) : 60;
+          const futureTime = lastCandle.time + candleInterval * 3;
+          const futureValue = p1.value + slope * (futureTime - p1.time);
+          
+          try {
+            trendLineUp.setData([
+              { time: p1.time, value: p1.value },
+              { time: p2.time, value: p2.value },
+              { time: futureTime, value: futureValue }
+            ]);
+          } catch (e) {}
+        }
+      } else if (trendLineUp) {
+        trendLineUp.setData([]);
+      }
+      
+      // Línea de resistencia (conectando máximos)
+      if (pivotHighs.length >= 2 && trendLineDown) {
+        const resistanceTrend = findBestTrendLine(pivotHighs, false);
+        if (resistanceTrend) {
+          const { p1, p2, slope } = resistanceTrend;
+          
+          // Extender ligeramente hacia el futuro (3 velas)
+          const lastCandle = state.candles[state.candles.length - 1];
+          const candleInterval = state.candles.length > 1 ? 
+            (lastCandle.time - state.candles[state.candles.length - 2].time) : 60;
+          const futureTime = lastCandle.time + candleInterval * 3;
+          const futureValue = p1.value + slope * (futureTime - p1.time);
+          
+          try {
+            trendLineDown.setData([
+              { time: p1.time, value: p1.value },
+              { time: p2.time, value: p2.value },
+              { time: futureTime, value: futureValue }
+            ]);
+          } catch (e) {}
+        }
+      } else if (trendLineDown) {
+        trendLineDown.setData([]);
       }
     }
 
@@ -5054,6 +5122,11 @@
         if (state.soundEnabled) playSound('whale');
       }
       
+      // Check smart whale alerts
+      if (typeof checkWhaleAlerts === 'function') {
+        checkWhaleAlerts(isBuy ? 'BUY' : 'SELL', qty, price);
+      }
+      
       while (ui.whaleList.children.length > 15) {
         ui.whaleList.lastChild.remove();
       }
@@ -5374,13 +5447,13 @@
 
       <div class="tools-tabs">
         <button class="tools-tab active" onclick="switchToolTab('mtf')">📊 Multi-TF</button>
+        <button class="tools-tab" onclick="switchToolTab('backtest')">⚡ Backtest</button>
+        <button class="tools-tab" onclick="switchToolTab('alerts')">🔔 Smart Alerts</button>
         <button class="tools-tab" onclick="switchToolTab('risk')">🎯 Risk Calc</button>
-        <button class="tools-tab" onclick="switchToolTab('alerts')">🔔 Alerts</button>
         <button class="tools-tab" onclick="switchToolTab('fibo')">📐 Fibonacci</button>
         <button class="tools-tab" onclick="switchToolTab('session')">📈 Session</button>
         <button class="tools-tab" onclick="switchToolTab('strategy')">🤖 Strategy</button>
         <button class="tools-tab" onclick="switchToolTab('corr')">🔗 Correlation</button>
-        <button class="tools-tab" onclick="switchToolTab('watchlist')">👁️ Watchlist</button>
       </div>
 
       <div class="tools-content">
@@ -5455,6 +5528,139 @@
               </div>
             </div>
             <div style="text-align:center; margin-top:10px; font-size:14px; font-weight:bold;" id="mtf-verdict">ANALYZING...</div>
+          </div>
+        </div>
+
+        <!-- ⚡ BACKTESTING ENGINE SECTION -->
+        <div id="backtestSection" class="tool-section">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <!-- Backtesting Controls -->
+            <div style="background:rgba(0,0,0,0.2); border-radius:10px; padding:15px;">
+              <h3 style="font-family:var(--font-tech); font-size:12px; color:var(--accent-cyan); margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">⚙️ BACKTEST SETTINGS</h3>
+              
+              <div class="input-group" style="margin-bottom:12px;">
+                <label style="font-size:10px; color:var(--text-dim);">Period (Days)</label>
+                <select id="btPeriod" style="width:100%; padding:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:5px; color:#fff;">
+                  <option value="1">Last 24 Hours</option>
+                  <option value="3">Last 3 Days</option>
+                  <option value="7" selected>Last 7 Days</option>
+                  <option value="14">Last 14 Days</option>
+                  <option value="30">Last 30 Days</option>
+                </select>
+              </div>
+              
+              <div class="input-group" style="margin-bottom:12px;">
+                <label style="font-size:10px; color:var(--text-dim);">Timeframe</label>
+                <select id="btTimeframe" style="width:100%; padding:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:5px; color:#fff;">
+                  <option value="5m">5 Minutes</option>
+                  <option value="15m" selected>15 Minutes</option>
+                  <option value="1h">1 Hour</option>
+                  <option value="4h">4 Hours</option>
+                </select>
+              </div>
+              
+              <div class="input-group" style="margin-bottom:12px;">
+                <label style="font-size:10px; color:var(--text-dim);">Signal Quality Threshold</label>
+                <input type="range" id="btQualityThreshold" min="30" max="90" value="60" style="width:100%;">
+                <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-dim);">
+                  <span>Low (30)</span>
+                  <span id="btQualityValue">60</span>
+                  <span>High (90)</span>
+                </div>
+              </div>
+              
+              <div class="input-group" style="margin-bottom:12px;">
+                <label style="font-size:10px; color:var(--text-dim);">Probability Threshold (%)</label>
+                <input type="range" id="btProbThreshold" min="55" max="85" value="65" style="width:100%;">
+                <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-dim);">
+                  <span>55%</span>
+                  <span id="btProbValue">65%</span>
+                  <span>85%</span>
+                </div>
+              </div>
+              
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                <div class="input-group">
+                  <label style="font-size:10px; color:var(--text-dim);">Take Profit (%)</label>
+                  <input type="number" id="btTakeProfit" value="2" step="0.5" min="0.5" max="10" style="width:100%; padding:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:5px; color:#fff;">
+                </div>
+                <div class="input-group">
+                  <label style="font-size:10px; color:var(--text-dim);">Stop Loss (%)</label>
+                  <input type="number" id="btStopLoss" value="1" step="0.5" min="0.5" max="10" style="width:100%; padding:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:5px; color:#fff;">
+                </div>
+              </div>
+              
+              <button onclick="runBacktest()" style="width:100%; padding:12px; background:linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); border:none; border-radius:8px; color:#fff; font-family:var(--font-tech); font-size:12px; cursor:pointer; font-weight:bold;">
+                ⚡ RUN BACKTEST
+              </button>
+              
+              <div id="btProgress" style="display:none; margin-top:10px;">
+                <div style="font-size:10px; color:var(--text-dim); margin-bottom:5px;">Processing...</div>
+                <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+                  <div id="btProgressBar" style="height:100%; width:0%; background:var(--accent-cyan); transition:width 0.3s;"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Backtesting Results -->
+            <div style="background:rgba(0,0,0,0.2); border-radius:10px; padding:15px;">
+              <h3 style="font-family:var(--font-tech); font-size:12px; color:var(--accent-green); margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">📊 RESULTS</h3>
+              
+              <div id="btResults" style="display:none;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                  <div style="background:rgba(0,255,136,0.1); padding:12px; border-radius:8px; text-align:center; border:1px solid rgba(0,255,136,0.2);">
+                    <div style="font-size:9px; color:var(--accent-green);">WIN RATE</div>
+                    <div id="btWinRate" style="font-size:24px; font-weight:bold; color:var(--accent-green);">--%</div>
+                  </div>
+                  <div style="background:rgba(0,212,255,0.1); padding:12px; border-radius:8px; text-align:center; border:1px solid rgba(0,212,255,0.2);">
+                    <div style="font-size:9px; color:var(--accent-cyan);">PROFIT FACTOR</div>
+                    <div id="btProfitFactor" style="font-size:24px; font-weight:bold; color:var(--accent-cyan);">--</div>
+                  </div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
+                  <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:6px; text-align:center;">
+                    <div style="font-size:8px; color:var(--text-dim);">TOTAL TRADES</div>
+                    <div id="btTotalTrades" style="font-size:16px; font-weight:bold;">0</div>
+                  </div>
+                  <div style="background:rgba(0,255,136,0.05); padding:10px; border-radius:6px; text-align:center;">
+                    <div style="font-size:8px; color:var(--accent-green);">WINS</div>
+                    <div id="btWins" style="font-size:16px; font-weight:bold; color:var(--accent-green);">0</div>
+                  </div>
+                  <div style="background:rgba(255,68,102,0.05); padding:10px; border-radius:6px; text-align:center;">
+                    <div style="font-size:8px; color:var(--accent-red);">LOSSES</div>
+                    <div id="btLosses" style="font-size:16px; font-weight:bold; color:var(--accent-red);">0</div>
+                  </div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                  <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:6px;">
+                    <div style="font-size:8px; color:var(--text-dim);">TOTAL RETURN</div>
+                    <div id="btTotalReturn" style="font-size:18px; font-weight:bold;">0%</div>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:6px;">
+                    <div style="font-size:8px; color:var(--text-dim);">MAX DRAWDOWN</div>
+                    <div id="btMaxDrawdown" style="font-size:18px; font-weight:bold; color:var(--accent-red);">0%</div>
+                  </div>
+                </div>
+                
+                <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:6px; margin-bottom:15px;">
+                  <div style="font-size:8px; color:var(--text-dim); margin-bottom:8px;">EQUITY CURVE</div>
+                  <div id="btEquityChart" style="height:80px; display:flex; align-items:flex-end; gap:2px;"></div>
+                </div>
+                
+                <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:6px;">
+                  <div style="font-size:8px; color:var(--text-dim); margin-bottom:8px;">TRADE LOG (Last 10)</div>
+                  <div id="btTradeLog" style="max-height:100px; overflow-y:auto; font-size:9px;"></div>
+                </div>
+              </div>
+              
+              <div id="btNoResults" style="text-align:center; padding:40px 20px; color:var(--text-dim);">
+                <div style="font-size:40px; margin-bottom:10px;">📈</div>
+                <div style="font-size:12px;">Configure settings and run backtest</div>
+                <div style="font-size:10px; margin-top:5px;">to see AI Engine performance</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -5546,39 +5752,146 @@
           </div>
         </div>
 
-        <!-- PRICE ALERTS SECTION -->
+        <!-- 🔔 SMART ALERTS SECTION -->
         <div id="alertsSection" class="tool-section">
           <div class="alerts-container">
             <div class="alerts-form">
-              <h3>➕ CREATE ALERT</h3>
-              <div class="alert-type-btns">
-                <button class="alert-type-btn active above" id="alertAboveBtn" onclick="setAlertType('above')">
-                  📈 Price Above
-                </button>
-                <button class="alert-type-btn below" id="alertBelowBtn" onclick="setAlertType('below')">
-                  📉 Price Below
-                </button>
+              <h3>➕ CREATE SMART ALERT</h3>
+              
+              <!-- Alert Type Selection -->
+              <div style="margin-bottom:15px;">
+                <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:8px;">Alert Type</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                  <button class="alert-type-btn active" id="alertTypePrice" onclick="setSmartAlertType('price')" style="padding:8px; font-size:9px; border-radius:5px; cursor:pointer; background:rgba(0,212,255,0.2); border:1px solid var(--accent-cyan); color:var(--accent-cyan);">
+                    💰 Price Level
+                  </button>
+                  <button class="alert-type-btn" id="alertTypeRSI" onclick="setSmartAlertType('rsi')" style="padding:8px; font-size:9px; border-radius:5px; cursor:pointer; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-dim);">
+                    📊 RSI Level
+                  </button>
+                  <button class="alert-type-btn" id="alertTypeWhale" onclick="setSmartAlertType('whale')" style="padding:8px; font-size:9px; border-radius:5px; cursor:pointer; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-dim);">
+                    🐋 Whale Trade
+                  </button>
+                  <button class="alert-type-btn" id="alertTypeSignal" onclick="setSmartAlertType('signal')" style="padding:8px; font-size:9px; border-radius:5px; cursor:pointer; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-dim);">
+                    🎯 AI Signal
+                  </button>
+                </div>
               </div>
-              <div class="input-group">
-                <label>Alert Price (USDT)</label>
-                <input type="number" id="customAlertPrice" step="0.0001" placeholder="Enter price...">
+              
+              <!-- Price Alert Config -->
+              <div id="priceAlertConfig">
+                <div class="alert-type-btns" style="margin-bottom:10px;">
+                  <button class="alert-type-btn active above" id="alertAboveBtn" onclick="setAlertType('above')" style="flex:1; padding:8px; font-size:10px;">
+                    📈 Above
+                  </button>
+                  <button class="alert-type-btn below" id="alertBelowBtn" onclick="setAlertType('below')" style="flex:1; padding:8px; font-size:10px;">
+                    📉 Below
+                  </button>
+                </div>
+                <div class="input-group">
+                  <label>Alert Price (USDT)</label>
+                  <input type="number" id="customAlertPrice" step="0.0001" placeholder="Enter price...">
+                </div>
               </div>
-              <div class="input-group">
+              
+              <!-- RSI Alert Config -->
+              <div id="rsiAlertConfig" style="display:none;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                  <button id="rsiOversoldBtn" onclick="setRSIAlertType('oversold')" class="control-btn active" style="padding:10px; background:rgba(0,255,136,0.2); border-color:var(--accent-green); color:var(--accent-green);">
+                    📉 Oversold (&lt;30)
+                  </button>
+                  <button id="rsiOverboughtBtn" onclick="setRSIAlertType('overbought')" class="control-btn" style="padding:10px;">
+                    📈 Overbought (&gt;70)
+                  </button>
+                </div>
+                <div class="input-group">
+                  <label>Custom RSI Level (optional)</label>
+                  <input type="number" id="customRSILevel" min="1" max="99" placeholder="e.g., 25 or 75">
+                </div>
+              </div>
+              
+              <!-- Whale Alert Config -->
+              <div id="whaleAlertConfig" style="display:none;">
+                <div class="input-group">
+                  <label>Minimum Trade Size (USDT)</label>
+                  <input type="number" id="whaleMinSize" value="50000" step="10000" placeholder="50000">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="whaleBuyAlert" checked> 🟢 Buy Orders
+                  </label>
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="whaleSellAlert" checked> 🔴 Sell Orders
+                  </label>
+                </div>
+              </div>
+              
+              <!-- AI Signal Alert Config -->
+              <div id="signalAlertConfig" style="display:none;">
+                <div class="input-group">
+                  <label>Minimum Signal Quality</label>
+                  <input type="range" id="signalQualityMin" min="50" max="95" value="75" style="width:100%;">
+                  <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-dim);">
+                    <span>50</span>
+                    <span id="signalQualityDisplay">75</span>
+                    <span>95</span>
+                  </div>
+                </div>
+                <div class="input-group" style="margin-top:10px;">
+                  <label>Minimum Probability</label>
+                  <input type="range" id="signalProbMin" min="60" max="90" value="70" style="width:100%;">
+                  <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-dim);">
+                    <span>60%</span>
+                    <span id="signalProbDisplay">70%</span>
+                    <span>90%</span>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="signalBullAlert" checked> 🟢 Bullish
+                  </label>
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="signalBearAlert" checked> 🔴 Bearish
+                  </label>
+                </div>
+              </div>
+              
+              <div class="input-group" style="margin-top:10px;">
                 <label>Note (optional)</label>
                 <input type="text" id="customAlertNote" placeholder="e.g., Resistance level" maxlength="50">
               </div>
-              <button class="add-alert-btn" onclick="addCustomAlert()">
-                🔔 ADD ALERT
-              </button>
-              <div style="margin-top:15px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px;">
-                <div style="font-size:10px; color:var(--text-dim); margin-bottom:8px;">QUICK ALERTS</div>
+              
+              <!-- Notification Options -->
+              <div style="margin:15px 0; padding:10px; background:rgba(255,255,255,0.03); border-radius:6px;">
+                <div style="font-size:9px; color:var(--text-dim); margin-bottom:8px;">NOTIFICATION OPTIONS</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                  <button class="control-btn" onclick="addQuickAlert(1)" style="font-size:10px;">+1%</button>
-                  <button class="control-btn" onclick="addQuickAlert(-1)" style="font-size:10px;">-1%</button>
-                  <button class="control-btn" onclick="addQuickAlert(2.5)" style="font-size:10px;">+2.5%</button>
-                  <button class="control-btn" onclick="addQuickAlert(-2.5)" style="font-size:10px;">-2.5%</button>
-                  <button class="control-btn" onclick="addQuickAlert(5)" style="font-size:10px;">+5%</button>
-                  <button class="control-btn" onclick="addQuickAlert(-5)" style="font-size:10px;">-5%</button>
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="alertSound" checked> 🔊 Sound
+                  </label>
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="alertVoice"> 🎙️ Voice
+                  </label>
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="alertBrowser"> 🌐 Browser
+                  </label>
+                  <label style="display:flex; align-items:center; gap:5px; font-size:10px; color:var(--text-dim);">
+                    <input type="checkbox" id="alertRepeat"> 🔄 Repeat
+                  </label>
+                </div>
+              </div>
+              
+              <button class="add-alert-btn" onclick="addSmartAlert()" style="width:100%; padding:12px; background:linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); border:none; border-radius:8px; color:#fff; font-family:var(--font-tech); cursor:pointer;">
+                🔔 CREATE ALERT
+              </button>
+              
+              <div style="margin-top:15px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px;">
+                <div style="font-size:10px; color:var(--text-dim); margin-bottom:8px;">QUICK PRICE ALERTS</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+                  <button class="control-btn" onclick="addQuickAlert(1)" style="font-size:9px; padding:6px;">+1%</button>
+                  <button class="control-btn" onclick="addQuickAlert(2)" style="font-size:9px; padding:6px;">+2%</button>
+                  <button class="control-btn" onclick="addQuickAlert(5)" style="font-size:9px; padding:6px;">+5%</button>
+                  <button class="control-btn" onclick="addQuickAlert(-1)" style="font-size:9px; padding:6px;">-1%</button>
+                  <button class="control-btn" onclick="addQuickAlert(-2)" style="font-size:9px; padding:6px;">-2%</button>
+                  <button class="control-btn" onclick="addQuickAlert(-5)" style="font-size:9px; padding:6px;">-5%</button>
                 </div>
               </div>
             </div>
@@ -5588,6 +5901,15 @@
               <div class="custom-alerts-list" id="customAlertsList">
                 <div class="no-alerts">No alerts configured. Create your first alert!</div>
               </div>
+              
+              <!-- Alert History -->
+              <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">
+                <h3 style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">📜 TRIGGERED HISTORY</h3>
+                <div id="alertHistory" style="max-height:120px; overflow-y:auto; font-size:9px;">
+                  <div style="color:var(--text-dim); text-align:center; padding:10px;">No alerts triggered yet</div>
+                </div>
+              </div>
+              
               <button class="control-btn" onclick="clearAllAlerts()" style="width:100%; margin-top:10px; padding:10px; color:var(--accent-red);">
                 🗑️ Clear All Alerts
               </button>
@@ -6376,7 +6698,650 @@
       if (state.price) {
         checkCustomAlerts(state.price);
         checkStrategies();
+        checkSmartAlerts(); // NEW: Smart alerts check
       }
+    }, 1000);
+
+    // ============================================
+    // ⚡ BACKTESTING ENGINE
+    // ============================================
+    
+    const backtestState = {
+      running: false,
+      results: null,
+      historicalData: []
+    };
+    
+    // UI event listeners for backtest sliders
+    document.addEventListener('DOMContentLoaded', () => {
+      const qualitySlider = document.getElementById('btQualityThreshold');
+      const probSlider = document.getElementById('btProbThreshold');
+      
+      if (qualitySlider) {
+        qualitySlider.addEventListener('input', (e) => {
+          document.getElementById('btQualityValue').textContent = e.target.value;
+        });
+      }
+      if (probSlider) {
+        probSlider.addEventListener('input', (e) => {
+          document.getElementById('btProbValue').textContent = e.target.value + '%';
+        });
+      }
+      
+      // Signal alert sliders
+      const sigQualSlider = document.getElementById('signalQualityMin');
+      const sigProbSlider = document.getElementById('signalProbMin');
+      
+      if (sigQualSlider) {
+        sigQualSlider.addEventListener('input', (e) => {
+          document.getElementById('signalQualityDisplay').textContent = e.target.value;
+        });
+      }
+      if (sigProbSlider) {
+        sigProbSlider.addEventListener('input', (e) => {
+          document.getElementById('signalProbDisplay').textContent = e.target.value + '%';
+        });
+      }
+    });
+    
+    async function runBacktest() {
+      if (backtestState.running) return;
+      
+      const period = parseInt(document.getElementById('btPeriod').value) || 7;
+      const timeframe = document.getElementById('btTimeframe').value || '15m';
+      const qualityThreshold = parseInt(document.getElementById('btQualityThreshold').value) || 60;
+      const probThreshold = parseInt(document.getElementById('btProbThreshold').value) || 65;
+      const takeProfit = parseFloat(document.getElementById('btTakeProfit').value) || 2;
+      const stopLoss = parseFloat(document.getElementById('btStopLoss').value) || 1;
+      
+      backtestState.running = true;
+      document.getElementById('btProgress').style.display = 'block';
+      document.getElementById('btResults').style.display = 'none';
+      document.getElementById('btNoResults').style.display = 'none';
+      
+      try {
+        // Calculate limit based on period and timeframe
+        const tfMinutes = { '5m': 5, '15m': 15, '1h': 60, '4h': 240 };
+        const minutes = tfMinutes[timeframe] || 15;
+        const limit = Math.min(1000, Math.floor((period * 24 * 60) / minutes));
+        
+        // Fetch historical data
+        updateProgress(10);
+        const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=XRPUSDT&interval=${timeframe}&limit=${limit}`);
+        const data = await response.json();
+        
+        if (!data || data.length < 50) {
+          throw new Error('Insufficient data');
+        }
+        
+        updateProgress(30);
+        
+        // Process candles
+        const candles = data.map(k => ({
+          time: k[0] / 1000,
+          open: parseFloat(k[1]),
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          volume: parseFloat(k[5])
+        }));
+        
+        // Run backtest simulation
+        const results = simulateBacktest(candles, qualityThreshold, probThreshold, takeProfit, stopLoss);
+        
+        updateProgress(90);
+        
+        // Display results
+        displayBacktestResults(results);
+        
+        updateProgress(100);
+        
+      } catch (error) {
+        console.error('Backtest error:', error);
+        addAlert('Backtest failed: ' + error.message, 'warning');
+        document.getElementById('btNoResults').style.display = 'block';
+      } finally {
+        backtestState.running = false;
+        setTimeout(() => {
+          document.getElementById('btProgress').style.display = 'none';
+        }, 500);
+      }
+    }
+    
+    function updateProgress(pct) {
+      const bar = document.getElementById('btProgressBar');
+      if (bar) bar.style.width = pct + '%';
+    }
+    
+    function simulateBacktest(candles, qualityThreshold, probThreshold, tpPct, slPct) {
+      const trades = [];
+      const equity = [100]; // Start with $100
+      let currentEquity = 100;
+      let maxEquity = 100;
+      let maxDrawdown = 0;
+      
+      // Need at least 50 candles for indicators
+      for (let i = 50; i < candles.length - 1; i++) {
+        const slice = candles.slice(0, i + 1);
+        const closes = slice.map(c => c.close);
+        const currentPrice = slice[slice.length - 1].close;
+        
+        // Calculate indicators (simplified version of AI Engine)
+        const rsi = calcRSI(closes, 14);
+        const ema9 = calcEMA(closes, 9);
+        const ema21 = calcEMA(closes, 21);
+        const macd = calcMACD(closes);
+        
+        if (!rsi || !ema9 || !ema21) continue;
+        
+        // Calculate signal quality and probability (simplified)
+        let bullPoints = 0, bearPoints = 0;
+        
+        // RSI signals
+        if (rsi < 35) bullPoints += 2;
+        else if (rsi > 65) bearPoints += 2;
+        
+        // EMA trend
+        if (ema9 > ema21) bullPoints += 2;
+        else bearPoints += 2;
+        
+        // MACD
+        if (macd && macd.histogram > 0) bullPoints += 1;
+        else if (macd && macd.histogram < 0) bearPoints += 1;
+        
+        // Price vs EMAs
+        if (currentPrice > ema21) bullPoints += 1;
+        else bearPoints += 1;
+        
+        const totalPoints = bullPoints + bearPoints;
+        const probBull = totalPoints > 0 ? (bullPoints / totalPoints * 100) : 50;
+        const signalQuality = Math.min(100, (totalPoints * 15) + (Math.abs(rsi - 50)));
+        
+        // Check if we should take a trade
+        const shouldTrade = signalQuality >= qualityThreshold;
+        const isBullish = probBull >= probThreshold;
+        const isBearish = (100 - probBull) >= probThreshold;
+        
+        if (shouldTrade && (isBullish || isBearish)) {
+          const direction = isBullish ? 'LONG' : 'SHORT';
+          const entry = currentPrice;
+          
+          // Simulate trade outcome using future candles
+          let result = simulateTrade(candles.slice(i + 1), entry, direction, tpPct, slPct);
+          
+          if (result) {
+            trades.push({
+              index: i,
+              time: slice[slice.length - 1].time,
+              direction,
+              entry,
+              exit: result.exit,
+              pnl: result.pnl,
+              result: result.result
+            });
+            
+            currentEquity *= (1 + result.pnl / 100);
+            equity.push(currentEquity);
+            
+            if (currentEquity > maxEquity) maxEquity = currentEquity;
+            const dd = ((maxEquity - currentEquity) / maxEquity) * 100;
+            if (dd > maxDrawdown) maxDrawdown = dd;
+          }
+        }
+      }
+      
+      // Calculate statistics
+      const wins = trades.filter(t => t.result === 'WIN').length;
+      const losses = trades.filter(t => t.result === 'LOSS').length;
+      const totalTrades = trades.length;
+      const winRate = totalTrades > 0 ? (wins / totalTrades * 100) : 0;
+      
+      const grossProfit = trades.filter(t => t.pnl > 0).reduce((a, b) => a + b.pnl, 0);
+      const grossLoss = Math.abs(trades.filter(t => t.pnl < 0).reduce((a, b) => a + b.pnl, 0));
+      const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss) : grossProfit > 0 ? 999 : 0;
+      
+      const totalReturn = ((currentEquity - 100) / 100) * 100;
+      
+      return {
+        trades,
+        equity,
+        totalTrades,
+        wins,
+        losses,
+        winRate,
+        profitFactor,
+        totalReturn,
+        maxDrawdown
+      };
+    }
+    
+    function simulateTrade(futureCandles, entry, direction, tpPct, slPct) {
+      if (futureCandles.length === 0) return null;
+      
+      const tp = direction === 'LONG' ? entry * (1 + tpPct / 100) : entry * (1 - tpPct / 100);
+      const sl = direction === 'LONG' ? entry * (1 - slPct / 100) : entry * (1 + slPct / 100);
+      
+      // Max hold 20 candles
+      const maxCandles = Math.min(20, futureCandles.length);
+      
+      for (let i = 0; i < maxCandles; i++) {
+        const candle = futureCandles[i];
+        
+        if (direction === 'LONG') {
+          if (candle.high >= tp) return { exit: tp, pnl: tpPct, result: 'WIN' };
+          if (candle.low <= sl) return { exit: sl, pnl: -slPct, result: 'LOSS' };
+        } else {
+          if (candle.low <= tp) return { exit: tp, pnl: tpPct, result: 'WIN' };
+          if (candle.high >= sl) return { exit: sl, pnl: -slPct, result: 'LOSS' };
+        }
+      }
+      
+      // Exit at last candle if no TP/SL hit
+      const lastClose = futureCandles[maxCandles - 1].close;
+      const pnl = direction === 'LONG' 
+        ? ((lastClose - entry) / entry) * 100 
+        : ((entry - lastClose) / entry) * 100;
+      
+      return { exit: lastClose, pnl, result: pnl > 0 ? 'WIN' : 'LOSS' };
+    }
+    
+    function displayBacktestResults(results) {
+      document.getElementById('btResults').style.display = 'block';
+      document.getElementById('btNoResults').style.display = 'none';
+      
+      // Main stats
+      document.getElementById('btWinRate').textContent = results.winRate.toFixed(1) + '%';
+      document.getElementById('btWinRate').style.color = results.winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)';
+      
+      document.getElementById('btProfitFactor').textContent = results.profitFactor.toFixed(2);
+      document.getElementById('btProfitFactor').style.color = results.profitFactor >= 1 ? 'var(--accent-cyan)' : 'var(--accent-red)';
+      
+      document.getElementById('btTotalTrades').textContent = results.totalTrades;
+      document.getElementById('btWins').textContent = results.wins;
+      document.getElementById('btLosses').textContent = results.losses;
+      
+      document.getElementById('btTotalReturn').textContent = (results.totalReturn >= 0 ? '+' : '') + results.totalReturn.toFixed(2) + '%';
+      document.getElementById('btTotalReturn').style.color = results.totalReturn >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+      
+      document.getElementById('btMaxDrawdown').textContent = '-' + results.maxDrawdown.toFixed(2) + '%';
+      
+      // Equity curve
+      renderEquityCurve(results.equity);
+      
+      // Trade log
+      renderTradeLog(results.trades);
+    }
+    
+    function renderEquityCurve(equity) {
+      const container = document.getElementById('btEquityChart');
+      if (!equity || equity.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-dim);">No data</div>';
+        return;
+      }
+      
+      const max = Math.max(...equity);
+      const min = Math.min(...equity);
+      const range = max - min || 1;
+      
+      // Sample to max 50 bars
+      const step = Math.max(1, Math.floor(equity.length / 50));
+      const sampled = equity.filter((_, i) => i % step === 0);
+      
+      container.innerHTML = sampled.map((val, i) => {
+        const height = ((val - min) / range) * 100;
+        const color = val >= 100 ? 'var(--accent-green)' : 'var(--accent-red)';
+        return `<div style="flex:1; min-width:3px; background:${color}; height:${Math.max(5, height)}%; border-radius:1px;"></div>`;
+      }).join('');
+    }
+    
+    function renderTradeLog(trades) {
+      const container = document.getElementById('btTradeLog');
+      const recent = trades.slice(-10).reverse();
+      
+      if (recent.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-dim); text-align:center;">No trades</div>';
+        return;
+      }
+      
+      container.innerHTML = recent.map(t => {
+        const time = new Date(t.time * 1000).toLocaleString();
+        const color = t.result === 'WIN' ? 'var(--accent-green)' : 'var(--accent-red)';
+        return `
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+            <span>${t.direction === 'LONG' ? '🟢' : '🔴'} ${t.direction}</span>
+            <span>$${t.entry.toFixed(4)}</span>
+            <span style="color:${color};">${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}%</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============================================
+    // 🔔 SMART ALERTS SYSTEM
+    // ============================================
+    
+    const smartAlertsState = {
+      currentType: 'price', // price, rsi, whale, signal
+      rsiType: 'oversold',
+      alerts: JSON.parse(localStorage.getItem('smart_alerts') || '[]'),
+      history: JSON.parse(localStorage.getItem('smart_alerts_history') || '[]'),
+      lastChecked: {}
+    };
+    
+    function setSmartAlertType(type) {
+      smartAlertsState.currentType = type;
+      
+      // Update button styles
+      ['price', 'rsi', 'whale', 'signal'].forEach(t => {
+        const btn = document.getElementById('alertType' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) {
+          btn.style.background = t === type ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.05)';
+          btn.style.borderColor = t === type ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)';
+          btn.style.color = t === type ? 'var(--accent-cyan)' : 'var(--text-dim)';
+        }
+      });
+      
+      // Show/hide config sections
+      document.getElementById('priceAlertConfig').style.display = type === 'price' ? 'block' : 'none';
+      document.getElementById('rsiAlertConfig').style.display = type === 'rsi' ? 'block' : 'none';
+      document.getElementById('whaleAlertConfig').style.display = type === 'whale' ? 'block' : 'none';
+      document.getElementById('signalAlertConfig').style.display = type === 'signal' ? 'block' : 'none';
+    }
+    
+    function setRSIAlertType(type) {
+      smartAlertsState.rsiType = type;
+      const oversoldBtn = document.getElementById('rsiOversoldBtn');
+      const overboughtBtn = document.getElementById('rsiOverboughtBtn');
+      
+      if (type === 'oversold') {
+        oversoldBtn.classList.add('active');
+        oversoldBtn.style.background = 'rgba(0,255,136,0.2)';
+        oversoldBtn.style.borderColor = 'var(--accent-green)';
+        oversoldBtn.style.color = 'var(--accent-green)';
+        overboughtBtn.classList.remove('active');
+        overboughtBtn.style.background = 'transparent';
+        overboughtBtn.style.borderColor = 'rgba(255,255,255,0.1)';
+        overboughtBtn.style.color = 'var(--text-dim)';
+      } else {
+        overboughtBtn.classList.add('active');
+        overboughtBtn.style.background = 'rgba(255,68,102,0.2)';
+        overboughtBtn.style.borderColor = 'var(--accent-red)';
+        overboughtBtn.style.color = 'var(--accent-red)';
+        oversoldBtn.classList.remove('active');
+        oversoldBtn.style.background = 'transparent';
+        oversoldBtn.style.borderColor = 'rgba(255,255,255,0.1)';
+        oversoldBtn.style.color = 'var(--text-dim)';
+      }
+    }
+    
+    function addSmartAlert() {
+      const type = smartAlertsState.currentType;
+      const note = document.getElementById('customAlertNote').value || '';
+      const options = {
+        sound: document.getElementById('alertSound')?.checked ?? true,
+        voice: document.getElementById('alertVoice')?.checked ?? false,
+        browser: document.getElementById('alertBrowser')?.checked ?? false,
+        repeat: document.getElementById('alertRepeat')?.checked ?? false
+      };
+      
+      let alertConfig = {
+        id: Date.now(),
+        type,
+        note,
+        options,
+        triggered: false,
+        triggerCount: 0,
+        createdAt: new Date().toISOString()
+      };
+      
+      // Type-specific config
+      switch (type) {
+        case 'price':
+          const price = parseFloat(document.getElementById('customAlertPrice').value);
+          if (!price) { addAlert('⚠️ Enter a valid price', 'warning'); return; }
+          alertConfig.price = price;
+          alertConfig.direction = toolsState.alertType;
+          break;
+          
+        case 'rsi':
+          const customRSI = document.getElementById('customRSILevel').value;
+          alertConfig.rsiType = smartAlertsState.rsiType;
+          alertConfig.rsiLevel = customRSI ? parseFloat(customRSI) : (smartAlertsState.rsiType === 'oversold' ? 30 : 70);
+          break;
+          
+        case 'whale':
+          alertConfig.minSize = parseFloat(document.getElementById('whaleMinSize').value) || 50000;
+          alertConfig.buyAlert = document.getElementById('whaleBuyAlert')?.checked ?? true;
+          alertConfig.sellAlert = document.getElementById('whaleSellAlert')?.checked ?? true;
+          break;
+          
+        case 'signal':
+          alertConfig.qualityMin = parseInt(document.getElementById('signalQualityMin').value) || 75;
+          alertConfig.probMin = parseInt(document.getElementById('signalProbMin').value) || 70;
+          alertConfig.bullAlert = document.getElementById('signalBullAlert')?.checked ?? true;
+          alertConfig.bearAlert = document.getElementById('signalBearAlert')?.checked ?? true;
+          break;
+      }
+      
+      smartAlertsState.alerts.push(alertConfig);
+      saveSmartAlerts();
+      renderSmartAlerts();
+      
+      // Clear form
+      if (document.getElementById('customAlertPrice')) document.getElementById('customAlertPrice').value = '';
+      if (document.getElementById('customAlertNote')) document.getElementById('customAlertNote').value = '';
+      
+      addAlert(`✅ Smart alert created: ${getAlertDescription(alertConfig)}`, 'info');
+    }
+    
+    function getAlertDescription(alert) {
+      switch (alert.type) {
+        case 'price':
+          return `${alert.direction === 'above' ? '📈' : '📉'} Price ${alert.direction} $${alert.price.toFixed(4)}`;
+        case 'rsi':
+          return `📊 RSI ${alert.rsiType} ${alert.rsiLevel}`;
+        case 'whale':
+          return `🐋 Whale trade > $${(alert.minSize/1000).toFixed(0)}K`;
+        case 'signal':
+          return `🎯 AI Signal Q>${alert.qualityMin} P>${alert.probMin}%`;
+        default:
+          return 'Unknown alert';
+      }
+    }
+    
+    function renderSmartAlerts() {
+      const container = document.getElementById('customAlertsList');
+      const activeAlerts = smartAlertsState.alerts.filter(a => !a.triggered || a.options?.repeat);
+      
+      // Also update for the original system
+      const count = document.getElementById('alertsCount');
+      if (count) count.textContent = `(${activeAlerts.length})`;
+      
+      if (activeAlerts.length === 0) {
+        container.innerHTML = '<div class="no-alerts">No alerts configured. Create your first alert!</div>';
+        return;
+      }
+      
+      container.innerHTML = activeAlerts.map(alert => {
+        const icon = { price: '💰', rsi: '📊', whale: '🐋', signal: '🎯' }[alert.type] || '🔔';
+        const desc = getAlertDescription(alert);
+        
+        return `
+          <div class="custom-alert-item" style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin-bottom:6px; background:rgba(255,255,255,0.03); border-radius:6px; border-left:3px solid var(--accent-cyan);">
+            <div>
+              <div style="font-size:11px; font-weight:bold;">${icon} ${desc}</div>
+              <div style="font-size:9px; color:var(--text-dim);">${alert.note || 'No note'} • ${alert.options?.repeat ? '🔄' : '1x'}</div>
+            </div>
+            <button onclick="deleteSmartAlert(${alert.id})" style="background:none; border:none; color:var(--accent-red); cursor:pointer; font-size:14px;">✕</button>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function deleteSmartAlert(id) {
+      smartAlertsState.alerts = smartAlertsState.alerts.filter(a => a.id !== id);
+      saveSmartAlerts();
+      renderSmartAlerts();
+    }
+    
+    function saveSmartAlerts() {
+      try {
+        localStorage.setItem('smart_alerts', JSON.stringify(smartAlertsState.alerts));
+        localStorage.setItem('smart_alerts_history', JSON.stringify(smartAlertsState.history.slice(-50)));
+      } catch (e) {}
+    }
+    
+    function checkSmartAlerts() {
+      if (smartAlertsState.alerts.length === 0) return;
+      
+      const currentPrice = state.currentPrice || state.price;
+      const currentRSI = state.rsiHistory?.length > 0 ? state.rsiHistory[state.rsiHistory.length - 1] : null;
+      
+      smartAlertsState.alerts.forEach(alert => {
+        if (alert.triggered && !alert.options?.repeat) return;
+        
+        // Cooldown check (don't trigger same alert within 60s)
+        const lastCheck = smartAlertsState.lastChecked[alert.id] || 0;
+        if (Date.now() - lastCheck < 60000) return;
+        
+        let triggered = false;
+        let message = '';
+        
+        switch (alert.type) {
+          case 'price':
+            if (currentPrice) {
+              triggered = (alert.direction === 'above' && currentPrice >= alert.price) ||
+                         (alert.direction === 'below' && currentPrice <= alert.price);
+              message = `Price ${alert.direction === 'above' ? 'reached' : 'dropped to'} $${currentPrice.toFixed(4)}`;
+            }
+            break;
+            
+          case 'rsi':
+            if (currentRSI !== null) {
+              triggered = (alert.rsiType === 'oversold' && currentRSI <= alert.rsiLevel) ||
+                         (alert.rsiType === 'overbought' && currentRSI >= alert.rsiLevel);
+              message = `RSI ${alert.rsiType}: ${currentRSI.toFixed(1)}`;
+            }
+            break;
+            
+          case 'signal':
+            const quality = aiState.signalQuality || 0;
+            const prob = Math.max(aiState.probabilityBull || 50, aiState.probabilityBear || 50);
+            const isBull = (aiState.probabilityBull || 50) > 50;
+            
+            if (quality >= alert.qualityMin && prob >= alert.probMin) {
+              if ((isBull && alert.bullAlert) || (!isBull && alert.bearAlert)) {
+                triggered = true;
+                message = `AI Signal: ${isBull ? 'BULL' : 'BEAR'} Q:${quality} P:${prob.toFixed(0)}%`;
+              }
+            }
+            break;
+        }
+        
+        if (triggered) {
+          smartAlertsState.lastChecked[alert.id] = Date.now();
+          alert.triggered = true;
+          alert.triggerCount++;
+          
+          // Fire the alert
+          fireSmartAlert(alert, message);
+          
+          // Add to history
+          smartAlertsState.history.unshift({
+            ...alert,
+            message,
+            triggeredAt: new Date().toISOString()
+          });
+          
+          saveSmartAlerts();
+          renderSmartAlerts();
+          renderAlertHistory();
+        }
+      });
+    }
+    
+    function fireSmartAlert(alert, message) {
+      const fullMessage = `🔔 ${getAlertDescription(alert)}: ${message}`;
+      
+      // Add to alerts panel
+      addAlert(fullMessage, 'info');
+      
+      // Sound
+      if (alert.options?.sound) {
+        playSound('alert');
+      }
+      
+      // Voice
+      if (alert.options?.voice && voiceState.enabled) {
+        speakAlert(fullMessage, 'high');
+      }
+      
+      // Browser notification
+      if (alert.options?.browser && Notification.permission === 'granted') {
+        new Notification('ORACULUM Alert', { body: message, icon: '🔔' });
+      }
+    }
+    
+    function renderAlertHistory() {
+      const container = document.getElementById('alertHistory');
+      if (!container) return;
+      
+      const recent = smartAlertsState.history.slice(0, 10);
+      
+      if (recent.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:10px;">No alerts triggered yet</div>';
+        return;
+      }
+      
+      container.innerHTML = recent.map(h => {
+        const time = new Date(h.triggeredAt).toLocaleTimeString();
+        const icon = { price: '💰', rsi: '📊', whale: '🐋', signal: '🎯' }[h.type] || '🔔';
+        return `
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+            <span>${icon} ${h.message || getAlertDescription(h)}</span>
+            <span style="color:var(--text-dim);">${time}</span>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Whale alert hook (called from whale tracking system)
+    function checkWhaleAlerts(side, amount, price) {
+      smartAlertsState.alerts.forEach(alert => {
+        if (alert.type !== 'whale') return;
+        if (alert.triggered && !alert.options?.repeat) return;
+        
+        const value = amount * price;
+        if (value < alert.minSize) return;
+        
+        if ((side === 'BUY' && !alert.buyAlert) || (side === 'SELL' && !alert.sellAlert)) return;
+        
+        const lastCheck = smartAlertsState.lastChecked[alert.id] || 0;
+        if (Date.now() - lastCheck < 30000) return; // 30s cooldown for whales
+        
+        smartAlertsState.lastChecked[alert.id] = Date.now();
+        alert.triggered = true;
+        alert.triggerCount++;
+        
+        const message = `🐋 Whale ${side}: $${(value/1000).toFixed(0)}K @ $${price.toFixed(4)}`;
+        fireSmartAlert(alert, message);
+        
+        smartAlertsState.history.unshift({
+          ...alert,
+          message,
+          triggeredAt: new Date().toISOString()
+        });
+        
+        saveSmartAlerts();
+        renderSmartAlerts();
+        renderAlertHistory();
+      });
+    }
+    
+    // Initialize smart alerts on load
+    setTimeout(() => {
+      renderSmartAlerts();
+      renderAlertHistory();
     }, 1000);
 
     // ============================================
