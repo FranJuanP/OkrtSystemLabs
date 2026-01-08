@@ -1698,7 +1698,7 @@
     <!-- SIDEBAR DERECHA -->
     <div class="side-right">
       <!-- ALERTS + SIGNALS en Tabs -->
-      <div class="panel" style="height:130px">
+      <div class="panel" style="flex:1; display:flex; flex-direction:column;">
         <div class="panel-head" style="padding:4px 8px;">
           <div class="tab-buttons" style="padding:0; gap:2px;">
             <button class="tab-btn active" onclick="switchRightTab('alerts')" style="padding:2px 6px; font-size:8px;">🚨 ALERTS <span id="alertCount" style="background:var(--accent-red); color:#fff; padding:0 3px; border-radius:6px; font-size:7px;">0</span></button>
@@ -1716,7 +1716,7 @@
       </div>
 
       <!-- ORDER BOOK -->
-      <div class="panel" style="height:200px;">
+      <div class="panel" style="flex:1; display:flex; flex-direction:column;">
         <div class="panel-head" style="padding:4px 8px;">📊 ORDER BOOK <span id="spoofWarning" style="display:none; color:var(--accent-orange);">⚠</span></div>
         <div id="askSide" style="flex:1; overflow:hidden;"></div>
         <div style="padding:3px; text-align:center; background:rgba(0,212,255,0.1);">
@@ -1727,7 +1727,7 @@
       </div>
 
       <!-- WHALES / ETF -->
-      <div class="panel" style="flex:1; min-height:150px; display:flex; flex-direction:column;">
+      <div class="panel" style="flex:1; display:flex; flex-direction:column;">
         <div class="panel-head" style="padding:4px 8px;">
           <div class="tab-buttons" style="padding:0; gap:2px;">
             <button class="tab-btn active" onclick="switchWhaleTab('whales')" style="padding:3px 10px; font-size:9px;">🐋 WHALES <span id="whaleCount" style="background:var(--accent-purple); padding:0 4px; border-radius:6px; font-size:8px;">0</span></button>
@@ -1738,13 +1738,12 @@
           <div id="whaleList"><div style="padding:10px; text-align:center; color:var(--text-dim); font-size:9px;">Monitoring >5K XRP...</div></div>
         </div>
         <div id="tab-etf" class="tab-content" style="flex:1; padding:15px; text-align:center;">
-          <div style="margin-top:20px;">
-            <div style="font-size:14px; color:var(--accent-cyan); margin-bottom:8px; font-weight:bold;">XRP ETF DATA</div>
-            <div style="font-size:11px; color:var(--text-dim);">7 Spot ETFs • 774M+ XRP Locked</div>
-            <div style="font-size:10px; color:var(--text-dim); margin-top:6px;">Real-time institutional flows</div>
+          <div style="margin-top:15px;">
+            <div style="font-size:13px; color:var(--accent-cyan); margin-bottom:6px; font-weight:bold;">XRP ETF DATA</div>
+            <div style="font-size:10px; color:var(--text-dim);">7 Spot ETFs • 774M+ XRP Locked</div>
           </div>
-          <div style="margin-top:20px;">
-            <a href="https://xrp-insights.com" target="_blank" style="background:var(--accent-green); color:#000; padding:10px 28px; border-radius:5px; font-size:12px; text-decoration:none; font-weight:bold; display:inline-block;">VIEW LIVE DATA ↗</a>
+          <div style="margin-top:15px;">
+            <a href="https://xrp-insights.com" target="_blank" style="background:var(--accent-green); color:#000; padding:8px 20px; border-radius:5px; font-size:11px; text-decoration:none; font-weight:bold; display:inline-block;">VIEW LIVE DATA ↗</a>
           </div>
         </div>
       </div>
