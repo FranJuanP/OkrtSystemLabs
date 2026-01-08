@@ -1483,61 +1483,66 @@
 
     <!-- SIDEBAR IZQUIERDA -->
     <div class="side-left">
-      <div class="panel" style="flex:1.3">
-        <div class="panel-head">
-          🧠 AI ENGINE v2.0 
-          <span class="pulse" style="color:var(--accent-green)">●</span>
+      <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+        <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            🧠 AI ENGINE v2.0 
+            <span class="pulse" style="color:var(--accent-green)">●</span>
+          </div>
+          <a href="https://xrp-insights.com" target="_blank" style="background:var(--accent-green); color:#000; padding:2px 8px; border-radius:3px; font-size:8px; text-decoration:none;">XRP ETF LIVE ↗</a>
         </div>
         
-        <div class="prediction-box">
+        <div class="prediction-box" style="flex:1; display:flex; flex-direction:column;">
           <!-- Market Regime -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:6px 8px; background:rgba(0,212,255,0.08); border-radius:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:10px 12px; background:rgba(0,212,255,0.08); border-radius:8px;">
             <div>
-              <div style="font-size:8px; text-transform:uppercase; color:var(--text-dim);">MARKET REGIME</div>
-              <div id="marketRegime" style="font-size:14px; font-weight:bold; color:var(--accent-cyan);">ANALYZING...</div>
+              <div style="font-size:9px; text-transform:uppercase; color:var(--text-dim); letter-spacing:1px;">MARKET REGIME</div>
+              <div id="marketRegime" style="font-size:18px; font-weight:bold; color:var(--accent-cyan);">ANALYZING...</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:8px; text-transform:uppercase; color:var(--text-dim);">SIGNAL QUALITY</div>
-              <div id="signalQuality" style="font-size:14px; font-weight:bold; color:var(--accent-green);">--%</div>
+              <div style="font-size:9px; text-transform:uppercase; color:var(--text-dim); letter-spacing:1px;">SIGNAL QUALITY</div>
+              <div id="signalQuality" style="font-size:18px; font-weight:bold; color:var(--accent-green);">--%</div>
             </div>
           </div>
           
           <!-- Probability Display -->
-          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <div style="text-align:center; flex:1;">
-              <div style="font-size:8px; color:var(--accent-green);">▲ BULL</div>
-              <div id="probBull" style="font-size:20px; font-weight:bold; color:var(--accent-green);">50%</div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:12px; gap:10px;">
+            <div style="text-align:center; flex:1; background:rgba(0,255,136,0.05); padding:10px; border-radius:8px; border:1px solid rgba(0,255,136,0.2);">
+              <div style="font-size:10px; color:var(--accent-green); margin-bottom:4px;">▲ BULL</div>
+              <div id="probBull" style="font-size:28px; font-weight:bold; color:var(--accent-green);">50%</div>
             </div>
-            <div style="text-align:center; flex:1;">
-              <div style="font-size:8px; color:var(--accent-red);">▼ BEAR</div>
-              <div id="probBear" style="font-size:20px; font-weight:bold; color:var(--accent-red);">50%</div>
+            <div style="text-align:center; flex:1; background:rgba(255,68,102,0.05); padding:10px; border-radius:8px; border:1px solid rgba(255,68,102,0.2);">
+              <div style="font-size:10px; color:var(--accent-red); margin-bottom:4px;">▼ BEAR</div>
+              <div id="probBear" style="font-size:28px; font-weight:bold; color:var(--accent-red);">50%</div>
             </div>
           </div>
           
           <!-- Target Price -->
-          <div style="font-size:9px; text-transform:uppercase; color:var(--text-dim)">AI Target Price</div>
-          <div id="aiTarget" style="font-size:26px; font-weight:bold; color:var(--accent-cyan); margin:4px 0;">Calculating...</div>
-          <div style="font-size:10px;">
-            Confidence: <span id="confLevel" style="color:var(--accent-green)">--%</span>
-            <span style="margin-left:10px;">Accuracy: <span id="modelAccuracy">--%</span></span>
+          <div style="text-align:center; padding:12px; background:rgba(0,212,255,0.05); border-radius:8px; margin-bottom:12px; border:1px solid rgba(0,212,255,0.2);">
+            <div style="font-size:10px; text-transform:uppercase; color:var(--text-dim); letter-spacing:1px;">AI TARGET PRICE</div>
+            <div id="aiTarget" style="font-size:32px; font-weight:bold; color:var(--accent-cyan); margin:6px 0;">Calculating...</div>
+            <div style="font-size:11px; display:flex; justify-content:center; gap:20px;">
+              <span>Confidence: <span id="confLevel" style="color:var(--accent-green); font-weight:bold;">--%</span></span>
+              <span>Accuracy: <span id="modelAccuracy" style="font-weight:bold;">--%</span></span>
+            </div>
+            <div class="accuracy-bar" style="margin-top:8px;"><div id="accuracyBar" class="accuracy-fill" style="width:0%"></div></div>
           </div>
-          <div class="accuracy-bar"><div id="accuracyBar" class="accuracy-fill" style="width:0%"></div></div>
           
           <!-- Confluence Counter -->
-          <div style="display:flex; justify-content:space-around; margin-top:8px; padding:6px; background:rgba(168,85,247,0.08); border-radius:6px;">
+          <div style="display:flex; justify-content:space-around; margin-bottom:12px; padding:10px; background:rgba(168,85,247,0.08); border-radius:8px;">
             <div style="text-align:center;">
-              <div style="font-size:8px; color:var(--text-dim);">CONFLUENCES</div>
-              <div id="confluenceCount" style="font-size:16px; font-weight:bold; color:var(--accent-purple);">0</div>
+              <div style="font-size:9px; color:var(--text-dim); letter-spacing:1px;">CONFLUENCES</div>
+              <div id="confluenceCount" style="font-size:22px; font-weight:bold; color:var(--accent-purple);">0</div>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:8px; color:var(--text-dim);">NOISE LVL</div>
-              <div id="noiseLevel" style="font-size:16px; font-weight:bold; color:var(--accent-orange);">--%</div>
+              <div style="font-size:9px; color:var(--text-dim); letter-spacing:1px;">NOISE LVL</div>
+              <div id="noiseLevel" style="font-size:22px; font-weight:bold; color:var(--accent-orange);">--%</div>
             </div>
           </div>
           
           <!-- Mini gráfico de historial de predicciones -->
-          <div style="margin-top:5px;">
-            <div style="font-size:8px; color:var(--text-dim); margin-bottom:3px; padding:0 5px;">PREDICTION HISTORY (Last 20)</div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:9px; color:var(--text-dim); margin-bottom:5px; padding:0 5px; letter-spacing:1px;">PREDICTION HISTORY (Last 20)</div>
             <div id="accuracyHistoryChart" class="accuracy-chart"></div>
           </div>
         </div>
@@ -1545,7 +1550,7 @@
         <div class="score-meter">
           <div id="scoreFill" class="score-fill" style="width:0; background:var(--accent-cyan);"></div>
         </div>
-        <div style="text-align:center; font-size:9px; color:var(--text-dim); margin-bottom:5px;">
+        <div style="text-align:center; font-size:10px; color:var(--text-dim); margin-bottom:8px;">
           <span style="float:left; margin-left:10px;">BEAR</span>
           <span style="float:right; margin-right:10px;">BULL</span>
           <span>NEUTRAL</span>
@@ -1558,7 +1563,7 @@
           <button class="tab-btn" onclick="switchTab('volume')">VOLUME</button>
         </div>
 
-        <div class="scrollable">
+        <div class="scrollable" style="flex:1;">
           <!-- TAB: Momentum -->
           <div id="tab-momentum" class="tab-content active">
             <div class="indicator-row">
@@ -1647,67 +1652,15 @@
           </div>
 
           <!-- Patterns Detected -->
-          <div style="padding:8px 10px; border-top:1px solid rgba(255,255,255,0.05);">
-            <div style="font-size:9px; color:var(--text-dim); margin-bottom:5px;">PATTERNS DETECTED</div>
+          <div style="padding:10px 10px; border-top:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:10px; color:var(--text-dim); margin-bottom:6px; letter-spacing:1px;">PATTERNS DETECTED</div>
             <div id="patternsContainer">
-              <span style="color:var(--text-dim); font-size:10px;">Analyzing...</span>
+              <span style="color:var(--text-dim); font-size:11px;">Analyzing...</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- XRP ETF DATA -->
-      <div class="panel" style="flex:1; min-height:220px;">
-        <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center;">
-          <span>📈 XRP ETF TRACKER</span>
-          <a href="https://xrp-insights.com" target="_blank" style="background:var(--accent-green); color:#000; padding:1px 6px; border-radius:3px; font-size:8px; text-decoration:none;">LIVE ↗</a>
-        </div>
-        
-        <!-- Main Stats -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px;">
-          <div style="background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.3); padding:8px; border-radius:4px; text-align:center;">
-            <div style="font-size:8px; color:var(--text-dim);">TOTAL AUM</div>
-            <div id="etfTotalAum" style="font-size:18px; font-weight:bold; color:var(--accent-green); font-family:var(--font-data);">$1.69B</div>
-          </div>
-          <div style="background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); padding:8px; border-radius:4px; text-align:center;">
-            <div style="font-size:8px; color:var(--text-dim);">XRP LOCKED</div>
-            <div id="etfXrpLocked" style="font-size:18px; font-weight:bold; color:var(--accent-purple); font-family:var(--font-data);">773.9M</div>
-          </div>
-        </div>
-        
-        <!-- Progress to 1B -->
-        <div style="padding:0 8px 8px 8px;">
-          <div style="display:flex; justify-content:space-between; font-size:8px; color:var(--text-dim); margin-bottom:3px;">
-            <span>Progress to 1B XRP</span>
-            <span id="etfSupplyPct">77.4%</span>
-          </div>
-          <div style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-            <div id="etfProgressBar" style="height:100%; width:77.4%; background:linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius:3px;"></div>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:7px; color:var(--text-dim); margin-top:2px;">
-            <span>0</span>
-            <span id="etfSupplyPctSmall">0.7739% of 100B supply</span>
-            <span>1B</span>
-          </div>
-        </div>
-        
-        <!-- ETF List -->
-        <div class="scrollable" style="padding:0 8px 8px 8px; font-size:9px;">
-          <div style="display:grid; grid-template-columns:1fr auto auto; gap:5px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-            <span style="color:var(--text-dim);">TICKER / ENTITY</span>
-            <span style="color:var(--text-dim); text-align:right;">AUM</span>
-            <span style="color:var(--text-dim); text-align:right;">XRP</span>
-          </div>
-          <div id="etfListContainer">
-            <!-- ETF rows rendered dynamically -->
-          </div>
-        </div>
-        
-        <!-- Source attribution -->
-        <div style="text-align:center; padding:4px; font-size:7px; color:var(--text-dim); border-top:1px solid rgba(255,255,255,0.05);">
-          Data: <a href="https://xrp-insights.com" target="_blank" style="color:var(--accent-cyan);">xrp-insights.com</a> • AUM = XRP × Price
-        </div>
-      </div>
     </div>
 
     <!-- GRÁFICO CENTRAL -->
@@ -1762,31 +1715,8 @@
         </div>
       </div>
 
-      <!-- 💰 PAPER TRADING -->
-      <div class="panel" style="height:140px">
-        <div class="panel-head" style="padding:4px 8px;">
-          💰 PAPER TRADING
-          <button onclick="resetPaperTrading()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:8px;" title="Reset">🔄</button>
-        </div>
-        <div style="padding:5px 6px;">
-          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:2px; margin-bottom:5px; text-align:center;">
-            <div><div style="font-size:6px; color:var(--text-dim);">BAL</div><div id="ptBalance" style="font-size:9px; font-weight:bold; color:var(--accent-cyan);">$10K</div></div>
-            <div><div style="font-size:6px; color:var(--text-dim);">P&L</div><div id="ptPnL" style="font-size:9px; font-weight:bold; color:var(--accent-green);">$0</div></div>
-            <div><div style="font-size:6px; color:var(--text-dim);">WIN</div><div id="ptWinRate" style="font-size:9px; font-weight:bold;">0%</div></div>
-            <div><div style="font-size:6px; color:var(--text-dim);">#</div><div id="ptTrades" style="font-size:9px; font-weight:bold;">0</div></div>
-          </div>
-          <div style="display:flex; gap:3px; margin-bottom:5px;">
-            <input type="number" id="ptAmount" style="width:50px; padding:4px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:3px; color:#fff; font-size:9px;" value="100">
-            <button id="ptBuyBtn" onclick="openPaperTrade('long')" style="flex:1; padding:4px; background:rgba(0,255,136,0.2); border:1px solid var(--accent-green); color:var(--accent-green); border-radius:3px; cursor:pointer; font-weight:bold; font-size:8px;">LONG</button>
-            <button id="ptSellBtn" onclick="openPaperTrade('short')" style="flex:1; padding:4px; background:rgba(255,68,102,0.2); border:1px solid var(--accent-red); color:var(--accent-red); border-radius:3px; cursor:pointer; font-weight:bold; font-size:8px;">SHORT</button>
-            <button id="ptCloseBtn" onclick="closePaperTrade()" style="display:none; flex:1; padding:4px; background:rgba(168,85,247,0.2); border:1px solid var(--accent-purple); color:var(--accent-purple); border-radius:3px; cursor:pointer; font-weight:bold; font-size:8px;">CLOSE</button>
-          </div>
-          <div id="ptPosition" style="padding:4px; background:rgba(0,0,0,0.2); border-radius:3px; font-size:8px;"><span style="color:var(--text-dim);">No position</span></div>
-        </div>
-      </div>
-
       <!-- ORDER BOOK -->
-      <div class="panel" style="flex:1; min-height:100px;">
+      <div class="panel" style="height:200px;">
         <div class="panel-head" style="padding:4px 8px;">📊 ORDER BOOK <span id="spoofWarning" style="display:none; color:var(--accent-orange);">⚠</span></div>
         <div id="askSide" style="flex:1; overflow:hidden;"></div>
         <div style="padding:3px; text-align:center; background:rgba(0,212,255,0.1);">
@@ -1797,22 +1727,24 @@
       </div>
 
       <!-- WHALES / ETF -->
-      <div class="panel" style="height:110px">
+      <div class="panel" style="flex:1; min-height:150px; display:flex; flex-direction:column;">
         <div class="panel-head" style="padding:4px 8px;">
           <div class="tab-buttons" style="padding:0; gap:2px;">
-            <button class="tab-btn active" onclick="switchWhaleTab('whales')" style="padding:2px 6px; font-size:8px;">🐋 WHALES <span id="whaleCount" style="background:var(--accent-purple); padding:0 3px; border-radius:6px; font-size:7px;">0</span></button>
-            <button class="tab-btn" onclick="switchWhaleTab('etf')" style="padding:2px 6px; font-size:8px;">📊 ETF</button>
+            <button class="tab-btn active" onclick="switchWhaleTab('whales')" style="padding:3px 10px; font-size:9px;">🐋 WHALES <span id="whaleCount" style="background:var(--accent-purple); padding:0 4px; border-radius:6px; font-size:8px;">0</span></button>
+            <button class="tab-btn" onclick="switchWhaleTab('etf')" style="padding:3px 10px; font-size:9px;">📊 ETF</button>
           </div>
         </div>
-        <div id="tab-whales" class="tab-content active scrollable" style="flex:1;">
-          <div id="whaleList"><div style="padding:6px; text-align:center; color:var(--text-dim); font-size:8px;">Monitoring >5K XRP...</div></div>
+        <div id="tab-whales" class="tab-content active scrollable" style="flex:1; padding:8px;">
+          <div id="whaleList"><div style="padding:10px; text-align:center; color:var(--text-dim); font-size:9px;">Monitoring >5K XRP...</div></div>
         </div>
-        <div id="tab-etf" class="tab-content" style="padding:4px; flex:1;">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:8px;">
-            <div><span style="color:var(--text-dim);">AUM:</span> <span id="etfMiniAum" class="c-green">$1.69B</span></div>
-            <div><span style="color:var(--text-dim);">Locked:</span> <span id="etfMiniLocked" class="c-purple">774M</span></div>
-            <div><span style="color:var(--text-dim);">ETFs:</span> <span class="c-cyan">7</span></div>
-            <div><span style="color:var(--text-dim);">Supply:</span> <span id="etfMiniSupply">0.77%</span></div>
+        <div id="tab-etf" class="tab-content" style="flex:1; padding:15px; text-align:center;">
+          <div style="margin-top:20px;">
+            <div style="font-size:14px; color:var(--accent-cyan); margin-bottom:8px; font-weight:bold;">XRP ETF DATA</div>
+            <div style="font-size:11px; color:var(--text-dim);">7 Spot ETFs • 774M+ XRP Locked</div>
+            <div style="font-size:10px; color:var(--text-dim); margin-top:6px;">Real-time institutional flows</div>
+          </div>
+          <div style="margin-top:20px;">
+            <a href="https://xrp-insights.com" target="_blank" style="background:var(--accent-green); color:#000; padding:10px 28px; border-radius:5px; font-size:12px; text-decoration:none; font-weight:bold; display:inline-block;">VIEW LIVE DATA ↗</a>
           </div>
         </div>
       </div>
@@ -4755,109 +4687,6 @@
       }
     }
 
-    // ETF Data - Actualizado desde xrp-insights.com
-    async function fetchETFData() {
-      // ============================================
-      // ETF Data desde xrp-insights.com
-      // Última actualización manual: 8 Enero 2026
-      // Los holdings se actualizan manualmente, AUM es dinámico
-      // Fuente: https://xrp-insights.com/
-      // ============================================
-      const etfHoldings = [
-        { ticker: 'XRPC', name: 'Canary', xrp: 179.9, color: 'cyan', rank: 1, leading: true },
-        { ticker: 'XRP', name: 'Bitwise', xrp: 142.0, color: 'cyan', rank: 2 },
-        { ticker: 'XRPZ', name: 'Franklin', xrp: 132.0, color: 'purple', rank: 3 },
-        { ticker: 'GXRP', name: 'Grayscale', xrp: 127.9, color: 'purple', rank: 4 },
-        { ticker: 'TOXR', name: '21Shares', xrp: 118.3, color: 'orange', rank: 5 },
-        { ticker: 'XRPR', name: 'REX-Osprey', xrp: 46.5, color: 'red', rank: 6 },
-        { ticker: 'BITW', name: 'Bitwise Idx', xrp: 27.5, color: 'dim', rank: 7, note: '5.52% XRP' }
-      ];
-      
-      // Calcular AUM basado en precio actual de XRP
-      const xrpPrice = state.price || state.currentPrice || 2.18;
-      
-      // Calcular totales
-      let totalXrpLocked = 0;
-      const etfsWithAum = etfHoldings.map(etf => {
-        const aum = etf.xrp * xrpPrice; // AUM en millones USD
-        totalXrpLocked += etf.xrp;
-        return { ...etf, aum };
-      });
-      
-      const totalAum = totalXrpLocked * xrpPrice;
-      const supplyPct = (totalXrpLocked / 100000) * 100; // % de 100B supply
-      
-      // Actualizar UI - Totales
-      const totalAumEl = document.getElementById('etfTotalAum');
-      const xrpLockedEl = document.getElementById('etfXrpLocked');
-      const supplyPctEl = document.getElementById('etfSupplyPct');
-      const progressBarEl = document.getElementById('etfProgressBar');
-      const listContainer = document.getElementById('etfListContainer');
-      
-      if (totalAumEl) {
-        if (totalAum >= 1000) {
-          totalAumEl.innerText = '$' + (totalAum / 1000).toFixed(2) + 'B';
-        } else {
-          totalAumEl.innerText = '$' + totalAum.toFixed(0) + 'M';
-        }
-      }
-      
-      if (xrpLockedEl) xrpLockedEl.innerText = totalXrpLocked.toFixed(1) + 'M';
-      
-      // Progress bar: % hacia 1B XRP (1000M)
-      const progressPct = (totalXrpLocked / 1000) * 100;
-      if (supplyPctEl) supplyPctEl.innerText = progressPct.toFixed(1) + '%';
-      if (progressBarEl) progressBarEl.style.width = Math.min(100, progressPct) + '%';
-      
-      // Renderizar lista de ETFs dinámicamente
-      if (listContainer) {
-        const colorMap = {
-          'cyan': 'var(--accent-cyan)',
-          'purple': 'var(--accent-purple)',
-          'orange': 'var(--accent-orange)',
-          'red': 'var(--accent-red)',
-          'dim': 'var(--text-dim)'
-        };
-        
-        listContainer.innerHTML = etfsWithAum.map((etf, index) => {
-          const isLast = index === etfsWithAum.length - 1;
-          const borderStyle = isLast ? '' : 'border-bottom:1px solid rgba(255,255,255,0.03);';
-          const aumStr = etf.aum >= 1000 ? '$' + (etf.aum / 1000).toFixed(2) + 'B' : '$' + etf.aum.toFixed(1) + 'M';
-          const leadingBadge = etf.leading ? '<span style="color:var(--accent-green); font-size:7px; margin-left:3px;">★</span>' : '';
-          const noteBadge = etf.note ? `<span style="color:var(--text-dim); font-size:7px; margin-left:2px;">(${etf.note})</span>` : '';
-          
-          return `
-            <div style="display:grid; grid-template-columns:1fr auto auto; gap:5px; padding:4px 0; ${borderStyle}">
-              <span><span style="color:${colorMap[etf.color]};">●</span> <strong>${etf.ticker}</strong>${leadingBadge} <span style="color:var(--accent-orange); font-size:9px;">${etf.name}</span>${noteBadge}</span>
-              <span class="c-green" style="text-align:right;">${aumStr}</span>
-              <span style="color:var(--text-dim); text-align:right;">${etf.xrp.toFixed(1)}M</span>
-            </div>
-          `;
-        }).join('');
-      }
-      
-      // Actualizar supply % display (texto pequeño debajo de progress bar)
-      const supplyPctSmall = document.getElementById('etfSupplyPctSmall');
-      if (supplyPctSmall) {
-        supplyPctSmall.textContent = supplyPct.toFixed(4) + '% of 100B supply';
-      }
-      
-      // Actualizar mini panel ETF en sidebar
-      const miniAum = document.getElementById('etfMiniAum');
-      const miniLocked = document.getElementById('etfMiniLocked');
-      const miniSupply = document.getElementById('etfMiniSupply');
-      
-      if (miniAum) {
-        miniAum.innerText = totalAum >= 1000 ? '$' + (totalAum / 1000).toFixed(2) + 'B' : '$' + totalAum.toFixed(0) + 'M';
-      }
-      if (miniLocked) {
-        miniLocked.innerText = Math.round(totalXrpLocked) + 'M';
-      }
-      if (miniSupply) {
-        miniSupply.innerText = supplyPct.toFixed(2) + '%';
-      }
-    }
-
     async function fetchBTCPrice() {
       try {
         const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
@@ -5183,7 +5012,6 @@
         fetchFearGreed();
         fetchDerivativesData();
         fetchBTCPrice();
-        fetchETFData();
         updatePredictionHistoryChart();
         updateSessionDisplay(); // Session detector
         updatePaperTradingUI(); // Paper Trading
@@ -5193,7 +5021,6 @@
       setInterval(fetchFearGreed, 300000);
       setInterval(fetchDerivativesData, 60000);
       setInterval(fetchBTCPrice, 30000);
-      setInterval(fetchETFData, 30000); // ETF data cada 30 segundos (AUM cambia con precio)
       
       // Reset CVD and whale flow hourly
       setInterval(() => {
