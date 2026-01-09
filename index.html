@@ -75,6 +75,75 @@
     body.light-mode .ob-bid { color: #059669; }
     body.light-mode .ob-ask { color: #dc2626; }
 
+    /* 🌟 Modo NEON Futurista */
+    body.neon-mode {
+      --bg-primary: #000000;
+      --bg-card: rgba(5, 5, 20, 0.95);
+      --bg-header: rgba(0, 0, 10, 0.98);
+      --accent-cyan: #00ffff;
+      --accent-purple: #ff00ff;
+      --accent-green: #00ff00;
+      --accent-red: #ff0040;
+      --accent-orange: #ff6600;
+      --accent-yellow: #ffff00;
+      --text-main: #ffffff;
+      --text-dim: #8888aa;
+      --border-glass: 1px solid rgba(0, 255, 255, 0.2);
+    }
+    body.neon-mode { 
+      background: radial-gradient(ellipse at 50% 0%, #0a0015 0%, #000005 50%, #000000 100%);
+    }
+    body.neon-mode .grid-bg {
+      background-image: 
+        linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 0, 255, 0.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+    body.neon-mode .panel { 
+      background: linear-gradient(180deg, rgba(5, 5, 25, 0.95), rgba(0, 0, 15, 0.98));
+      border: 1px solid rgba(0, 255, 255, 0.15);
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.05), inset 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+    body.neon-mode .kpi-card { 
+      background: linear-gradient(180deg, rgba(10, 0, 20, 0.9), rgba(5, 5, 15, 0.95));
+      border: 1px solid rgba(255, 0, 255, 0.2);
+      box-shadow: 0 0 10px rgba(255, 0, 255, 0.1);
+    }
+    body.neon-mode header {
+      background: linear-gradient(180deg, rgba(0, 0, 20, 0.98), rgba(0, 0, 10, 0.95));
+      border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+      box-shadow: 0 2px 20px rgba(0, 255, 255, 0.1);
+    }
+    body.neon-mode .control-btn {
+      border-color: rgba(0, 255, 255, 0.3);
+      text-shadow: 0 0 5px currentColor;
+    }
+    body.neon-mode .control-btn:hover {
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+      text-shadow: 0 0 10px var(--accent-cyan);
+    }
+    body.neon-mode .status-pill {
+      border-color: rgba(0, 255, 255, 0.4);
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    }
+    body.neon-mode .panel-head {
+      text-shadow: 0 0 8px currentColor;
+    }
+    body.neon-mode .c-green { text-shadow: 0 0 8px var(--accent-green); }
+    body.neon-mode .c-red { text-shadow: 0 0 8px var(--accent-red); }
+    body.neon-mode .c-cyan { text-shadow: 0 0 8px var(--accent-cyan); }
+    body.neon-mode .c-purple { text-shadow: 0 0 8px var(--accent-purple); }
+    body.neon-mode #priceDisplay { text-shadow: 0 0 15px var(--accent-cyan); }
+    body.neon-mode .tab-btn.active {
+      box-shadow: 0 0 10px var(--accent-cyan);
+    }
+    body.neon-mode .score-meter {
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    }
+    body.neon-mode .accuracy-bar {
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+    }
+
     /* Controles del header */
     .header-controls {
       display: flex; gap: 8px; align-items: center;
@@ -1424,8 +1493,8 @@
         <option value="en">🇬🇧 EN</option>
         <option value="es">🇪🇸 ES</option>
       </select>
-      <button class="control-btn" onclick="exportData()" title="Export CSV">
-        📥 CSV
+      <button id="themeBtn" class="control-btn" onclick="toggleTheme()" title="Change Theme">
+        🎨 NEON
       </button>
       <button class="control-btn" onclick="captureScreenshot()" title="Screenshot">
         📸
@@ -2176,6 +2245,47 @@
         btn.classList.remove('active');
         speechSynthesis.cancel();
       }
+    }
+    
+    // 🎨 Toggle Theme (Default / Neon)
+    let currentTheme = localStorage.getItem('oraculum_theme') || 'default';
+    
+    function toggleTheme() {
+      const btn = document.getElementById('themeBtn');
+      
+      if (currentTheme === 'default') {
+        document.body.classList.add('neon-mode');
+        document.body.classList.remove('light-mode');
+        currentTheme = 'neon';
+        btn.innerHTML = '🎨 DEFAULT';
+        btn.style.background = 'linear-gradient(135deg, rgba(0,255,255,0.3), rgba(255,0,255,0.3))';
+        btn.style.borderColor = 'var(--accent-cyan)';
+        btn.style.boxShadow = '0 0 10px rgba(0,255,255,0.3)';
+      } else {
+        document.body.classList.remove('neon-mode');
+        document.body.classList.remove('light-mode');
+        currentTheme = 'default';
+        btn.innerHTML = '🎨 NEON';
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.boxShadow = '';
+      }
+      
+      localStorage.setItem('oraculum_theme', currentTheme);
+    }
+    
+    // Aplicar tema guardado al cargar
+    if (currentTheme === 'neon') {
+      document.body.classList.add('neon-mode');
+      setTimeout(() => {
+        const btn = document.getElementById('themeBtn');
+        if (btn) {
+          btn.innerHTML = '🎨 DEFAULT';
+          btn.style.background = 'linear-gradient(135deg, rgba(0,255,255,0.3), rgba(255,0,255,0.3))';
+          btn.style.borderColor = 'var(--accent-cyan)';
+          btn.style.boxShadow = '0 0 10px rgba(0,255,255,0.3)';
+        }
+      }, 100);
     }
     
     // Generar texto para señales de trading
