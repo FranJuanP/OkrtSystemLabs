@@ -895,8 +895,8 @@
     main {
       flex: 1;
       display: grid;
-      grid-template-columns: 290px 1fr 280px;
-      grid-template-rows: 70px 1fr 150px;
+      grid-template-columns: 340px 1fr 320px;
+      grid-template-rows: 70px 1fr 180px;
       gap: 8px;
       padding: 8px;
       overflow: hidden;
@@ -973,6 +973,19 @@
     .signal-sell { background: rgba(255,68,102,0.2); color: var(--accent-red); }
     .signal-neutral { background: rgba(255,255,255,0.1); color: var(--text-dim); }
     .signal-warning { background: rgba(255,149,0,0.2); color: var(--accent-orange); }
+
+    /* AI Engine Classes - Base styles */
+    .ai-label { font-size: 8px; }
+    .ai-regime { font-size: 14px; }
+    .ai-quality { font-size: 14px; }
+    .ai-prob { font-size: 22px; }
+    .ai-target-price { font-size: 24px; }
+    .ai-conf { font-size: 9px; }
+    .smc-label { font-size: 8px; }
+    .smc-value { font-size: 9px; }
+    .mtf-label { font-size: 7px; }
+    .mtf-value { font-size: 10px; }
+    .conf-value { font-size: 16px; }
 
     .prediction-box {
       text-align: center; padding: 12px;
@@ -1451,6 +1464,170 @@
       .chart-box { height: calc(100vh - 60px); }
     }
 
+    /* ========================================= */
+    /* 🖥️ LARGE SCREENS (1600px+) */
+    /* ========================================= */
+    @media screen and (min-width: 1600px) {
+      /* Grid Layout - Sidebars más grandes */
+      main {
+        grid-template-columns: 380px 1fr 360px;
+        grid-template-rows: 75px 1fr 200px;
+        gap: 10px;
+        padding: 10px;
+      }
+      
+      /* Header */
+      header { padding: 10px 25px; }
+      .brand h1 { font-size: 22px; }
+      .brand span { font-size: 11px; }
+      .control-btn { font-size: 12px; padding: 8px 14px; }
+      .status-pill { font-size: 13px; padding: 8px 18px; }
+      
+      /* KPIs */
+      .kpi-card { padding: 14px 18px; }
+      .kpi-card .label { font-size: 11px; }
+      .kpi-card .value { font-size: 26px; }
+      .kpi-card .sub { font-size: 11px; }
+      
+      /* Panels */
+      .panel { border-radius: 10px; }
+      .panel-head { font-size: 13px; padding: 10px 14px; }
+      
+      /* AI Engine Panel */
+      .prediction-box { padding: 10px; }
+      .ai-regime { font-size: 15px !important; }
+      .ai-quality { font-size: 15px !important; }
+      .ai-prob { font-size: 26px !important; }
+      .ai-target-price { font-size: 28px !important; }
+      .ai-label { font-size: 9px !important; }
+      .ai-conf { font-size: 11px !important; }
+      .smc-label { font-size: 9px !important; }
+      .smc-value { font-size: 10px !important; }
+      .mtf-label { font-size: 8px !important; }
+      .mtf-value { font-size: 12px !important; }
+      .conf-value { font-size: 18px !important; }
+      
+      /* Indicators */
+      .indicator-row { padding: 5px 10px !important; }
+      .indicator-label { font-size: 11px !important; }
+      .indicator-value { font-size: 11px !important; }
+      .indicator-signal { font-size: 9px !important; padding: 3px 8px !important; }
+      
+      /* Tab buttons */
+      .tab-btn { font-size: 10px !important; padding: 5px 10px !important; }
+      
+      /* Order Book */
+      .ob-row { font-size: 12px; padding: 4px 10px; }
+      #midPrice { font-size: 16px !important; }
+      
+      /* Whale list */
+      .whale-item { font-size: 11px; padding: 6px 10px; }
+      
+      /* Bottom panels */
+      .bottom-box .panel { padding: 12px; }
+      .bottom-box .panel-head { font-size: 12px; }
+      
+      /* Patterns */
+      .pattern-tag { font-size: 10px !important; padding: 4px 8px !important; }
+      
+      /* Alerts */
+      .alert-item { font-size: 11px; padding: 8px 12px; }
+    }
+
+    /* ========================================= */
+    /* 🖥️ EXTRA LARGE SCREENS (1920px+) */
+    /* ========================================= */
+    @media screen and (min-width: 1920px) {
+      /* Grid Layout - Sidebars aún más grandes para Full HD */
+      main {
+        grid-template-columns: 420px 1fr 400px;
+        grid-template-rows: 80px 1fr 220px;
+        gap: 12px;
+        padding: 12px;
+      }
+      
+      /* Header */
+      header { padding: 12px 30px; }
+      .brand h1 { font-size: 26px; }
+      .brand span { font-size: 13px; }
+      .control-btn { font-size: 13px; padding: 10px 16px; }
+      .status-pill { font-size: 14px; padding: 10px 22px; }
+      
+      /* KPIs */
+      .kpi-card { padding: 18px 22px; }
+      .kpi-card .label { font-size: 13px; }
+      .kpi-card .value { font-size: 32px; }
+      .kpi-card .sub { font-size: 13px; }
+      
+      /* Panels */
+      .panel-head { font-size: 15px; padding: 12px 16px; }
+      
+      /* AI Engine */
+      .ai-regime { font-size: 18px !important; }
+      .ai-quality { font-size: 18px !important; }
+      .ai-prob { font-size: 32px !important; }
+      .ai-target-price { font-size: 34px !important; }
+      .ai-label { font-size: 10px !important; }
+      .ai-conf { font-size: 13px !important; }
+      .smc-label { font-size: 10px !important; }
+      .smc-value { font-size: 12px !important; }
+      .mtf-label { font-size: 9px !important; }
+      .mtf-value { font-size: 14px !important; }
+      .conf-value { font-size: 22px !important; }
+      
+      /* Indicators */
+      .indicator-row { padding: 6px 12px !important; }
+      .indicator-label { font-size: 13px !important; }
+      .indicator-value { font-size: 13px !important; }
+      .indicator-signal { font-size: 10px !important; padding: 4px 10px !important; }
+      
+      /* Tab buttons */
+      .tab-btn { font-size: 11px !important; padding: 6px 12px !important; }
+      
+      /* Order Book */
+      .ob-row { font-size: 14px; padding: 5px 12px; }
+      #midPrice { font-size: 20px !important; }
+      
+      /* Bottom */
+      .bottom-box .panel-head { font-size: 14px; }
+      
+      /* Pattern tags */
+      .pattern-tag { font-size: 11px !important; padding: 5px 10px !important; }
+    }
+
+    /* ========================================= */
+    /* 🖥️ 4K SCREENS (2560px+) */
+    /* ========================================= */
+    @media screen and (min-width: 2560px) {
+      /* Grid Layout - Máximo espacio para 4K */
+      main {
+        grid-template-columns: 500px 1fr 480px;
+        grid-template-rows: 90px 1fr 260px;
+        gap: 15px;
+        padding: 15px;
+      }
+      
+      header { padding: 15px 40px; }
+      .brand h1 { font-size: 32px; }
+      .brand span { font-size: 16px; }
+      .control-btn { font-size: 15px; padding: 12px 20px; }
+      
+      .kpi-card .value { font-size: 40px; }
+      .kpi-card .label { font-size: 15px; }
+      
+      .panel-head { font-size: 18px; }
+      
+      .ai-regime { font-size: 22px !important; }
+      .ai-prob { font-size: 40px !important; }
+      .ai-target-price { font-size: 42px !important; }
+      
+      .indicator-label { font-size: 15px !important; }
+      .indicator-value { font-size: 15px !important; }
+      .indicator-signal { font-size: 12px !important; }
+      
+      #midPrice { font-size: 24px !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -1554,86 +1731,86 @@
     <div class="side-left">
       <div class="panel" style="flex:1; display:flex; flex-direction:column;">
         <div class="panel-head">
-          🔱 AI ENGINE <span style="background:linear-gradient(90deg, #ff00ff, #00ffff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-size:8px; font-weight:bold;">by OkrtSystem Labs</span>
+          🔱 AI ENGINE <span style="background:linear-gradient(90deg, #ff00ff, #00ffff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:bold;" class="ai-label">by OkrtSystem Labs</span>
           <span class="pulse" style="color:var(--accent-green)">●</span>
         </div>
         
-        <div class="prediction-box" style="flex:1; display:flex; flex-direction:column; padding:6px;">
+        <div class="prediction-box" style="flex:1; display:flex; flex-direction:column; padding:8px;">
           <!-- Market Regime + Signal Quality -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; padding:5px 8px; background:rgba(0,212,255,0.08); border-radius:5px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding:6px 10px; background:rgba(0,212,255,0.08); border-radius:6px;">
             <div>
-              <div style="font-size:7px; color:var(--text-dim);">REGIME</div>
-              <div id="marketRegime" style="font-size:13px; font-weight:bold; color:var(--accent-cyan);">ANALYZING...</div>
+              <div class="ai-label" style="color:var(--text-dim);">REGIME</div>
+              <div id="marketRegime" class="ai-regime" style="font-weight:bold; color:var(--accent-cyan);">ANALYZING...</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:7px; color:var(--text-dim);">QUALITY</div>
-              <div id="signalQuality" style="font-size:13px; font-weight:bold; color:var(--accent-green);">--%</div>
+              <div class="ai-label" style="color:var(--text-dim);">QUALITY</div>
+              <div id="signalQuality" class="ai-quality" style="font-weight:bold; color:var(--accent-green);">--%</div>
             </div>
           </div>
           
           <!-- Multi-TF Confluence -->
-          <div style="margin-bottom:5px; padding:4px 6px; background:linear-gradient(135deg, rgba(255,0,255,0.05), rgba(0,255,255,0.05)); border-radius:4px; border:1px solid rgba(255,0,255,0.15);">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:3px;">
-              <div style="font-size:6px; color:var(--accent-purple);">MTF</div>
-              <div id="mtf1m" class="mtf-box" style="text-align:center; padding:2px 4px; background:rgba(0,0,0,0.3); border-radius:3px;">
-                <span style="font-size:6px; color:var(--text-dim);">1M</span>
-                <span style="font-size:9px; font-weight:bold; color:var(--text-dim); margin-left:2px;">--</span>
+          <div style="margin-bottom:6px; padding:5px 8px; background:linear-gradient(135deg, rgba(255,0,255,0.05), rgba(0,255,255,0.05)); border-radius:5px; border:1px solid rgba(255,0,255,0.15);">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+              <div class="mtf-label" style="color:var(--accent-purple);">MTF</div>
+              <div id="mtf1m" class="mtf-box" style="text-align:center; padding:3px 6px; background:rgba(0,0,0,0.3); border-radius:4px;">
+                <span class="mtf-label" style="color:var(--text-dim);">1M</span>
+                <span class="mtf-value" style="font-weight:bold; color:var(--text-dim); margin-left:3px;">--</span>
               </div>
-              <div id="mtf5m" class="mtf-box" style="text-align:center; padding:2px 4px; background:rgba(0,0,0,0.3); border-radius:3px;">
-                <span style="font-size:6px; color:var(--text-dim);">5M</span>
-                <span style="font-size:9px; font-weight:bold; color:var(--text-dim); margin-left:2px;">--</span>
+              <div id="mtf5m" class="mtf-box" style="text-align:center; padding:3px 6px; background:rgba(0,0,0,0.3); border-radius:4px;">
+                <span class="mtf-label" style="color:var(--text-dim);">5M</span>
+                <span class="mtf-value" style="font-weight:bold; color:var(--text-dim); margin-left:3px;">--</span>
               </div>
-              <div id="mtf15m" class="mtf-box" style="text-align:center; padding:2px 4px; background:rgba(0,0,0,0.3); border-radius:3px;">
-                <span style="font-size:6px; color:var(--text-dim);">15M</span>
-                <span style="font-size:9px; font-weight:bold; color:var(--text-dim); margin-left:2px;">--</span>
+              <div id="mtf15m" class="mtf-box" style="text-align:center; padding:3px 6px; background:rgba(0,0,0,0.3); border-radius:4px;">
+                <span class="mtf-label" style="color:var(--text-dim);">15M</span>
+                <span class="mtf-value" style="font-weight:bold; color:var(--text-dim); margin-left:3px;">--</span>
               </div>
-              <div id="mtf1h" class="mtf-box" style="text-align:center; padding:2px 4px; background:rgba(0,0,0,0.3); border-radius:3px;">
-                <span style="font-size:6px; color:var(--text-dim);">1H</span>
-                <span style="font-size:9px; font-weight:bold; color:var(--text-dim); margin-left:2px;">--</span>
+              <div id="mtf1h" class="mtf-box" style="text-align:center; padding:3px 6px; background:rgba(0,0,0,0.3); border-radius:4px;">
+                <span class="mtf-label" style="color:var(--text-dim);">1H</span>
+                <span class="mtf-value" style="font-weight:bold; color:var(--text-dim); margin-left:3px;">--</span>
               </div>
-              <div id="mtfScore" style="text-align:center; padding:2px 6px; background:rgba(168,85,247,0.2); border-radius:3px;">
-                <span style="font-size:9px; font-weight:bold; color:var(--accent-purple);">0/4</span>
+              <div id="mtfScore" style="text-align:center; padding:3px 8px; background:rgba(168,85,247,0.2); border-radius:4px;">
+                <span class="mtf-value" style="font-weight:bold; color:var(--accent-purple);">0/4</span>
               </div>
             </div>
           </div>
           
           <!-- Bull/Bear Probability -->
-          <div style="display:flex; justify-content:space-between; margin-bottom:5px; gap:5px;">
-            <div style="text-align:center; flex:1; background:rgba(0,255,136,0.05); padding:5px; border-radius:5px; border:1px solid rgba(0,255,136,0.2);">
-              <div style="font-size:8px; color:var(--accent-green);">▲ BULL</div>
-              <div id="probBull" style="font-size:20px; font-weight:bold; color:var(--accent-green);">50%</div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px; gap:6px;">
+            <div style="text-align:center; flex:1; background:rgba(0,255,136,0.05); padding:6px; border-radius:6px; border:1px solid rgba(0,255,136,0.2);">
+              <div class="ai-label" style="color:var(--accent-green);">▲ BULL</div>
+              <div id="probBull" class="ai-prob" style="font-weight:bold; color:var(--accent-green);">50%</div>
             </div>
-            <div style="text-align:center; flex:1; background:rgba(255,68,102,0.05); padding:5px; border-radius:5px; border:1px solid rgba(255,68,102,0.2);">
-              <div style="font-size:8px; color:var(--accent-red);">▼ BEAR</div>
-              <div id="probBear" style="font-size:20px; font-weight:bold; color:var(--accent-red);">50%</div>
+            <div style="text-align:center; flex:1; background:rgba(255,68,102,0.05); padding:6px; border-radius:6px; border:1px solid rgba(255,68,102,0.2);">
+              <div class="ai-label" style="color:var(--accent-red);">▼ BEAR</div>
+              <div id="probBear" class="ai-prob" style="font-weight:bold; color:var(--accent-red);">50%</div>
             </div>
           </div>
           
           <!-- Trading Signal Box (hidden by default) -->
-          <div id="tradingSignalBox" style="margin-bottom:5px; padding:5px; background:linear-gradient(135deg, rgba(0,255,136,0.05), rgba(0,212,255,0.05)); border-radius:5px; border:1px solid rgba(0,255,136,0.2); display:none;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <span id="signalDirection" style="font-size:10px; font-weight:bold; color:var(--accent-green);">🎯 LONG</span>
-              <span id="signalRR" style="font-size:8px; color:var(--accent-cyan);">R:R 1:2</span>
+          <div id="tradingSignalBox" style="margin-bottom:6px; padding:6px; background:linear-gradient(135deg, rgba(0,255,136,0.05), rgba(0,212,255,0.05)); border-radius:6px; border:1px solid rgba(0,255,136,0.2); display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <span id="signalDirection" class="ai-label" style="font-weight:bold; color:var(--accent-green);">🎯 LONG</span>
+              <span id="signalRR" class="ai-label" style="color:var(--accent-cyan);">R:R 1:2</span>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:8px;">
-              <div style="background:rgba(0,0,0,0.3); padding:2px 4px; border-radius:3px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+              <div class="smc-value" style="background:rgba(0,0,0,0.3); padding:3px 5px; border-radius:4px;">
                 <span style="color:var(--text-dim);">E:</span>
                 <span id="signalEntry" style="color:var(--accent-cyan); font-weight:bold;">$0.00</span>
               </div>
-              <div style="background:rgba(255,68,102,0.1); padding:2px 4px; border-radius:3px;">
+              <div class="smc-value" style="background:rgba(255,68,102,0.1); padding:3px 5px; border-radius:4px;">
                 <span style="color:var(--text-dim);">SL:</span>
                 <span id="signalSL" style="color:var(--accent-red); font-weight:bold;">$0.00</span>
               </div>
-              <div style="background:rgba(0,255,136,0.1); padding:2px 4px; border-radius:3px;">
+              <div class="smc-value" style="background:rgba(0,255,136,0.1); padding:3px 5px; border-radius:4px;">
                 <span style="color:var(--text-dim);">TP1:</span>
                 <span id="signalTP1" style="color:var(--accent-green); font-weight:bold;">$0.00</span>
               </div>
-              <div style="background:rgba(0,255,136,0.15); padding:2px 4px; border-radius:3px;">
+              <div class="smc-value" style="background:rgba(0,255,136,0.15); padding:3px 5px; border-radius:4px;">
                 <span style="color:var(--text-dim);">TP2:</span>
                 <span id="signalTP2" style="color:var(--accent-green); font-weight:bold;">$0.00</span>
               </div>
             </div>
-            <div style="margin-top:3px; display:flex; justify-content:space-between; font-size:7px; color:var(--text-dim);">
+            <div style="margin-top:4px; display:flex; justify-content:space-between; color:var(--text-dim);" class="ai-label">
               <span>Risk: <span id="signalRisk" style="color:var(--accent-red);">-0%</span></span>
               <span>Reward: <span id="signalReward" style="color:var(--accent-green);">+0%</span></span>
               <span>WR: <span id="signalWinRate" style="color:var(--accent-cyan);">--%</span></span>
@@ -1641,73 +1818,73 @@
           </div>
           
           <!-- AI Target Price -->
-          <div style="text-align:center; padding:5px; background:rgba(0,212,255,0.05); border-radius:5px; margin-bottom:5px; border:1px solid rgba(0,212,255,0.2);">
-            <div style="font-size:7px; color:var(--text-dim);">AI TARGET</div>
-            <div id="aiTarget" style="font-size:22px; font-weight:bold; color:var(--accent-cyan);">$0.0000</div>
-            <div style="font-size:8px; display:flex; justify-content:center; gap:10px;">
+          <div style="text-align:center; padding:6px; background:rgba(0,212,255,0.05); border-radius:6px; margin-bottom:6px; border:1px solid rgba(0,212,255,0.2);">
+            <div class="ai-label" style="color:var(--text-dim);">AI TARGET</div>
+            <div id="aiTarget" class="ai-target-price" style="font-weight:bold; color:var(--accent-cyan);">$0.0000</div>
+            <div class="ai-conf" style="display:flex; justify-content:center; gap:12px;">
               <span>Conf: <span id="confLevel" style="color:var(--accent-green); font-weight:bold;">--%</span></span>
               <span>Acc: <span id="modelAccuracy" style="font-weight:bold;">--%</span></span>
             </div>
-            <div class="accuracy-bar" style="margin-top:4px; height:3px;"><div id="accuracyBar" class="accuracy-fill" style="width:0%"></div></div>
+            <div class="accuracy-bar" style="margin-top:5px; height:4px;"><div id="accuracyBar" class="accuracy-fill" style="width:0%"></div></div>
           </div>
           
           <!-- Smart Money Concepts -->
-          <div style="margin-bottom:5px; padding:4px 6px; background:rgba(255,149,0,0.05); border-radius:4px; border:1px solid rgba(255,149,0,0.15);">
-            <div style="font-size:7px; color:var(--accent-orange); margin-bottom:3px;">💰 SMART MONEY</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px; font-size:7px;">
-              <div style="display:flex; justify-content:space-between; padding:2px 4px; background:rgba(0,0,0,0.2); border-radius:2px;">
-                <span style="color:var(--text-dim);">OB</span>
+          <div style="margin-bottom:6px; padding:5px 8px; background:rgba(255,149,0,0.05); border-radius:5px; border:1px solid rgba(255,149,0,0.15);">
+            <div class="ai-label" style="color:var(--accent-orange); margin-bottom:4px;">💰 SMART MONEY</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
+              <div class="smc-value" style="display:flex; justify-content:space-between; padding:3px 6px; background:rgba(0,0,0,0.2); border-radius:3px;">
+                <span class="smc-label" style="color:var(--text-dim);">OB</span>
                 <span id="smcOB" style="color:var(--text-dim);">--</span>
               </div>
-              <div style="display:flex; justify-content:space-between; padding:2px 4px; background:rgba(0,0,0,0.2); border-radius:2px;">
-                <span style="color:var(--text-dim);">FVG</span>
+              <div class="smc-value" style="display:flex; justify-content:space-between; padding:3px 6px; background:rgba(0,0,0,0.2); border-radius:3px;">
+                <span class="smc-label" style="color:var(--text-dim);">FVG</span>
                 <span id="smcFVG" style="color:var(--text-dim);">--</span>
               </div>
-              <div style="display:flex; justify-content:space-between; padding:2px 4px; background:rgba(0,0,0,0.2); border-radius:2px;">
-                <span style="color:var(--text-dim);">Liq</span>
+              <div class="smc-value" style="display:flex; justify-content:space-between; padding:3px 6px; background:rgba(0,0,0,0.2); border-radius:3px;">
+                <span class="smc-label" style="color:var(--text-dim);">Liq</span>
                 <span id="smcLiq" style="color:var(--text-dim);">--</span>
               </div>
-              <div style="display:flex; justify-content:space-between; padding:2px 4px; background:rgba(0,0,0,0.2); border-radius:2px;">
-                <span style="color:var(--text-dim);">Struct</span>
+              <div class="smc-value" style="display:flex; justify-content:space-between; padding:3px 6px; background:rgba(0,0,0,0.2); border-radius:3px;">
+                <span class="smc-label" style="color:var(--text-dim);">Struct</span>
                 <span id="smcStruct" style="color:var(--text-dim);">--</span>
               </div>
             </div>
           </div>
           
           <!-- Confluence & Noise & Whale -->
-          <div style="display:flex; justify-content:space-around; margin-bottom:5px; padding:4px; background:rgba(168,85,247,0.08); border-radius:4px;">
+          <div style="display:flex; justify-content:space-around; margin-bottom:6px; padding:5px; background:rgba(168,85,247,0.08); border-radius:5px;">
             <div style="text-align:center;">
-              <div style="font-size:6px; color:var(--text-dim);">CONF</div>
-              <div id="confluenceCount" style="font-size:14px; font-weight:bold; color:var(--accent-purple);">0</div>
+              <div class="ai-label" style="color:var(--text-dim);">CONF</div>
+              <div id="confluenceCount" class="conf-value" style="font-weight:bold; color:var(--accent-purple);">0</div>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:6px; color:var(--text-dim);">NOISE</div>
-              <div id="noiseLevel" style="font-size:14px; font-weight:bold; color:var(--accent-orange);">--%</div>
+              <div class="ai-label" style="color:var(--text-dim);">NOISE</div>
+              <div id="noiseLevel" class="conf-value" style="font-weight:bold; color:var(--accent-orange);">--%</div>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:6px; color:var(--text-dim);">WHALE</div>
-              <div id="whaleImpact" style="font-size:14px; font-weight:bold; color:var(--accent-cyan);">0</div>
+              <div class="ai-label" style="color:var(--text-dim);">WHALE</div>
+              <div id="whaleImpact" class="conf-value" style="font-weight:bold; color:var(--accent-cyan);">0</div>
             </div>
           </div>
           
           <!-- Prediction History -->
-          <div style="margin-bottom:4px;">
-            <div id="accuracyHistoryChart" class="accuracy-chart" style="height:15px;"></div>
+          <div style="margin-bottom:5px;">
+            <div id="accuracyHistoryChart" class="accuracy-chart" style="height:18px;"></div>
           </div>
         </div>
 
         <!-- Score Meter -->
-        <div class="score-meter" style="height:6px;">
+        <div class="score-meter" style="height:8px;">
           <div id="scoreFill" class="score-fill" style="width:0; background:var(--accent-cyan);"></div>
         </div>
-        <div style="text-align:center; font-size:7px; color:var(--text-dim); margin-bottom:4px;">
-          <span style="float:left; margin-left:5px;">BEAR</span>
-          <span style="float:right; margin-right:5px;">BULL</span>
+        <div class="ai-label" style="text-align:center; color:var(--text-dim); margin-bottom:5px;">
+          <span style="float:left; margin-left:8px;">BEAR</span>
+          <span style="float:right; margin-right:8px;">BULL</span>
           <span>NEUTRAL</span>
         </div>
 
         <!-- Tabs -->
-        <div class="tab-buttons" style="padding:2px;">
+        <div class="tab-buttons" style="padding:3px;">
           <button class="tab-btn active" onclick="switchTab('momentum')" style="font-size:7px; padding:2px 5px;">MOM</button>
           <button class="tab-btn" onclick="switchTab('trend')" style="font-size:7px; padding:2px 5px;">TREND</button>
           <button class="tab-btn" onclick="switchTab('volume')" style="font-size:7px; padding:2px 5px;">VOL</button>
@@ -1717,140 +1894,140 @@
         <div class="scrollable" style="flex:1; min-height:80px;">
           <!-- TAB: Momentum -->
           <div id="tab-momentum" class="tab-content active">
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">RSI (14)</span>
-              <span id="rsiValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="rsiSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">RSI (14)</span>
+              <span id="rsiValue" class="indicator-value">--</span>
+              <span id="rsiSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Stoch RSI</span>
-              <span id="stochValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="stochSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Stoch RSI</span>
+              <span id="stochValue" class="indicator-value">--</span>
+              <span id="stochSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Williams %R</span>
-              <span id="willrValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="willrSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Williams %R</span>
+              <span id="willrValue" class="indicator-value">--</span>
+              <span id="willrSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Momentum</span>
-              <span id="momValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="momSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Momentum</span>
+              <span id="momValue" class="indicator-value">--</span>
+              <span id="momSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">RSI Div</span>
-              <span id="divValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="divSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">RSI Div</span>
+              <span id="divValue" class="indicator-value">--</span>
+              <span id="divSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Squeeze</span>
-              <span id="squeezeValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="squeezeSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Squeeze</span>
+              <span id="squeezeValue" class="indicator-value">--</span>
+              <span id="squeezeSignal" class="indicator-signal signal-neutral">--</span>
             </div>
           </div>
 
           <!-- TAB: Trend -->
           <div id="tab-trend" class="tab-content">
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">MACD</span>
-              <span id="macdValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="macdSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">MACD</span>
+              <span id="macdValue" class="indicator-value">--</span>
+              <span id="macdSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">EMA Cross</span>
-              <span id="emaValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="emaSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">EMA Cross</span>
+              <span id="emaValue" class="indicator-value">--</span>
+              <span id="emaSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">ADX</span>
-              <span id="adxValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="adxSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">ADX</span>
+              <span id="adxValue" class="indicator-value">--</span>
+              <span id="adxSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Bollinger</span>
-              <span id="bbValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="bbSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Bollinger</span>
+              <span id="bbValue" class="indicator-value">--</span>
+              <span id="bbSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">VWAP</span>
-              <span id="vwapValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="vwapSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">VWAP</span>
+              <span id="vwapValue" class="indicator-value">--</span>
+              <span id="vwapSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Supertrend</span>
-              <span id="strendValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="strendSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Supertrend</span>
+              <span id="strendValue" class="indicator-value">--</span>
+              <span id="strendSignal" class="indicator-signal signal-neutral">--</span>
             </div>
           </div>
 
           <!-- TAB: Volume -->
           <div id="tab-volume" class="tab-content">
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">OBV</span>
-              <span id="obvValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="obvSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">OBV</span>
+              <span id="obvValue" class="indicator-value">--</span>
+              <span id="obvSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">OB Imbal</span>
-              <span id="obValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="obSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">OB Imbal</span>
+              <span id="obValue" class="indicator-value">--</span>
+              <span id="obSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">CVD</span>
-              <span id="cvdValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="cvdSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">CVD</span>
+              <span id="cvdValue" class="indicator-value">--</span>
+              <span id="cvdSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Chaikin</span>
-              <span id="cmfValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="cmfSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Chaikin</span>
+              <span id="cmfValue" class="indicator-value">--</span>
+              <span id="cmfSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">Whale Flow</span>
-              <span id="whaleFlowValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="whaleFlowSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">Whale Flow</span>
+              <span id="whaleFlowValue" class="indicator-value">--</span>
+              <span id="whaleFlowSignal" class="indicator-signal signal-neutral">--</span>
             </div>
           </div>
           
           <!-- TAB: Advanced -->
           <div id="tab-advanced" class="tab-content">
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">☁️ Ichimoku</span>
-              <span id="ichiValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="ichiSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">☁️ Ichimoku</span>
+              <span id="ichiValue" class="indicator-value">--</span>
+              <span id="ichiSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">📐 Fibo</span>
-              <span id="fiboValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="fiboSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">📐 Fibo</span>
+              <span id="fiboValue" class="indicator-value">--</span>
+              <span id="fiboSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">📊 Vol Prof</span>
-              <span id="vpValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="vpSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">📊 Vol Prof</span>
+              <span id="vpValue" class="indicator-value">--</span>
+              <span id="vpSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">🔄 OFI</span>
-              <span id="ofiValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="ofiSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">🔄 OFI</span>
+              <span id="ofiValue" class="indicator-value">--</span>
+              <span id="ofiSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">📈 Struct</span>
-              <span id="structValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="structSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">📈 Struct</span>
+              <span id="structValue" class="indicator-value">--</span>
+              <span id="structSignal" class="indicator-signal signal-neutral">--</span>
             </div>
-            <div class="indicator-row" style="padding:2px 6px;">
-              <span class="indicator-label" style="font-size:8px;">🐋 Whale OB</span>
-              <span id="whaleOBValue" class="indicator-value" style="font-size:8px;">--</span>
-              <span id="whaleOBSignal" class="indicator-signal signal-neutral" style="font-size:7px; padding:1px 4px;">--</span>
+            <div class="indicator-row">
+              <span class="indicator-label">🐋 Whale OB</span>
+              <span id="whaleOBValue" class="indicator-value">--</span>
+              <span id="whaleOBSignal" class="indicator-signal signal-neutral">--</span>
             </div>
           </div>
 
           <!-- Patterns -->
-          <div style="padding:4px 6px; border-top:1px solid rgba(255,255,255,0.05);">
-            <div style="font-size:7px; color:var(--text-dim); margin-bottom:2px;">🔮 PATTERNS</div>
-            <div id="patternsContainer" style="display:flex; flex-wrap:wrap; gap:2px;">
-              <span style="color:var(--text-dim); font-size:8px;">Analyzing...</span>
+          <div style="padding:6px 8px; border-top:1px solid rgba(255,255,255,0.05);">
+            <div class="ai-label" style="color:var(--text-dim); margin-bottom:3px;">🔮 PATTERNS</div>
+            <div id="patternsContainer" style="display:flex; flex-wrap:wrap; gap:3px;">
+              <span class="pattern-tag" style="color:var(--text-dim);">Analyzing...</span>
             </div>
           </div>
         </div>
@@ -2118,7 +2295,7 @@
       enabled: false,
       speaking: false,
       lastSpoke: 0,
-      cooldown: 30000, // 30 segundos entre alertas de voz
+      cooldown: 60000, // 60 segundos entre alertas de voz (aumentado de 30s)
       voice: null,
       lang: localStorage.getItem('oraculum_voice_lang') || 'en',
       rate: 1.0,
@@ -2721,19 +2898,50 @@
       const history = state.predictionHistory.slice(-20);
       
       if (history.length === 0) {
-        container.innerHTML = '<span style="font-size:8px; color:var(--text-dim);">Collecting data...</span>';
+        // Mostrar cuántas predicciones faltan para empezar
+        const needed = Math.max(0, 10 - state.predictions.length);
+        const current = state.predictions.length;
+        
+        if (current === 0) {
+          container.innerHTML = '<span class="ai-label" style="color:var(--text-dim);">⏳ Waiting for data...</span>';
+        } else if (needed > 0) {
+          container.innerHTML = `<span class="ai-label" style="color:var(--text-dim);">📊 ${current}/10 samples (${needed} more needed)</span>`;
+        } else {
+          container.innerHTML = '<span class="ai-label" style="color:var(--text-dim);">🔄 Processing predictions...</span>';
+        }
         return;
       }
+      
+      // Calcular estadísticas
+      const correct = history.filter(r => r).length;
+      const accuracy = ((correct / history.length) * 100).toFixed(0);
+      
+      // Crear contenedor flex para barras + stats
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%;';
+      
+      // Contenedor de barras
+      const barsContainer = document.createElement('div');
+      barsContainer.style.cssText = 'display:flex; gap:2px; flex:1; height:100%;';
       
       history.forEach((result, idx) => {
         const bar = document.createElement('div');
         bar.className = 'accuracy-bar-mini';
-        bar.style.height = '100%';
-        bar.style.background = result ? 'var(--accent-green)' : 'var(--accent-red)';
-        bar.style.opacity = 0.3 + (idx / history.length) * 0.7; // Más recientes más brillantes
-        bar.title = result ? 'Correct' : 'Incorrect';
-        container.appendChild(bar);
+        bar.style.cssText = `flex:1; height:100%; border-radius:2px; background:${result ? 'var(--accent-green)' : 'var(--accent-red)'}; opacity:${0.3 + (idx / history.length) * 0.7};`;
+        bar.title = result ? '✓ Correct' : '✗ Incorrect';
+        barsContainer.appendChild(bar);
       });
+      
+      wrapper.appendChild(barsContainer);
+      
+      // Mini stats
+      const stats = document.createElement('span');
+      stats.className = 'ai-label';
+      stats.style.cssText = `color:${accuracy >= 55 ? 'var(--accent-green)' : accuracy >= 45 ? 'var(--accent-orange)' : 'var(--accent-red)'}; white-space:nowrap;`;
+      stats.innerText = `${accuracy}%`;
+      wrapper.appendChild(stats);
+      
+      container.appendChild(wrapper);
     }
 
     // --- UI REFS ---
@@ -2826,6 +3034,12 @@
           rightOffset: 5,
           barSpacing: 10,
           minBarSpacing: 5
+        },
+        localization: {
+          timeFormatter: (timestamp) => {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
         }
       });
 
@@ -4635,38 +4849,647 @@
         
         ui.accuracyBar.style.background = accuracy > 60 ? 'var(--accent-green)' : 
           (accuracy > 50 ? 'var(--accent-orange)' : 'var(--accent-red)');
-        
-        // Actualizar gráfico de historial
-        updatePredictionHistoryChart();
       }
+      
+      // Actualizar gráfico de historial SIEMPRE (muestra progreso)
+      updatePredictionHistoryChart();
     }
 
     // ============================================
-    // AI ENGINE v2.0 - ADVANCED PREDICTIVE SYSTEM
+    // 🧠 AI ENGINE v3.0 QUANTUM - ELITE TRADING INTELLIGENCE
+    // ============================================
+    // Advanced Features:
+    // • Adaptive Learning System (weights adjust based on accuracy)
+    // • BTC Correlation & Divergence Detection
+    // • Harmonic Pattern Recognition (Gartley, Butterfly, Bat, Crab)
+    // • Neural Network Lite (perceptron for signal combination)
+    // • Session Analytics (Asia, London, NYC bias)
+    // • Market Memory (remembers key levels & bounces)
+    // • Momentum Persistence Analysis
+    // • Liquidation Zone Detection
     // ============================================
     
-    // Estado del motor AI
+    // Estado del motor AI - QUANTUM ENHANCED
     const aiState = {
-      marketRegime: 'unknown',        // trending_up, trending_down, ranging, volatile
-      regimeStrength: 0,              // 0-100
-      supportLevels: [],              // Niveles de soporte dinámicos
-      resistanceLevels: [],           // Niveles de resistencia dinámicos
-      signalQuality: 0,               // 0-100 calidad de la señal actual
-      confluenceScore: 0,             // Número de indicadores en confluencia
-      probabilityBull: 50,            // Probabilidad alcista %
-      probabilityBear: 50,            // Probabilidad bajista %
-      noiseLevel: 0,                  // Nivel de ruido del mercado
-      lastSignals: [],                // Historial de señales para backtesting
-      predictionAccuracy: [],         // Tracking de precisión
-      volumeProfile: [],              // Perfil de volumen
-      lastDivergence: null,           // Última divergencia detectada (para evitar repetir alertas)
-      priceAction: {                  // Análisis de price action
-        higherHighs: 0,
-        lowerLows: 0,
-        swingHigh: 0,
-        swingLow: 0
+      marketRegime: 'unknown',
+      regimeStrength: 0,
+      supportLevels: [],
+      resistanceLevels: [],
+      signalQuality: 0,
+      confluenceScore: 0,
+      probabilityBull: 50,
+      probabilityBear: 50,
+      noiseLevel: 0,
+      lastSignals: [],
+      predictionAccuracy: [],
+      volumeProfile: [],
+      lastDivergence: null,
+      priceAction: { higherHighs: 0, lowerLows: 0, swingHigh: 0, swingLow: 0 },
+      // 🆕 QUANTUM v3.0 Extensions
+      quantumScore: 0,
+      btcCorrelation: 0,
+      btcDivergence: false,
+      harmonicPattern: null,
+      neuralPrediction: 0.5,
+      sessionBias: 'neutral',
+      momentumPersistence: 0,
+      liquidationRisk: 'low',
+      adaptiveConfidence: 50
+    };
+
+    // ============================================
+    // 🧬 1. ADAPTIVE LEARNING SYSTEM
+    // ============================================
+    
+    const adaptiveLearning = {
+      weights: JSON.parse(localStorage.getItem('oraculum_adaptive_weights') || JSON.stringify({
+        rsi: 1.0, macd: 1.0, stochRSI: 1.0, willR: 0.8, bb: 0.9,
+        ema: 1.0, adx: 1.1, vwap: 0.9, obv: 0.8, momentum: 0.7,
+        ichimoku: 1.2, supertrend: 1.1, squeeze: 1.0, cmf: 0.9,
+        smartMoney: 1.3, fibonacci: 1.0, whaleFlow: 1.4,
+        btcCorrelation: 1.2, harmonics: 1.5, divergence: 2.0
+      })),
+      
+      history: JSON.parse(localStorage.getItem('oraculum_signal_history') || '[]'),
+      
+      updateWeight: function(indicator, wasCorrect) {
+        const lr = 0.03;
+        const w = this.weights[indicator] || 1.0;
+        this.weights[indicator] = wasCorrect ? 
+          Math.min(2.5, w + lr) : Math.max(0.2, w - lr * 1.5);
+        localStorage.setItem('oraculum_adaptive_weights', JSON.stringify(this.weights));
+      },
+      
+      recordSignal: function(price, direction, indicators, probability) {
+        this.history.push({
+          time: Date.now(), price, direction, indicators, probability,
+          verified: false, result: null
+        });
+        if (this.history.length > 300) this.history = this.history.slice(-300);
+        localStorage.setItem('oraculum_signal_history', JSON.stringify(this.history));
+      },
+      
+      verifySignals: function(currentPrice) {
+        const window = 5 * 60 * 1000;
+        let correct = 0, total = 0;
+        
+        this.history.forEach(sig => {
+          if (!sig.verified && (Date.now() - sig.time) > window) {
+            const change = ((currentPrice - sig.price) / sig.price) * 100;
+            const wasCorrect = (sig.direction === 'bull' && change > 0.15) ||
+                              (sig.direction === 'bear' && change < -0.15);
+            
+            sig.indicators.forEach(ind => this.updateWeight(ind, wasCorrect));
+            sig.verified = true;
+            sig.result = wasCorrect ? 'correct' : 'incorrect';
+            sig.priceChange = change;
+          }
+          if (sig.verified) { total++; if (sig.result === 'correct') correct++; }
+        });
+        
+        localStorage.setItem('oraculum_signal_history', JSON.stringify(this.history));
+        return total >= 20 ? (correct / total * 100) : null;
+      },
+      
+      getWeight: function(ind) { return this.weights[ind] || 1.0; }
+    };
+
+    // ============================================
+    // 📊 2. BTC CORRELATION ANALYZER
+    // ============================================
+    
+    const btcAnalyzer = {
+      btcHistory: [],
+      xrpHistory: [],
+      maxLen: 50,
+      
+      addPrices: function(btc, xrp) {
+        this.btcHistory.push(btc);
+        this.xrpHistory.push(xrp);
+        if (this.btcHistory.length > this.maxLen) {
+          this.btcHistory.shift();
+          this.xrpHistory.shift();
+        }
+      },
+      
+      getCorrelation: function() {
+        if (this.btcHistory.length < 15) return 0;
+        
+        const btcRet = [], xrpRet = [];
+        for (let i = 1; i < this.btcHistory.length; i++) {
+          btcRet.push((this.btcHistory[i] - this.btcHistory[i-1]) / this.btcHistory[i-1]);
+          xrpRet.push((this.xrpHistory[i] - this.xrpHistory[i-1]) / this.xrpHistory[i-1]);
+        }
+        
+        const mB = btcRet.reduce((a,b) => a+b, 0) / btcRet.length;
+        const mX = xrpRet.reduce((a,b) => a+b, 0) / xrpRet.length;
+        
+        let num = 0, dB = 0, dX = 0;
+        for (let i = 0; i < btcRet.length; i++) {
+          const db = btcRet[i] - mB, dx = xrpRet[i] - mX;
+          num += db * dx; dB += db * db; dX += dx * dx;
+        }
+        
+        const corr = num / (Math.sqrt(dB) * Math.sqrt(dX));
+        return isNaN(corr) ? 0 : corr;
+      },
+      
+      detectDivergence: function() {
+        if (this.btcHistory.length < 10) return { diverging: false, type: null };
+        
+        const btc5 = this.btcHistory.slice(-5);
+        const xrp5 = this.xrpHistory.slice(-5);
+        const btcTrend = btc5[4] > btc5[0] ? 'up' : 'down';
+        const xrpTrend = xrp5[4] > xrp5[0] ? 'up' : 'down';
+        
+        if (btcTrend !== xrpTrend) {
+          return { 
+            diverging: true, 
+            type: xrpTrend === 'up' ? 'xrp_leading_bull' : 'xrp_leading_bear',
+            strength: Math.abs((xrp5[4] - xrp5[0]) / xrp5[0]) * 100
+          };
+        }
+        return { diverging: false, type: null };
+      },
+      
+      getSignalBoost: function() {
+        const corr = this.getCorrelation();
+        const div = this.detectDivergence();
+        
+        if (div.diverging) return { multiplier: 1.25, reason: 'BTC_DIVERGENCE' };
+        if (corr > 0.8) return { multiplier: 0.9, reason: 'HIGH_CORRELATION' };
+        if (corr < 0.3) return { multiplier: 1.1, reason: 'INDEPENDENT' };
+        return { multiplier: 1.0, reason: 'NORMAL' };
       }
     };
+
+    // ============================================
+    // 🔷 3. HARMONIC PATTERN RECOGNITION
+    // ============================================
+    
+    function detectHarmonics(candles) {
+      if (candles.length < 60) return null;
+      
+      const pivots = findSwingPoints(candles.slice(-60), 4, 4);
+      if (pivots.length < 5) return null;
+      
+      const pts = pivots.slice(-5);
+      const [X, A, B, C, D] = pts.map(p => p.price);
+      
+      const XA = Math.abs(A - X);
+      const AB = Math.abs(B - A);
+      const BC = Math.abs(C - B);
+      const CD = Math.abs(D - C);
+      const XD = Math.abs(D - X);
+      
+      if (XA === 0) return null;
+      
+      const AB_XA = AB / XA;
+      const BC_AB = BC / (AB || 1);
+      const CD_BC = CD / (BC || 1);
+      const XD_XA = XD / XA;
+      
+      let pattern = null, confidence = 0, target = 0;
+      const isBullish = pts[4].type === 'low';
+      const price = candles[candles.length - 1].close;
+      
+      // Gartley: AB=0.618 XA, XD=0.786 XA
+      if (AB_XA >= 0.55 && AB_XA <= 0.68 && XD_XA >= 0.72 && XD_XA <= 0.85) {
+        pattern = 'GARTLEY';
+        confidence = 70 + (20 - Math.abs(AB_XA - 0.618) * 100);
+        target = isBullish ? D + XA * 0.618 : D - XA * 0.618;
+      }
+      // Butterfly: AB=0.786 XA, XD=1.27-1.618 XA
+      else if (AB_XA >= 0.72 && AB_XA <= 0.85 && XD_XA >= 1.2 && XD_XA <= 1.7) {
+        pattern = 'BUTTERFLY';
+        confidence = 65 + (20 - Math.abs(XD_XA - 1.41) * 50);
+        target = isBullish ? D + XA * 0.5 : D - XA * 0.5;
+      }
+      // Bat: AB=0.382-0.5 XA, XD=0.886 XA
+      else if (AB_XA >= 0.35 && AB_XA <= 0.52 && XD_XA >= 0.82 && XD_XA <= 0.95) {
+        pattern = 'BAT';
+        confidence = 68 + (15 - Math.abs(XD_XA - 0.886) * 150);
+        target = isBullish ? D + XA * 0.5 : D - XA * 0.5;
+      }
+      // Crab: XD=1.618 XA
+      else if (XD_XA >= 1.55 && XD_XA <= 1.72) {
+        pattern = 'CRAB';
+        confidence = 62 + (15 - Math.abs(XD_XA - 1.618) * 100);
+        target = isBullish ? D + XA * 0.618 : D - XA * 0.618;
+      }
+      
+      if (pattern) {
+        return {
+          pattern,
+          type: isBullish ? 'bullish' : 'bearish',
+          confidence: Math.min(92, Math.max(55, confidence)),
+          target,
+          currentPrice: price,
+          pivots: { X, A, B, C, D },
+          ratios: { AB_XA: AB_XA.toFixed(3), XD_XA: XD_XA.toFixed(3) }
+        };
+      }
+      return null;
+    }
+    
+    function findSwingPoints(candles, left, right) {
+      const pivots = [];
+      for (let i = left; i < candles.length - right; i++) {
+        let isHigh = true, isLow = true;
+        for (let j = 1; j <= left; j++) {
+          if (candles[i].high <= candles[i-j].high) isHigh = false;
+          if (candles[i].low >= candles[i-j].low) isLow = false;
+        }
+        for (let j = 1; j <= right; j++) {
+          if (candles[i].high <= candles[i+j].high) isHigh = false;
+          if (candles[i].low >= candles[i+j].low) isLow = false;
+        }
+        if (isHigh) pivots.push({ idx: i, price: candles[i].high, type: 'high' });
+        else if (isLow) pivots.push({ idx: i, price: candles[i].low, type: 'low' });
+      }
+      return pivots;
+    }
+
+    // ============================================
+    // 🧠 4. NEURAL NETWORK LITE
+    // ============================================
+    
+    const neuralNet = {
+      weights: JSON.parse(localStorage.getItem('oraculum_nn') || JSON.stringify({
+        momentum: 0.18, trend: 0.22, volume: 0.18, structure: 0.20, 
+        regime: 0.12, btc: 0.10
+      })),
+      bias: 0,
+      
+      sigmoid: x => 1 / (1 + Math.exp(-x)),
+      
+      predict: function(inputs) {
+        let sum = this.bias;
+        Object.keys(inputs).forEach(k => {
+          sum += (inputs[k] || 0) * (this.weights[k] || 0);
+        });
+        return this.sigmoid(sum * 4);
+      },
+      
+      train: function(inputs, expected) {
+        const pred = this.predict(inputs);
+        const err = expected - pred;
+        const grad = pred * (1 - pred) * err * 0.02;
+        
+        Object.keys(inputs).forEach(k => {
+          if (this.weights[k] !== undefined) {
+            this.weights[k] = Math.max(-2, Math.min(2, this.weights[k] + grad * inputs[k]));
+          }
+        });
+        this.bias += grad;
+        localStorage.setItem('oraculum_nn', JSON.stringify(this.weights));
+      },
+      
+      prepareInputs: function(data) {
+        const norm = (v, c, r) => Math.max(-1, Math.min(1, (v - c) / r));
+        return {
+          momentum: norm(data.rsi || 50, 50, 30) * 0.5 + 
+                    norm(data.stochRSI || 50, 50, 40) * 0.3 +
+                    (data.squeeze?.momentum > 0 ? 0.2 : -0.2),
+          trend: (data.emaCross ? 0.3 : -0.3) + 
+                 (data.macdBull ? 0.3 : -0.3) +
+                 norm(data.adx || 20, 25, 25) * 0.4,
+          volume: norm(data.cvd || 0, 0, 50000) * 0.5 +
+                  norm(data.whaleFlow || 0, 0, 100000) * 0.5,
+          structure: (data.nearSupport ? 0.4 : 0) + 
+                     (data.nearResist ? -0.4 : 0) +
+                     (data.smcBias === 'bullish' ? 0.3 : data.smcBias === 'bearish' ? -0.3 : 0),
+          regime: data.regime === 'trending_up' ? 0.7 : 
+                  data.regime === 'trending_down' ? -0.7 : 
+                  data.regime === 'volatile' ? 0 : 0.1,
+          btc: data.btcDivergent ? 0.4 : (data.btcCorr || 0) * 0.3
+        };
+      }
+    };
+
+    // ============================================
+    // 📅 5. SESSION ANALYTICS
+    // ============================================
+    
+    const sessionStats = {
+      data: JSON.parse(localStorage.getItem('oraculum_sessions') || JSON.stringify({
+        asia: { wins: 0, total: 0, avgVol: 0 },
+        london: { wins: 0, total: 0, avgVol: 0 },
+        nyc: { wins: 0, total: 0, avgVol: 0 },
+        overlap: { wins: 0, total: 0, avgVol: 0 }
+      })),
+      
+      getCurrent: function() {
+        const h = new Date().getUTCHours();
+        if (h >= 13 && h < 17) return 'overlap';
+        if (h >= 0 && h < 8) return 'asia';
+        if (h >= 8 && h < 16) return 'london';
+        if (h >= 13 && h < 22) return 'nyc';
+        return 'asia';
+      },
+      
+      getBias: function() {
+        const s = this.getCurrent();
+        const d = this.data[s];
+        if (d.total < 15) return { bias: 'neutral', mult: 1.0, session: s };
+        
+        const wr = d.wins / d.total;
+        if (wr > 0.58) return { bias: 'favorable', mult: 1.08, session: s };
+        if (wr < 0.42) return { bias: 'unfavorable', mult: 0.92, session: s };
+        return { bias: 'neutral', mult: 1.0, session: s };
+      },
+      
+      record: function(wasWin) {
+        const s = this.getCurrent();
+        this.data[s].total++;
+        if (wasWin) this.data[s].wins++;
+        localStorage.setItem('oraculum_sessions', JSON.stringify(this.data));
+      }
+    };
+
+    // ============================================
+    // 🧮 6. MARKET MEMORY
+    // ============================================
+    
+    const marketMemory = {
+      data: JSON.parse(localStorage.getItem('oraculum_memory') || JSON.stringify({
+        levels: [], bounces: [], breakouts: []
+      })),
+      
+      addLevel: function(price, type, strength) {
+        const exists = this.data.levels.some(l => Math.abs(l.price - price) / price < 0.002);
+        if (!exists) {
+          this.data.levels.push({ price, type, strength, hits: 1, time: Date.now() });
+          if (this.data.levels.length > 40) {
+            this.data.levels.sort((a,b) => b.hits - a.hits);
+            this.data.levels = this.data.levels.slice(0, 40);
+          }
+          this.save();
+        }
+      },
+      
+      recordBounce: function(price, success) {
+        const lvl = this.data.levels.find(l => Math.abs(l.price - price) / price < 0.003);
+        if (lvl) {
+          lvl.hits++;
+          lvl.strength = success ? Math.min(1, lvl.strength + 0.08) : Math.max(0, lvl.strength - 0.12);
+        }
+        this.data.bounces.push({ price, success, time: Date.now() });
+        if (this.data.bounces.length > 100) this.data.bounces = this.data.bounces.slice(-100);
+        this.save();
+      },
+      
+      getNearby: function(price, range = 0.015) {
+        return this.data.levels.filter(l => Math.abs(l.price - price) / price < range)
+          .map(l => ({ ...l, dist: ((l.price - price) / price) * 100 }));
+      },
+      
+      getReliability: function(price) {
+        const nearby = this.getNearby(price, 0.005);
+        if (nearby.length === 0) return 0.5;
+        return nearby.reduce((sum, l) => sum + l.strength * l.hits, 0) / nearby.length;
+      },
+      
+      save: function() {
+        localStorage.setItem('oraculum_memory', JSON.stringify(this.data));
+      }
+    };
+
+    // ============================================
+    // 📈 7. MOMENTUM PERSISTENCE
+    // ============================================
+    
+    function calcMomentumPersistence(candles, period = 20) {
+      if (candles.length < period + 5) return { persistence: 50, exhaustion: false };
+      
+      const recent = candles.slice(-period);
+      let bullBars = 0, bearBars = 0, streak = 0, maxStreak = 0;
+      let lastDir = 0;
+      
+      recent.forEach((c, i) => {
+        const dir = c.close > c.open ? 1 : -1;
+        if (dir > 0) bullBars++; else bearBars++;
+        
+        if (dir === lastDir) {
+          streak++;
+          maxStreak = Math.max(maxStreak, streak);
+        } else {
+          streak = 1;
+        }
+        lastDir = dir;
+      });
+      
+      const dominance = Math.max(bullBars, bearBars) / period;
+      const persistence = (dominance * 50) + (maxStreak / period * 50);
+      
+      // Detect exhaustion
+      const last5 = candles.slice(-5);
+      const bodyShrinking = last5.every((c, i) => {
+        if (i === 0) return true;
+        return Math.abs(c.close - c.open) < Math.abs(last5[i-1].close - last5[i-1].open) * 1.1;
+      });
+      
+      const volumeDropping = last5.slice(-3).every((c, i) => {
+        if (i === 0) return true;
+        return c.volume < last5[i].volume * 1.05;
+      });
+      
+      return {
+        persistence: Math.min(100, persistence),
+        direction: bullBars > bearBars ? 'bullish' : 'bearish',
+        streak: maxStreak,
+        exhaustion: bodyShrinking && volumeDropping && maxStreak >= 4
+      };
+    }
+
+    // ============================================
+    // ⚠️ 8. LIQUIDATION ZONE DETECTOR
+    // ============================================
+    
+    function detectLiquidationZones(currentPrice, candles, atr) {
+      if (candles.length < 30) return { risk: 'unknown', zones: [] };
+      
+      const recent = candles.slice(-30);
+      const zones = [];
+      
+      // Find recent swing highs/lows where stops likely cluster
+      const highs = [], lows = [];
+      recent.forEach((c, i) => {
+        if (i >= 2 && i < recent.length - 2) {
+          if (c.high > recent[i-1].high && c.high > recent[i+1].high) highs.push(c.high);
+          if (c.low < recent[i-1].low && c.low < recent[i+1].low) lows.push(c.low);
+        }
+      });
+      
+      // Stop loss zones typically just beyond swing points
+      highs.forEach(h => zones.push({ price: h * 1.002, type: 'short_stops', dist: ((h * 1.002 - currentPrice) / currentPrice) * 100 }));
+      lows.forEach(l => zones.push({ price: l * 0.998, type: 'long_stops', dist: ((l * 0.998 - currentPrice) / currentPrice) * 100 }));
+      
+      // Calculate risk level
+      const nearZones = zones.filter(z => Math.abs(z.dist) < 1);
+      let risk = 'low';
+      if (nearZones.length >= 3) risk = 'high';
+      else if (nearZones.length >= 1) risk = 'medium';
+      
+      // Detect potential stop hunt setup
+      const priceNearLows = lows.some(l => (currentPrice - l) / currentPrice < 0.005);
+      const priceNearHighs = highs.some(h => (h - currentPrice) / currentPrice < 0.005);
+      
+      return {
+        risk,
+        zones: zones.slice(0, 10),
+        stopHuntSetup: priceNearLows || priceNearHighs,
+        direction: priceNearLows ? 'potential_bounce' : priceNearHighs ? 'potential_rejection' : null
+      };
+    }
+
+    // ============================================
+    // 🎯 9. QUANTUM PROBABILITY CALCULATOR
+    // ============================================
+    
+    function calculateQuantumProbability(data) {
+      const w = adaptiveLearning.weights;
+      let bullScore = 0, bearScore = 0, totalWeight = 0;
+      const activeIndicators = [];
+      
+      // MOMENTUM INDICATORS
+      if (data.rsi !== null) {
+        const rsiW = w.rsi;
+        if (data.rsi < 30) { bullScore += rsiW * 1.5; activeIndicators.push('rsi'); }
+        else if (data.rsi > 70) { bearScore += rsiW * 1.5; activeIndicators.push('rsi'); }
+        else if (data.rsi < 45) { bearScore += rsiW * 0.3; }
+        else if (data.rsi > 55) { bullScore += rsiW * 0.3; }
+        totalWeight += rsiW;
+      }
+      
+      if (data.stochRSI !== null) {
+        const sW = w.stochRSI;
+        if (data.stochRSI < 20) { bullScore += sW * 1.3; activeIndicators.push('stochRSI'); }
+        else if (data.stochRSI > 80) { bearScore += sW * 1.3; activeIndicators.push('stochRSI'); }
+        totalWeight += sW;
+      }
+      
+      // TREND INDICATORS
+      if (data.macd) {
+        const mW = w.macd;
+        if (data.macd.histogram > 0) { bullScore += mW * (data.macd.histogram > 0.0001 ? 1.2 : 0.6); activeIndicators.push('macd'); }
+        else { bearScore += mW * (data.macd.histogram < -0.0001 ? 1.2 : 0.6); activeIndicators.push('macd'); }
+        totalWeight += mW;
+      }
+      
+      if (data.emaCross) {
+        bullScore += w.ema * 1.1; activeIndicators.push('ema');
+        totalWeight += w.ema;
+      } else if (data.emaCross === false) {
+        bearScore += w.ema * 1.1; activeIndicators.push('ema');
+        totalWeight += w.ema;
+      }
+      
+      if (data.supertrend) {
+        const stW = w.supertrend;
+        if (data.supertrend.trend === 'bullish') { bullScore += stW * 1.2; activeIndicators.push('supertrend'); }
+        else { bearScore += stW * 1.2; activeIndicators.push('supertrend'); }
+        totalWeight += stW;
+      }
+      
+      if (data.ichimoku) {
+        const iW = w.ichimoku;
+        if (data.ichimoku.signal === 'bullish') { bullScore += iW * 1.3; activeIndicators.push('ichimoku'); }
+        else if (data.ichimoku.signal === 'bearish') { bearScore += iW * 1.3; activeIndicators.push('ichimoku'); }
+        totalWeight += iW;
+      }
+      
+      // VOLUME & FLOW
+      if (data.cvd !== undefined) {
+        const vW = w.obv;
+        if (data.cvd > 30000) { bullScore += vW * 1.1; activeIndicators.push('cvd'); }
+        else if (data.cvd < -30000) { bearScore += vW * 1.1; activeIndicators.push('cvd'); }
+        totalWeight += vW;
+      }
+      
+      if (data.whaleFlow !== undefined) {
+        const wW = w.whaleFlow;
+        if (data.whaleFlow > 80000) { bullScore += wW * 1.5; activeIndicators.push('whaleFlow'); }
+        else if (data.whaleFlow < -80000) { bearScore += wW * 1.5; activeIndicators.push('whaleFlow'); }
+        totalWeight += wW;
+      }
+      
+      // STRUCTURE
+      if (data.smartMoney) {
+        const smW = w.smartMoney;
+        if (data.smartMoney.bias === 'bullish') { bullScore += smW * 1.4; activeIndicators.push('smartMoney'); }
+        else if (data.smartMoney.bias === 'bearish') { bearScore += smW * 1.4; activeIndicators.push('smartMoney'); }
+        totalWeight += smW;
+      }
+      
+      // DIVERGENCE (high weight)
+      if (data.divergence === 'bullish') {
+        bullScore += w.divergence * 2; activeIndicators.push('divergence');
+        totalWeight += w.divergence;
+      } else if (data.divergence === 'bearish') {
+        bearScore += w.divergence * 2; activeIndicators.push('divergence');
+        totalWeight += w.divergence;
+      }
+      
+      // HARMONIC PATTERNS
+      if (data.harmonic) {
+        const hW = w.harmonics * (data.harmonic.confidence / 100);
+        if (data.harmonic.type === 'bullish') { bullScore += hW * 1.8; activeIndicators.push('harmonics'); }
+        else { bearScore += hW * 1.8; activeIndicators.push('harmonics'); }
+        totalWeight += w.harmonics;
+      }
+      
+      // Calculate base probability
+      if (totalWeight === 0) return { bullish: 50, bearish: 50, quantum: 50, indicators: [] };
+      
+      const bullPct = (bullScore / totalWeight) * 100;
+      const bearPct = (bearScore / totalWeight) * 100;
+      let netBull = 50 + ((bullPct - bearPct) / 2);
+      
+      // ADJUSTMENTS
+      
+      // 1. Regime adjustment
+      let regimeMult = 1.0;
+      if (data.regime === 'trending_up' && netBull > 50) regimeMult = 1.12;
+      else if (data.regime === 'trending_down' && netBull < 50) regimeMult = 1.12;
+      else if (data.regime === 'volatile') regimeMult = 0.85;
+      
+      netBull = 50 + (netBull - 50) * regimeMult;
+      
+      // 2. BTC correlation adjustment
+      const btcBoost = btcAnalyzer.getSignalBoost();
+      netBull = 50 + (netBull - 50) * btcBoost.multiplier;
+      
+      // 3. Session adjustment
+      const sessionBias = sessionStats.getBias();
+      netBull = 50 + (netBull - 50) * sessionBias.mult;
+      
+      // 4. Market memory adjustment
+      const levelReliability = marketMemory.getReliability(data.currentPrice);
+      if (levelReliability > 0.7 && data.nearSupport) netBull += 5;
+      if (levelReliability > 0.7 && data.nearResist) netBull -= 5;
+      
+      // 5. Liquidation risk adjustment
+      if (data.liqRisk === 'high') {
+        netBull = 50 + (netBull - 50) * 0.8;
+      }
+      
+      // Clamp to 5-95%
+      netBull = Math.max(5, Math.min(95, netBull));
+      
+      // Calculate Quantum Score (signal quality + confidence)
+      const signalStrength = Math.abs(netBull - 50) / 45;
+      const confluenceBonus = Math.min(25, activeIndicators.length * 4);
+      const quantumScore = Math.min(100, signalStrength * 55 + confluenceBonus + (data.signalQuality || 0) * 0.2);
+      
+      return {
+        bullish: Math.round(netBull * 10) / 10,
+        bearish: Math.round((100 - netBull) * 10) / 10,
+        quantum: Math.round(quantumScore),
+        indicators: activeIndicators,
+        adjustments: { regime: regimeMult, btc: btcBoost.multiplier, session: sessionBias.mult }
+      };
+    }
 
     // ============================================
     // 1. MARKET REGIME DETECTION
@@ -5245,6 +6068,37 @@
       const whaleImpact = calculateWhaleImpact();
 
       // ==========================================
+      // 🧠 QUANTUM v3.0 ANALYSIS
+      // ==========================================
+      
+      // Q1: Update BTC Correlation
+      if (state.btcPrice) {
+        btcAnalyzer.addPrices(state.btcPrice, currentPrice);
+        aiState.btcCorrelation = btcAnalyzer.getCorrelation();
+        const btcDiv = btcAnalyzer.detectDivergence();
+        aiState.btcDivergence = btcDiv.diverging;
+      }
+      
+      // Q2: Detect Harmonic Patterns
+      const harmonic = detectHarmonics(state.candles);
+      aiState.harmonicPattern = harmonic;
+      
+      // Q3: Calculate Momentum Persistence
+      const momPersist = calcMomentumPersistence(state.candles);
+      aiState.momentumPersistence = momPersist.persistence;
+      
+      // Q4: Detect Liquidation Zones
+      const liqZones = detectLiquidationZones(currentPrice, state.candles, atr || 0.001);
+      aiState.liquidationRisk = liqZones.risk;
+      
+      // Q5: Verify past signals and update adaptive weights
+      const adaptiveAccuracy = adaptiveLearning.verifySignals(currentPrice);
+      
+      // Q6: Get Session Bias
+      const sessionBias = sessionStats.getBias();
+      aiState.sessionBias = sessionBias.bias;
+
+      // ==========================================
       // PHASE 2: AI Analysis
       // ==========================================
       
@@ -5272,14 +6126,82 @@
       const noise = calculateNoiseLevel(state.candles, atr || 0.001, avgVol);
       aiState.noiseLevel = noise.level;
       
-      // 2.5 Calculate Probability
-      const probability = calculateProbability(confluence, regime, srLevels, currentPrice, atr || 0.001);
+      // 2.5 Calculate Probability (Legacy)
+      const legacyProbability = calculateProbability(confluence, regime, srLevels, currentPrice, atr || 0.001);
+      
+      // 🧠 QUANTUM PROBABILITY CALCULATION
+      const nearSupport = srLevels.supports.some(s => Math.abs(s.price - currentPrice) / currentPrice < 0.01);
+      const nearResist = srLevels.resistances.some(r => Math.abs(r.price - currentPrice) / currentPrice < 0.01);
+      
+      const quantumData = {
+        rsi, stochRSI, willR,
+        macd,
+        emaCross: emaFast > emaSlow,
+        adx,
+        supertrend,
+        ichimoku,
+        squeeze,
+        cvd: state.cvd,
+        whaleFlow,
+        smartMoney,
+        divergence,
+        harmonic: aiState.harmonicPattern,
+        regime: regime.regime,
+        currentPrice,
+        nearSupport,
+        nearResist,
+        signalQuality: legacyProbability.confidence,
+        liqRisk: aiState.liquidationRisk
+      };
+      
+      const quantumProbability = calculateQuantumProbability(quantumData);
+      
+      // Blend legacy and quantum (70% quantum, 30% legacy for stability)
+      const probability = {
+        bullish: quantumProbability.bullish * 0.7 + legacyProbability.bullish * 0.3,
+        bearish: quantumProbability.bearish * 0.7 + legacyProbability.bearish * 0.3,
+        confidence: Math.abs(quantumProbability.bullish - 50) * 2
+      };
+      
       aiState.probabilityBull = probability.bullish;
       aiState.probabilityBear = probability.bearish;
+      aiState.quantumScore = quantumProbability.quantum;
+      aiState.adaptiveConfidence = probability.confidence;
+      
+      // Record signal for adaptive learning
+      if (quantumProbability.quantum >= 60) {
+        const dir = probability.bullish > 55 ? 'bull' : probability.bearish > 55 ? 'bear' : null;
+        if (dir) {
+          adaptiveLearning.recordSignal(currentPrice, dir, quantumProbability.indicators, probability.bullish);
+        }
+      }
+      
+      // Update market memory with S/R levels
+      srLevels.supports.forEach(s => marketMemory.addLevel(s.price, 'support', s.strength));
+      srLevels.resistances.forEach(r => marketMemory.addLevel(r.price, 'resistance', r.strength));
+      
+      // Neural network prediction
+      const nnInputs = neuralNet.prepareInputs({
+        rsi: rsi || 50,
+        stochRSI: stochRSI || 50,
+        squeeze,
+        emaCross: emaFast > emaSlow,
+        macdBull: macd && macd.histogram > 0,
+        adx: adx ? adx.adx : 20,
+        cvd: state.cvd,
+        whaleFlow,
+        nearSupport,
+        nearResist,
+        smcBias: smartMoney ? smartMoney.bias : 'neutral',
+        regime: regime.regime,
+        btcCorr: aiState.btcCorrelation,
+        btcDivergent: aiState.btcDivergence
+      });
+      aiState.neuralPrediction = neuralNet.predict(nnInputs);
       
       // 2.6 Calculate Signal Quality
       const signalQuality = calculateSignalQuality(confluence, regime, noise, probability);
-      aiState.signalQuality = signalQuality;
+      aiState.signalQuality = Math.max(signalQuality, quantumProbability.quantum * 0.8);
       
       // 2.7 Calculate Price Target
       const priceTarget = calculatePriceTarget(currentPrice, atr || 0.001, probability, regime, srLevels);
@@ -9178,7 +10100,13 @@
           grid: { vertLines: { color: 'rgba(255,255,255,0.02)' }, horzLines: { color: 'rgba(255,255,255,0.02)' } },
           rightPriceScale: { borderColor: 'rgba(255,255,255,0.05)', scaleMargins: { top: 0.1, bottom: 0.1 } },
           timeScale: { borderColor: 'rgba(255,255,255,0.05)', timeVisible: true, visible: false },
-          crosshair: { mode: 0 }
+          crosshair: { mode: 0 },
+          localization: {
+            timeFormatter: (timestamp) => {
+              const date = new Date(timestamp * 1000);
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+          }
         });
         
         const candleSeries = chart.addCandlestickSeries({
