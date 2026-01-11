@@ -1679,7 +1679,7 @@
       <button class="control-btn" onclick="toggleMultiChart()" title="Multi-Chart Mode (M)" style="background:linear-gradient(135deg, rgba(168,85,247,0.2), rgba(0,212,255,0.2)); border-color:var(--accent-purple);">
         📊 4-VIEW
       </button>
-      <button id="toolsBtn" class="control-btn" onclick="window.toggleToolsPanel()" title="Trading Tools" style="background:linear-gradient(135deg, rgba(0,212,255,0.2), rgba(168,85,247,0.2)); border-color:var(--accent-cyan);">
+      <button id="toolsBtn" class="control-btn" onclick="toggleToolsPanel()" title="Trading Tools" style="background:linear-gradient(135deg, rgba(0,212,255,0.2), rgba(168,85,247,0.2)); border-color:var(--accent-cyan);">
         🛠️ TOOLS
       </button>
     </div>
@@ -2211,42 +2211,6 @@
       ADX_PERIOD: 14,
       WILLR_PERIOD: 14
     };
-
-    // ============================================
-    // FUNCIONES GLOBALES PARA TOOLS PANEL
-    // Definidas al inicio para garantizar disponibilidad
-    // ============================================
-    window.toggleToolsPanel = function() {
-      const overlay = document.getElementById('toolsOverlay');
-      if (overlay) {
-        overlay.classList.toggle('active');
-        console.log('Tools panel:', overlay.classList.contains('active') ? 'OPENED' : 'CLOSED');
-      } else {
-        console.error('toolsOverlay element not found');
-      }
-    };
-    
-    window.switchToolTab = function(tab) {
-      document.querySelectorAll('.tools-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tool-section').forEach(s => s.classList.remove('active'));
-      
-      const tabBtn = document.querySelector(`[onclick="window.switchToolTab('${tab}')"]`);
-      if (tabBtn) tabBtn.classList.add('active');
-      
-      const section = document.getElementById(tab + 'Section');
-      if (section) section.classList.add('active');
-    };
-    
-    window.closeToolsIfClickOutside = function(e) {
-      if (e.target.id === 'toolsOverlay') {
-        window.toggleToolsPanel();
-      }
-    };
-    
-    // Aliases globales
-    var toggleToolsPanel = window.toggleToolsPanel;
-    var switchToolTab = window.switchToolTab;
-    var closeToolsIfClickOutside = window.closeToolsIfClickOutside;
 
     const state = {
       candles: [],
@@ -3501,17 +3465,6 @@
     function detectTradingSession() {
       const now = new Date();
       const utcHour = now.getUTCHours();
-      const dayOfWeek = now.getUTCDay(); // 0 = domingo, 6 = sábado
-      
-      // Detectar fin de semana (mercados tradicionales cerrados)
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        return { 
-          name: 'WEEKEND', 
-          emoji: '🔒', 
-          volatility: 'Low (Markets Closed)', 
-          color: 'var(--accent-yellow)' 
-        };
-      }
       
       let activeSessions = [];
       let sessionInfo = { name: 'OFF-HOURS', emoji: '🌙', volatility: 'Low', color: 'var(--text-dim)' };
@@ -4297,8 +4250,7 @@
     
     // Simulate higher timeframe analysis from 1m data
     function analyzeMultiTimeframe(candles1m) {
-      // Reducir requisito mínimo para funcionar más rápido
-      if (candles1m.length < 30) return mtfState;
+      if (candles1m.length < 60) return mtfState;
       
       // Aggregate to higher timeframes
       const aggregate = (srcCandles, factor) => {
@@ -4321,88 +4273,50 @@
       const candles15m = aggregate(candles1m, 15);
       const candles1h = aggregate(candles1m, 60);
       
-      // Analyze each timeframe - MEJORADO con menos requisitos
-      const analyzeTF = (candles, minRequired = 5) => {
-        if (candles.length < minRequired) return { signal: 'neutral', strength: 0 };
+      // Analyze each timeframe
+      const analyzeTF = (candles) => {
+        if (candles.length < 20) return { signal: 'neutral', strength: 0 };
         
         const closes = candles.map(c => c.close);
-        const len = closes.length;
-        const currentPrice = closes[len - 1];
-        const firstPrice = closes[0];
-        
-        // Calcular tendencia de precio
-        const priceChange = ((currentPrice - firstPrice) / firstPrice) * 100;
-        
-        // EMAs adaptativas al tamaño disponible
-        const ema9 = calcEMA(closes, Math.min(9, Math.floor(len * 0.6)));
-        const ema21 = calcEMA(closes, Math.min(21, Math.floor(len * 0.9)));
-        
-        // RSI adaptativo
-        const rsiPeriod = Math.min(14, len - 2);
-        const rsi = rsiPeriod >= 2 ? calcRSI(closes, rsiPeriod) : null;
-        
-        // Contar velas alcistas vs bajistas
-        let bullCandles = 0, bearCandles = 0;
-        candles.forEach(c => {
-          if (c.close > c.open) bullCandles++;
-          else if (c.close < c.open) bearCandles++;
-        });
+        const ema9 = calcEMA(closes, Math.min(9, closes.length));
+        const ema21 = calcEMA(closes, Math.min(21, closes.length));
+        const rsi = calcRSI(closes, 14);
+        const currentPrice = closes[closes.length - 1];
         
         let bullPoints = 0;
         let bearPoints = 0;
         
-        // 1. Tendencia de precio (peso alto)
-        if (priceChange > 0.3) bullPoints += 3;
-        else if (priceChange > 0.1) bullPoints += 2;
-        else if (priceChange < -0.3) bearPoints += 3;
-        else if (priceChange < -0.1) bearPoints += 2;
-        
-        // 2. EMA alignment
         if (ema9 && ema21) {
-          if (ema9 > ema21 * 1.001) bullPoints += 2;
-          else if (ema9 < ema21 * 0.999) bearPoints += 2;
+          if (ema9 > ema21) bullPoints += 2;
+          else bearPoints += 2;
         }
         
-        // 3. Precio vs EMA9
-        if (ema9) {
-          if (currentPrice > ema9 * 1.001) bullPoints += 1;
-          else if (currentPrice < ema9 * 0.999) bearPoints += 1;
-        }
+        if (currentPrice > ema9) bullPoints += 1;
+        else bearPoints += 1;
         
-        // 4. RSI
         if (rsi !== null) {
-          if (rsi > 55) bullPoints += 1;
-          else if (rsi < 45) bearPoints += 1;
-          // Extremos
-          if (rsi > 70) bearPoints += 0.5; // Overbought warning
-          if (rsi < 30) bullPoints += 0.5; // Oversold bounce
+          if (rsi > 50) bullPoints += 1;
+          else bearPoints += 1;
+          if (rsi > 70) bearPoints += 1; // Overbought
+          if (rsi < 30) bullPoints += 1; // Oversold
         }
         
-        // 5. Proporción de velas
-        const totalCandles = bullCandles + bearCandles;
-        if (totalCandles > 0) {
-          const bullRatio = bullCandles / totalCandles;
-          if (bullRatio > 0.6) bullPoints += 1;
-          else if (bullRatio < 0.4) bearPoints += 1;
-        }
-        
-        // Determinar señal
-        const diff = bullPoints - bearPoints;
-        if (diff > 1.5) {
-          return { signal: 'bullish', strength: Math.min(95, 50 + diff * 10) };
-        } else if (diff < -1.5) {
-          return { signal: 'bearish', strength: Math.min(95, 50 + Math.abs(diff) * 10) };
+        const totalPoints = bullPoints + bearPoints;
+        if (bullPoints > bearPoints) {
+          return { signal: 'bullish', strength: Math.round((bullPoints / totalPoints) * 100) };
+        } else if (bearPoints > bullPoints) {
+          return { signal: 'bearish', strength: Math.round((bearPoints / totalPoints) * 100) };
         }
         return { signal: 'neutral', strength: 50 };
       };
       
-      // Usar requisitos mínimos adaptados a cada timeframe
-      mtfState.tf1m = analyzeTF(candles1m.slice(-30), 10);
-      mtfState.tf5m = analyzeTF(candles5m, 4);
-      mtfState.tf15m = analyzeTF(candles15m, 2);
-      mtfState.tf1h = candles1h.length >= 1 ? analyzeTF(candles1h, 1) : { signal: 'neutral', strength: 0 };
+      mtfState.tf1m = analyzeTF(candles1m.slice(-50));
+      mtfState.tf5m = analyzeTF(candles5m);
+      mtfState.tf15m = analyzeTF(candles15m);
+      mtfState.tf1h = analyzeTF(candles1h);
       
       // Calculate confluence
+      let confluence = 0;
       const signals = [mtfState.tf1m, mtfState.tf5m, mtfState.tf15m, mtfState.tf1h];
       const bullishCount = signals.filter(s => s.signal === 'bullish').length;
       const bearishCount = signals.filter(s => s.signal === 'bearish').length;
@@ -4942,640 +4856,31 @@
     }
 
     // ============================================
-    // 🧠 AI ENGINE v3.0 QUANTUM - ELITE TRADING INTELLIGENCE
-    // ============================================
-    // Advanced Features:
-    // • Adaptive Learning System (weights adjust based on accuracy)
-    // • BTC Correlation & Divergence Detection
-    // • Harmonic Pattern Recognition (Gartley, Butterfly, Bat, Crab)
-    // • Neural Network Lite (perceptron for signal combination)
-    // • Session Analytics (Asia, London, NYC bias)
-    // • Market Memory (remembers key levels & bounces)
-    // • Momentum Persistence Analysis
-    // • Liquidation Zone Detection
+    // AI ENGINE v2.0 - ADVANCED PREDICTIVE SYSTEM
     // ============================================
     
-    // Estado del motor AI - QUANTUM ENHANCED
+    // Estado del motor AI
     const aiState = {
-      marketRegime: 'unknown',
-      regimeStrength: 0,
-      supportLevels: [],
-      resistanceLevels: [],
-      signalQuality: 0,
-      confluenceScore: 0,
-      probabilityBull: 50,
-      probabilityBear: 50,
-      noiseLevel: 0,
-      lastSignals: [],
-      predictionAccuracy: [],
-      volumeProfile: [],
-      lastDivergence: null,
-      priceAction: { higherHighs: 0, lowerLows: 0, swingHigh: 0, swingLow: 0 },
-      // 🆕 QUANTUM v3.0 Extensions
-      quantumScore: 0,
-      btcCorrelation: 0,
-      btcDivergence: false,
-      harmonicPattern: null,
-      neuralPrediction: 0.5,
-      sessionBias: 'neutral',
-      momentumPersistence: 0,
-      liquidationRisk: 'low',
-      adaptiveConfidence: 50
-    };
-
-    // ============================================
-    // 🧬 1. ADAPTIVE LEARNING SYSTEM
-    // ============================================
-    
-    const adaptiveLearning = {
-      weights: JSON.parse(localStorage.getItem('oraculum_adaptive_weights') || JSON.stringify({
-        rsi: 1.0, macd: 1.0, stochRSI: 1.0, willR: 0.8, bb: 0.9,
-        ema: 1.0, adx: 1.1, vwap: 0.9, obv: 0.8, momentum: 0.7,
-        ichimoku: 1.2, supertrend: 1.1, squeeze: 1.0, cmf: 0.9,
-        smartMoney: 1.3, fibonacci: 1.0, whaleFlow: 1.4,
-        btcCorrelation: 1.2, harmonics: 1.5, divergence: 2.0
-      })),
-      
-      history: JSON.parse(localStorage.getItem('oraculum_signal_history') || '[]'),
-      
-      updateWeight: function(indicator, wasCorrect) {
-        const lr = 0.03;
-        const w = this.weights[indicator] || 1.0;
-        this.weights[indicator] = wasCorrect ? 
-          Math.min(2.5, w + lr) : Math.max(0.2, w - lr * 1.5);
-        localStorage.setItem('oraculum_adaptive_weights', JSON.stringify(this.weights));
-      },
-      
-      recordSignal: function(price, direction, indicators, probability) {
-        this.history.push({
-          time: Date.now(), price, direction, indicators, probability,
-          verified: false, result: null
-        });
-        if (this.history.length > 300) this.history = this.history.slice(-300);
-        localStorage.setItem('oraculum_signal_history', JSON.stringify(this.history));
-      },
-      
-      verifySignals: function(currentPrice) {
-        const window = 5 * 60 * 1000;
-        let correct = 0, total = 0;
-        
-        this.history.forEach(sig => {
-          if (!sig.verified && (Date.now() - sig.time) > window) {
-            const change = ((currentPrice - sig.price) / sig.price) * 100;
-            const wasCorrect = (sig.direction === 'bull' && change > 0.15) ||
-                              (sig.direction === 'bear' && change < -0.15);
-            
-            sig.indicators.forEach(ind => this.updateWeight(ind, wasCorrect));
-            sig.verified = true;
-            sig.result = wasCorrect ? 'correct' : 'incorrect';
-            sig.priceChange = change;
-          }
-          if (sig.verified) { total++; if (sig.result === 'correct') correct++; }
-        });
-        
-        localStorage.setItem('oraculum_signal_history', JSON.stringify(this.history));
-        return total >= 20 ? (correct / total * 100) : null;
-      },
-      
-      getWeight: function(ind) { return this.weights[ind] || 1.0; }
-    };
-
-    // ============================================
-    // 📊 2. BTC CORRELATION ANALYZER
-    // ============================================
-    
-    const btcAnalyzer = {
-      btcHistory: [],
-      xrpHistory: [],
-      maxLen: 50,
-      
-      addPrices: function(btc, xrp) {
-        this.btcHistory.push(btc);
-        this.xrpHistory.push(xrp);
-        if (this.btcHistory.length > this.maxLen) {
-          this.btcHistory.shift();
-          this.xrpHistory.shift();
-        }
-      },
-      
-      getCorrelation: function() {
-        if (this.btcHistory.length < 15) return 0;
-        
-        const btcRet = [], xrpRet = [];
-        for (let i = 1; i < this.btcHistory.length; i++) {
-          btcRet.push((this.btcHistory[i] - this.btcHistory[i-1]) / this.btcHistory[i-1]);
-          xrpRet.push((this.xrpHistory[i] - this.xrpHistory[i-1]) / this.xrpHistory[i-1]);
-        }
-        
-        const mB = btcRet.reduce((a,b) => a+b, 0) / btcRet.length;
-        const mX = xrpRet.reduce((a,b) => a+b, 0) / xrpRet.length;
-        
-        let num = 0, dB = 0, dX = 0;
-        for (let i = 0; i < btcRet.length; i++) {
-          const db = btcRet[i] - mB, dx = xrpRet[i] - mX;
-          num += db * dx; dB += db * db; dX += dx * dx;
-        }
-        
-        const corr = num / (Math.sqrt(dB) * Math.sqrt(dX));
-        return isNaN(corr) ? 0 : corr;
-      },
-      
-      detectDivergence: function() {
-        if (this.btcHistory.length < 10) return { diverging: false, type: null };
-        
-        const btc5 = this.btcHistory.slice(-5);
-        const xrp5 = this.xrpHistory.slice(-5);
-        const btcTrend = btc5[4] > btc5[0] ? 'up' : 'down';
-        const xrpTrend = xrp5[4] > xrp5[0] ? 'up' : 'down';
-        
-        if (btcTrend !== xrpTrend) {
-          return { 
-            diverging: true, 
-            type: xrpTrend === 'up' ? 'xrp_leading_bull' : 'xrp_leading_bear',
-            strength: Math.abs((xrp5[4] - xrp5[0]) / xrp5[0]) * 100
-          };
-        }
-        return { diverging: false, type: null };
-      },
-      
-      getSignalBoost: function() {
-        const corr = this.getCorrelation();
-        const div = this.detectDivergence();
-        
-        if (div.diverging) return { multiplier: 1.25, reason: 'BTC_DIVERGENCE' };
-        if (corr > 0.8) return { multiplier: 0.9, reason: 'HIGH_CORRELATION' };
-        if (corr < 0.3) return { multiplier: 1.1, reason: 'INDEPENDENT' };
-        return { multiplier: 1.0, reason: 'NORMAL' };
+      marketRegime: 'unknown',        // trending_up, trending_down, ranging, volatile
+      regimeStrength: 0,              // 0-100
+      supportLevels: [],              // Niveles de soporte dinámicos
+      resistanceLevels: [],           // Niveles de resistencia dinámicos
+      signalQuality: 0,               // 0-100 calidad de la señal actual
+      confluenceScore: 0,             // Número de indicadores en confluencia
+      probabilityBull: 50,            // Probabilidad alcista %
+      probabilityBear: 50,            // Probabilidad bajista %
+      noiseLevel: 0,                  // Nivel de ruido del mercado
+      lastSignals: [],                // Historial de señales para backtesting
+      predictionAccuracy: [],         // Tracking de precisión
+      volumeProfile: [],              // Perfil de volumen
+      lastDivergence: null,           // Última divergencia detectada (para evitar repetir alertas)
+      priceAction: {                  // Análisis de price action
+        higherHighs: 0,
+        lowerLows: 0,
+        swingHigh: 0,
+        swingLow: 0
       }
     };
-
-    // ============================================
-    // 🔷 3. HARMONIC PATTERN RECOGNITION
-    // ============================================
-    
-    function detectHarmonics(candles) {
-      if (candles.length < 60) return null;
-      
-      const pivots = findSwingPoints(candles.slice(-60), 4, 4);
-      if (pivots.length < 5) return null;
-      
-      const pts = pivots.slice(-5);
-      const [X, A, B, C, D] = pts.map(p => p.price);
-      
-      const XA = Math.abs(A - X);
-      const AB = Math.abs(B - A);
-      const BC = Math.abs(C - B);
-      const CD = Math.abs(D - C);
-      const XD = Math.abs(D - X);
-      
-      if (XA === 0) return null;
-      
-      const AB_XA = AB / XA;
-      const BC_AB = BC / (AB || 1);
-      const CD_BC = CD / (BC || 1);
-      const XD_XA = XD / XA;
-      
-      let pattern = null, confidence = 0, target = 0;
-      const isBullish = pts[4].type === 'low';
-      const price = candles[candles.length - 1].close;
-      
-      // Gartley: AB=0.618 XA, XD=0.786 XA
-      if (AB_XA >= 0.55 && AB_XA <= 0.68 && XD_XA >= 0.72 && XD_XA <= 0.85) {
-        pattern = 'GARTLEY';
-        confidence = 70 + (20 - Math.abs(AB_XA - 0.618) * 100);
-        target = isBullish ? D + XA * 0.618 : D - XA * 0.618;
-      }
-      // Butterfly: AB=0.786 XA, XD=1.27-1.618 XA
-      else if (AB_XA >= 0.72 && AB_XA <= 0.85 && XD_XA >= 1.2 && XD_XA <= 1.7) {
-        pattern = 'BUTTERFLY';
-        confidence = 65 + (20 - Math.abs(XD_XA - 1.41) * 50);
-        target = isBullish ? D + XA * 0.5 : D - XA * 0.5;
-      }
-      // Bat: AB=0.382-0.5 XA, XD=0.886 XA
-      else if (AB_XA >= 0.35 && AB_XA <= 0.52 && XD_XA >= 0.82 && XD_XA <= 0.95) {
-        pattern = 'BAT';
-        confidence = 68 + (15 - Math.abs(XD_XA - 0.886) * 150);
-        target = isBullish ? D + XA * 0.5 : D - XA * 0.5;
-      }
-      // Crab: XD=1.618 XA
-      else if (XD_XA >= 1.55 && XD_XA <= 1.72) {
-        pattern = 'CRAB';
-        confidence = 62 + (15 - Math.abs(XD_XA - 1.618) * 100);
-        target = isBullish ? D + XA * 0.618 : D - XA * 0.618;
-      }
-      
-      if (pattern) {
-        return {
-          pattern,
-          type: isBullish ? 'bullish' : 'bearish',
-          confidence: Math.min(92, Math.max(55, confidence)),
-          target,
-          currentPrice: price,
-          pivots: { X, A, B, C, D },
-          ratios: { AB_XA: AB_XA.toFixed(3), XD_XA: XD_XA.toFixed(3) }
-        };
-      }
-      return null;
-    }
-    
-    function findSwingPoints(candles, left, right) {
-      const pivots = [];
-      for (let i = left; i < candles.length - right; i++) {
-        let isHigh = true, isLow = true;
-        for (let j = 1; j <= left; j++) {
-          if (candles[i].high <= candles[i-j].high) isHigh = false;
-          if (candles[i].low >= candles[i-j].low) isLow = false;
-        }
-        for (let j = 1; j <= right; j++) {
-          if (candles[i].high <= candles[i+j].high) isHigh = false;
-          if (candles[i].low >= candles[i+j].low) isLow = false;
-        }
-        if (isHigh) pivots.push({ idx: i, price: candles[i].high, type: 'high' });
-        else if (isLow) pivots.push({ idx: i, price: candles[i].low, type: 'low' });
-      }
-      return pivots;
-    }
-
-    // ============================================
-    // 🧠 4. NEURAL NETWORK LITE
-    // ============================================
-    
-    const neuralNet = {
-      weights: JSON.parse(localStorage.getItem('oraculum_nn') || JSON.stringify({
-        momentum: 0.18, trend: 0.22, volume: 0.18, structure: 0.20, 
-        regime: 0.12, btc: 0.10
-      })),
-      bias: 0,
-      
-      sigmoid: x => 1 / (1 + Math.exp(-x)),
-      
-      predict: function(inputs) {
-        let sum = this.bias;
-        Object.keys(inputs).forEach(k => {
-          sum += (inputs[k] || 0) * (this.weights[k] || 0);
-        });
-        return this.sigmoid(sum * 4);
-      },
-      
-      train: function(inputs, expected) {
-        const pred = this.predict(inputs);
-        const err = expected - pred;
-        const grad = pred * (1 - pred) * err * 0.02;
-        
-        Object.keys(inputs).forEach(k => {
-          if (this.weights[k] !== undefined) {
-            this.weights[k] = Math.max(-2, Math.min(2, this.weights[k] + grad * inputs[k]));
-          }
-        });
-        this.bias += grad;
-        localStorage.setItem('oraculum_nn', JSON.stringify(this.weights));
-      },
-      
-      prepareInputs: function(data) {
-        const norm = (v, c, r) => Math.max(-1, Math.min(1, (v - c) / r));
-        return {
-          momentum: norm(data.rsi || 50, 50, 30) * 0.5 + 
-                    norm(data.stochRSI || 50, 50, 40) * 0.3 +
-                    (data.squeeze?.momentum > 0 ? 0.2 : -0.2),
-          trend: (data.emaCross ? 0.3 : -0.3) + 
-                 (data.macdBull ? 0.3 : -0.3) +
-                 norm(data.adx || 20, 25, 25) * 0.4,
-          volume: norm(data.cvd || 0, 0, 50000) * 0.5 +
-                  norm(data.whaleFlow || 0, 0, 100000) * 0.5,
-          structure: (data.nearSupport ? 0.4 : 0) + 
-                     (data.nearResist ? -0.4 : 0) +
-                     (data.smcBias === 'bullish' ? 0.3 : data.smcBias === 'bearish' ? -0.3 : 0),
-          regime: data.regime === 'trending_up' ? 0.7 : 
-                  data.regime === 'trending_down' ? -0.7 : 
-                  data.regime === 'volatile' ? 0 : 0.1,
-          btc: data.btcDivergent ? 0.4 : (data.btcCorr || 0) * 0.3
-        };
-      }
-    };
-
-    // ============================================
-    // 📅 5. SESSION ANALYTICS
-    // ============================================
-    
-    const sessionStats = {
-      data: JSON.parse(localStorage.getItem('oraculum_sessions') || JSON.stringify({
-        asia: { wins: 0, total: 0, avgVol: 0 },
-        london: { wins: 0, total: 0, avgVol: 0 },
-        nyc: { wins: 0, total: 0, avgVol: 0 },
-        overlap: { wins: 0, total: 0, avgVol: 0 }
-      })),
-      
-      getCurrent: function() {
-        const h = new Date().getUTCHours();
-        if (h >= 13 && h < 17) return 'overlap';
-        if (h >= 0 && h < 8) return 'asia';
-        if (h >= 8 && h < 16) return 'london';
-        if (h >= 13 && h < 22) return 'nyc';
-        return 'asia';
-      },
-      
-      getBias: function() {
-        const s = this.getCurrent();
-        const d = this.data[s];
-        if (d.total < 15) return { bias: 'neutral', mult: 1.0, session: s };
-        
-        const wr = d.wins / d.total;
-        if (wr > 0.58) return { bias: 'favorable', mult: 1.08, session: s };
-        if (wr < 0.42) return { bias: 'unfavorable', mult: 0.92, session: s };
-        return { bias: 'neutral', mult: 1.0, session: s };
-      },
-      
-      record: function(wasWin) {
-        const s = this.getCurrent();
-        this.data[s].total++;
-        if (wasWin) this.data[s].wins++;
-        localStorage.setItem('oraculum_sessions', JSON.stringify(this.data));
-      }
-    };
-
-    // ============================================
-    // 🧮 6. MARKET MEMORY
-    // ============================================
-    
-    const marketMemory = {
-      data: JSON.parse(localStorage.getItem('oraculum_memory') || JSON.stringify({
-        levels: [], bounces: [], breakouts: []
-      })),
-      
-      addLevel: function(price, type, strength) {
-        const exists = this.data.levels.some(l => Math.abs(l.price - price) / price < 0.002);
-        if (!exists) {
-          this.data.levels.push({ price, type, strength, hits: 1, time: Date.now() });
-          if (this.data.levels.length > 40) {
-            this.data.levels.sort((a,b) => b.hits - a.hits);
-            this.data.levels = this.data.levels.slice(0, 40);
-          }
-          this.save();
-        }
-      },
-      
-      recordBounce: function(price, success) {
-        const lvl = this.data.levels.find(l => Math.abs(l.price - price) / price < 0.003);
-        if (lvl) {
-          lvl.hits++;
-          lvl.strength = success ? Math.min(1, lvl.strength + 0.08) : Math.max(0, lvl.strength - 0.12);
-        }
-        this.data.bounces.push({ price, success, time: Date.now() });
-        if (this.data.bounces.length > 100) this.data.bounces = this.data.bounces.slice(-100);
-        this.save();
-      },
-      
-      getNearby: function(price, range = 0.015) {
-        return this.data.levels.filter(l => Math.abs(l.price - price) / price < range)
-          .map(l => ({ ...l, dist: ((l.price - price) / price) * 100 }));
-      },
-      
-      getReliability: function(price) {
-        const nearby = this.getNearby(price, 0.005);
-        if (nearby.length === 0) return 0.5;
-        return nearby.reduce((sum, l) => sum + l.strength * l.hits, 0) / nearby.length;
-      },
-      
-      save: function() {
-        localStorage.setItem('oraculum_memory', JSON.stringify(this.data));
-      }
-    };
-
-    // ============================================
-    // 📈 7. MOMENTUM PERSISTENCE
-    // ============================================
-    
-    function calcMomentumPersistence(candles, period = 20) {
-      if (candles.length < period + 5) return { persistence: 50, exhaustion: false };
-      
-      const recent = candles.slice(-period);
-      let bullBars = 0, bearBars = 0, streak = 0, maxStreak = 0;
-      let lastDir = 0;
-      
-      recent.forEach((c, i) => {
-        const dir = c.close > c.open ? 1 : -1;
-        if (dir > 0) bullBars++; else bearBars++;
-        
-        if (dir === lastDir) {
-          streak++;
-          maxStreak = Math.max(maxStreak, streak);
-        } else {
-          streak = 1;
-        }
-        lastDir = dir;
-      });
-      
-      const dominance = Math.max(bullBars, bearBars) / period;
-      const persistence = (dominance * 50) + (maxStreak / period * 50);
-      
-      // Detect exhaustion
-      const last5 = candles.slice(-5);
-      const bodyShrinking = last5.every((c, i) => {
-        if (i === 0) return true;
-        return Math.abs(c.close - c.open) < Math.abs(last5[i-1].close - last5[i-1].open) * 1.1;
-      });
-      
-      const volumeDropping = last5.slice(-3).every((c, i) => {
-        if (i === 0) return true;
-        return c.volume < last5[i].volume * 1.05;
-      });
-      
-      return {
-        persistence: Math.min(100, persistence),
-        direction: bullBars > bearBars ? 'bullish' : 'bearish',
-        streak: maxStreak,
-        exhaustion: bodyShrinking && volumeDropping && maxStreak >= 4
-      };
-    }
-
-    // ============================================
-    // ⚠️ 8. LIQUIDATION ZONE DETECTOR
-    // ============================================
-    
-    function detectLiquidationZones(currentPrice, candles, atr) {
-      if (candles.length < 30) return { risk: 'unknown', zones: [] };
-      
-      const recent = candles.slice(-30);
-      const zones = [];
-      
-      // Find recent swing highs/lows where stops likely cluster
-      const highs = [], lows = [];
-      recent.forEach((c, i) => {
-        if (i >= 2 && i < recent.length - 2) {
-          if (c.high > recent[i-1].high && c.high > recent[i+1].high) highs.push(c.high);
-          if (c.low < recent[i-1].low && c.low < recent[i+1].low) lows.push(c.low);
-        }
-      });
-      
-      // Stop loss zones typically just beyond swing points
-      highs.forEach(h => zones.push({ price: h * 1.002, type: 'short_stops', dist: ((h * 1.002 - currentPrice) / currentPrice) * 100 }));
-      lows.forEach(l => zones.push({ price: l * 0.998, type: 'long_stops', dist: ((l * 0.998 - currentPrice) / currentPrice) * 100 }));
-      
-      // Calculate risk level
-      const nearZones = zones.filter(z => Math.abs(z.dist) < 1);
-      let risk = 'low';
-      if (nearZones.length >= 3) risk = 'high';
-      else if (nearZones.length >= 1) risk = 'medium';
-      
-      // Detect potential stop hunt setup
-      const priceNearLows = lows.some(l => (currentPrice - l) / currentPrice < 0.005);
-      const priceNearHighs = highs.some(h => (h - currentPrice) / currentPrice < 0.005);
-      
-      return {
-        risk,
-        zones: zones.slice(0, 10),
-        stopHuntSetup: priceNearLows || priceNearHighs,
-        direction: priceNearLows ? 'potential_bounce' : priceNearHighs ? 'potential_rejection' : null
-      };
-    }
-
-    // ============================================
-    // 🎯 9. QUANTUM PROBABILITY CALCULATOR
-    // ============================================
-    
-    function calculateQuantumProbability(data) {
-      const w = adaptiveLearning.weights;
-      let bullScore = 0, bearScore = 0, totalWeight = 0;
-      const activeIndicators = [];
-      
-      // MOMENTUM INDICATORS
-      if (data.rsi !== null) {
-        const rsiW = w.rsi;
-        if (data.rsi < 30) { bullScore += rsiW * 1.5; activeIndicators.push('rsi'); }
-        else if (data.rsi > 70) { bearScore += rsiW * 1.5; activeIndicators.push('rsi'); }
-        else if (data.rsi < 45) { bearScore += rsiW * 0.3; }
-        else if (data.rsi > 55) { bullScore += rsiW * 0.3; }
-        totalWeight += rsiW;
-      }
-      
-      if (data.stochRSI !== null) {
-        const sW = w.stochRSI;
-        if (data.stochRSI < 20) { bullScore += sW * 1.3; activeIndicators.push('stochRSI'); }
-        else if (data.stochRSI > 80) { bearScore += sW * 1.3; activeIndicators.push('stochRSI'); }
-        totalWeight += sW;
-      }
-      
-      // TREND INDICATORS
-      if (data.macd) {
-        const mW = w.macd;
-        if (data.macd.histogram > 0) { bullScore += mW * (data.macd.histogram > 0.0001 ? 1.2 : 0.6); activeIndicators.push('macd'); }
-        else { bearScore += mW * (data.macd.histogram < -0.0001 ? 1.2 : 0.6); activeIndicators.push('macd'); }
-        totalWeight += mW;
-      }
-      
-      if (data.emaCross) {
-        bullScore += w.ema * 1.1; activeIndicators.push('ema');
-        totalWeight += w.ema;
-      } else if (data.emaCross === false) {
-        bearScore += w.ema * 1.1; activeIndicators.push('ema');
-        totalWeight += w.ema;
-      }
-      
-      if (data.supertrend) {
-        const stW = w.supertrend;
-        if (data.supertrend.trend === 'bullish') { bullScore += stW * 1.2; activeIndicators.push('supertrend'); }
-        else { bearScore += stW * 1.2; activeIndicators.push('supertrend'); }
-        totalWeight += stW;
-      }
-      
-      if (data.ichimoku) {
-        const iW = w.ichimoku;
-        if (data.ichimoku.signal === 'bullish') { bullScore += iW * 1.3; activeIndicators.push('ichimoku'); }
-        else if (data.ichimoku.signal === 'bearish') { bearScore += iW * 1.3; activeIndicators.push('ichimoku'); }
-        totalWeight += iW;
-      }
-      
-      // VOLUME & FLOW
-      if (data.cvd !== undefined) {
-        const vW = w.obv;
-        if (data.cvd > 30000) { bullScore += vW * 1.1; activeIndicators.push('cvd'); }
-        else if (data.cvd < -30000) { bearScore += vW * 1.1; activeIndicators.push('cvd'); }
-        totalWeight += vW;
-      }
-      
-      if (data.whaleFlow !== undefined) {
-        const wW = w.whaleFlow;
-        if (data.whaleFlow > 80000) { bullScore += wW * 1.5; activeIndicators.push('whaleFlow'); }
-        else if (data.whaleFlow < -80000) { bearScore += wW * 1.5; activeIndicators.push('whaleFlow'); }
-        totalWeight += wW;
-      }
-      
-      // STRUCTURE
-      if (data.smartMoney) {
-        const smW = w.smartMoney;
-        if (data.smartMoney.bias === 'bullish') { bullScore += smW * 1.4; activeIndicators.push('smartMoney'); }
-        else if (data.smartMoney.bias === 'bearish') { bearScore += smW * 1.4; activeIndicators.push('smartMoney'); }
-        totalWeight += smW;
-      }
-      
-      // DIVERGENCE (high weight)
-      if (data.divergence === 'bullish') {
-        bullScore += w.divergence * 2; activeIndicators.push('divergence');
-        totalWeight += w.divergence;
-      } else if (data.divergence === 'bearish') {
-        bearScore += w.divergence * 2; activeIndicators.push('divergence');
-        totalWeight += w.divergence;
-      }
-      
-      // HARMONIC PATTERNS
-      if (data.harmonic) {
-        const hW = w.harmonics * (data.harmonic.confidence / 100);
-        if (data.harmonic.type === 'bullish') { bullScore += hW * 1.8; activeIndicators.push('harmonics'); }
-        else { bearScore += hW * 1.8; activeIndicators.push('harmonics'); }
-        totalWeight += w.harmonics;
-      }
-      
-      // Calculate base probability
-      if (totalWeight === 0) return { bullish: 50, bearish: 50, quantum: 50, indicators: [] };
-      
-      const bullPct = (bullScore / totalWeight) * 100;
-      const bearPct = (bearScore / totalWeight) * 100;
-      let netBull = 50 + ((bullPct - bearPct) / 2);
-      
-      // ADJUSTMENTS
-      
-      // 1. Regime adjustment
-      let regimeMult = 1.0;
-      if (data.regime === 'trending_up' && netBull > 50) regimeMult = 1.12;
-      else if (data.regime === 'trending_down' && netBull < 50) regimeMult = 1.12;
-      else if (data.regime === 'volatile') regimeMult = 0.85;
-      
-      netBull = 50 + (netBull - 50) * regimeMult;
-      
-      // 2. BTC correlation adjustment
-      const btcBoost = btcAnalyzer.getSignalBoost();
-      netBull = 50 + (netBull - 50) * btcBoost.multiplier;
-      
-      // 3. Session adjustment
-      const sessionBias = sessionStats.getBias();
-      netBull = 50 + (netBull - 50) * sessionBias.mult;
-      
-      // 4. Market memory adjustment
-      const levelReliability = marketMemory.getReliability(data.currentPrice);
-      if (levelReliability > 0.7 && data.nearSupport) netBull += 5;
-      if (levelReliability > 0.7 && data.nearResist) netBull -= 5;
-      
-      // 5. Liquidation risk adjustment
-      if (data.liqRisk === 'high') {
-        netBull = 50 + (netBull - 50) * 0.8;
-      }
-      
-      // Clamp to 5-95%
-      netBull = Math.max(5, Math.min(95, netBull));
-      
-      // Calculate Quantum Score (signal quality + confidence)
-      const signalStrength = Math.abs(netBull - 50) / 45;
-      const confluenceBonus = Math.min(25, activeIndicators.length * 4);
-      const quantumScore = Math.min(100, signalStrength * 55 + confluenceBonus + (data.signalQuality || 0) * 0.2);
-      
-      return {
-        bullish: Math.round(netBull * 10) / 10,
-        bearish: Math.round((100 - netBull) * 10) / 10,
-        quantum: Math.round(quantumScore),
-        indicators: activeIndicators,
-        adjustments: { regime: regimeMult, btc: btcBoost.multiplier, session: sessionBias.mult }
-      };
-    }
 
     // ============================================
     // 1. MARKET REGIME DETECTION
@@ -6154,37 +5459,6 @@
       const whaleImpact = calculateWhaleImpact();
 
       // ==========================================
-      // 🧠 QUANTUM v3.0 ANALYSIS
-      // ==========================================
-      
-      // Q1: Update BTC Correlation
-      if (state.btcPrice) {
-        btcAnalyzer.addPrices(state.btcPrice, currentPrice);
-        aiState.btcCorrelation = btcAnalyzer.getCorrelation();
-        const btcDiv = btcAnalyzer.detectDivergence();
-        aiState.btcDivergence = btcDiv.diverging;
-      }
-      
-      // Q2: Detect Harmonic Patterns
-      const harmonic = detectHarmonics(state.candles);
-      aiState.harmonicPattern = harmonic;
-      
-      // Q3: Calculate Momentum Persistence
-      const momPersist = calcMomentumPersistence(state.candles);
-      aiState.momentumPersistence = momPersist.persistence;
-      
-      // Q4: Detect Liquidation Zones
-      const liqZones = detectLiquidationZones(currentPrice, state.candles, atr || 0.001);
-      aiState.liquidationRisk = liqZones.risk;
-      
-      // Q5: Verify past signals and update adaptive weights
-      const adaptiveAccuracy = adaptiveLearning.verifySignals(currentPrice);
-      
-      // Q6: Get Session Bias
-      const sessionBias = sessionStats.getBias();
-      aiState.sessionBias = sessionBias.bias;
-
-      // ==========================================
       // PHASE 2: AI Analysis
       // ==========================================
       
@@ -6212,82 +5486,14 @@
       const noise = calculateNoiseLevel(state.candles, atr || 0.001, avgVol);
       aiState.noiseLevel = noise.level;
       
-      // 2.5 Calculate Probability (Legacy)
-      const legacyProbability = calculateProbability(confluence, regime, srLevels, currentPrice, atr || 0.001);
-      
-      // 🧠 QUANTUM PROBABILITY CALCULATION
-      const nearSupport = srLevels.supports.some(s => Math.abs(s.price - currentPrice) / currentPrice < 0.01);
-      const nearResist = srLevels.resistances.some(r => Math.abs(r.price - currentPrice) / currentPrice < 0.01);
-      
-      const quantumData = {
-        rsi, stochRSI, willR,
-        macd,
-        emaCross: emaFast > emaSlow,
-        adx,
-        supertrend,
-        ichimoku,
-        squeeze,
-        cvd: state.cvd,
-        whaleFlow,
-        smartMoney,
-        divergence,
-        harmonic: aiState.harmonicPattern,
-        regime: regime.regime,
-        currentPrice,
-        nearSupport,
-        nearResist,
-        signalQuality: legacyProbability.confidence,
-        liqRisk: aiState.liquidationRisk
-      };
-      
-      const quantumProbability = calculateQuantumProbability(quantumData);
-      
-      // Blend legacy and quantum (70% quantum, 30% legacy for stability)
-      const probability = {
-        bullish: quantumProbability.bullish * 0.7 + legacyProbability.bullish * 0.3,
-        bearish: quantumProbability.bearish * 0.7 + legacyProbability.bearish * 0.3,
-        confidence: Math.abs(quantumProbability.bullish - 50) * 2
-      };
-      
+      // 2.5 Calculate Probability
+      const probability = calculateProbability(confluence, regime, srLevels, currentPrice, atr || 0.001);
       aiState.probabilityBull = probability.bullish;
       aiState.probabilityBear = probability.bearish;
-      aiState.quantumScore = quantumProbability.quantum;
-      aiState.adaptiveConfidence = probability.confidence;
-      
-      // Record signal for adaptive learning
-      if (quantumProbability.quantum >= 60) {
-        const dir = probability.bullish > 55 ? 'bull' : probability.bearish > 55 ? 'bear' : null;
-        if (dir) {
-          adaptiveLearning.recordSignal(currentPrice, dir, quantumProbability.indicators, probability.bullish);
-        }
-      }
-      
-      // Update market memory with S/R levels
-      srLevels.supports.forEach(s => marketMemory.addLevel(s.price, 'support', s.strength));
-      srLevels.resistances.forEach(r => marketMemory.addLevel(r.price, 'resistance', r.strength));
-      
-      // Neural network prediction
-      const nnInputs = neuralNet.prepareInputs({
-        rsi: rsi || 50,
-        stochRSI: stochRSI || 50,
-        squeeze,
-        emaCross: emaFast > emaSlow,
-        macdBull: macd && macd.histogram > 0,
-        adx: adx ? adx.adx : 20,
-        cvd: state.cvd,
-        whaleFlow,
-        nearSupport,
-        nearResist,
-        smcBias: smartMoney ? smartMoney.bias : 'neutral',
-        regime: regime.regime,
-        btcCorr: aiState.btcCorrelation,
-        btcDivergent: aiState.btcDivergence
-      });
-      aiState.neuralPrediction = neuralNet.predict(nnInputs);
       
       // 2.6 Calculate Signal Quality
       const signalQuality = calculateSignalQuality(confluence, regime, noise, probability);
-      aiState.signalQuality = Math.max(signalQuality, quantumProbability.quantum * 0.8);
+      aiState.signalQuality = signalQuality;
       
       // 2.7 Calculate Price Target
       const priceTarget = calculatePriceTarget(currentPrice, atr || 0.001, probability, regime, srLevels);
@@ -6864,25 +6070,18 @@
         const lsData = await lsRes.json();
         if (lsData?.[0]) {
           const ratio = parseFloat(lsData[0].longShortRatio);
-          const lsValueEl = document.getElementById('lsValue');
+          document.getElementById('lsValue').innerText = ratio.toFixed(2);
+          
           const lsEl = document.getElementById('lsSignal');
-          
-          if (lsValueEl) lsValueEl.innerText = ratio.toFixed(2);
-          
-          if (lsEl) {
-            if (ratio > 1.5) {
-              lsEl.className = 'indicator-signal signal-warning'; lsEl.innerText = 'CROWDED LONG';
-            } else if (ratio < 0.7) {
-              lsEl.className = 'indicator-signal signal-warning'; lsEl.innerText = 'CROWDED SHORT';
-            } else if (ratio > 1) {
-              lsEl.className = 'indicator-signal signal-buy'; lsEl.innerText = 'LONG BIAS';
-            } else {
-              lsEl.className = 'indicator-signal signal-sell'; lsEl.innerText = 'SHORT BIAS';
-            }
+          if (ratio > 1.5) {
+            lsEl.className = 'indicator-signal signal-warning'; lsEl.innerText = 'CROWDED LONG';
+          } else if (ratio < 0.7) {
+            lsEl.className = 'indicator-signal signal-warning'; lsEl.innerText = 'CROWDED SHORT';
+          } else if (ratio > 1) {
+            lsEl.className = 'indicator-signal signal-buy'; lsEl.innerText = 'LONG BIAS';
+          } else {
+            lsEl.className = 'indicator-signal signal-sell'; lsEl.innerText = 'SHORT BIAS';
           }
-          
-          // Store in state for AI Engine
-          state.longShortRatio = ratio;
         }
 
       } catch (err) {
@@ -7233,10 +6432,8 @@
         addAlert('Hourly reset: CVD and Whale Flow counters cleared', 'info');
       }, 3600000);
 
-      // Cargar alertas guardadas (con delay para asegurar que la función existe)
-      setTimeout(() => {
-        if (typeof loadCustomAlerts === 'function') loadCustomAlerts();
-      }, 1000);
+      // Cargar alertas guardadas
+      loadCustomAlerts();
       
       // Actualizar Multi-TF cada 30 segundos
       setInterval(updateMultiTimeframe, 30000);
@@ -7267,26 +6464,6 @@
     // ============================================
     // MULTI-EXCHANGE WHALE TRACKING
     // ============================================
-    
-    // Estado de conexiones
-    const exchangeStatus = {
-      binance: false,
-      kraken: false,
-      bitstamp: false,
-      bybit: false,
-      coinbase: false,
-      cryptoCom: false
-    };
-    
-    // Thresholds adaptativos por exchange (exchanges más pequeños = threshold más bajo)
-    const WHALE_THRESHOLDS = {
-      BINANCE: CONFIG.WHALE_THRESHOLD,
-      KRAKEN: CONFIG.WHALE_THRESHOLD * 0.6,    // 3000 XRP
-      BITSTAMP: CONFIG.WHALE_THRESHOLD * 0.5,  // 2500 XRP
-      BYBIT: CONFIG.WHALE_THRESHOLD * 0.7,     // 3500 XRP
-      COINBASE: CONFIG.WHALE_THRESHOLD * 0.6,  // 3000 XRP
-      'CRYPTO.COM': CONFIG.WHALE_THRESHOLD * 0.8 // 4000 XRP
-    };
 
     // KRAKEN WebSocket
     let wsKraken;
@@ -7295,8 +6472,8 @@
         wsKraken = new WebSocket('wss://ws.kraken.com');
         
         wsKraken.onopen = () => {
-          console.log('✅ Kraken WebSocket connected');
-          exchangeStatus.kraken = true;
+          console.log('Kraken WebSocket connected');
+          // Suscribirse a trades de XRP/USD
           wsKraken.send(JSON.stringify({
             event: 'subscribe',
             pair: ['XRP/USD'],
@@ -7307,6 +6484,7 @@
         wsKraken.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            // Los trades vienen como array: [channelID, [[price, volume, time, side, orderType, misc]], "trade", "XRP/USD"]
             if (Array.isArray(data) && data[2] === 'trade') {
               const trades = data[1];
               trades.forEach(trade => {
@@ -7314,7 +6492,7 @@
                 const qty = parseFloat(trade[1]);
                 const isBuy = trade[3] === 'b';
                 
-                if (qty >= WHALE_THRESHOLDS.KRAKEN) {
+                if (qty >= CONFIG.WHALE_THRESHOLD) {
                   addWhaleAlert(qty, price, isBuy, 'KRAKEN');
                   if (isBuy) state.whaleBuyVol += qty;
                   else state.whaleSellVol += qty;
@@ -7324,17 +6502,10 @@
           } catch (e) {}
         };
         
-        wsKraken.onerror = (e) => {
-          console.log('❌ Kraken WebSocket error');
-          exchangeStatus.kraken = false;
-        };
-        wsKraken.onclose = () => {
-          exchangeStatus.kraken = false;
-          setTimeout(connectKraken, 10000);
-        };
+        wsKraken.onerror = () => console.log('Kraken WebSocket error');
+        wsKraken.onclose = () => setTimeout(connectKraken, 10000);
       } catch (e) {
         console.log('Kraken connection failed');
-        setTimeout(connectKraken, 30000);
       }
     }
 
@@ -7345,8 +6516,8 @@
         wsBitstamp = new WebSocket('wss://ws.bitstamp.net');
         
         wsBitstamp.onopen = () => {
-          console.log('✅ Bitstamp WebSocket connected');
-          exchangeStatus.bitstamp = true;
+          console.log('Bitstamp WebSocket connected');
+          // Suscribirse a live trades de XRP/USD
           wsBitstamp.send(JSON.stringify({
             event: 'bts:subscribe',
             data: { channel: 'live_trades_xrpusd' }
@@ -7359,9 +6530,9 @@
             if (msg.event === 'trade' && msg.data) {
               const price = parseFloat(msg.data.price);
               const qty = parseFloat(msg.data.amount);
-              const isBuy = msg.data.type === 0;
+              const isBuy = msg.data.type === 0; // 0 = buy, 1 = sell
               
-              if (qty >= WHALE_THRESHOLDS.BITSTAMP) {
+              if (qty >= CONFIG.WHALE_THRESHOLD) {
                 addWhaleAlert(qty, price, isBuy, 'BITSTAMP');
                 if (isBuy) state.whaleBuyVol += qty;
                 else state.whaleSellVol += qty;
@@ -7370,17 +6541,10 @@
           } catch (e) {}
         };
         
-        wsBitstamp.onerror = () => {
-          console.log('❌ Bitstamp WebSocket error');
-          exchangeStatus.bitstamp = false;
-        };
-        wsBitstamp.onclose = () => {
-          exchangeStatus.bitstamp = false;
-          setTimeout(connectBitstamp, 10000);
-        };
+        wsBitstamp.onerror = () => console.log('Bitstamp WebSocket error');
+        wsBitstamp.onclose = () => setTimeout(connectBitstamp, 10000);
       } catch (e) {
         console.log('Bitstamp connection failed');
-        setTimeout(connectBitstamp, 30000);
       }
     }
 
@@ -7391,8 +6555,8 @@
         wsBybit = new WebSocket('wss://stream.bybit.com/v5/public/spot');
         
         wsBybit.onopen = () => {
-          console.log('✅ Bybit WebSocket connected');
-          exchangeStatus.bybit = true;
+          console.log('Bybit WebSocket connected');
+          // Suscribirse a trades de XRPUSDT
           wsBybit.send(JSON.stringify({
             op: 'subscribe',
             args: ['publicTrade.XRPUSDT']
@@ -7408,7 +6572,7 @@
                 const qty = parseFloat(trade.v);
                 const isBuy = trade.S === 'Buy';
                 
-                if (qty >= WHALE_THRESHOLDS.BYBIT) {
+                if (qty >= CONFIG.WHALE_THRESHOLD) {
                   addWhaleAlert(qty, price, isBuy, 'BYBIT');
                   if (isBuy) state.whaleBuyVol += qty;
                   else state.whaleSellVol += qty;
@@ -7418,17 +6582,10 @@
           } catch (e) {}
         };
         
-        wsBybit.onerror = () => {
-          console.log('❌ Bybit WebSocket error');
-          exchangeStatus.bybit = false;
-        };
-        wsBybit.onclose = () => {
-          exchangeStatus.bybit = false;
-          setTimeout(connectBybit, 10000);
-        };
+        wsBybit.onerror = () => console.log('Bybit WebSocket error');
+        wsBybit.onclose = () => setTimeout(connectBybit, 10000);
       } catch (e) {
         console.log('Bybit connection failed');
-        setTimeout(connectBybit, 30000);
       }
     }
 
@@ -7439,8 +6596,8 @@
         wsCoinbase = new WebSocket('wss://ws-feed.exchange.coinbase.com');
         
         wsCoinbase.onopen = () => {
-          console.log('✅ Coinbase WebSocket connected');
-          exchangeStatus.coinbase = true;
+          console.log('Coinbase WebSocket connected');
+          // Suscribirse a trades de XRP-USD
           wsCoinbase.send(JSON.stringify({
             type: 'subscribe',
             product_ids: ['XRP-USD'],
@@ -7456,7 +6613,7 @@
               const qty = parseFloat(data.size);
               const isBuy = data.side === 'buy';
               
-              if (qty >= WHALE_THRESHOLDS.COINBASE) {
+              if (qty >= CONFIG.WHALE_THRESHOLD) {
                 addWhaleAlert(qty, price, isBuy, 'COINBASE');
                 if (isBuy) state.whaleBuyVol += qty;
                 else state.whaleSellVol += qty;
@@ -7465,17 +6622,10 @@
           } catch (e) {}
         };
         
-        wsCoinbase.onerror = () => {
-          console.log('❌ Coinbase WebSocket error');
-          exchangeStatus.coinbase = false;
-        };
-        wsCoinbase.onclose = () => {
-          exchangeStatus.coinbase = false;
-          setTimeout(connectCoinbase, 10000);
-        };
+        wsCoinbase.onerror = () => console.log('Coinbase WebSocket error');
+        wsCoinbase.onclose = () => setTimeout(connectCoinbase, 10000);
       } catch (e) {
         console.log('Coinbase connection failed');
-        setTimeout(connectCoinbase, 30000);
       }
     }
 
@@ -7486,8 +6636,8 @@
         wsCryptoCom = new WebSocket('wss://stream.crypto.com/v2/market');
         
         wsCryptoCom.onopen = () => {
-          console.log('✅ Crypto.com WebSocket connected');
-          exchangeStatus.cryptoCom = true;
+          console.log('Crypto.com WebSocket connected');
+          // Suscribirse a trades de XRP_USD
           wsCryptoCom.send(JSON.stringify({
             id: 1,
             method: 'subscribe',
@@ -7506,7 +6656,7 @@
                 const qty = parseFloat(trade.q);
                 const isBuy = trade.s === 'BUY';
                 
-                if (qty >= WHALE_THRESHOLDS['CRYPTO.COM']) {
+                if (qty >= CONFIG.WHALE_THRESHOLD) {
                   addWhaleAlert(qty, price, isBuy, 'CRYPTO.COM');
                   if (isBuy) state.whaleBuyVol += qty;
                   else state.whaleSellVol += qty;
@@ -7516,17 +6666,10 @@
           } catch (e) {}
         };
         
-        wsCryptoCom.onerror = () => {
-          console.log('❌ Crypto.com WebSocket error');
-          exchangeStatus.cryptoCom = false;
-        };
-        wsCryptoCom.onclose = () => {
-          exchangeStatus.cryptoCom = false;
-          setTimeout(connectCryptoCom, 10000);
-        };
+        wsCryptoCom.onerror = () => console.log('Crypto.com WebSocket error');
+        wsCryptoCom.onclose = () => setTimeout(connectCryptoCom, 10000);
       } catch (e) {
         console.log('Crypto.com connection failed');
-        setTimeout(connectCryptoCom, 30000);
       }
     }
 
@@ -7535,23 +6678,22 @@
   <!-- ============================================
        TOOLS PANEL OVERLAY
        ============================================ -->
-  <div id="toolsOverlay" class="tools-overlay" onclick="window.closeToolsIfClickOutside(event)">
+  <div id="toolsOverlay" class="tools-overlay" onclick="closeToolsIfClickOutside(event)">
     <div class="tools-panel" onclick="event.stopPropagation()">
       <div class="tools-header">
         <h2>🛠️ TRADING TOOLS</h2>
-        <button class="tools-close" onclick="window.toggleToolsPanel()">×</button>
+        <button class="tools-close" onclick="toggleToolsPanel()">×</button>
       </div>
 
       <div class="tools-tabs">
-        <button class="tools-tab active" onclick="window.switchToolTab('mtf')">📊 Multi-TF</button>
-        <button class="tools-tab" onclick="window.switchToolTab('backtest')">⚡ Backtest</button>
-        <button class="tools-tab" onclick="window.switchToolTab('alerts')">🔔 Smart Alerts</button>
-        <button class="tools-tab" onclick="window.switchToolTab('risk')">🎯 Risk Calc</button>
-        <button class="tools-tab" onclick="window.switchToolTab('fibo')">📐 Fibonacci</button>
-        <button class="tools-tab" onclick="window.switchToolTab('session')">📈 Session</button>
-        <button class="tools-tab" onclick="window.switchToolTab('strategy')">🤖 Strategy</button>
-        <button class="tools-tab" onclick="window.switchToolTab('corr')">🔗 Correlation</button>
-        <button class="tools-tab" onclick="window.switchToolTab('watchlist')">👀 Watchlist</button>
+        <button class="tools-tab active" onclick="switchToolTab('mtf')">📊 Multi-TF</button>
+        <button class="tools-tab" onclick="switchToolTab('backtest')">⚡ Backtest</button>
+        <button class="tools-tab" onclick="switchToolTab('alerts')">🔔 Smart Alerts</button>
+        <button class="tools-tab" onclick="switchToolTab('risk')">🎯 Risk Calc</button>
+        <button class="tools-tab" onclick="switchToolTab('fibo')">📐 Fibonacci</button>
+        <button class="tools-tab" onclick="switchToolTab('session')">📈 Session</button>
+        <button class="tools-tab" onclick="switchToolTab('strategy')">🤖 Strategy</button>
+        <button class="tools-tab" onclick="switchToolTab('corr')">🔗 Correlation</button>
       </div>
 
       <div class="tools-content">
@@ -8405,26 +7547,30 @@
       mtfData: {}
     };
 
-    // Toggle tools panel - Versión extendida con actualizaciones
-    // (La función básica ya está definida globalmente al inicio)
-    const _baseToggle = window.toggleToolsPanel;
-    window.toggleToolsPanel = function() {
-      _baseToggle();
+    // Toggle tools panel
+    function toggleToolsPanel() {
       const overlay = document.getElementById('toolsOverlay');
-      if (overlay && overlay.classList.contains('active')) {
-        // Ejecutar actualizaciones de forma segura
-        setTimeout(() => {
-          try { if (typeof updateMultiTimeframe === 'function') updateMultiTimeframe(); } catch(e) {}
-          try { if (typeof setCurrentPriceAsEntry === 'function') setCurrentPriceAsEntry(); } catch(e) {}
-          try { if (typeof updateFibonacci === 'function') updateFibonacci(); } catch(e) {}
-          try { if (typeof updateCorrelations === 'function') updateCorrelations(); } catch(e) {}
-          try { if (typeof updateWatchlist === 'function') updateWatchlist(); } catch(e) {}
-        }, 100);
+      overlay.classList.toggle('active');
+      if (overlay.classList.contains('active')) {
+        updateMultiTimeframe();
+        setCurrentPriceAsEntry();
       }
-    };
-    toggleToolsPanel = window.toggleToolsPanel;
+    }
 
-    // closeToolsIfClickOutside y switchToolTab ya están definidas globalmente al inicio
+    function closeToolsIfClickOutside(e) {
+      if (e.target.id === 'toolsOverlay') {
+        toggleToolsPanel();
+      }
+    }
+
+    // Switch between tool tabs
+    function switchToolTab(tab) {
+      document.querySelectorAll('.tools-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tool-section').forEach(s => s.classList.remove('active'));
+      
+      document.querySelector(`[onclick="switchToolTab('${tab}')"]`).classList.add('active');
+      document.getElementById(tab + 'Section').classList.add('active');
+    }
 
     // ============================================
     // 1. MULTI-TIMEFRAME ANALYSIS
@@ -9907,7 +9053,16 @@
     // Update correlations every 2 minutes
     setInterval(updateCorrelations, 120000);
     
-    // Las funciones de actualización ya se ejecutan en toggleToolsPanel
+    // Update Fibonacci when tools panel opens
+    const origToggleToolsPanel = toggleToolsPanel;
+    toggleToolsPanel = function() {
+      origToggleToolsPanel();
+      if (document.getElementById('toolsOverlay').classList.contains('active')) {
+        updateFibonacci();
+        updateCorrelations();
+        updateWatchlist();
+      }
+    };
 
   </script>
 
@@ -10645,8 +9800,8 @@
     window.addEventListener('online', () => {
       addAlert('✅ Back online! Reconnecting...', 'bullish');
       // Reconnect WebSocket
-      if (typeof connectAPI === 'function') {
-        connectAPI();
+      if (typeof connectWebSocket === 'function') {
+        connectWebSocket();
       }
     });
 
