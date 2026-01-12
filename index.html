@@ -3,7 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    <!--
+CSP MAINTENANCE — ORACULUM (OkrtSystem Labs)
+
+Regla de oro:
+- Si la app muestra ERROR tras añadir una nueva fuente de datos, abre DevTools (F12) y revisa:
+  Console → buscar "violates Content Security Policy"
+  Network → filtrar por el dominio del proveedor
+
+Qué tocar (solo esto):
+1) Si fallan peticiones fetch/XHR o WebSocket: añadir dominio EXACTO en `connect-src`.
+   - Ejemplo: wss://stream.binance.com:9443 requiere incluir el puerto 9443.
+2) Si añades un script externo (CDN): añadir dominio en `script-src`.
+3) Si añades CSS externo: añadir dominio en `style-src`.
+4) Si añades fuentes: añadir en `font-src`.
+5) Si añades imágenes externas: añadir en `img-src`.
+
+Qué NO hacer:
+- No añadir '*' ni volver a default-src *.
+- No añadir 'unsafe-eval'.
+- Mantener: object-src 'none' y frame-ancestors 'none'.
+
+Nota:
+- Si un proveedor cambia endpoints, la CSP puede bloquearlo aunque el código esté bien.
+  En ese caso, añade SOLO el nuevo host.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://api.binance.com https://fapi.binance.com https://api.alternative.me https://xrp-insights.com wss://stream.binance.com:9443 wss://ws.kraken.com wss://ws.bitstamp.net wss://stream.bybit.com wss://ws-feed.exchange.coinbase.com wss://stream.crypto.com; manifest-src 'self' data:; worker-src 'self' blob:; upgrade-insecure-requests; block-all-mixed-content;">
   
   <!-- PWA Meta Tags -->
   <meta name="application-name" content="ORACULUM">
@@ -2995,7 +3020,150 @@
       noiseLevel: document.getElementById('noiseLevel')
     };
 
-    // --- TAB SWITCH ---
+    // ============================================
+    // PERFORMANCE CONTROL (CPU/RAM/DOM)
+    // ============================================
+    const PERF = {
+      UI_MIN_MS: 200,               // Consolidar escrituras DOM (5 fps)
+      ORDERBOOK_MIN_MS: 250,        // Reducir coste de profundidad (4 fps)
+      CVD_UI_MIN_MS: 250,           // Consolidar CVD (4 fps)
+      PREDICTION_MIN_MS: 600,       // Evitar correr predicción por cada tick
+      SPOOF_CHECK_MIN_MS: 1200,     // No calcular spoofing continuamente
+      SPOOF_ALERT_COOLDOWN_MS: 15000
+    };
+
+    const perf = {
+      // Ticker coalescing
+      latestTicker: null,
+      tickerDirty: false,
+      lastUIFlush: 0,
+
+      // Order book coalescing
+      latestDepth: null,
+      depthDirty: false,
+      lastOrderbookFlush: 0,
+
+      // CVD coalescing
+      cvdDirty: false,
+      lastCvdFlush: 0,
+
+      // Prediction throttle
+      lastPredictionRun: 0,
+
+      // Spoof throttle/cooldown
+      lastSpoofCheck: 0,
+      lastSpoofAlert: 0,
+      spoofLastState: false,
+
+      // RAF scheduler
+      uiRaf: 0,
+      obRaf: 0,
+
+      // Visibility
+      paused: false
+    };
+
+    function _now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+
+    function pushCapped(arr, item, maxLen) {
+      arr.push(item);
+      if (arr.length > maxLen) arr.splice(0, arr.length - maxLen);
+    }
+
+    // Pausar render intensivo cuando la pestaña está en segundo plano
+    document.addEventListener('visibilitychange', () => {
+      perf.paused = document.hidden;
+      if (!perf.paused) {
+        scheduleUIFlush(true);
+        scheduleOrderBookFlush(true);
+      }
+    });
+
+    function ensurePriceChangeSpan() {
+      if (!ui._priceChangeSpan && ui.priceChange) {
+        ui.priceChange.innerHTML = '';
+        const sp = document.createElement('span');
+        ui.priceChange.appendChild(sp);
+        ui._priceChangeSpan = sp;
+      }
+    }
+
+    function scheduleUIFlush(force = false) {
+      if (perf.uiRaf) return;
+      perf.uiRaf = requestAnimationFrame(() => {
+        perf.uiRaf = 0;
+        flushUI(force);
+      });
+    }
+
+    function flushUI(force = false) {
+      if (perf.paused) return;
+
+      const now = _now();
+      if (!force && (now - perf.lastUIFlush) < PERF.UI_MIN_MS) {
+        scheduleUIFlush();
+        return;
+      }
+
+      // Ticker UI
+      if (perf.tickerDirty && perf.latestTicker) {
+        const { price, change, volume } = perf.latestTicker;
+
+        ui.price.innerText = price.toFixed(4);
+        ui.midPrice.innerText = price.toFixed(4);
+
+        ensurePriceChangeSpan();
+        if (ui._priceChangeSpan) {
+          ui._priceChangeSpan.className = (change >= 0) ? 'c-green' : 'c-red';
+          ui._priceChangeSpan.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+        }
+
+        ui.volume.innerText = (volume / 1000000).toFixed(2) + 'M';
+
+        perf.tickerDirty = false;
+      }
+
+      // CVD UI (solo si cambió)
+      if (perf.cvdDirty && (force || (now - perf.lastCvdFlush) >= PERF.CVD_UI_MIN_MS)) {
+        ui.cvdText.innerHTML = `CVD: <span class="${state.cvd >= 0 ? 'c-green' : 'c-red'}">${state.cvd >= 0 ? '+' : ''}${(state.cvd / 1000).toFixed(1)}K</span>`;
+        perf.cvdDirty = false;
+        perf.lastCvdFlush = now;
+      }
+
+      perf.lastUIFlush = now;
+    }
+
+    function scheduleOrderBookFlush(force = false) {
+      if (perf.obRaf) return;
+      perf.obRaf = requestAnimationFrame(() => {
+        perf.obRaf = 0;
+        flushOrderBook(force);
+      });
+    }
+
+    function flushOrderBook(force = false) {
+      if (perf.paused) return;
+
+      const now = _now();
+      if (!force && (now - perf.lastOrderbookFlush) < PERF.ORDERBOOK_MIN_MS) {
+        scheduleOrderBookFlush();
+        return;
+      }
+
+
+    
+
+      if (perf.depthDirty && perf.latestDepth) {
+        const { bids, asks } = perf.latestDepth;
+        state.lastOrderBook = { bids, asks };
+        updateOrderBook(bids, asks);
+        perf.depthDirty = false;
+      }
+
+      perf.lastOrderbookFlush = now;
+    }
+
+// --- TAB SWITCH ---
     function switchTab(tabName) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -3582,12 +3750,20 @@
       const now = Date.now();
       
       signalHistory.forEach(s => {
-        if (s.result === null && now - s.timestamp > 300000) { // 5 minutos
+        if (s.result === null) {
+          const elapsed = now - s.timestamp;
           const priceChange = (currentPrice - s.price) / s.price * 100;
-          if (s.type === 'BULL') {
-            s.result = priceChange > 0.1; // Subió más de 0.1%
-          } else {
-            s.result = priceChange < -0.1; // Bajó más de 0.1%
+          
+          // Verificación en 3 etapas: 2min, 5min, 10min
+          if (elapsed > 120000 && elapsed <= 300000) {
+            if (s.type === 'BULL' && priceChange > 0.15) s.result = true;
+            else if (s.type === 'BEAR' && priceChange < -0.15) s.result = true;
+          } else if (elapsed > 300000 && elapsed <= 600000) {
+            if (s.type === 'BULL') s.result = priceChange > 0.08;
+            else s.result = priceChange < -0.08;
+          } else if (elapsed > 600000) {
+            if (s.type === 'BULL') s.result = priceChange > 0;
+            else s.result = priceChange < 0;
           }
         }
       });
@@ -4330,8 +4506,8 @@
     
     // 11. TRADING SIGNAL GENERATOR (Entry/SL/TP)
     function generateTradingSignal(currentPrice, atr, probability, regime, indicators) {
-      const minProbability = 65;
-      const minConfluence = 5;
+      const minProbability = 62;
+      const minConfluence = 4;
       
       if (!atr || probability < minProbability) {
         return null;
@@ -4340,10 +4516,22 @@
       const isBullish = probability >= 50 && (regime === 'trending_up' || regime === 'ranging');
       const direction = isBullish ? 'LONG' : 'SHORT';
       
-      // ATR-based stops and targets
-      const atrMultiplierSL = 1.5;
-      const atrMultiplierTP1 = 2.0;
-      const atrMultiplierTP2 = 3.5;
+      // ATR-based stops and targets (dinámicos según régimen)
+      let atrMultiplierSL, atrMultiplierTP1, atrMultiplierTP2;
+      
+      if (regime === 'volatile') {
+        atrMultiplierSL = 2.0;
+        atrMultiplierTP1 = 1.8;
+        atrMultiplierTP2 = 3.0;
+      } else if (regime === 'trending_up' || regime === 'trending_down') {
+        atrMultiplierSL = 1.3;
+        atrMultiplierTP1 = 2.2;
+        atrMultiplierTP2 = 4.0;
+      } else {
+        atrMultiplierSL = 1.5;
+        atrMultiplierTP1 = 1.8;
+        atrMultiplierTP2 = 2.8;
+      }
       
       let entry, stopLoss, tp1, tp2;
       
@@ -4363,10 +4551,10 @@
       const reward = Math.abs(tp1 - entry) / entry * 100;
       const riskReward = reward / risk;
       
-      // Estimate win rate based on probability and confluence
-      const baseWinRate = probability * 0.6;
-      const confluenceBonus = indicators.confluence * 2;
-      const estimatedWinRate = Math.min(75, baseWinRate + confluenceBonus);
+      const baseWinRate = probability * 0.55;
+      const confluenceBonus = indicators.confluence * 2.5;
+      const regimeBonus = (regime === 'trending_up' || regime === 'trending_down') ? 5 : 0;
+      const estimatedWinRate = Math.min(78, baseWinRate + confluenceBonus + regimeBonus);
       
       return {
         direction,
@@ -4379,6 +4567,7 @@
         riskReward,
         estimatedWinRate,
         probability,
+        regime,
         timestamp: Date.now()
       };
     }
@@ -6197,45 +6386,61 @@
           const price = parseFloat(data.c);
           const change = parseFloat(data.P);
           const volume = parseFloat(data.q);
-          
+
           state.currentPrice = price;
           state.price = price; // Mantener ambos para compatibilidad
-          
-          ui.price.innerText = price.toFixed(4);
-          ui.midPrice.innerText = price.toFixed(4);
-          ui.priceChange.innerHTML = `<span class="${change >= 0 ? 'c-green' : 'c-red'}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`;
-          ui.volume.innerText = (volume / 1000000).toFixed(2) + 'M';
-          
-          if (state.candles.length > 0) {
+
+          perf.latestTicker = { price, change, volume, ts: _now() };
+          perf.tickerDirty = true;
+
+          // Ejecutar el motor de predicción con limitación temporal (evita hacerlo por cada tick)
+          const now = _now();
+          if (state.candles.length > 0 && (now - perf.lastPredictionRun) >= PERF.PREDICTION_MIN_MS) {
+            perf.lastPredictionRun = now;
             runPredictionEngine(price);
           }
+
+          scheduleUIFlush();
         }
 
         if (stream.includes('depth')) {
-          // Spoof detection
-          const spoofDetected = detectSpoofing(data.bids, data.asks);
-          ui.spoofWarning.style.display = spoofDetected ? 'inline' : 'none';
-          if (spoofDetected) {
-            addAlert('Potential SPOOFING detected in order book!', 'warning');
+          // Spoof detection (limitado temporalmente para no quemar CPU)
+          const now = _now();
+          if ((now - perf.lastSpoofCheck) >= PERF.SPOOF_CHECK_MIN_MS) {
+            perf.lastSpoofCheck = now;
+
+            const spoofDetected = detectSpoofing(data.bids, data.asks);
+            ui.spoofWarning.style.display = spoofDetected ? 'inline' : 'none';
+
+            // Alertar solo en transiciones y con cooldown
+            if (spoofDetected && (!perf.spoofLastState) && (now - perf.lastSpoofAlert) >= PERF.SPOOF_ALERT_COOLDOWN_MS) {
+              perf.lastSpoofAlert = now;
+              addAlert('Potential SPOOFING detected in order book!', 'warning');
+            }
+            perf.spoofLastState = spoofDetected;
           }
-          
-          state.lastOrderBook = { bids: data.bids, asks: data.asks };
-          updateOrderBook(data.bids, data.asks);
+
+          // Coalescing de actualizaciones del order book
+          perf.latestDepth = { bids: data.bids, asks: data.asks, ts: now };
+          perf.depthDirty = true;
+          scheduleOrderBookFlush();
         }
 
         if (stream.includes('aggtrade') || stream.includes('aggTrade')) {
           const qty = parseFloat(data.q);
           const price = parseFloat(data.p);
           const isBuy = !data.m;
-          
+
           state.cvd += isBuy ? qty : -qty;
-          ui.cvdText.innerHTML = `CVD: <span class="${state.cvd >= 0 ? 'c-green' : 'c-red'}">${state.cvd >= 0 ? '+' : ''}${(state.cvd / 1000).toFixed(1)}K</span>`;
-          
+          perf.cvdDirty = true;
+
           if (qty >= CONFIG.WHALE_THRESHOLD) {
             addWhaleAlert(qty, price, isBuy, 'BINANCE');
             if (isBuy) state.whaleBuyVol += qty;
             else state.whaleSellVol += qty;
           }
+
+          scheduleUIFlush();
         }
       };
 
@@ -6251,73 +6456,149 @@
       };
     }
 
-    function updateOrderBook(bids, asks) {
-      ui.bids.innerHTML = '';
+    
+function initOrderBookDOM() {
+      if (ui._obInited) return;
+      ui._obInited = true;
+
+      // Cache OB elements
+      ui.obValue = document.getElementById('obValue');
+      ui.obSignal = document.getElementById('obSignal');
+
+      // Pre-crear 7 filas para ASK y 7 para BID (evita innerHTML por tick)
+      const makeRow = (cls) => {
+        const row = document.createElement('div');
+        row.className = `ob-row ${cls}`;
+        const spPrice = document.createElement('span');
+        const spVol = document.createElement('span');
+        row.appendChild(spPrice);
+        row.appendChild(spVol);
+        return { row, spPrice, spVol };
+      };
+
+      ui._askRows = [];
+      ui._bidRows = [];
+
       ui.asks.innerHTML = '';
-      
+      ui.bids.innerHTML = '';
+
+      for (let i = 0; i < 7; i++) {
+        const r = makeRow('ob-ask');
+        ui.asks.appendChild(r.row);
+        ui._askRows.push(r);
+      }
+
+      for (let i = 0; i < 7; i++) {
+        const r = makeRow('ob-bid');
+        ui.bids.appendChild(r.row);
+        ui._bidRows.push(r);
+      }
+
+      // Pre-crear 2 indicadores de wall (evita crear nodos en cada update)
+      ui._wallItems = [];
+      if (ui.wallDetection) {
+        ui.wallDetection.innerHTML = '';
+        for (let i = 0; i < 2; i++) {
+          const div = document.createElement('div');
+          div.className = 'wall-indicator';
+          const sp = document.createElement('span');
+          div.appendChild(sp);
+          const txt = document.createTextNode('');
+          div.appendChild(txt);
+          ui.wallDetection.appendChild(div);
+          ui._wallItems.push({ div, sp, txt });
+        }
+      }
+    }
+
+    function updateOrderBook(bids, asks) {
+      initOrderBookDOM();
+
       let totalBidVol = 0, totalAskVol = 0;
-      let walls = [];
+      const walls = [];
 
-      const reversedAsks = asks.slice(0, 7).reverse();
-      for (const ask of reversedAsks) {
-        const price = parseFloat(ask[0]);
-        const vol = parseFloat(ask[1]);
-        totalAskVol += vol;
-        if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'SELL', price, vol });
-        
-        const row = document.createElement('div');
-        row.className = 'ob-row ob-ask';
-        row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
-        if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(255,68,102,0.15)';
-        ui.asks.appendChild(row);
+      // ASKS: mostrar las 7 primeras en orden inverso
+      const aCount = Math.min(7, asks.length);
+      for (let i = 0; i < 7; i++) {
+        const rowObj = ui._askRows[i];
+        const srcIdx = (aCount - 1) - i;
+        if (srcIdx >= 0) {
+          const price = parseFloat(asks[srcIdx][0]);
+          const vol = parseFloat(asks[srcIdx][1]);
+          totalAskVol += vol;
+          if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'SELL', price, vol });
+
+          rowObj.spPrice.textContent = price.toFixed(4);
+          rowObj.spVol.textContent = (vol / 1000).toFixed(1) + 'K';
+          rowObj.row.style.background = (vol >= CONFIG.WALL_THRESHOLD) ? 'rgba(255,68,102,0.15)' : '';
+          rowObj.row.style.display = '';
+        } else {
+          rowObj.row.style.display = 'none';
+        }
       }
 
-      for (let i = 0; i < 7 && i < bids.length; i++) {
-        const price = parseFloat(bids[i][0]);
-        const vol = parseFloat(bids[i][1]);
-        totalBidVol += vol;
-        if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'BUY', price, vol });
-        
-        const row = document.createElement('div');
-        row.className = 'ob-row ob-bid';
-        row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
-        if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(0,255,136,0.15)';
-        ui.bids.appendChild(row);
+      // BIDS: mostrar las 7 primeras
+      const bCount = Math.min(7, bids.length);
+      for (let i = 0; i < 7; i++) {
+        const rowObj = ui._bidRows[i];
+        if (i < bCount) {
+          const price = parseFloat(bids[i][0]);
+          const vol = parseFloat(bids[i][1]);
+          totalBidVol += vol;
+          if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'BUY', price, vol });
+
+          rowObj.spPrice.textContent = price.toFixed(4);
+          rowObj.spVol.textContent = (vol / 1000).toFixed(1) + 'K';
+          rowObj.row.style.background = (vol >= CONFIG.WALL_THRESHOLD) ? 'rgba(0,255,136,0.15)' : '';
+          rowObj.row.style.display = '';
+        } else {
+          rowObj.row.style.display = 'none';
+        }
       }
 
+      // Liquidity bars + signal
       const total = totalBidVol + totalAskVol;
       if (total > 0) {
         const bidPct = (totalBidVol / total) * 100;
         ui.liqBarBid.style.width = bidPct + '%';
         ui.liqBarAsk.style.width = (100 - bidPct) + '%';
-        
+
         const dominant = bidPct > 55 ? 'BULLS' : (bidPct < 45 ? 'BEARS' : 'BALANCED');
         const domColor = bidPct > 55 ? 'c-green' : (bidPct < 45 ? 'c-red' : '');
-        ui.liqText.innerHTML = `<span class="${domColor}"><strong>${dominant}</strong></span> ${bidPct.toFixed(0)}% / ${(100-bidPct).toFixed(0)}%`;
-        
+        ui.liqText.innerHTML = `<span class="${domColor}"><strong>${dominant}</strong></span> ${bidPct.toFixed(0)}% / ${(100 - bidPct).toFixed(0)}%`;
+
         const imbalance = ((totalBidVol - totalAskVol) / total) * 100;
-        document.getElementById('obValue').innerText = imbalance.toFixed(1) + '%';
-        const obEl = document.getElementById('obSignal');
-        
-        if (imbalance > 15) {
-          obEl.className = 'indicator-signal signal-buy'; obEl.innerText = 'BUY WALL';
-        } else if (imbalance < -15) {
-          obEl.className = 'indicator-signal signal-sell'; obEl.innerText = 'SELL WALL';
-        } else {
-          obEl.className = 'indicator-signal signal-neutral'; obEl.innerText = 'BALANCED';
+        if (ui.obValue) ui.obValue.innerText = imbalance.toFixed(1) + '%';
+
+        if (ui.obSignal) {
+          if (imbalance > 15) {
+            ui.obSignal.className = 'indicator-signal signal-buy'; ui.obSignal.innerText = 'BUY WALL';
+          } else if (imbalance < -15) {
+            ui.obSignal.className = 'indicator-signal signal-sell'; ui.obSignal.innerText = 'SELL WALL';
+          } else {
+            ui.obSignal.className = 'indicator-signal signal-neutral'; ui.obSignal.innerText = 'BALANCED';
+          }
         }
       }
 
-      ui.wallDetection.innerHTML = '';
-      walls.slice(0, 2).forEach(wall => {
-        const div = document.createElement('div');
-        div.className = 'wall-indicator';
-        div.innerHTML = `<span class="${wall.type === 'BUY' ? 'c-green' : 'c-red'}">● ${wall.type}</span> @ ${wall.price.toFixed(4)} (${(wall.vol/1000).toFixed(0)}K)`;
-        ui.wallDetection.appendChild(div);
-      });
+      // Wall detection (solo 2 items, sin reconstruir el DOM)
+      if (ui._wallItems && ui._wallItems.length) {
+        for (let i = 0; i < ui._wallItems.length; i++) {
+          const item = ui._wallItems[i];
+          const wall = walls[i];
+          if (!wall) {
+            item.div.style.display = 'none';
+            continue;
+          }
+          item.div.style.display = '';
+          item.sp.className = (wall.type === 'BUY') ? 'c-green' : 'c-red';
+          item.sp.textContent = wall.type;
+          item.txt.nodeValue = ` @ ${wall.price.toFixed(4)} (${(wall.vol / 1000).toFixed(0)}K)`;
+        }
+      }
     }
 
-    function addWhaleAlert(qty, price, isBuy, exchange = 'BINANCE') {
+function addWhaleAlert(qty, price, isBuy, exchange = 'BINANCE') {
       state.whaleCount++;
       ui.whaleCount.innerText = state.whaleCount;
       
@@ -8989,54 +9270,124 @@
 
     const watchlistSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT'];
 
-    async function updateWatchlist() {
-      for (const symbol of watchlistSymbols) {
-        try {
-          const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
-          const data = await response.json();
-          
+    const miniChartCache = Object.create(null);
+    const MINI_CHART_TTL_MS = 30000; // 30s: reduce fetch load without perder utilidad
+
+
+        async function updateWatchlist() {
+      try {
+        // Batch request: reduce llamadas y latencia
+        const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(watchlistSymbols))}`;
+        const response = await fetch(url);
+        const arr = await response.json();
+
+        if (!Array.isArray(arr)) throw new Error('Unexpected response');
+
+        for (const data of arr) {
+          const symbol = data.symbol;
           const shortSymbol = symbol.replace('USDT', '').toLowerCase();
           const price = parseFloat(data.lastPrice);
           const change = parseFloat(data.priceChangePercent);
-          
+
           const priceEl = document.getElementById(`watch-${shortSymbol}-price`);
           const changeEl = document.getElementById(`watch-${shortSymbol}-change`);
-          
+
           if (priceEl) {
-            priceEl.textContent = '$' + (price > 100 ? price.toFixed(0) : price.toFixed(price > 1 ? 2 : 4));
+            priceEl.textContent = price.toFixed(4);
           }
-          
+
           if (changeEl) {
             changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
             changeEl.className = 'watchlist-change ' + (change >= 0 ? 'up' : 'down');
           }
-          
+
           // Mini chart
           updateMiniChart(shortSymbol, symbol);
-          
-        } catch(e) {}
+        }
+      } catch (e) {
+        // Fallback por símbolo para mantener compatibilidad (si el batch falla)
+        for (const symbol of watchlistSymbols) {
+          try {
+            const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
+            const data = await response.json();
+
+            const shortSymbol = symbol.replace('USDT', '').toLowerCase();
+            const price = parseFloat(data.lastPrice);
+            const change = parseFloat(data.priceChangePercent);
+
+            const priceEl = document.getElementById(`watch-${shortSymbol}-price`);
+            const changeEl = document.getElementById(`watch-${shortSymbol}-change`);
+
+            if (priceEl) {
+              priceEl.textContent = price.toFixed(4);
+            }
+
+            if (changeEl) {
+              changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+              changeEl.className = 'watchlist-change ' + (change >= 0 ? 'up' : 'down');
+            }
+
+            // Mini chart
+            updateMiniChart(shortSymbol, symbol);
+          } catch (err) {}
+        }
       }
     }
 
-    async function updateMiniChart(shortSymbol, symbol) {
+async function updateMiniChart(shortSymbol, symbol) {
       try {
+        const now = _now();
+        const cache = miniChartCache[shortSymbol] || (miniChartCache[shortSymbol] = { lastFetch: 0, bars: null });
+
+        // TTL para reducir llamadas (sin perder comportamiento general)
+        if (cache.bars && (now - cache.lastFetch) < MINI_CHART_TTL_MS) return;
+
+        cache.lastFetch = now;
+
         const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=8`);
         const data = await response.json();
-        
+        if (!Array.isArray(data) || data.length < 8) return;
+
         const container = document.getElementById(`chart-${shortSymbol}`);
         if (!container) return;
-        
-        const closes = data.map(k => parseFloat(k[4]));
-        const min = Math.min(...closes);
-        const max = Math.max(...closes);
-        const range = max - min || 1;
-        
-        container.innerHTML = closes.map((c, i) => {
+
+        // Crear barras una sola vez y reutilizar (evita innerHTML por actualización)
+        if (!cache.bars || cache.bars.length !== 8 || container.childElementCount !== 8) {
+          container.innerHTML = '';
+          const bars = [];
+          const frag = document.createDocumentFragment();
+          for (let i = 0; i < 8; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'mini-bar';
+            frag.appendChild(bar);
+            bars.push(bar);
+          }
+          container.appendChild(frag);
+          cache.bars = bars;
+        }
+
+        // Calcular cierres + min/max sin spreads (menos GC)
+        const closes = new Array(8);
+        let min = Infinity, max = -Infinity;
+        for (let i = 0; i < 8; i++) {
+          const c = parseFloat(data[i][4]);
+          closes[i] = c;
+          if (c < min) min = c;
+          if (c > max) max = c;
+        }
+        const range = (max - min) || 1;
+
+        for (let i = 0; i < 8; i++) {
+          const c = closes[i];
           const height = ((c - min) / range * 100);
-          const color = i > 0 && closes[i] >= closes[i-1] ? 'var(--accent-green)' : 'var(--accent-red)';
-          return `<div class="mini-bar" style="height:${Math.max(10, height)}%; background:${color};"></div>`;
-        }).join('');
-      } catch(e) {}
+          const isUp = (i > 0 && closes[i] >= closes[i - 1]);
+          const color = isUp ? 'var(--accent-green)' : 'var(--accent-red)';
+
+          const bar = cache.bars[i];
+          bar.style.height = Math.max(10, height) + '%';
+          bar.style.background = color;
+        }
+      } catch (e) {}
     }
 
     // ============================================
