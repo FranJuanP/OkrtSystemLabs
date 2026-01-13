@@ -2353,6 +2353,78 @@
       WILLR_PERIOD: 14
     };
 
+    // ============================================
+    // PERFORMANCE MODULE - Firefox Optimization
+    // ============================================
+    const Performance = {
+      // Throttle function - limita ejecución
+      throttle: (func, limit) => {
+        let inThrottle;
+        return function(...args) {
+          if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+          }
+        };
+      },
+      
+      // Debounce function - espera antes de ejecutar
+      debounce: (func, wait) => {
+        let timeout;
+        return function(...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+      },
+      
+      // Batch DOM updates usando requestAnimationFrame
+      pendingUpdates: new Map(),
+      scheduledFrame: false,
+      
+      batchUpdate: (key, updateFn) => {
+        Performance.pendingUpdates.set(key, updateFn);
+        if (!Performance.scheduledFrame) {
+          Performance.scheduledFrame = true;
+          requestAnimationFrame(() => {
+            Performance.pendingUpdates.forEach(fn => fn());
+            Performance.pendingUpdates.clear();
+            Performance.scheduledFrame = false;
+          });
+        }
+      },
+      
+      // WebSocket message counter para throttling
+      wsMessageCount: 0,
+      wsLastReset: Date.now(),
+      maxWsMessagesPerSecond: 15,
+      
+      shouldProcessWsMessage: () => {
+        const now = Date.now();
+        if (now - Performance.wsLastReset > 1000) {
+          Performance.wsMessageCount = 0;
+          Performance.wsLastReset = now;
+        }
+        if (Performance.wsMessageCount < Performance.maxWsMessagesPerSecond) {
+          Performance.wsMessageCount++;
+          return true;
+        }
+        return false;
+      },
+      
+      // Lite mode - reduce carga
+      liteMode: false,
+      
+      toggleLiteMode: () => {
+        Performance.liteMode = !Performance.liteMode;
+        console.log('[Performance] Lite mode:', Performance.liteMode ? 'ON' : 'OFF');
+        return Performance.liteMode;
+      }
+    };
+    
+    Object.freeze(Performance.throttle);
+    Object.freeze(Performance.debounce);
+
     const state = {
       candles: [],
       currentPrice: 0,
@@ -6581,10 +6653,10 @@
         updatePaperTradingUI(); // Paper Trading
       }, 100);
       
-      // Periodic updates
+      // Periodic updates (optimized intervals)
       setInterval(fetchFearGreed, 300000);
-      setInterval(fetchDerivativesData, 60000);
-      setInterval(fetchBTCPrice, 30000);
+      setInterval(fetchDerivativesData, 120000); // Optimizado: 60s -> 120s
+      setInterval(fetchBTCPrice, 60000); // Optimizado: 30s -> 60s
       
       // Reset CVD and whale flow hourly
       setInterval(() => {
@@ -6597,20 +6669,20 @@
       // Cargar alertas guardadas
       loadCustomAlerts();
       
-      // Actualizar Multi-TF cada 30 segundos
-      setInterval(updateMultiTimeframe, 30000);
+      // Actualizar Multi-TF cada 60 segundos (optimizado: 30s -> 60s)
+      setInterval(updateMultiTimeframe, 60000);
       
-      // Actualizar líneas de tendencia cada 30 segundos
-      setInterval(updateTrendLines, 30000);
+      // Actualizar líneas de tendencia cada 60 segundos (optimizado: 30s -> 60s)
+      setInterval(updateTrendLines, 60000);
       
-      // Actualizar S/R y Fibonacci cada 30 segundos
+      // Actualizar S/R y Fibonacci cada 60 segundos (optimizado: 30s -> 60s)
       setInterval(() => {
         updateSROnChart();
         updateFibonacciLevels();
-      }, 30000);
+      }, 60000);
       
-      // Actualizar Session Display cada minuto
-      setInterval(updateSessionDisplay, 60000);
+      // Actualizar Session Display cada 2 minutos (optimizado: 60s -> 120s)
+      setInterval(updateSessionDisplay, 120000);
       
       // Verificar resultados de señales cada 5 minutos
       setInterval(verifySignalResults, 300000);
@@ -6644,6 +6716,7 @@
         };
         
         wsKraken.onmessage = (event) => {
+          if (!Performance.shouldProcessWsMessage()) return; // Throttle
           try {
             const data = JSON.parse(event.data);
             // Los trades vienen como array: [channelID, [[price, volume, time, side, orderType, misc]], "trade", "XRP/USD"]
@@ -6687,6 +6760,7 @@
         };
         
         wsBitstamp.onmessage = (event) => {
+          if (!Performance.shouldProcessWsMessage()) return; // Throttle
           try {
             const msg = JSON.parse(event.data);
             if (msg.event === 'trade' && msg.data) {
@@ -6726,6 +6800,7 @@
         };
         
         wsBybit.onmessage = (event) => {
+          if (!Performance.shouldProcessWsMessage()) return; // Throttle
           try {
             const msg = JSON.parse(event.data);
             if (msg.topic === 'publicTrade.XRPUSDT' && msg.data) {
@@ -6768,6 +6843,7 @@
         };
         
         wsCoinbase.onmessage = (event) => {
+          if (!Performance.shouldProcessWsMessage()) return; // Throttle
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'match' || data.type === 'last_match') {
@@ -6810,6 +6886,7 @@
         };
         
         wsCryptoCom.onmessage = (event) => {
+          if (!Performance.shouldProcessWsMessage()) return; // Throttle
           try {
             const msg = JSON.parse(event.data);
             if (msg.method === 'subscribe' && msg.result && msg.result.data) {
@@ -8830,48 +8907,75 @@
     };
 
     function updateSessionStats() {
-      const now = Date.now();
-      const elapsed = now - sessionStats.startTime;
-      const hours = Math.floor(elapsed / 3600000);
-      const mins = Math.floor((elapsed % 3600000) / 60000);
-      const secs = Math.floor((elapsed % 60000) / 1000);
-      
-      document.getElementById('session-duration').textContent = 
-        String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-
-      if (state.price) {
-        if (sessionStats.startPrice === null) sessionStats.startPrice = state.price;
-        if (state.price > sessionStats.high) sessionStats.high = state.price;
-        if (state.price < sessionStats.low) sessionStats.low = state.price;
-
-        document.getElementById('session-high').textContent = '$' + sessionStats.high.toFixed(4);
-        document.getElementById('session-high').style.color = 'var(--accent-green)';
-        document.getElementById('session-low').textContent = '$' + sessionStats.low.toFixed(4);
-        document.getElementById('session-low').style.color = 'var(--accent-red)';
+      // Usar batch update para reducir reflows
+      Performance.batchUpdate('sessionStats', () => {
+        const now = Date.now();
+        const elapsed = now - sessionStats.startTime;
+        const hours = Math.floor(elapsed / 3600000);
+        const mins = Math.floor((elapsed % 3600000) / 60000);
+        const secs = Math.floor((elapsed % 60000) / 1000);
         
-        const range = ((sessionStats.high - sessionStats.low) / sessionStats.low * 100);
-        document.getElementById('session-range').textContent = range.toFixed(2) + '%';
-        document.getElementById('session-range').style.color = range > 2 ? 'var(--accent-orange)' : 'var(--text-main)';
-        
-        document.getElementById('session-open').textContent = '$' + sessionStats.startPrice.toFixed(4);
-        document.getElementById('session-current').textContent = '$' + state.price.toFixed(4);
-        
-        const change = ((state.price - sessionStats.startPrice) / sessionStats.startPrice * 100);
-        document.getElementById('session-change').textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
-        document.getElementById('session-change').style.color = change >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-      }
+        const durationEl = document.getElementById('session-duration');
+        if (durationEl) durationEl.textContent = 
+          String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
 
-      document.getElementById('session-signals-bull').textContent = sessionStats.bullishSignals;
-      document.getElementById('session-signals-bear').textContent = sessionStats.bearishSignals;
-      document.getElementById('session-patterns').textContent = sessionStats.patternsDetected;
-      document.getElementById('session-whales').textContent = sessionStats.whaleTrades;
-      
-      document.getElementById('session-predictions').textContent = sessionStats.predictions;
-      document.getElementById('session-correct').textContent = sessionStats.correct;
-      document.getElementById('session-incorrect').textContent = sessionStats.incorrect;
-      
-      const accuracy = sessionStats.predictions > 0 ? (sessionStats.correct / sessionStats.predictions * 100) : 0;
-      document.getElementById('session-accuracy').textContent = accuracy.toFixed(1) + '%';
+        if (state.price) {
+          if (sessionStats.startPrice === null) sessionStats.startPrice = state.price;
+          if (state.price > sessionStats.high) sessionStats.high = state.price;
+          if (state.price < sessionStats.low) sessionStats.low = state.price;
+
+          const highEl = document.getElementById('session-high');
+          const lowEl = document.getElementById('session-low');
+          const rangeEl = document.getElementById('session-range');
+          const openEl = document.getElementById('session-open');
+          const currentEl = document.getElementById('session-current');
+          const changeEl = document.getElementById('session-change');
+          
+          if (highEl) {
+            highEl.textContent = '$' + sessionStats.high.toFixed(4);
+            highEl.style.color = 'var(--accent-green)';
+          }
+          if (lowEl) {
+            lowEl.textContent = '$' + sessionStats.low.toFixed(4);
+            lowEl.style.color = 'var(--accent-red)';
+          }
+          
+          const range = ((sessionStats.high - sessionStats.low) / sessionStats.low * 100);
+          if (rangeEl) {
+            rangeEl.textContent = range.toFixed(2) + '%';
+            rangeEl.style.color = range > 2 ? 'var(--accent-orange)' : 'var(--text-main)';
+          }
+          
+          if (openEl) openEl.textContent = '$' + sessionStats.startPrice.toFixed(4);
+          if (currentEl) currentEl.textContent = '$' + state.price.toFixed(4);
+          
+          const change = ((state.price - sessionStats.startPrice) / sessionStats.startPrice * 100);
+          if (changeEl) {
+            changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+            changeEl.style.color = change >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+          }
+        }
+
+        const bullEl = document.getElementById('session-signals-bull');
+        const bearEl = document.getElementById('session-signals-bear');
+        const patternsEl = document.getElementById('session-patterns');
+        const whalesEl = document.getElementById('session-whales');
+        const predsEl = document.getElementById('session-predictions');
+        const correctEl = document.getElementById('session-correct');
+        const incorrectEl = document.getElementById('session-incorrect');
+        const accuracyEl = document.getElementById('session-accuracy');
+        
+        if (bullEl) bullEl.textContent = sessionStats.bullishSignals;
+        if (bearEl) bearEl.textContent = sessionStats.bearishSignals;
+        if (patternsEl) patternsEl.textContent = sessionStats.patternsDetected;
+        if (whalesEl) whalesEl.textContent = sessionStats.whaleTrades;
+        if (predsEl) predsEl.textContent = sessionStats.predictions;
+        if (correctEl) correctEl.textContent = sessionStats.correct;
+        if (incorrectEl) incorrectEl.textContent = sessionStats.incorrect;
+        
+        const accuracy = sessionStats.predictions > 0 ? (sessionStats.correct / sessionStats.predictions * 100) : 0;
+        if (accuracyEl) accuracyEl.textContent = accuracy.toFixed(1) + '%';
+      });
     }
 
     function resetSessionStats() {
@@ -8903,7 +9007,7 @@
     };
 
     // Update session stats every second
-    setInterval(updateSessionStats, 1000);
+    setInterval(updateSessionStats, 5000); // Optimizado: 1s -> 5s
 
     // ============================================
     // 6. STRATEGY BUILDER
@@ -9209,7 +9313,7 @@
     loadStrategies();
     
     // Update watchlist every 10 seconds
-    setInterval(updateWatchlist, 10000);
+    setInterval(updateWatchlist, 30000); // Optimizado: 10s -> 30s
     updateWatchlist();
     
     // Update correlations every 2 minutes
@@ -10020,11 +10124,16 @@
       if (e.key === 'd' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT') {
         toggleTheme();
       }
+      // L = Toggle Lite mode (performance)
+      if (e.key === 'l' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT') {
+        const isLite = Performance.toggleLiteMode();
+        addAlert(isLite ? '⚡ Lite Mode ON - Reduced updates for better performance' : '🔄 Lite Mode OFF - Full updates restored', 'info');
+      }
     });
 
     console.log('%c ◆ XRP ORACULUM ', 'background: linear-gradient(135deg, #00d4ff, #a855f7); color: #000; font-size: 20px; font-weight: bold; padding: 10px 20px; border-radius: 5px;');
     console.log('%c OkrtSystem Labs ', 'color: #00d4ff; font-size: 14px; font-weight: bold;');
-    console.log('%c Keyboard shortcuts: T=Tools, S=Sound, D=Dark mode, ESC=Close ', 'color: #94a3b8; font-size: 10px;');
+    console.log('%c Keyboard shortcuts: T=Tools, S=Sound, D=Dark mode, L=Lite mode, ESC=Close ', 'color: #94a3b8; font-size: 10px;');
 
   </script>
 </body>
