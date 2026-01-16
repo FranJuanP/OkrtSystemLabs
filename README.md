@@ -5,7 +5,6 @@
 
 **Real-time multi-feed + AI Engine PRO with auto-prediction and live performance metrics.**
 
-
 > © 2025–2026 **OkrtSystem Labs** — All rights reserved.
 
 </div>
@@ -39,7 +38,7 @@ This project is built and maintained by **OkrtSystem Labs**, oriented to a **hig
 ## Key Features
 
 ### Real-time Multi-Feed (Failover)
-- WebSocket streaming from multiple sources
+- WebSocket streaming from multiple sources  
 - Automatic feed failover logic *(e.g., Binance → Coinbase → Kraken)*
 - Designed for long sessions with recovery patterns
 
@@ -50,8 +49,8 @@ This project is built and maintained by **OkrtSystem Labs**, oriented to a **hig
 - State persistence supported *(Firestore when enabled)*
 
 ### Dashboard Experience
-- Compact, readable cards & telemetry blocks
-- Designed for desktop, ultrawide and long-running usage
+- Compact, readable cards & telemetry blocks  
+- Designed for desktop, ultrawide and long-running usage  
 - Fast, single-file delivery (web build) + installable desktop packaging
 
 ---
@@ -102,7 +101,8 @@ ORACULUM now computes an **in-live provisional accuracy** based on validated sho
 
 ## Screenshots
 
-> Add your screenshots inside a `/docs/screens/` folder and reference them here.
+> Screenshots are included from `docs/screens/` (relative paths from this README).  
+> Ensure filenames match exactly (case-sensitive on GitHub).
 
 <div align="center">
 
@@ -112,7 +112,7 @@ ORACULUM now computes an **in-live provisional accuracy** based on validated sho
 <br/>
 
 **Runtime Console — Engine Loading + Feeds Connected**  
-<img src="docs/screens/console_runtime.png" width="640"/>
+<img src="docs/screens/console_runitime.png" width="640"/>
 
 </div>
 
@@ -130,28 +130,6 @@ python -m http.server 8080
 
 Open:
 - `http://localhost:8080`
-
----
-
-### Desktop App (Windows Installer)
-
-ORACULUM can be packaged as a **real installable product** using Electron:
-
-- `.exe installer`
-- desktop shortcut
-- start menu entry
-- offline bundle (local index + JS assets)
-
-Basic build flow:
-
-```bash
-npm install
-npm run start
-npm run dist
-```
-
-Output installer appears under:
-`/dist/`
 
 ---
 
@@ -173,16 +151,6 @@ Depending on build configuration, ORACULUM supports:
 - **App Check enabled mode**
 - CSP hardening paths
 - safer UI rendering patterns (anti-self-XSS discipline)
-
----
-
-## Roadmap
-
-- [ ] Exportable evidence/timeline per alert
-- [ ] Report generator (PDF/Markdown)
-- [ ] Dedicated enrichment queue for stability under load
-- [ ] Desktop auto-update channel (signed builds)
-- [ ] Extended AI memory + pattern clustering
 
 ---
 
