@@ -1,8 +1,10 @@
 // ============================================
-// 🧠 AI ENGINE PRO v1.1.0
+// 🧠 AI ENGINE PRO v1.2.0
 // Advanced Self-Learning System for ORACULUM
 // Copyright (c) 2025-2026 OkrtSystem Labs
 // ============================================
+// CHANGELOG v1.2.0:
+// - ADD: Auto-prediction system (every 2 min)
 // CHANGELOG v1.1.0:
 // - FIX: byHorizon ahora incluye todos los horizontes (120, 240)
 // - FIX: Feature extraction completo con mapeos para features derivados
@@ -14,7 +16,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.1.0',
+  version: '1.2.0',
   isReady: false,
   db: null,
   
@@ -181,7 +183,7 @@ const AIEnginePro = {
   // 🚀 INITIALIZATION
   // ============================================
   async init() {
-    console.log('[AI-PRO] Initializing AI Engine PRO v' + this.version);
+    console.log('[AI-PRO] Initializing AI Engine PRO v' + this.version + ' with Auto-Prediction');
     
     // Wait for base AILearning to be ready
     let attempts = 0;
@@ -216,6 +218,9 @@ const AIEnginePro = {
     
     // Hook into AILearning
     this.hookIntoBase();
+    
+    // Start auto-prediction loop
+    this.startAutoPrediction();
     
     this.isReady = true;
     console.log('[AI-PRO] ✓ AI Engine PRO ready');
@@ -1183,6 +1188,71 @@ const AIEnginePro = {
   },
 
   // ============================================
+  // 🤖 AUTO-PREDICTION SYSTEM
+  // ============================================
+  startAutoPrediction() {
+    // Generate predictions automatically every 2 minutes
+    const AUTO_PREDICT_INTERVAL = 120000; // 2 minutes
+    
+    setInterval(() => {
+      this.generateAutoPrediction();
+    }, AUTO_PREDICT_INTERVAL);
+    
+    // First prediction after 30 seconds
+    setTimeout(() => {
+      this.generateAutoPrediction();
+    }, 30000);
+    
+    console.log('[AI-PRO] Auto-prediction started (every 2 min)');
+  },
+
+  generateAutoPrediction() {
+    if (!this.isReady || !window.state?.price) {
+      return;
+    }
+    
+    // Don't generate if we have too many pending
+    if (this.predictions.pending.length >= 10) {
+      console.log('[AI-PRO] Skipping auto-prediction: too many pending');
+      return;
+    }
+    
+    const marketState = this.getCurrentMarketState();
+    const ensemble = this.generateEnsemblePrediction(marketState);
+    
+    // Only record if confidence is meaningful
+    if (ensemble.confidence < this.config.minConfidence) {
+      console.log('[AI-PRO] Skipping: low confidence', (ensemble.confidence * 100).toFixed(1) + '%');
+      return;
+    }
+    
+    // Create prediction record
+    const predId = 'auto_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    
+    const proPrediction = {
+      id: predId,
+      baseId: null,
+      timestamp: Date.now(),
+      price: window.state.price,
+      ensemble: ensemble,
+      features: this.extractFeatureVector(marketState),
+      regime: ensemble.regime,
+      verifications: [],
+      outcome: null,
+      isAuto: true
+    };
+    
+    this.predictions.pending.push(proPrediction);
+    
+    // Schedule verifications
+    for (const horizon of this.config.horizons) {
+      setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
+    }
+    
+    console.log(`[AI-PRO] 🎯 Auto-prediction: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${window.state.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
+  },
+
+  // ============================================
   // 💾 STATE PERSISTENCE
   // ============================================
   async loadState() {
@@ -1381,4 +1451,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.1.0 module loaded');
+console.log('[AI-PRO] AI Engine PRO v1.2.0 module loaded (with Auto-Prediction)');
