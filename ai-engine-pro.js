@@ -12,28 +12,15 @@
 const AIEnginePro = {
   version: '1.0.0',
   isReady: false,
-
-  async waitForAppCheck(){
-    let attempts = 0;
-    while(!window.__OKRT_APP_CHECK__ && attempts < 50){
-      await new Promise(r => setTimeout(r, 100));
-      attempts++;
-    }
-    if(!window.__OKRT_APP_CHECK__){
-      console.warn('[AI-PRO] App Check not ready, continuing in degraded mode');
-    } else {
-      console.log('[AI-PRO] App Check ready');
-    }
-  },
   db: null,
-  lastSaveTs: 0,
   
   // ============================================
   // 🎯 CONFIGURATION
   // ============================================
   config: {
     // Prediction horizons (minutes)
-    horizons: [2, 5, 10, 15, 30, 60],
+    // Extended window improves pattern validation quality (short + medium + long)
+    horizons: [2, 5, 10, 15, 30, 60, 120, 240],
     
     // Minimum confidence to generate signal
     minConfidence: 0.65,
@@ -53,7 +40,20 @@ const AIEnginePro = {
     optimizationInterval: 3600000, // 1 hour
     
     // Feature importance threshold
-    featureThreshold: 0.1
+    featureThreshold: 0.1,
+
+    // --- PRO enhancements ---
+    // Require enough verifications before considering a pattern "validated"
+    minValidationsToLearn: 6,
+
+    // Session-aware context (UTC-based)
+    sessionAware: true,
+
+    // Volatility-aware scoring
+    volatilityAware: true,
+
+    // Breakout quality heuristics (fake breakout vs continuation)
+    breakoutAware: true
   },
 
   // ============================================
@@ -211,9 +211,6 @@ const AIEnginePro = {
       console.warn('[AI-PRO] Firestore not available, using local mode');
     }
     
-    // Wait for App Check
-    await this.waitForAppCheck();
-
     // Load saved state
     await this.loadState();
     
@@ -305,10 +302,29 @@ const AIEnginePro = {
       confidence = Math.max(votes.BULL, votes.BEAR, votes.NEUTRAL);
     }
     
+    // Context
+    const session = this.config.sessionAware ? this.getSessionContext() : null;
+    const volScore = this.config.volatilityAware ? this.getVolatilityScore(marketState) : null;
+    const volMultiplier = (volScore != null) ? this.getVolatilityConfidenceMultiplier(volScore) : 1.0;
+    const breakout = this.config.breakoutAware ? this.detectBreakoutContext(marketState) : null;
+
     // Apply regime multiplier
     const regime = this.detectMarketRegime(marketState);
     const regimeMultiplier = this.getRegimeConfidenceMultiplier(regime);
     confidence *= regimeMultiplier;
+
+    // Apply session multiplier
+    if (session) {
+      confidence *= this.getSessionConfidenceMultiplier(session);
+    }
+
+    // Apply volatility multiplier
+    confidence *= volMultiplier;
+
+    // Penalize if breakout looks noisy (fake breakout risk)
+    if (breakout && breakout.classification === 'FAKE_BREAKOUT_RISK') {
+      confidence *= 0.85;
+    }
     
     // Check pattern memory for similar conditions
     const patternMatch = this.queryLongTermMemory(marketState);
@@ -327,6 +343,9 @@ const AIEnginePro = {
       modelPredictions,
       regime,
       patternMatch,
+      session,
+      volScore,
+      breakout,
       timestamp: Date.now()
     };
   },
@@ -538,11 +557,133 @@ const AIEnginePro = {
   },
 
   // ============================================
+  // 🕒 SESSION CONTEXT (UTC)
+  // ============================================
+  getSessionContext() {
+    // UTC sessions (approx):
+    // Asia:   00:00 - 08:00
+    // Europe: 08:00 - 16:00
+    // US:     16:00 - 23:59
+    const h = new Date().getUTCHours();
+    if (h >= 0 && h < 8) return 'ASIA';
+    if (h >= 8 && h < 16) return 'EUROPE';
+    return 'US';
+  },
+
+  getSessionConfidenceMultiplier(session) {
+    // Crypto trades 24/7; this multiplier is conservative.
+    // We slightly boost Europe/US (higher liquidity) and reduce Asia a bit.
+    const m = { ASIA: 0.95, EUROPE: 1.02, US: 1.02 };
+    return m[session] || 1.0;
+  },
+
+  // ============================================
+  // 🌪️ VOLATILITY-AWARE SCORING
+  // ============================================
+  getVolatilityScore(marketState) {
+    // Returns 0..1 (higher = more volatile)
+    const atr = marketState.atr;
+    const atrAvg = marketState.atrAvg;
+    if (!atr || !atrAvg || atrAvg <= 0) {
+      return marketState.volatility === 'high' ? 0.85 : (marketState.volatility === 'low' ? 0.25 : 0.5);
+    }
+    const ratio = atr / atrAvg;
+    // Map ratio to 0..1 in a bounded way
+    // ratio 0.5 -> ~0.2, ratio 1.0 -> ~0.5, ratio 1.5 -> ~0.8, ratio 2.0 -> ~0.9
+    const v = Math.max(0, Math.min(1, (ratio - 0.5) / 1.5));
+    return v;
+  },
+
+  getVolatilityBucket(volScore) {
+    if (volScore >= 0.75) return 'HIGH';
+    if (volScore <= 0.35) return 'LOW';
+    return 'NORMAL';
+  },
+
+  getVolatilityConfidenceMultiplier(volScore) {
+    // Reduce confidence when volatility is high (noise increases),
+    // slightly boost when volatility is low/normal.
+    if (volScore >= 0.8) return 0.85;
+    if (volScore >= 0.65) return 0.92;
+    if (volScore <= 0.25) return 1.03;
+    return 1.0;
+  },
+
+  // ============================================
+  // 🧱 BREAKOUT QUALITY (FAKE vs CONTINUATION)
+  // ============================================
+  detectBreakoutContext(marketState) {
+    // Best-effort heuristic using available state.
+    // If your base app exposes richer candle context, this gets more accurate.
+    const s = marketState || {};
+    const price = s.price || 0;
+    const sr = s.supportResistance || {};
+    const indicators = s.indicators || {};
+    const volScore = this.getVolatilityScore(s);
+
+    // Identify nearest resistance/support levels if provided
+    const resistance = sr.resistance || sr.r1 || sr.R1 || null;
+    const support = sr.support || sr.s1 || sr.S1 || null;
+
+    // Volume confirmation signals (best effort)
+    const obv = indicators.obv?.value ?? s.obv;
+    const cvd = s.cvd;
+
+    // Candle wick ratio if available
+    const candle = s.lastCandle || s.candle || null;
+    let wickRatio = null;
+    if (candle && candle.high != null && candle.low != null && candle.open != null && candle.close != null) {
+      const range = Math.max(1e-9, candle.high - candle.low);
+      const body = Math.abs(candle.close - candle.open);
+      wickRatio = Math.max(0, Math.min(1, (range - body) / range)); // 0..1 (higher = wickier)
+    }
+
+    // Determine if we are attempting a breakout near a key level
+    const atr = s.atr || null;
+    const proximity = (level) => {
+      if (!level || !price) return null;
+      const denom = atr && atr > 0 ? atr : (price * 0.002); // fallback ~0.2%
+      return Math.abs(price - level) / denom;
+    };
+
+    const nearRes = resistance ? proximity(resistance) : null;
+    const nearSup = support ? proximity(support) : null;
+
+    // Risk model: fake breakout risk increases when:
+    // - very wicky candle
+    // - high volatility
+    // - no volume confirmation
+    // - price is right at a key level
+    let risk = 0.0;
+    let tag = 'NONE';
+
+    const volConfWeak = (obv != null && obv < 0) || (cvd != null && cvd < 0);
+    if (wickRatio != null && wickRatio > 0.55) risk += 0.25;
+    if (volScore >= 0.75) risk += 0.25;
+    if (volConfWeak) risk += 0.2;
+    if (nearRes != null && nearRes < 1.5) { risk += 0.2; tag = 'AT_RESISTANCE'; }
+    if (nearSup != null && nearSup < 1.5) { risk += 0.2; tag = 'AT_SUPPORT'; }
+
+    risk = Math.max(0, Math.min(1, risk));
+    const quality = 1 - risk; // 0..1 (higher = cleaner continuation)
+
+    // Provide a simple classification
+    let classification = 'NEUTRAL';
+    if (risk >= 0.6) classification = 'FAKE_BREAKOUT_RISK';
+    else if (quality >= 0.65 && (nearRes != null || nearSup != null)) classification = 'CONTINUATION_LIKELY';
+
+    return { risk, quality, tag, classification };
+  },
+
+  // ============================================
   // 💾 LONG-TERM MEMORY OPERATIONS
   // ============================================
   queryLongTermMemory(marketState) {
     const regime = this.detectMarketRegime(marketState);
     const features = this.extractFeatureVector(marketState);
+    const session = this.config.sessionAware ? this.getSessionContext() : null;
+    const volScore = this.config.volatilityAware ? this.getVolatilityScore(marketState) : null;
+    const volBucket = volScore != null ? this.getVolatilityBucket(volScore) : null;
     
     // Find similar patterns in memory
     let bestMatch = null;
@@ -550,10 +691,17 @@ const AIEnginePro = {
     
     for (const pattern of this.memory.patterns) {
       if (pattern.regime !== regime) continue;
+
+      // Prefer same session/volatility bucket (but don't hard-block)
+      let contextPenalty = 1.0;
+      if (session && pattern.session && pattern.session !== session) contextPenalty *= 0.9;
+      if (volBucket && pattern.volBucket && pattern.volBucket !== volBucket) contextPenalty *= 0.9;
       
       const similarity = this.calculateSimilarity(features, pattern.features);
-      if (similarity > bestSimilarity && similarity > 0.75) {
-        bestSimilarity = similarity;
+      const scoredSimilarity = similarity * contextPenalty;
+
+      if (scoredSimilarity > bestSimilarity && scoredSimilarity > 0.72) {
+        bestSimilarity = scoredSimilarity;
         bestMatch = pattern;
       }
     }
@@ -564,7 +712,10 @@ const AIEnginePro = {
         confidence: bestSimilarity * bestMatch.successRate,
         direction: bestMatch.direction,
         occurrences: bestMatch.occurrences,
-        avgReturn: bestMatch.avgReturn
+        avgReturn: bestMatch.avgReturn,
+        session: bestMatch.session || null,
+        volBucket: bestMatch.volBucket || null,
+        lastOutcome: bestMatch.lastOutcome || null
       };
     }
     
@@ -591,14 +742,28 @@ const AIEnginePro = {
   },
 
   storeInLongTermMemory(prediction, outcome) {
+    const session = this.config.sessionAware ? (prediction.session || this.getSessionContext()) : null;
+    const volScore = this.config.volatilityAware ? (prediction.volScore != null ? prediction.volScore : this.getVolatilityScore(this.getCurrentMarketState())) : null;
+    const volBucket = volScore != null ? this.getVolatilityBucket(volScore) : null;
+    const breakout = prediction.breakout || null;
+
     const pattern = {
       id: Date.now().toString(36),
       regime: prediction.regime,
       direction: prediction.direction,
       features: prediction.features || {},
+      // Context
+      session,
+      volBucket,
+      breakoutTag: breakout?.classification || null,
+
+      // Outcomes (persist both positives and negatives)
+      successCount: outcome.success ? 1 : 0,
+      failCount: outcome.success ? 0 : 1,
       successRate: outcome.success ? 1 : 0,
       occurrences: 1,
       avgReturn: outcome.priceChange || 0,
+      lastOutcome: outcome.success ? 'POS' : 'NEG',
       timestamp: Date.now()
     };
     
@@ -611,9 +776,16 @@ const AIEnginePro = {
     if (similar) {
       // Update existing pattern
       similar.occurrences++;
-      similar.successRate = (similar.successRate * (similar.occurrences - 1) + (outcome.success ? 1 : 0)) / similar.occurrences;
+      similar.successCount = (similar.successCount || 0) + (outcome.success ? 1 : 0);
+      similar.failCount = (similar.failCount || 0) + (outcome.success ? 0 : 1);
+      similar.successRate = (similar.successCount) / similar.occurrences;
       similar.avgReturn = (similar.avgReturn * (similar.occurrences - 1) + (outcome.priceChange || 0)) / similar.occurrences;
       similar.timestamp = Date.now();
+      similar.lastOutcome = outcome.success ? 'POS' : 'NEG';
+      // Keep latest context for debug/analysis
+      if (session) similar.session = session;
+      if (volBucket) similar.volBucket = volBucket;
+      if (breakout?.classification) similar.breakoutTag = breakout.classification;
     } else {
       // Add new pattern
       this.memory.patterns.push(pattern);
@@ -701,23 +873,52 @@ const AIEnginePro = {
 
   completeProPrediction(pred) {
     // Calculate overall success
-    const successCount = pred.verifications.filter(v => v.success).length;
-    const success = successCount >= Math.ceil(pred.verifications.length / 2);
+    // Weighted verifications: longer horizons matter more for pattern validation
+    const verifs = pred.verifications || [];
+    const minValidations = Math.min(this.config.minValidationsToLearn || 6, this.config.horizons.length);
+    if (verifs.length < minValidations) {
+      // Not enough samples yet; do not finalize learning.
+      // (We still finalize the prediction record for UI/performance once the longest horizon triggers.)
+    }
+
+    const maxH = Math.max(...this.config.horizons);
+    let wSuccess = 0;
+    let wTotal = 0;
+    let sumChange = 0;
+    for (const v of verifs) {
+      const w = 0.5 + (v.horizon / maxH); // 0.5..1.5
+      wTotal += w;
+      if (v.success) wSuccess += w;
+      sumChange += v.priceChange;
+    }
+    const successRateW = wTotal > 0 ? (wSuccess / wTotal) : 0;
+    const success = successRateW >= 0.55;
+
+    const avgPriceChange = verifs.length ? (sumChange / verifs.length) : 0;
     
-    const avgPriceChange = pred.verifications.reduce((s, v) => s + v.priceChange, 0) / pred.verifications.length;
-    
+    const successCount = verifs.filter(v => v.success).length;
+
     pred.outcome = {
       success,
       avgPriceChange,
-      successRate: successCount / pred.verifications.length,
+      successRate: verifs.length ? (successCount / verifs.length) : 0,
+      successRateWeighted: successRateW,
       completedAt: Date.now()
     };
     
     // Update models based on their predictions
     this.updateModelWeights(pred, success);
     
-    // Store in long-term memory if interesting
-    if (pred.ensemble.confidence > 0.7 || Math.abs(avgPriceChange) > 0.5) {
+    // Store in long-term memory (persist both positives and negatives)
+    // Learn when confidence is meaningful, when move is meaningful, or when breakout quality matters.
+    const c = pred.ensemble?.confidence || 0;
+    const br = pred.ensemble?.breakout;
+    const mustLearn = (c >= 0.7) || (Math.abs(avgPriceChange) >= 0.35) || (br && br.classification !== 'NEUTRAL');
+    if (mustLearn && (verifs.length >= Math.min(minValidations, verifs.length))) {
+      // Preserve context fields so memory can segment by session/volatility/breakout
+      pred.session = pred.ensemble?.session || pred.session;
+      pred.volScore = pred.ensemble?.volScore;
+      pred.breakout = pred.ensemble?.breakout || null;
       this.storeInLongTermMemory(pred, { success, priceChange: avgPriceChange });
     }
     
@@ -923,9 +1124,6 @@ const AIEnginePro = {
   },
 
   async saveState() {
-    const now = Date.now();
-    if(now - this.lastSaveTs < 30000) return;
-    this.lastSaveTs = now;
     // Save to Firestore
     if (this.db && window.AILearning?.user) {
       try {
@@ -944,17 +1142,8 @@ const AIEnginePro = {
         await setDoc(doc(this.db, 'ai', 'pro_models'), modelsData);
         
         // Save memory (limit size)
-        const safePatterns = this.memory.patterns.slice(-150).map(p => ({
-          id: p.id,
-          regime: p.regime,
-          direction: p.direction,
-          successRate: p.successRate,
-          occurrences: p.occurrences,
-          avgReturn: p.avgReturn,
-          timestamp: p.timestamp
-        }));
         await setDoc(doc(this.db, 'ai', 'pro_memory'), {
-          patterns: safePatterns,
+          patterns: this.memory.patterns.slice(-500),
           correlations: this.memory.correlations,
           updatedAt: new Date().toISOString()
         });
@@ -1004,6 +1193,9 @@ const AIEnginePro = {
       volatility: s.volatility,
       atr: s.atr,
       atrAvg: s.atrAvg
+      ,
+      // Optional candle context (if base app exposes it)
+      lastCandle: s.lastCandle || s.candle || s.lastOHLC || null
     };
   },
 
