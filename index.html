@@ -838,7 +838,7 @@
     #chartContainer { width: 100%; height: 100%; }
     .side-left { grid-column: 1; grid-row: 2 / 4; display: flex; flex-direction: column; gap: 10px; }
     .side-right { grid-column: 3; grid-row: 2 / 4; display: flex; flex-direction: column; gap: 10px; }
-    .bottom-box { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .bottom-box { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
     .ob-row {
       display: flex; justify-content: space-between; font-family: var(--font-data); font-size: 11px;
       padding: 2px 8px;
@@ -1520,7 +1520,7 @@
           <span style="color:var(--accent-yellow); margin-left:5px;">◆</span> Fibonacci
         </span></div><div class="divergence-badge" id="divergenceBadge" style="display:none;"></div><div id="chartContainer"></div><!-- Fibonacci Levels Display --><div id="fiboLevels" style="padding:3px 10px; font-size:8px; background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.05); overflow-x:auto; white-space:nowrap;"><span style="color:var(--accent-yellow)">📐 FIBO:</span><span style="color:var(--text-dim)">Calculating...</span></div><!--  AI NARRATOR --><div style="padding:6px 10px; background:linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,212,255,0.08)); border-top:1px solid rgba(168,85,247,0.2);"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;"><span style="font-size:9px; font-weight:bold; color:var(--accent-purple);">🎯 AI NARRATOR</span><div style="display:flex; gap:6px; align-items:center;"><span id="narratorTimestamp" style="font-size:8px; color:var(--text-dim);">--:--</span><button onclick="speakNarrative()" style="background:rgba(168,85,247,0.2); border:1px solid var(--accent-purple); color:var(--accent-purple); padding:2px 6px; border-radius:3px; cursor:pointer; font-size:8px;" title="Read aloud"></button></div></div><div id="aiNarratorText" style="font-size:10px; line-height:1.4; color:var(--text-primary); transition:opacity 0.2s;">
           Analyzing market conditions...
-        </div></div></div><!-- SIDEBAR DERECHA --><div class="side-right"><!-- ALERTS + SIGNALS en Tabs --><div class="panel" style="flex:1; display:flex; flex-direction:column;"><div class="panel-head" style="padding:4px 8px;"><div class="tab-buttons" style="padding:0; gap:2px;"><button class="tab-btn active" onclick="switchRightTab('alerts')" style="padding:2px 6px; font-size:8px;">🔔 ALERTS <span id="alertCount" style="background:var(--accent-red); color:#fff; padding:0 3px; border-radius:6px; font-size:7px;">0</span></button><button class="tab-btn" onclick="switchRightTab('signals')" style="padding:2px 6px; font-size:8px;">📡 SIGNALS</button></div></div><div class="tab-content active scrollable" id="tab-alerts" style="flex:1;"><div id="alertsContainer"></div></div><div class="tab-content scrollable" id="tab-signals" style="flex:1;"><div id="signalHistoryList"><div style="text-align:center; color:var(--text-dim); padding:8px; font-size:9px;">Waiting for signals...</div></div></div></div><!-- ORDER BOOK --><div class="panel" style="flex:1; display:flex; flex-direction:column;"><div class="panel-head" style="padding:4px 8px;">📊 ORDER BOOK <span id="spoofWarning" style="display:none; color:var(--accent-orange);"></span></div><div id="askSide" style="flex:1; overflow:hidden;"></div><div style="padding:3px; text-align:center; background:rgba(0,212,255,0.1);"><span id="midPrice" style="font-family:var(--font-data); font-size:13px; font-weight:bold;">--</span></div><div id="bidSide" style="flex:1; overflow:hidden;"></div><div id="wallDetection" style="padding:2px; font-size:7px;"></div></div><!-- WHALES / ETF --><div class="panel" style="flex:1; display:flex; flex-direction:column;"><div class="panel-head" style="padding:4px 8px;"><div class="tab-buttons" style="padding:0; gap:2px;"><button class="tab-btn active" onclick="switchWhaleTab('whales')" style="padding:3px 10px; font-size:9px;">🐋 WHALES <span id="whaleCount" style="background:var(--accent-purple); padding:0 4px; border-radius:6px; font-size:8px;">0</span></button><button class="tab-btn" onclick="switchWhaleTab('etf')" style="padding:3px 10px; font-size:9px;">🏦 ETF</button></div></div><div class="tab-content active scrollable" id="tab-whales" style="flex:1; padding:8px;"><div id="whaleList"><div style="padding:10px; text-align:center; color:var(--text-dim); font-size:9px;">Monitoring &gt;5K XRP...</div></div></div><div class="tab-content" id="tab-etf" style="flex:1; padding:15px; text-align:center;"><div style="margin-top:15px;"><div style="font-size:13px; color:var(--accent-cyan); margin-bottom:6px; font-weight:bold;">XRP ETF DATA</div><div style="font-size:10px; color:var(--text-dim);">7 Spot ETFs  774M+ XRP Locked</div></div><div style="margin-top:15px;"><a href="https://xrp-insights.com" style="background:var(--accent-green); color:#000; padding:8px 20px; border-radius:5px; font-size:11px; text-decoration:none; font-weight:bold; display:inline-block;" target="_blank">VIEW LIVE DATA </a></div></div></div></div><!-- BOTTOM --><div class="bottom-box"><div class="panel"><div class="panel-head">📊 SIGNAL CONSENSUS</div><div style="padding:10px;"><div style="display:flex; justify-content:space-around; text-align:center;"><div><div style="font-size:9px; color:var(--text-dim);">BULLISH</div><div id="bullCount" style="font-size:22px; font-weight:bold; color:var(--accent-green);">0</div></div><div><div style="font-size:9px; color:var(--text-dim);">NEUTRAL</div><div id="neutCount" style="font-size:22px; font-weight:bold; color:var(--text-dim);">0</div></div><div><div style="font-size:9px; color:var(--text-dim);">BEARISH</div><div id="bearCount" style="font-size:22px; font-weight:bold; color:var(--accent-red);">0</div></div></div><div style="margin-top:10px; text-align:center;"><span id="consensus" style="font-size:14px; font-weight:bold;">ANALYZING...</span></div></div></div><div class="panel" id="aiEnginePanel"><div class="panel-head" style="display:flex; justify-content:space-between; align-items:center;"><span>🧠 AI ENGINE PRO</span><span id="aiVersion" style="font-size:8px; color:var(--text-dim);">v--</span></div><div style="padding:8px; font-family:var(--font-data); font-size:10px;"><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-dim);">Status:</span><span id="aiStatus" style="color:#f4b942;">INIT...</span></div><div id="aiCurrentPrediction" style="background:rgba(0,212,255,0.1); border-radius:4px; padding:6px; margin:6px 0; border-left:3px solid var(--text-dim);"><div style="display:flex; justify-content:space-between; align-items:center;"><span id="aiDirection" style="font-weight:bold; font-size:12px; color:var(--text-dim);">⏳ ANALYZING</span><span id="aiConfidence" style="font-size:11px; color:var(--text-dim);">--</span></div><div style="display:flex; justify-content:space-between; margin-top:4px; font-size:9px; color:var(--text-dim);"><span>Regime: <span id="aiRegime">--</span></span><span>Session: <span id="aiSession">--</span></span></div></div><div style="margin:6px 0;"><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:var(--text-dim);">Accuracy:</span><span id="aiAccuracy" style="color:#00d4ff;">0.0%</span></div><div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;"><div id="aiAccuracyBar" style="height:100%; width:0%; background:linear-gradient(90deg, #ff4466, #f4b942, #00ff88); transition:width 0.5s;"></div></div></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin:6px 0;"><div style="background:rgba(168,85,247,0.15); padding:4px 6px; border-radius:3px;"><div style="font-size:8px; color:var(--text-dim);">Patterns</div><div id="aiPatterns" style="font-size:12px; font-weight:bold; color:#a855f7;">0</div></div><div style="background:rgba(0,212,255,0.1); padding:4px 6px; border-radius:3px;"><div style="font-size:8px; color:var(--text-dim);">Pending</div><div id="aiPending" style="font-size:12px; font-weight:bold; color:#00d4ff;">0</div></div><div style="background:rgba(0,255,136,0.1); padding:4px 6px; border-radius:3px;"><div style="font-size:8px; color:var(--text-dim);">Total</div><div id="aiTotalPreds" style="font-size:12px; font-weight:bold; color:#00ff88;">0</div></div><div style="background:rgba(255,149,0,0.1); padding:4px 6px; border-radius:3px;"><div style="font-size:8px; color:var(--text-dim);">Win Rate</div><div id="aiWinRate" style="font-size:12px; font-weight:bold; color:#ff9500;">--</div></div></div><div style="margin-top:6px;"><div style="font-size:8px; color:var(--text-dim); margin-bottom:3px;">Best Horizons:</div><div id="aiHorizonsGrid" style="display:flex; flex-wrap:wrap; gap:3px;"><span style="color:var(--text-dim); font-size:8px;">Collecting...</span></div></div><details style="margin-top:6px;"><summary style="font-size:9px; color:var(--text-dim); cursor:pointer;">📊 Models</summary><div id="aiModelsGrid" style="margin-top:4px; display:grid; grid-template-columns:1fr 1fr; gap:2px; font-size:8px;"></div></details><div id="aiLastCompleted" style="margin-top:6px; padding:4px; background:rgba(255,255,255,0.03); border-radius:3px; font-size:8px; display:none;"><span style="color:var(--text-dim);">Last:</span> <span id="aiLastResult">--</span></div><div style="margin-top:6px; display:flex; justify-content:space-between; font-size:8px; color:var(--text-dim);"><span id="aiLastUpdate">--</span><span id="aiUpdateCounter" style="opacity:0.5;">#0</span></div></div></div><div class="panel"><div class="panel-head">💧 LIQUIDITY FLOW</div><div style="padding:10px;"><div style="display:flex; height:16px; border-radius:3px; overflow:hidden; margin-bottom:8px;"><div id="liqBarBid" style="background:var(--accent-green); height:100%; transition:width 0.3s;"></div><div id="liqBarAsk" style="background:var(--accent-red); height:100%; transition:width 0.3s;"></div></div><div id="liqText" style="font-size:10px; color:var(--text-dim); line-height:1.5;"></div><div id="cvdText" style="font-size:10px; color:var(--text-dim); margin-top:5px;"></div></div></div></div></main><script nonce="okrt-oraculum-nonce-2026" src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script><script nonce="okrt-oraculum-nonce-2026">
+        </div></div></div><!-- SIDEBAR DERECHA --><div class="side-right"><!-- ALERTS + SIGNALS en Tabs --><div class="panel" style="flex:1; display:flex; flex-direction:column;"><div class="panel-head" style="padding:4px 8px;"><div class="tab-buttons" style="padding:0; gap:2px;"><button class="tab-btn active" onclick="switchRightTab('alerts')" style="padding:2px 6px; font-size:8px;">🔔 ALERTS <span id="alertCount" style="background:var(--accent-red); color:#fff; padding:0 3px; border-radius:6px; font-size:7px;">0</span></button><button class="tab-btn" onclick="switchRightTab('signals')" style="padding:2px 6px; font-size:8px;">📡 SIGNALS</button></div></div><div class="tab-content active scrollable" id="tab-alerts" style="flex:1;"><div id="alertsContainer"></div></div><div class="tab-content scrollable" id="tab-signals" style="flex:1;"><div id="signalHistoryList"><div style="text-align:center; color:var(--text-dim); padding:8px; font-size:9px;">Waiting for signals...</div></div></div></div><!-- ORDER BOOK --><div class="panel" style="flex:1; display:flex; flex-direction:column;"><div class="panel-head" style="padding:4px 8px;">📊 ORDER BOOK <span id="spoofWarning" style="display:none; color:var(--accent-orange);"></span></div><div id="askSide" style="flex:1; overflow:hidden;"></div><div style="padding:3px; text-align:center; background:rgba(0,212,255,0.1);"><span id="midPrice" style="font-family:var(--font-data); font-size:13px; font-weight:bold;">--</span></div><div id="bidSide" style="flex:1; overflow:hidden;"></div><div id="wallDetection" style="padding:2px; font-size:7px;"></div></div><!-- WHALES / ETF --><div class="panel" style="flex:1; display:flex; flex-direction:column;"><div class="panel-head" style="padding:4px 8px;"><div class="tab-buttons" style="padding:0; gap:2px;"><button class="tab-btn active" onclick="switchWhaleTab('whales')" style="padding:3px 10px; font-size:9px;">🐋 WHALES <span id="whaleCount" style="background:var(--accent-purple); padding:0 4px; border-radius:6px; font-size:8px;">0</span></button><button class="tab-btn" onclick="switchWhaleTab('etf')" style="padding:3px 10px; font-size:9px;">🏦 ETF</button></div></div><div class="tab-content active scrollable" id="tab-whales" style="flex:1; padding:8px;"><div id="whaleList"><div style="padding:10px; text-align:center; color:var(--text-dim); font-size:9px;">Monitoring &gt;5K XRP...</div></div></div><div class="tab-content" id="tab-etf" style="flex:1; padding:15px; text-align:center;"><div style="margin-top:15px;"><div style="font-size:13px; color:var(--accent-cyan); margin-bottom:6px; font-weight:bold;">XRP ETF DATA</div><div style="font-size:10px; color:var(--text-dim);">7 Spot ETFs  774M+ XRP Locked</div></div><div style="margin-top:15px;"><a href="https://xrp-insights.com" style="background:var(--accent-green); color:#000; padding:8px 20px; border-radius:5px; font-size:11px; text-decoration:none; font-weight:bold; display:inline-block;" target="_blank">VIEW LIVE DATA </a></div></div></div></div><!-- BOTTOM --><div class="bottom-box"><div class="panel" id="aiEnginePanel" style="grid-column: span 1;"><div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px;"><div style="display:flex; align-items:center; gap:10px;"><span>🧠 AI ENGINE PRO</span><span id="aiStatus" style="font-size:9px; padding:2px 8px; border-radius:10px; background:rgba(244,185,66,0.2); color:#f4b942;">INIT</span></div><span id="aiVersion" style="font-size:8px; color:var(--text-dim);">v--</span></div><div style="padding:10px; font-family:var(--font-data);"><div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; align-items:start;"><!-- Col 1: Prediction --><div id="aiPredictionBox" style="background:rgba(0,212,255,0.05); border-radius:6px; padding:10px; border-left:3px solid #94a3b8;"><div style="font-size:8px; color:var(--text-dim); margin-bottom:6px;">CURRENT SIGNAL</div><div id="aiDirection" style="font-size:18px; font-weight:bold; color:#94a3b8;">⏳ ANALYZING</div><div id="aiConfidence" style="font-size:14px; color:#94a3b8; margin-top:4px;">--</div><div style="display:flex; gap:12px; margin-top:8px; font-size:9px;"><div><span style="color:var(--text-dim);">Regime:</span><br><span id="aiRegime" style="color:var(--accent-cyan);">--</span></div><div><span style="color:var(--text-dim);">Session:</span><br><span id="aiSession" style="color:var(--accent-cyan);">--</span></div></div></div><!-- Col 2: Stats Grid --><div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;"><div style="background:rgba(0,255,136,0.1); padding:8px; border-radius:4px; text-align:center;"><div style="font-size:8px; color:var(--text-dim);">ACCURACY</div><div id="aiAccuracy" style="font-size:16px; font-weight:bold; color:#00ff88;">0.0%</div><div style="height:3px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:4px;"><div id="aiAccuracyBar" style="height:100%; width:0%; background:linear-gradient(90deg,#ff4466,#f4b942,#00ff88); border-radius:2px;"></div></div></div><div style="background:rgba(168,85,247,0.15); padding:8px; border-radius:4px; text-align:center;"><div style="font-size:8px; color:var(--text-dim);">PATTERNS</div><div id="aiPatterns" style="font-size:16px; font-weight:bold; color:#a855f7;">0</div></div><div style="background:rgba(0,212,255,0.1); padding:8px; border-radius:4px; text-align:center;"><div style="font-size:8px; color:var(--text-dim);">PENDING</div><div id="aiPending" style="font-size:16px; font-weight:bold; color:#00d4ff;">0</div></div><div style="background:rgba(255,149,0,0.1); padding:8px; border-radius:4px; text-align:center;"><div style="font-size:8px; color:var(--text-dim);">WIN RATE</div><div id="aiWinRate" style="font-size:12px; font-weight:bold; color:#ff9500;">--</div></div></div><!-- Col 3: Horizons & Models --><div><div style="margin-bottom:10px;"><div style="font-size:8px; color:var(--text-dim); margin-bottom:4px;">BEST HORIZONS</div><div id="aiHorizonsGrid" style="display:flex; flex-wrap:wrap; gap:4px;"><span style="color:#64748b; font-size:9px;">Collecting...</span></div></div><div><div style="font-size:8px; color:var(--text-dim); margin-bottom:4px;">MODELS</div><div id="aiModelsGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:2px; font-size:8px;"></div></div><div style="margin-top:8px; font-size:8px; color:var(--text-dim); text-align:right;"><span id="aiLastUpdate">--</span></div></div></div></div></div><div class="panel"><div class="panel-head">💧 LIQUIDITY FLOW</div><div style="padding:10px;"><div style="display:flex; height:16px; border-radius:3px; overflow:hidden; margin-bottom:8px;"><div id="liqBarBid" style="background:var(--accent-green); height:100%; transition:width 0.3s;"></div><div id="liqBarAsk" style="background:var(--accent-red); height:100%; transition:width 0.3s;"></div></div><div id="liqText" style="font-size:10px; color:var(--text-dim); line-height:1.5;"></div><div id="cvdText" style="font-size:10px; color:var(--text-dim); margin-top:5px;"></div></div></div></div></main><script nonce="okrt-oraculum-nonce-2026" src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script><script nonce="okrt-oraculum-nonce-2026">
     // ============================================
     // SECURITY MODULE - Pentesting Ready
     // ============================================
@@ -8354,18 +8354,15 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
 
 
 // ============================================
-// AI ENGINE PRO STATUS PANEL UPDATE - ENHANCED v1.0
+// AI ENGINE PRO STATUS PANEL UPDATE - WIDE v1.0
 // ============================================
 (function() {
-  var updateCount = 0;
-  
   function updateAIEnginePanel() {
-    updateCount++;
-    
     if (!window.AIEnginePro || !window.AIEnginePro.isReady) {
       var statusEl = document.getElementById('aiStatus');
       if (statusEl) {
-        statusEl.textContent = 'LOADING...';
+        statusEl.textContent = 'LOADING';
+        statusEl.style.background = 'rgba(244,185,66,0.2)';
         statusEl.style.color = '#f4b942';
       }
       return;
@@ -8374,81 +8371,58 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     try {
       var stats = window.AIEnginePro.getStats();
       var currentPred = null;
-      
-      try {
-        currentPred = window.AIEnginePro.getPrediction ? window.AIEnginePro.getPrediction() : null;
-      } catch (e) {}
+      try { currentPred = window.AIEnginePro.getPrediction(); } catch(e) {}
       
       // Version
       var versionEl = document.getElementById('aiVersion');
-      if (versionEl && window.AIEnginePro.version) {
-        versionEl.textContent = 'v' + window.AIEnginePro.version;
-      }
+      if (versionEl && window.AIEnginePro.version) versionEl.textContent = 'v' + window.AIEnginePro.version;
       
       // Status
       var statusEl = document.getElementById('aiStatus');
       if (statusEl) {
         var pending = stats.memory ? stats.memory.pending : 0;
-        var patterns = stats.memory ? stats.memory.patterns : 0;
         if (pending > 0) {
-          statusEl.textContent = 'LEARNING (' + pending + ')';
+          statusEl.textContent = 'LEARNING';
+          statusEl.style.background = 'rgba(0,212,255,0.2)';
           statusEl.style.color = '#00d4ff';
-        } else if (patterns > 0) {
-          statusEl.textContent = 'ACTIVE';
-          statusEl.style.color = '#00ff88';
         } else {
-          statusEl.textContent = 'READY';
+          statusEl.textContent = 'ACTIVE';
+          statusEl.style.background = 'rgba(0,255,136,0.2)';
           statusEl.style.color = '#00ff88';
         }
       }
       
-      // Current Prediction
-      var predBox = document.getElementById('aiCurrentPrediction');
-      if (predBox && currentPred) {
+      // Prediction
+      if (currentPred) {
+        var predBox = document.getElementById('aiPredictionBox');
         var dirEl = document.getElementById('aiDirection');
         var confEl = document.getElementById('aiConfidence');
         var regimeEl = document.getElementById('aiRegime');
         var sessionEl = document.getElementById('aiSession');
         
+        var dir = currentPred.direction || 'NEUTRAL';
         if (dirEl) {
-          var dir = currentPred.direction || 'NEUTRAL';
           dirEl.textContent = dir === 'BULL' ? '🟢 BULLISH' : dir === 'BEAR' ? '🔴 BEARISH' : '⚪ NEUTRAL';
           dirEl.style.color = dir === 'BULL' ? '#00ff88' : dir === 'BEAR' ? '#ff4466' : '#94a3b8';
         }
-        
         if (confEl) {
           var conf = (currentPred.confidence || 0) * 100;
-          confEl.textContent = conf.toFixed(1) + '%';
+          confEl.textContent = conf.toFixed(1) + '% confidence';
           confEl.style.color = conf >= 70 ? '#00ff88' : conf >= 55 ? '#00d4ff' : '#94a3b8';
         }
-        
         if (regimeEl) {
-          var regime = currentPred.regime || 'unknown';
-          var regimeDisplay = {
-            'trending_up': '📈 Trend↑',
-            'trending_down': '📉 Trend↓',
-            'ranging': '↔️ Range',
-            'volatile': '⚡ Volatile'
-          };
-          regimeEl.textContent = regimeDisplay[regime] || regime;
+          var regime = currentPred.regime || '--';
+          var rd = {'trending_up':'📈 Trend Up','trending_down':'📉 Trend Down','ranging':'↔️ Ranging','volatile':'⚡ Volatile'};
+          regimeEl.textContent = rd[regime] || regime;
         }
-        
         if (sessionEl) {
-          var session = currentPred.session || '--';
-          var sessionDisplay = { 'ASIA': '🌏', 'EUROPE': '🌍', 'US': '🌎' };
-          sessionEl.textContent = (sessionDisplay[session] || '') + ' ' + session;
+          var sess = currentPred.session || '--';
+          var sd = {'ASIA':'🌏 Asia','EUROPE':'🌍 Europe','US':'🌎 US'};
+          sessionEl.textContent = sd[sess] || sess;
         }
-        
-        var dir = currentPred.direction || 'NEUTRAL';
-        if (dir === 'BULL') {
-          predBox.style.background = 'rgba(0,255,136,0.1)';
-          predBox.style.borderLeftColor = '#00ff88';
-        } else if (dir === 'BEAR') {
-          predBox.style.background = 'rgba(255,68,102,0.1)';
-          predBox.style.borderLeftColor = '#ff4466';
-        } else {
-          predBox.style.background = 'rgba(0,212,255,0.1)';
-          predBox.style.borderLeftColor = '#94a3b8';
+        if (predBox) {
+          predBox.style.borderLeftColor = dir === 'BULL' ? '#00ff88' : dir === 'BEAR' ? '#ff4466' : '#94a3b8';
+          predBox.style.background = dir === 'BULL' ? 'rgba(0,255,136,0.1)' : dir === 'BEAR' ? 'rgba(255,68,102,0.1)' : 'rgba(0,212,255,0.05)';
         }
       }
       
@@ -8458,102 +8432,60 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       if (accEl && stats.overall) {
         var acc = stats.overall.accuracy || 0;
         accEl.textContent = (acc * 100).toFixed(1) + '%';
-        accEl.style.color = acc >= 0.55 ? '#00ff88' : acc >= 0.45 ? '#00d4ff' : '#ff4466';
+        accEl.style.color = acc >= 0.55 ? '#00ff88' : acc >= 0.45 ? '#f4b942' : '#ff4466';
         if (accBar) accBar.style.width = Math.min(100, acc * 100) + '%';
       }
       
-      // Stats
+      // Patterns & Pending
       var patEl = document.getElementById('aiPatterns');
       if (patEl && stats.memory) patEl.textContent = stats.memory.patterns || 0;
       
       var pendEl = document.getElementById('aiPending');
-      if (pendEl && stats.memory) {
-        var pend = stats.memory.pending || 0;
-        pendEl.textContent = pend;
-        pendEl.style.color = pend > 30 ? '#ff9500' : pend > 0 ? '#00d4ff' : '#94a3b8';
-      }
+      if (pendEl && stats.memory) pendEl.textContent = stats.memory.pending || 0;
       
-      var totalEl = document.getElementById('aiTotalPreds');
-      if (totalEl && stats.overall) totalEl.textContent = stats.overall.totalPredictions || 0;
-      
+      // Win Rate
       var winEl = document.getElementById('aiWinRate');
       if (winEl && stats.overall) {
-        var total = stats.overall.totalPredictions || 0;
-        var correct = stats.overall.correctPredictions || 0;
-        if (total > 0) {
-          winEl.textContent = correct + '/' + total;
-          winEl.style.color = (correct/total) >= 0.55 ? '#00ff88' : (correct/total) >= 0.45 ? '#f4b942' : '#ff4466';
-        } else {
-          winEl.textContent = '--';
-        }
+        var t = stats.overall.totalPredictions || 0;
+        var c = stats.overall.correctPredictions || 0;
+        winEl.textContent = t > 0 ? c + '/' + t : '--';
       }
       
       // Horizons
-      var horizonsGrid = document.getElementById('aiHorizonsGrid');
-      if (horizonsGrid && stats.horizons) {
+      var hGrid = document.getElementById('aiHorizonsGrid');
+      if (hGrid && stats.horizons) {
+        var sorted = Object.entries(stats.horizons).filter(function(e){return e[1].total>=2;}).sort(function(a,b){return b[1].accuracy-a[1].accuracy;});
         var html = '';
-        var sorted = Object.entries(stats.horizons)
-          .filter(function(e) { return e[1].total >= 2; })
-          .sort(function(a, b) { return b[1].accuracy - a[1].accuracy; });
-        
         if (sorted.length === 0) {
-          html = '<span style="color:#94a3b8; font-size:8px;">Collecting...</span>';
+          html = '<span style="color:#64748b;font-size:9px;">Collecting...</span>';
         } else {
-          sorted.slice(0, 4).forEach(function(e) {
-            var h = e[0], data = e[1];
-            var accH = (data.accuracy * 100).toFixed(0);
-            var color = data.accuracy >= 0.55 ? '#00ff88' : data.accuracy >= 0.45 ? '#00d4ff' : '#ff4466';
-            html += '<div style="background:rgba(255,255,255,0.05); padding:2px 5px; border-radius:3px; font-size:8px;">' +
-              '<span style="color:#94a3b8;">' + h + 'm:</span> ' +
-              '<span style="color:' + color + '; font-weight:bold;">' + accH + '%</span>' +
-              '<span style="color:#64748b; font-size:7px;">(' + data.total + ')</span></div>';
+          sorted.slice(0,4).forEach(function(e){
+            var h=e[0], d=e[1], a=(d.accuracy*100).toFixed(0);
+            var col = d.accuracy>=0.55?'#00ff88':d.accuracy>=0.45?'#f4b942':'#ff4466';
+            html += '<div style="background:rgba(255,255,255,0.05);padding:3px 6px;border-radius:3px;font-size:9px;"><span style="color:#94a3b8;">'+h+'m</span> <span style="color:'+col+';font-weight:bold;">'+a+'%</span></div>';
           });
         }
-        horizonsGrid.innerHTML = html;
+        hGrid.innerHTML = html;
       }
       
       // Models
-      var modelsGrid = document.getElementById('aiModelsGrid');
-      if (modelsGrid && stats.models) {
+      var mGrid = document.getElementById('aiModelsGrid');
+      if (mGrid && stats.models) {
         var html = '';
-        for (var name in stats.models) {
-          var data = stats.models[name];
-          var accStr = data.accuracy || '50.0%';
-          var accNum = parseFloat(accStr);
-          var color = accNum >= 55 ? '#00ff88' : accNum >= 45 ? '#94a3b8' : '#ff4466';
-          html += '<div style="display:flex; justify-content:space-between; padding:2px 4px; background:rgba(255,255,255,0.03); border-radius:2px;">' +
-            '<span style="color:#94a3b8;">' + name + '</span>' +
-            '<span style="color:' + color + ';">' + accStr + '</span></div>';
+        for (var n in stats.models) {
+          var m = stats.models[n];
+          var a = parseFloat(m.accuracy);
+          var col = a>=55?'#00ff88':a>=45?'#94a3b8':'#ff4466';
+          html += '<div style="display:flex;justify-content:space-between;padding:1px 3px;"><span style="color:#64748b;">'+n+'</span><span style="color:'+col+';">'+m.accuracy+'</span></div>';
         }
-        modelsGrid.innerHTML = html;
-      }
-      
-      // Last Completed
-      var lastBox = document.getElementById('aiLastCompleted');
-      var lastResult = document.getElementById('aiLastResult');
-      if (lastBox && lastResult && window.AIEnginePro.predictions && window.AIEnginePro.predictions.completed && window.AIEnginePro.predictions.completed.length > 0) {
-        var last = window.AIEnginePro.predictions.completed[window.AIEnginePro.predictions.completed.length - 1];
-        if (last && last.outcome) {
-          lastBox.style.display = 'block';
-          var success = last.outcome.success;
-          var change = (last.outcome.avgPriceChange || 0).toFixed(3);
-          lastResult.innerHTML = '<span style="color:' + (success ? '#00ff88' : '#ff4466') + ';">' + (success ? '✓' : '✗') + '</span> ' + change + '%';
-        }
+        mGrid.innerHTML = html;
       }
       
       // Timestamp
-      var updateEl = document.getElementById('aiLastUpdate');
-      if (updateEl) {
-        var now = new Date();
-        updateEl.textContent = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      }
+      var upEl = document.getElementById('aiLastUpdate');
+      if (upEl) upEl.textContent = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
       
-      var counterEl = document.getElementById('aiUpdateCounter');
-      if (counterEl) counterEl.textContent = '#' + updateCount;
-      
-    } catch (e) {
-      console.warn('[UI] AI Panel error:', e);
-    }
+    } catch (e) { console.warn('[UI] AI Panel error:', e); }
   }
   
   setInterval(updateAIEnginePanel, 3000);
