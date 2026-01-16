@@ -1,187 +1,194 @@
-# XRP ORACULUM – AI Engine PRO v1.0  
-### by OkrtSystem Labs
+<div align="center">
 
-XRP ORACULUM es una plataforma avanzada de inteligencia de mercado diseñada para análisis técnico, detección de patrones y generación de señales mediante **IA modular, memoria persistente y arquitectura serverless**.
+# ORACULUM  
+### Market Intelligence Dashboard for XRP — OkrtSystem Labs
 
-El proyecto está orientado a demostrar cómo se puede construir una herramienta financiera **enterprise-grade** en entorno web ligero, sin servidores dedicados y con seguridad real en despliegue público.
+**Real-time multi-feed + AI Engine PRO with auto-prediction and live performance metrics.**
 
----
 
-## 🚀 Características principales
+> © 2025–2026 **OkrtSystem Labs** — All rights reserved.
 
-- **AI Engine PRO v1.0**
-  - Motor de IA modular basado en *Ensemble Learning*
-  - 6 modelos especializados trabajando en conjunto
-  - Sistema de votación por consenso, confluencia y contexto
-
-- **Memoria persistente (Firestore)**
-  - Almacenamiento de patrones validados
-  - Historial de escenarios exitosos
-  - Reutilización de conocimiento en tiempo real
-
-- **Arquitectura Serverless**
-  - Single-file HTML
-  - Sin backend tradicional
-  - Firebase como capa de seguridad y persistencia
-
-- **Multi-feed con Failover automático**
-  - Binance (primary)
-  - Coinbase (fallback)
-  - Kraken (fallback)
-  - Conmutación automática si un exchange cae
-
-- **Seguridad Enterprise en entorno público**
-  - Firebase App Check (reCAPTCHA v3 en modo ENFORCE)
-  - Autenticación anónima
-  - Protección contra bots, scrapers y llamadas externas
-
-- **Telemetría multi-exchange**
-  - Binance, Coinbase, Kraken, Bitstamp, Bybit, Crypto.com
-  - Detección de whales, spoofing y anomalías de liquidez
+</div>
 
 ---
 
-## 🧠 AI Engine PRO – Arquitectura
-
-El motor no se basa en un único indicador ni en lógica lineal.  
-Funciona como un **sistema de votación por conjunto (Ensemble Voting)** donde varios módulos compiten y colaboran:
-
-### Modelos activos
-
-1. **Momentum**
-   - RSI
-   - Stochastic
-   - Divergencias
-
-2. **Trend**
-   - EMA Cross
-   - MACD
-   - ADX
-
-3. **Volume**
-   - OBV
-   - Delta de volumen acumulado (CVD)
-   - Flujo de órdenes
-
-4. **Structure (Smart Money)**
-   - Order Blocks
-   - Fair Value Gaps (FVG)
-   - Zonas de liquidez
-
-5. **Patterns**
-   - Reconocimiento de velas
-   - Patrones chartistas
-
-6. **Multi-Timeframe (MTF)**
-   - Confluencia desde 1m hasta 4h
+## Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [AI ENGINE PRO](#ai-engine-pro)
+- [Live Accuracy Update](#live-accuracy-update)
+- [Screenshots](#screenshots)
+- [Run ORACULUM](#run-oraculum)
+  - [Web (local server)](#web-local-server)
+  - [Desktop App (Windows Installer)](#desktop-app-windows-installer)
+- [Technical Notes](#technical-notes)
+- [Security](#security)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-## 🔁 Auto-Optimización
+## Overview
 
-El motor incorpora un **Optimization Loop** que:
+**ORACULUM** is a real-time market intelligence dashboard designed to monitor **XRP** across multiple exchanges, displaying key telemetry, liquidity/flow signals and an integrated **AI Engine** capable of generating **multi-horizon predictions**, validating results and improving over time.
 
-- Recalibra pesos de cada modelo según rendimiento reciente  
-- Aplica *learning rate* dinámico  
-- Refuerza lo que funciona  
-- Reduce ruido y falsos positivos  
-
-Esto convierte al sistema en un motor adaptativo, no estático.
+This project is built and maintained by **OkrtSystem Labs**, oriented to a **high-performance, enterprise-looking UI** with a **robust feed layer** and an AI module ready for long-running sessions.
 
 ---
 
-## 🧠 Memoria Persistente
+## Key Features
 
-A través de Firestore, XRP ORACULUM almacena:
+### Real-time Multi-Feed (Failover)
+- WebSocket streaming from multiple sources
+- Automatic feed failover logic *(e.g., Binance → Coinbase → Kraken)*
+- Designed for long sessions with recovery patterns
 
-- Patrones exitosos  
-- Escenarios validados  
-- Condiciones de mercado previas a movimientos relevantes  
+### AI ENGINE PRO (Integrated)
+- Auto-prediction cycles
+- Multi-horizon validation
+- Performance tracking + “Best Horizon” signal
+- State persistence supported *(Firestore when enabled)*
 
-Cuando el mercado actual se asemeja a un escenario histórico:
-
-- Ajusta confianza  
-- Reprioriza señales  
-- Reduce falsos positivos  
-
----
-
-## 🌐 Arquitectura de datos
-
-Crypto Exchanges (WebSocket Streams)
-↓
-MarketFeedManager (Failover automático)
-↓
-Client Side (Browser)
-
-- UI
-
-- AI Engine PRO
-
-- Telemetría
-↓
-Serverless Backend (Firebase)
-
-- App Check
-
-- Auth Anónimo
-
-- Firestore Memory
----
-
+### Dashboard Experience
+- Compact, readable cards & telemetry blocks
+- Designed for desktop, ultrawide and long-running usage
+- Fast, single-file delivery (web build) + installable desktop packaging
 
 ---
 
-## 🛡 Seguridad
+## AI ENGINE PRO
 
-XRP ORACULUM está diseñado para ser **público pero protegido**:
+The **AI ENGINE PRO** module runs as a self-contained engine connected to the live market feed:
 
-- **Firebase App Check (ENFORCE)**
-  - Bloquea bots, scrapers y tráfico automatizado
+### Workflow
+1. **Market ingestion**
+   - Receives price/candle data from connectors.
+2. **Auto-prediction generation**
+   - Creates prediction jobs at fixed intervals.
+3. **Verification & scoring**
+   - Validates each prediction against configured horizons.
+4. **Metrics & optimization**
+   - Updates accuracy, best horizon, pending queue and memory patterns.
 
-- **Autenticación anónima**
-  - Sin login tradicional
-  - Sin exposición de credenciales
+### Default Horizons
+`2m, 5m, 10m, 15m, 30m, 60m, 120m, 240m`
 
-- **Validación por token**
-  - Solo la app legítima accede a la base de datos
-
----
-
-## 🧱 Stack Tecnológico
-
-- **Frontend:** Vanilla JavaScript (ES6+)
-- **Realtime Data:** WebSocket API
-- **Backend Serverless:** Firebase (Firestore, Auth, App Check)
-- **Deploy:** GitHub Pages
-
----
-
-## 📊 Estado actual
-
-- AI Engine PRO operativo  
-- Multi-feed activo con failover  
-- Firestore conectado  
-- App Check en modo ENFORCE  
-- Memoria persistente habilitada  
-- Optimización automática activa  
+### UI Metrics (AI ENGINE PRO Card)
+- **Status**: engine state (READY, etc.)
+- **Accuracy**: live + consolidated accuracy
+- **Patterns**: learned patterns stored in memory
+- **Pending**: active predictions waiting validation
+- **Best H**: best-performing horizon in current runtime
 
 ---
 
-## ⚠️ Disclaimer
+## Live Accuracy Update
 
-**NO ES CONSEJO FINANCIERO.**  
-XRP ORACULUM es una herramienta experimental de análisis técnico y arquitectura de IA aplicada a mercados financieros.
+Previously, during the first hours of runtime, **Accuracy** could remain at **0.0%** even though the engine was working correctly.
+
+### Why it happened
+Global accuracy was primarily consolidated after completing long-horizon predictions  
+(e.g., `240m = 4 hours`).  
+Before the first full prediction was closed, the UI had little to display.
+
+### What’s improved now (PRO approach)
+ORACULUM now computes an **in-live provisional accuracy** based on validated short/medium horizons (`2m/5m/10m/...`) **without changing the true final scoring logic**.
+
+✅ Accuracy becomes meaningful within minutes  
+✅ Final accuracy remains authoritative after full horizon completion  
+✅ No changes to the AI workflow, UI layout or prediction model behavior
 
 ---
 
-## 🔗 Demo
+## Screenshots
 
-https://franjuanp.github.io/OkrtSystemLabs/
+> Add your screenshots inside a `/docs/screens/` folder and reference them here.
+
+<div align="center">
+
+**AI ENGINE PRO — Live Metrics Card**  
+<img src="docs/screens/ai_engine_pro_card.png" width="640"/>
+
+<br/>
+
+**Runtime Console — Engine Loading + Feeds Connected**  
+<img src="docs/screens/console_runtime.png" width="640"/>
+
+</div>
 
 ---
 
-© 2026 OkrtSystem Labs. Todos los derechos reservados.
+## Run ORACULUM
 
+### Web (local server)
 
+Recommended to avoid `file://` execution.
 
+```bash
+python -m http.server 8080
+```
+
+Open:
+- `http://localhost:8080`
+
+---
+
+### Desktop App (Windows Installer)
+
+ORACULUM can be packaged as a **real installable product** using Electron:
+
+- `.exe installer`
+- desktop shortcut
+- start menu entry
+- offline bundle (local index + JS assets)
+
+Basic build flow:
+
+```bash
+npm install
+npm run start
+npm run dist
+```
+
+Output installer appears under:
+`/dist/`
+
+---
+
+## Technical Notes
+
+### Browser warning: ResizeObserver loop
+You may occasionally see:
+
+`ResizeObserver loop completed with undelivered notifications`
+
+This is a common dashboard/UI warning in Chrome/Edge when layouts resize rapidly during frequent updates.  
+In normal conditions it does **not** affect ORACULUM’s functionality.
+
+---
+
+## Security
+
+Depending on build configuration, ORACULUM supports:
+- **App Check enabled mode**
+- CSP hardening paths
+- safer UI rendering patterns (anti-self-XSS discipline)
+
+---
+
+## Roadmap
+
+- [ ] Exportable evidence/timeline per alert
+- [ ] Report generator (PDF/Markdown)
+- [ ] Dedicated enrichment queue for stability under load
+- [ ] Desktop auto-update channel (signed builds)
+- [ ] Extended AI memory + pattern clustering
+
+---
+
+## License
+
+**Proprietary Software**  
+© 2025–2026 OkrtSystem Labs — All rights reserved.
+
+No redistribution, modification or commercial use without explicit authorization.
