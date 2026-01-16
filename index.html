@@ -4977,7 +4977,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       aiState.signalQuality = signalQuality;
       
       // 2.7 AI Learning Integration
-      if (AILearning.isInitialized && signalQuality.score >= 60) {
+      if (AILearning.isInitialized && signalQuality.score >= 40) {
         // Query pattern memory for boost
         const patternMatch = AILearning.queryPatterns({
           regime: regime.regime,
@@ -5003,7 +5003,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         }
         
         // Record prediction for learning (only significant signals)
-        if (Math.abs(aiState.probabilityBull - 50) > 10) {
+        if (Math.abs(aiState.probabilityBull - 50) > 5) {
           const direction = aiState.probabilityBull > 50 ? 'BULL' : 'BEAR';
           AILearning.recordPrediction({
             direction,
@@ -8305,4 +8305,4 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(__okrtEnsureAnonAuth__, 200));
 })();
 </script>
-<script src="ai-engine-pro.js?v=1.0.0"></script></body></html>
+<script src="ai-engine-pro.js?v=1.1.0"></script></body></html>
