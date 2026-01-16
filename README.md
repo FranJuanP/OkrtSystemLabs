@@ -1,119 +1,187 @@
-# XRP ORACULUM — OkrtSystem Labs
+# XRP ORACULUM – AI Engine PRO v1.0  
+### by OkrtSystem Labs
 
-**Real-time Market Intelligence + AI Engine PRO (client-only)**  
-Public deployment en **GitHub Pages** (single-file build) con **seguridad endurecida**.
+XRP ORACULUM es una plataforma avanzada de inteligencia de mercado diseñada para análisis técnico, detección de patrones y generación de señales mediante **IA modular, memoria persistente y arquitectura serverless**.
 
----
-
-## Visión
-**XRP ORACULUM** nace con un objetivo claro: construir una herramienta capaz de **observar el mercado en tiempo real**, detectar patrones útiles y ejecutar una capa de inteligencia (AI Engine) que pueda evolucionar sin romper la base.
-
-Este proyecto está diseñado con mentalidad “producto”:
-- Robustez en tiempo real
-- Modularidad
-- Seguridad real para publicación pública
-- Evolución incremental (Base → PRO → Enterprise)
+El proyecto está orientado a demostrar cómo se puede construir una herramienta financiera **enterprise-grade** en entorno web ligero, sin servidores dedicados y con seguridad real en despliegue público.
 
 ---
 
-## Qué es ORACULUM
-**ORACULUM** es una herramienta web para **monitorización y análisis cripto** que combina:
+## 🚀 Características principales
 
-- **Flujo en vivo** mediante WebSockets (multi-exchange)
-- **Contexto histórico** (candles) para enriquecer lectura de mercado
-- **AI Learning Base** como núcleo estable
-- **AI Engine PRO** como capa avanzada conectada al núcleo, con memoria persistente
+- **AI Engine PRO v1.0**
+  - Motor de IA modular basado en *Ensemble Learning*
+  - 6 modelos especializados trabajando en conjunto
+  - Sistema de votación por consenso, confluencia y contexto
 
-> ORACULUM no es solo un dashboard: es un sistema vivo que procesa señal, contexto y persistencia.
+- **Memoria persistente (Firestore)**
+  - Almacenamiento de patrones validados
+  - Historial de escenarios exitosos
+  - Reutilización de conocimiento en tiempo real
 
----
+- **Arquitectura Serverless**
+  - Single-file HTML
+  - Sin backend tradicional
+  - Firebase como capa de seguridad y persistencia
 
-## Características principales
-### Real-time Core
-- Conexiones WebSocket multi-exchange para datos live.
-- Gestión de estado y refresco de información en UI.
-- Arquitectura orientada a estabilidad (evita colapsos ante flujo continuo).
+- **Multi-feed con Failover automático**
+  - Binance (primary)
+  - Coinbase (fallback)
+  - Kraken (fallback)
+  - Conmutación automática si un exchange cae
 
-### Contexto histórico
-- Carga de histórico de velas (1m) para contexto inicial.
-- Base para construir señales robustas y métricas agregadas.
+- **Seguridad Enterprise en entorno público**
+  - Firebase App Check (reCAPTCHA v3 en modo ENFORCE)
+  - Autenticación anónima
+  - Protección contra bots, scrapers y llamadas externas
 
-### AI Learning Base (núcleo)
-- Preparado para:
-  - organizar señal
-  - consolidar patrones
-  - exponer un “punto único” de integración para módulos superiores
-
-### AI Engine PRO v1.0.0
-Capa avanzada integrada sobre el núcleo (`AILearning`):
-
-- Hook directo sobre el core (enganche estable)
-- Estado persistente en Firestore
-- Modelos y features activos
-- Preparada para evolución incremental sin tocar el core
+- **Telemetría multi-exchange**
+  - Binance, Coinbase, Kraken, Bitstamp, Bybit, Crypto.com
+  - Detección de whales, spoofing y anomalías de liquidez
 
 ---
 
-## Arquitectura
-### Frontend (Single-file build)
-- Aplicación publicada como **HTML único** (GitHub Pages).
-- UI y lógica de orquestación integradas en el mismo archivo.
+## 🧠 AI Engine PRO – Arquitectura
 
-### Módulo PRO externo
-- Carga modular mediante:
-  - `ai-engine-pro.js?v=1.0.0`
-- Cache-busting con querystring para evitar problemas de caché.
+El motor no se basa en un único indicador ni en lógica lineal.  
+Funciona como un **sistema de votación por conjunto (Ensemble Voting)** donde varios módulos compiten y colaboran:
 
-### Firebase
-- **Authentication (Anonymous)**: identidad silenciosa sin login UI.
-- **Firestore**: persistencia de estado, memoria y patrones.
-- **App Check (reCAPTCHA v3) en ENFORCE**: protección anti-abuso en producción pública.
+### Modelos activos
+
+1. **Momentum**
+   - RSI
+   - Stochastic
+   - Divergencias
+
+2. **Trend**
+   - EMA Cross
+   - MACD
+   - ADX
+
+3. **Volume**
+   - OBV
+   - Delta de volumen acumulado (CVD)
+   - Flujo de órdenes
+
+4. **Structure (Smart Money)**
+   - Order Blocks
+   - Fair Value Gaps (FVG)
+   - Zonas de liquidez
+
+5. **Patterns**
+   - Reconocimiento de velas
+   - Patrones chartistas
+
+6. **Multi-Timeframe (MTF)**
+   - Confluencia desde 1m hasta 4h
 
 ---
 
-## Seguridad (hardening real para publicación pública)
-ORACULUM está diseñado para operar públicamente de forma segura, evitando los errores típicos de apps client-only.
+## 🔁 Auto-Optimización
 
-### 1) Content Security Policy (CSP)
-- Política CSP restrictiva, basada en lista blanca.
-- Bloqueo de ejecución no autorizada y mitigación frente a vectores comunes de inyección.
+El motor incorpora un **Optimization Loop** que:
 
-### 2) App Check (ENFORCE)
-- Firestore protegido mediante **App Check (reCAPTCHA v3)**
-- Solo la app verificada puede acceder a Firestore
-- Bloqueo de scripts externos / abuso automatizado
+- Recalibra pesos de cada modelo según rendimiento reciente  
+- Aplica *learning rate* dinámico  
+- Refuerza lo que funciona  
+- Reduce ruido y falsos positivos  
 
-### 3) Auth anónimo
-- Cada cliente obtiene una sesión válida
-- Permite operar Firestore sin credenciales visibles del usuario
-- Compatible con reglas seguras (lectura controlada / escritura autenticada)
+Esto convierte al sistema en un motor adaptativo, no estático.
 
-### Nota importante sobre `firebaseConfig`
-En Firebase Web, el `firebaseConfig` puede existir en frontend por diseño.  
-La seguridad real la garantizan:
-- Rules bien configuradas
+---
+
+## 🧠 Memoria Persistente
+
+A través de Firestore, XRP ORACULUM almacena:
+
+- Patrones exitosos  
+- Escenarios validados  
+- Condiciones de mercado previas a movimientos relevantes  
+
+Cuando el mercado actual se asemeja a un escenario histórico:
+
+- Ajusta confianza  
+- Reprioriza señales  
+- Reduce falsos positivos  
+
+---
+
+## 🌐 Arquitectura de datos
+
+Crypto Exchanges (WebSocket Streams)
+↓
+MarketFeedManager (Failover automático)
+↓
+Client Side (Browser)
+
+- UI
+
+- AI Engine PRO
+
+- Telemetría
+↓
+Serverless Backend (Firebase)
+
 - App Check
-- Auth (aunque sea anónimo)
-- Restricciones de uso
+
+- Auth Anónimo
+
+- Firestore Memory
+---
+
 
 ---
 
-## Estado del proyecto
-✅ Publicado en GitHub Pages  
-✅ AI Engine PRO activo  
-✅ Firestore protegido con App Check ENFORCE  
-✅ Auth anónimo funcionando  
-✅ Single-file build estable
+## 🛡 Seguridad
+
+XRP ORACULUM está diseñado para ser **público pero protegido**:
+
+- **Firebase App Check (ENFORCE)**
+  - Bloquea bots, scrapers y tráfico automatizado
+
+- **Autenticación anónima**
+  - Sin login tradicional
+  - Sin exposición de credenciales
+
+- **Validación por token**
+  - Solo la app legítima accede a la base de datos
 
 ---
 
-## Uso / Despliegue
-### GitHub Pages
-La aplicación se publica como:
-- `index.html`
-- `ai-engine-pro.js`
+## 🧱 Stack Tecnológico
+
+- **Frontend:** Vanilla JavaScript (ES6+)
+- **Realtime Data:** WebSocket API
+- **Backend Serverless:** Firebase (Firestore, Auth, App Check)
+- **Deploy:** GitHub Pages
 
 ---
 
-## Copyright
-© 2026 **OkrtSystem Labs**. Todos los derechos reservados.
+## 📊 Estado actual
+
+- AI Engine PRO operativo  
+- Multi-feed activo con failover  
+- Firestore conectado  
+- App Check en modo ENFORCE  
+- Memoria persistente habilitada  
+- Optimización automática activa  
+
+---
+
+## ⚠️ Disclaimer
+
+**NO ES CONSEJO FINANCIERO.**  
+XRP ORACULUM es una herramienta experimental de análisis técnico y arquitectura de IA aplicada a mercados financieros.
+
+---
+
+## 🔗 Demo
+
+https://franjuanp.github.io/OkrtSystemLabs/
+
+---
+
+© 2026 OkrtSystem Labs. Todos los derechos reservados.
+
+
+
