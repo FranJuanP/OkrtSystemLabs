@@ -1,219 +1,311 @@
-/*
-  ORACULUM Market Feed Manager
-  Multi-Exchange WebSocket Handler with Failover
-  OkrtSystem Labs
-*/
+// ============================================
+// Market Feed Manager (Failover) — ORACULUM
+// Clean & stable build (fixes SyntaxError)
+// Copyright (c) 2025–2026 OkrtSystem Labs
+// ============================================
 
-class MarketFeedManager {
-    constructor(symbol = 'XRPUSDT', onDataCallback) {
-        this.symbol = symbol.toLowerCase();
-        this.onData = onDataCallback;
+'use strict';
 
-        this.feeds = [
-            { name: 'binance', connect: this.connectBinance.bind(this) },
-            { name: 'coinbase', connect: this.connectCoinbase.bind(this) },
-            { name: 'kraken', connect: this.connectKraken.bind(this) },
-            { name: 'bitstamp', connect: this.connectBitstamp.bind(this) }
-        ];
+/**
+ * Candle shape delivered to callback:
+ * {
+ *   ts: number,            // candle open timestamp (ms)
+ *   tf: "1m",
+ *   symbol: "XRPUSDT",
+ *   open: number,
+ *   high: number,
+ *   low: number,
+ *   close: number,
+ *   volume: number,
+ *   closed: boolean,
+ *   source: "BINANCE" | "COINBASE" | "KRAKEN"
+ * }
+ */
 
-        this.activeFeedIndex = 0;
-        this.ws = null;
-        this.reconnectTimeout = null;
+(function (global) {
+  // Avoid redefining
+  if (global.MarketFeedManager) return;
 
-        console.log('[FEED] Manager initialized');
+  const TF = '1m';
+
+  // ---- Utilities ----
+  function now() { return Date.now(); }
+  function safeNum(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  function lower(s) { return String(s || '').toLowerCase(); }
+
+  // Small backoff helper
+  function backoff(attempt) {
+    const base = 800;
+    const cap = 15000;
+    const t = Math.min(cap, base * Math.pow(1.6, attempt));
+    return Math.floor(t + Math.random() * 250);
+  }
+
+  class MarketFeedManager {
+    constructor(symbol, onCandle) {
+      this.symbol = String(symbol || 'XRPUSDT').toUpperCase();
+      this.onCandle = typeof onCandle === 'function' ? onCandle : null;
+
+      this._ws = null;
+      this._running = false;
+
+      // Failover chain
+      this._providers = [
+        { name: 'BINANCE', connect: () => this._connectBinance() },
+        { name: 'COINBASE', connect: () => this._connectCoinbase() },
+        { name: 'KRAKEN', connect: () => this._connectKraken() }
+      ];
+
+      this._providerIndex = 0;
+      this._reconnectAttempt = 0;
+
+      this._lastClose = 0;
+      this._lastTickTs = 0;
+
+      console.log('[FEED] Manager initialized');
     }
 
     start() {
-        console.log('[FEED] Starting feed manager...');
-        this.connectActiveFeed();
+      if (this._running) return;
+      this._running = true;
+      console.log('[FEED] Starting feed manager...');
+      this._providerIndex = 0;
+      this._reconnectAttempt = 0;
+      this._connectCurrentProvider();
     }
 
-    connectActiveFeed() {
-        const feed = this.feeds[this.activeFeedIndex];
-        console.log(`[FEED] Connecting to ${feed.name.toUpperCase()}...`);
-        feed.connect();
+    stop() {
+      this._running = false;
+      this._reconnectAttempt = 0;
+      this._closeWs();
+      console.log('[FEED] Stopped');
     }
 
-    failover() {
-        console.warn(`[FEED] ${this.feeds[this.activeFeedIndex].name.toUpperCase()} failed. Switching feed...`);
-        this.cleanup();
+    // ---- Core failover ----
+    _connectCurrentProvider() {
+      if (!this._running) return;
 
-        this.activeFeedIndex = (this.activeFeedIndex + 1) % this.feeds.length;
+      const p = this._providers[this._providerIndex];
+      if (!p) {
+        // Reset to first provider
+        this._providerIndex = 0;
+        return this._connectCurrentProvider();
+      }
 
-        this.reconnectTimeout = setTimeout(() => {
-            this.connectActiveFeed();
-        }, 1500);
+      try {
+        p.connect();
+      } catch (e) {
+        console.warn('[FEED] Provider connect failed:', p.name, e);
+        this._failoverNext();
+      }
     }
 
-    cleanup() {
-        if (this.ws) {
-            try {
-                this.ws.close();
-            } catch (e) {}
-            this.ws = null;
+    _failoverNext() {
+      if (!this._running) return;
+      this._closeWs();
+
+      this._providerIndex = (this._providerIndex + 1) % this._providers.length;
+      const wait = backoff(this._reconnectAttempt++);
+      const next = this._providers[this._providerIndex]?.name || 'UNKNOWN';
+
+      console.warn(`[FEED] Failover → ${next} (retry in ${wait}ms)`);
+      setTimeout(() => this._connectCurrentProvider(), wait);
+    }
+
+    _closeWs() {
+      try {
+        if (this._ws) {
+          this._ws.onopen = null;
+          this._ws.onmessage = null;
+          this._ws.onerror = null;
+          this._ws.onclose = null;
+          this._ws.close();
         }
+      } catch (_) {}
+      this._ws = null;
     }
 
-    // =========================
-    // BINANCE
-    // =========================
-    connectBinance() {
-        const url = `wss://stream.binance.com:9443/ws/${this.symbol}@kline_1m`;
-        this.ws = new WebSocket(url);
-
-        this.ws.onopen = () => console.log('[FEED][BINANCE] Connected');
-
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.k) {
-                    const candle = {
-                        source: 'binance',
-                        open: parseFloat(data.k.o),
-                        high: parseFloat(data.k.h),
-                        low: parseFloat(data.k.l),
-                        close: parseFloat(data.k.c),
-                        volume: parseFloat(data.k.v),
-                        timestamp: data.k.t
-                    };
-                    this.onData(candle);
-                }
-            } catch (e) {
-                console.error('[FEED][BINANCE] Parse error', e);
-            }
-        };
-
-        this.ws.onerror = () => this.failover();
-        this.ws.onclose = () => this.failover();
+    _emitCandle(c) {
+      if (!this.onCandle) return;
+      try {
+        this.onCandle(c);
+      } catch (e) {
+        console.warn('[FEED] onCandle callback error:', e);
+      }
     }
 
-    // =========================
-    // COINBASE
-    // =========================
-    connectCoinbase() {
-        const url = 'wss://advanced-trade-ws.coinbase.com';
-        this.ws = new WebSocket(url);
+    // ---- BINANCE: real 1m klines (best source) ----
+    _connectBinance() {
+      const sym = lower(this.symbol);
+      const url = `wss://stream.binance.com:9443/ws/${sym}@kline_${TF}`;
 
-        this.ws.onopen = () => {
-            console.log('[FEED][COINBASE] Connected');
-            const msg = {
-                type: "subscribe",
-                product_ids: ["XRP-USD"],
-                channel: "candles"
+      console.log('[FEED] Connecting to BINANCE...');
+      this._ws = new WebSocket(url);
+
+      this._ws.onopen = () => {
+        this._reconnectAttempt = 0;
+        console.log('[FEED][BINANCE] Connected');
+      };
+
+      this._ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (!msg || !msg.k) return;
+
+          const k = msg.k;
+          // Binance kline fields: t,o,h,l,c,v,x
+          const candle = {
+            ts: safeNum(k.t),
+            tf: TF,
+            symbol: this.symbol,
+            open: safeNum(k.o),
+            high: safeNum(k.h),
+            low: safeNum(k.l),
+            close: safeNum(k.c),
+            volume: safeNum(k.v),
+            closed: !!k.x,
+            source: 'BINANCE'
+          };
+
+          this._lastClose = candle.close || this._lastClose;
+          this._lastTickTs = now();
+          this._emitCandle(candle);
+        } catch (_) {}
+      };
+
+      this._ws.onerror = () => {
+        console.warn('[FEED][BINANCE] Error');
+      };
+
+      this._ws.onclose = () => {
+        console.warn('[FEED][BINANCE] Closed');
+        this._failoverNext();
+      };
+    }
+
+    // ---- COINBASE: ticker fallback (pseudo candle) ----
+    _connectCoinbase() {
+      console.log('[FEED] Connecting to COINBASE...');
+      this._ws = new WebSocket('wss://ws-feed.exchange.coinbase.com');
+
+      const product = this._mapCoinbaseProduct(this.symbol);
+
+      this._ws.onopen = () => {
+        this._reconnectAttempt = 0;
+        this._ws.send(JSON.stringify({
+          type: 'subscribe',
+          product_ids: [product],
+          channels: ['ticker']
+        }));
+        console.log('[FEED][COINBASE] Connected');
+      };
+
+      this._ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (!msg || msg.type !== 'ticker') return;
+          const price = safeNum(msg.price);
+          if (!price) return;
+
+          // Build a minimal pseudo-candle around the last price
+          const ts = now();
+          const candle = {
+            ts,
+            tf: TF,
+            symbol: this.symbol,
+            open: this._lastClose || price,
+            high: Math.max(this._lastClose || price, price),
+            low: Math.min(this._lastClose || price, price),
+            close: price,
+            volume: safeNum(msg.last_size),
+            closed: false,
+            source: 'COINBASE'
+          };
+
+          this._lastClose = price;
+          this._lastTickTs = ts;
+          this._emitCandle(candle);
+        } catch (_) {}
+      };
+
+      this._ws.onerror = () => console.warn('[FEED][COINBASE] Error');
+      this._ws.onclose = () => {
+        console.warn('[FEED][COINBASE] Closed');
+        this._failoverNext();
+      };
+    }
+
+    _mapCoinbaseProduct(symbol) {
+      // XRPUSDT → XRP-USD (best-effort)
+      if (symbol === 'XRPUSDT' || symbol === 'XRPUSD') return 'XRP-USD';
+      // Try generic mapping: ABCUSDT → ABC-USD
+      const m = symbol.match(/^([A-Z0-9]+)(USDT|USD)$/);
+      if (m) return `${m[1]}-USD`;
+      return 'XRP-USD';
+    }
+
+    // ---- KRAKEN: trades fallback (pseudo candle) ----
+    _connectKraken() {
+      console.log('[FEED] Connecting to KRAKEN...');
+      this._ws = new WebSocket('wss://ws.kraken.com');
+
+      this._ws.onopen = () => {
+        this._reconnectAttempt = 0;
+        this._ws.send(JSON.stringify({
+          event: 'subscribe',
+          pair: ['XRP/USD'],
+          subscription: { name: 'trade' }
+        }));
+        console.log('[FEED][KRAKEN] Connected');
+      };
+
+      this._ws.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+
+          // Trade payload: [channelId, [[price, volume, time, side, orderType, misc]], "trade", "XRP/USD"]
+          if (Array.isArray(data) && data[2] === 'trade') {
+            const trades = data[1];
+            if (!Array.isArray(trades) || trades.length === 0) return;
+
+            // Use the last trade as price signal
+            const last = trades[trades.length - 1];
+            const price = safeNum(last[0]);
+            const vol = safeNum(last[1]);
+
+            if (!price) return;
+
+            const ts = now();
+            const candle = {
+              ts,
+              tf: TF,
+              symbol: this.symbol,
+              open: this._lastClose || price,
+              high: Math.max(this._lastClose || price, price),
+              low: Math.min(this._lastClose || price, price),
+              close: price,
+              volume: vol,
+              closed: false,
+              source: 'KRAKEN'
             };
-            this.ws.send(JSON.stringify(msg));
-        };
 
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.events && data.events[0]?.candles) {
-                    const c = data.events[0].candles[0];
-                    const candle = {
-                        source: 'coinbase',
-                        open: parseFloat(c.open),
-                        high: parseFloat(c.high),
-                        low: parseFloat(c.low),
-                        close: parseFloat(c.close),
-                        volume: parseFloat(c.volume),
-                        timestamp: new Date(c.start).getTime()
-                    };
-                    this.onData(candle);
-                }
-            } catch (e) {
-                console.error('[FEED][COINBASE] Parse error', e);
-            }
-        };
+            this._lastClose = price;
+            this._lastTickTs = ts;
+            this._emitCandle(candle);
+          }
+        } catch (_) {}
+      };
 
-        this.ws.onerror = () => this.failover();
-        this.ws.onclose = () => this.failover();
+      this._ws.onerror = () => console.warn('[FEED][KRAKEN] Error');
+      this._ws.onclose = () => {
+        console.warn('[FEED][KRAKEN] Closed');
+        this._failoverNext();
+      };
     }
+  }
 
-    // =========================
-    // KRAKEN
-    // =========================
-    connectKraken() {
-        const url = 'wss://ws.kraken.com';
-        this.ws = new WebSocket(url);
-
-        this.ws.onopen = () => {
-            console.log('[FEED][KRAKEN] Connected');
-            const msg = {
-                event: "subscribe",
-                pair: ["XRP/USD"],
-                subscription: { name: "ohlc", interval: 1 }
-            };
-            this.ws.send(JSON.stringify(msg));
-        };
-
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (Array.isArray(data) && data[1]) {
-                    const c = data[1];
-                    const candle = {
-                        source: 'kraken',
-                        open: parseFloat(c[1]),
-                        high: parseFloat(c[2]),
-                        low: parseFloat(c[3]),
-                        close: parseFloat(c[4]),
-                        volume: parseFloat(c[6]),
-                        timestamp: parseInt(c[0]) * 1000
-                    };
-                    this.onData(candle);
-                }
-            } catch (e) {
-                console.error('[FEED][KRAKEN] Parse error', e);
-            }
-        };
-
-        this.ws.onerror = () => this.failover();
-        this.ws.onclose = () => this.failover();
-    }
-
-    // =========================
-    // BITSTAMP
-    // =========================
-    connectBitstamp() {
-        const url = 'wss://ws.bitstamp.net';
-        this.ws = new WebSocket(url);
-
-        this.ws.onopen = () => {
-            console.log('[FEED][BITSTAMP] Connected');
-            const msg = {
-                event: "bts:subscribe",
-                data: { channel: "live_trades_xrpusd" }
-            };
-            this.ws.send(JSON.stringify(msg));
-        };
-
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.event === 'trade') {
-                    const t = data.data;
-                    const candle = {
-                        source: 'bitstamp',
-                        open: parseFloat(t.price),
-                        high: parseFloat(t.price),
-                        low: parseFloat(t.price),
-                        close: parseFloat(t.price),
-                        volume: parseFloat(t.amount),
-                        timestamp: parseInt(t.timestamp) * 1000
-                    };
-                    this.onData(candle);
-                }
-            } catch (e) {
-                console.error('[FEED][BITSTAMP] Parse error', e);
-            }
-        };
-
-        this.ws.onerror = () => this.failover();
-        this.ws.onclose = () => this.failover();
-    }
-}
-
-// =========================
-// EXPORT GLOBAL
-// =========================
-window.MarketFeedManager = MarketFeedManager;
+  global.MarketFeedManager = MarketFeedManager;
+})(window);
