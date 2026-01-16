@@ -101,9 +101,6 @@ ORACULUM now computes an **in-live provisional accuracy** based on validated sho
 
 ## Screenshots
 
-> Screenshots are included from `docs/screens/` (relative paths from this README).  
-> Ensure filenames match exactly (case-sensitive on GitHub).
-
 <div align="center">
 
 **AI ENGINE PRO — Live Metrics Card**  
