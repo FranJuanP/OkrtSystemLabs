@@ -8255,4 +8255,38 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     console.log('%c  XRP ORACULUM ', 'background: linear-gradient(135deg, #00d4ff, #a855f7); color: #000; font-size: 20px; font-weight: bold; padding: 10px 20px; border-radius: 5px;');
     console.log('%c OkrtSystem Labs ', 'color: #00d4ff; font-size: 14px; font-weight: bold;');
     console.log('%c Keyboard shortcuts: T=Tools, S=Sound, D=Dark mode, L=Lite mode, ESC=Close ', 'color: #94a3b8; font-size: 10px;');
-  </script><script nonce="okrt-oraculum-nonce-2026">window.AILearning=AILearning;</script><script src="ai-engine-pro.js?v=1.0.0"></script></body></html>
+  </script><script nonce="okrt-oraculum-nonce-2026">window.AILearning=AILearning;</script>
+<script nonce="okrt-oraculum-nonce-2026">
+(()=>{
+  const __OKRT_FB_VER__='10.7.1';
+  async function __okrtEnsureAnonAuth__(){
+    try{
+      const appMod = await import(`https://www.gstatic.com/firebasejs/${__OKRT_FB_VER__}/firebase-app.js`);
+      const authMod = await import(`https://www.gstatic.com/firebasejs/${__OKRT_FB_VER__}/firebase-auth.js`);
+      const { getApps, initializeApp } = appMod;
+      const { getAuth, signInAnonymously } = authMod;
+
+      let app = (getApps && getApps()[0]) || null;
+      if(!app && typeof FIREBASE_CONFIG==='object') app = initializeApp(FIREBASE_CONFIG);
+      if(!app) return;
+
+      const auth = getAuth(app);
+      if(auth.currentUser){
+        window.__OKRT_UID__ = auth.currentUser.uid;
+        if(window.AILearning) window.AILearning.user = window.__OKRT_UID__ || window.AILearning.user;
+        return;
+      }
+
+      await signInAnonymously(auth);
+      window.__OKRT_UID__ = auth.currentUser ? auth.currentUser.uid : null;
+      if(window.AILearning) window.AILearning.user = window.__OKRT_UID__ || window.AILearning.user;
+      console.log('[AUTH] Anonymous session OK:', window.__OKRT_UID__ ? window.__OKRT_UID__.slice(0,8) : 'null');
+    }catch(e){
+      console.warn('[AUTH] Anonymous auth skipped:', e && e.message ? e.message : e);
+    }
+  }
+  __okrtEnsureAnonAuth__();
+  document.addEventListener('DOMContentLoaded', ()=>setTimeout(__okrtEnsureAnonAuth__, 200));
+})();
+</script>
+<script src="ai-engine-pro.js?v=1.0.0"></script></body></html>
