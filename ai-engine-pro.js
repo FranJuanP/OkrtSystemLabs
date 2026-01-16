@@ -19,43 +19,6 @@ const AIEnginePro = {
   version: '1.2.0',
   isReady: false,
   db: null,
-
-  // ============================================
-  // 🧩 STATE BRIDGE (single-file build compatibility)
-  // ============================================
-  // ORACULUM uses a global `const state = {...}` in index.html.
-  // A global `const` does NOT always become `window.state`, so direct
-  // reads like `window.state.price` can silently fail and prevent the
-  // engine from learning/predicting.
-  //
-  // This helper resolves the real state object safely.
-  _getState() {
-    // Prefer the global binding if it exists
-    try {
-      if (typeof state !== 'undefined' && state) return state;
-    } catch (_) {}
-    // Fallback to a classic window property (older builds)
-    if (window.state) return window.state;
-    // Last resort: keep an internal object so methods don't crash
-    if (!this.__internalState) this.__internalState = {};
-    return this.__internalState;
-  },
-
-  // Compatibility hook used by the feed manager in index.html
-  // (older builds call: AIEnginePro.onMarketData(candle))
-  onMarketData(candle) {
-    const s = this._getState();
-    if (!candle) return;
-    // Keep candle/price in sync for the PRO engine
-    s.lastCandle = candle;
-    s.candle = candle;
-    if (candle.close != null) {
-      s.prevPrice = s.price;
-      s.price = candle.close;
-      s.currentPrice = candle.close;
-    }
-    if (candle.volume != null) s.volume = candle.volume;
-  },
   
   // ============================================
   // 🎯 CONFIGURATION
@@ -999,13 +962,12 @@ const AIEnginePro = {
   recordProPrediction(pred, baseId) {
     const marketState = this.getCurrentMarketState();
     const ensemble = this.generateEnsemblePrediction(marketState);
-    const s = this._getState();
     
     const proPrediction = {
       id: 'pro_' + baseId,
       baseId: baseId,
       timestamp: Date.now(),
-      price: s?.price || 0,
+      price: window.state?.price || 0,
       ensemble: ensemble,
       features: this.extractFeatureVector(marketState),
       regime: ensemble.regime,
@@ -1029,10 +991,9 @@ const AIEnginePro = {
 
   verifyProPrediction(id, horizon) {
     const pred = this.predictions.pending.find(p => p.id === id);
-    const s = this._getState();
-    if (!pred || !s?.price || !pred.price) return;
+    if (!pred || !window.state?.price || !pred.price) return;
     
-    const priceChange = ((s.price - pred.price) / pred.price) * 100;
+    const priceChange = ((window.state.price - pred.price) / pred.price) * 100;
     const direction = pred.ensemble.direction;
     
     const threshold = direction === 'NEUTRAL' ? 0.05 : 0.1;
@@ -1246,8 +1207,7 @@ const AIEnginePro = {
   },
 
   generateAutoPrediction() {
-    const s = this._getState();
-    if (!this.isReady || !s?.price) {
+    if (!this.isReady || !window.state?.price) {
       return;
     }
     
@@ -1273,7 +1233,7 @@ const AIEnginePro = {
       id: predId,
       baseId: null,
       timestamp: Date.now(),
-      price: s.price,
+      price: window.state.price,
       ensemble: ensemble,
       features: this.extractFeatureVector(marketState),
       regime: ensemble.regime,
@@ -1289,7 +1249,7 @@ const AIEnginePro = {
       setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
     }
     
-    console.log(`[AI-PRO] 🎯 Auto-prediction: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${s.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
+    console.log(`[AI-PRO] 🎯 Auto-prediction: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${window.state.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
   },
 
   // ============================================
@@ -1403,7 +1363,7 @@ const AIEnginePro = {
   // 🔧 UTILITY METHODS
   // ============================================
   getCurrentMarketState() {
-    const s = this._getState() || {};
+    const s = window.state || {};
     return {
       price: s.price,
       prevPrice: s.prevPrice,
@@ -1446,10 +1406,53 @@ const AIEnginePro = {
     }
     return stats;
   },
-  
+
+  // ============================================
+  // 📌 LIVE ACCURACY (EARLY FEEDBACK)
+  // ============================================
+  computeLiveAccuracy() {
+    try {
+      const byH = this.predictions && this.predictions.byHorizon ? this.predictions.byHorizon : {};
+      const preferred = [2, 5, 10, 15, 30, 60];
+      let wSum = 0.0;
+      let aSum = 0.0;
+
+      for (const h of preferred) {
+        const s = byH[h];
+        if (!s || !s.total || s.total < 3) continue;
+
+        // More weight to shorter horizons for early reliability
+        const weight = (1.0 / (1.0 + (h / 10))) * Math.min(1.0, s.total / 20);
+        wSum += weight;
+        aSum += weight * (s.accuracy || 0);
+      }
+
+      if (wSum <= 0) return 0;
+      const live = aSum / wSum;
+      // Clamp to sane range
+      return Math.max(0, Math.min(1, live));
+    } catch (_) {
+      return 0;
+    }
+  },
+
   getStats() {
+    const liveAcc = this.computeLiveAccuracy();
+    const completedAcc = this.performance.overall.accuracy || 0;
+
+    // Clone to avoid mutating internal perf object from the UI layer
+    const overall = Object.assign({}, this.performance.overall);
+
+    // If no completed predictions yet, expose live accuracy from short-horizon verifications
+    if (!overall.totalPredictions || overall.totalPredictions < 1) {
+      overall.accuracy = liveAcc;
+    }
+
+    overall.liveAccuracy = liveAcc;
+    overall.completedAccuracy = completedAcc;
+
     return {
-      overall: this.performance.overall,
+      overall: overall,
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
