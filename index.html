@@ -8311,4 +8311,38 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(__okrtEnsureAnonAuth__, 200));
 })();
 </script>
-<script src="ai-engine-pro.js?v=1.1.1"></script></body></html>
+<script src="ai-engine-pro.js?v=1.1.1"></script> 
+<!-- ========================= -->
+<!-- MARKET FEED MANAGER (Multi-feed + Failover) -->
+<!-- ========================= -->
+<script src="market-feed-manager.js"></script>
+
+<script nonce="okrt-oraculum-nonce-2026">
+(function(){
+    if(typeof MarketFeedManager === 'undefined'){
+        console.warn('[FEED] MarketFeedManager not loaded');
+        return;
+    }
+
+    const SYMBOL = 'XRPUSDT';
+
+    const onCandle = function(candle){
+        // Enlaza con tu AI Engine PRO sin tocar su lógica
+        if(window.AIEnginePro && typeof window.AIEnginePro.onMarketData === 'function'){
+            window.AIEnginePro.onMarketData(candle);
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', function(){
+        try {
+            window.__okrtFeedMgr__ = new MarketFeedManager(SYMBOL, onCandle);
+            window.__okrtFeedMgr__.start();
+            console.log('[FEED] MarketFeedManager started with failover (Binance → Coinbase → Kraken)');
+        } catch(e) {
+            console.warn('[FEED] init failed', e);
+        }
+    });
+})();
+</script>
+
+</body></html>
