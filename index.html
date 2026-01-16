@@ -1628,15 +1628,19 @@
       console.error('[CSP Violation]', e.violatedDirective, e.blockedURI);
     });
     
-    // Secure error handling
+    // Secure error handling (enhanced diagnostics)
     window.addEventListener('error', (e) => {
+      // Do NOT swallow errors while diagnosing intermittent load issues
       console.error('[Error]', e.message);
-      e.preventDefault();
+      console.error('↳ Source:', e.filename, 'Line:', e.lineno, 'Col:', e.colno);
+      if (e.error && e.error.stack) console.error('↳ Stack:', e.error.stack);
+      // e.preventDefault();
     });
     
     window.addEventListener('unhandledrejection', (e) => {
       console.error('[Promise Error]', e.reason?.message || 'Unknown');
-      e.preventDefault();
+      if (e.reason && e.reason.stack) console.error('↳ Stack:', e.reason.stack);
+      // e.preventDefault();
     });
   </script><script nonce="okrt-oraculum-nonce-2026">
     // ============================================
@@ -8323,7 +8327,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
 <!-- ========================= -->
 <!-- MARKET FEED MANAGER (Multi-feed + Failover) -->
 <!-- ========================= -->
-<script src="market-feed-manager.js"></script>
+<script src="market-feed-manager.js?v=1.0.0"></script>
 
 <script nonce="okrt-oraculum-nonce-2026">
 (function(){
