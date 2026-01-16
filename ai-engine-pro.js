@@ -1,19 +1,42 @@
 // ============================================
-// 🧠 AI ENGINE PRO v1.0
+// 🧠 AI ENGINE PRO v1.1.0
 // Advanced Self-Learning System for ORACULUM
 // Copyright (c) 2025-2026 OkrtSystem Labs
 // ============================================
 // This module extends AILearning without modifying it
 // Requires: Firebase initialized, AILearning loaded
 // ============================================
+// v1.1.0 - Firebase optimizations:
+// - Single document storage (4 docs → 1)
+// - Debounced saves (3s delay)
+// - Retry with exponential backoff
+// - Local cache to minimize reads
+// - Rate limiting protection
+// ============================================
 
 'use strict';
 
 const AIEnginePro = {
-  version: '1.0.0',
+  version: '1.1.0',
   isReady: false,
   db: null,
   
+  // ============================================
+  // 🔧 FIREBASE OPTIMIZATION
+  // ============================================
+  _firebaseState: {
+    lastSave: 0,
+    saveTimeout: null,
+    pendingSave: false,
+    retryCount: 0,
+    maxRetries: 3,
+    baseDelay: 1000,
+    saveDebounceMs: 3000,  // Wait 3s between saves
+    minSaveInterval: 10000, // Minimum 10s between actual writes
+    lastLoadHash: null,
+    isOnline: true
+  },
+
   // ============================================
   // 🎯 CONFIGURATION
   // ============================================
@@ -197,6 +220,9 @@ const AIEnginePro = {
       console.warn('[AI-PRO] Firestore not available, using local mode');
     }
     
+    // Setup online/offline detection
+    this._setupConnectivityListener();
+    
     // Load saved state
     await this.loadState();
     
@@ -212,6 +238,25 @@ const AIEnginePro = {
     console.log('[AI-PRO] Features:', Object.keys(this.features.derived).length);
     
     return true;
+  },
+
+  // ============================================
+  // 🌐 CONNECTIVITY MANAGEMENT
+  // ============================================
+  _setupConnectivityListener() {
+    window.addEventListener('online', () => {
+      this._firebaseState.isOnline = true;
+      console.log('[AI-PRO] Connection restored');
+      // Try to sync pending changes
+      if (this._firebaseState.pendingSave) {
+        this.saveState();
+      }
+    });
+    
+    window.addEventListener('offline', () => {
+      this._firebaseState.isOnline = false;
+      console.log('[AI-PRO] Connection lost, using local mode');
+    });
   },
 
   // ============================================
@@ -603,180 +648,143 @@ const AIEnginePro = {
       
       // Limit memory size
       if (this.memory.patterns.length > this.config.maxLongTermPatterns) {
-        // Remove oldest low-performing patterns
-        this.memory.patterns.sort((a, b) => {
-          const scoreA = a.successRate * Math.log(a.occurrences + 1);
-          const scoreB = b.successRate * Math.log(b.occurrences + 1);
-          return scoreB - scoreA;
-        });
+        // Remove oldest patterns with low occurrence
+        this.memory.patterns.sort((a, b) => (b.occurrences * 0.7 + b.timestamp * 0.3) - (a.occurrences * 0.7 + a.timestamp * 0.3));
         this.memory.patterns = this.memory.patterns.slice(0, this.config.maxLongTermPatterns);
       }
     }
+    
+    // Trigger debounced save
+    this.scheduleSave();
   },
 
   // ============================================
-  // 📊 PRO PREDICTION RECORDING
+  // 🎓 PRO PREDICTION RECORDING
   // ============================================
-  recordProPrediction(pred, baseId) {
+  recordProPrediction(pred, id) {
     const marketState = this.getCurrentMarketState();
     const ensemble = this.generateEnsemblePrediction(marketState);
     
-    const proPrediction = {
-      id: 'pro_' + baseId,
-      baseId: baseId,
+    // Store enhanced prediction
+    this.predictions.pending.push({
+      id,
       timestamp: Date.now(),
-      price: window.state?.price || 0,
-      ensemble: ensemble,
-      features: this.extractFeatureVector(marketState),
+      baseDirection: pred.direction,
+      ensembleDirection: ensemble.direction,
+      ensembleConfidence: ensemble.confidence,
       regime: ensemble.regime,
-      verifications: [],
-      outcome: null
-    };
-    
-    this.predictions.pending.push(proPrediction);
-    
-    // Schedule verifications for multiple horizons
-    for (const horizon of this.config.horizons) {
-      setTimeout(() => this.verifyProPrediction(proPrediction.id, horizon), horizon * 60000);
-    }
-    
-    // Log if high confidence
-    if (ensemble.confidence > 0.75) {
-      console.log(`[AI-PRO] High confidence ${ensemble.direction}: ${(ensemble.confidence * 100).toFixed(1)}%`);
-    }
-    
-    return proPrediction.id;
-  },
-
-  verifyProPrediction(id, horizon) {
-    const pred = this.predictions.pending.find(p => p.id === id);
-    if (!pred || !window.state?.price || !pred.price) return;
-    
-    const priceChange = ((window.state.price - pred.price) / pred.price) * 100;
-    const direction = pred.ensemble.direction;
-    
-    // Success criteria varies by confidence
-    const threshold = direction === 'NEUTRAL' ? 0.05 : 0.1;
-    const success = (direction === 'BULL' && priceChange > threshold) ||
-                   (direction === 'BEAR' && priceChange < -threshold) ||
-                   (direction === 'NEUTRAL' && Math.abs(priceChange) < 0.15);
-    
-    pred.verifications.push({
-      horizon,
-      priceChange,
-      success,
-      timestamp: Date.now()
+      modelVotes: ensemble.votes,
+      features: this.extractFeatureVector(marketState),
+      horizons: this.config.horizons.map(h => ({
+        minutes: h,
+        targetTime: Date.now() + h * 60000,
+        verified: false
+      }))
     });
     
-    // Update horizon statistics
-    const horizonStats = this.predictions.byHorizon[horizon];
-    if (horizonStats) {
-      horizonStats.total++;
-      if (success) horizonStats.correct++;
-      horizonStats.accuracy = horizonStats.correct / horizonStats.total;
+    // Update model predictions count
+    for (const model of Object.values(this.models)) {
+      model.predictions++;
     }
     
-    // Complete after longest horizon
-    if (horizon === Math.max(...this.config.horizons)) {
-      this.completeProPrediction(pred);
+    // Schedule verification
+    this.scheduleVerification(id);
+    
+    // Trigger debounced save
+    this.scheduleSave();
+  },
+
+  scheduleVerification(id) {
+    // Verify at each horizon
+    for (const horizon of this.config.horizons) {
+      setTimeout(() => this.verifyPrediction(id, horizon), horizon * 60000);
     }
   },
 
-  completeProPrediction(pred) {
-    // Calculate overall success
-    const successCount = pred.verifications.filter(v => v.success).length;
-    const success = successCount >= Math.ceil(pred.verifications.length / 2);
+  verifyPrediction(id, horizon) {
+    const pred = this.predictions.pending.find(p => p.id === id);
+    if (!pred) return;
     
-    const avgPriceChange = pred.verifications.reduce((s, v) => s + v.priceChange, 0) / pred.verifications.length;
+    const horizonData = pred.horizons.find(h => h.minutes === horizon);
+    if (!horizonData || horizonData.verified) return;
     
-    pred.outcome = {
-      success,
-      avgPriceChange,
-      successRate: successCount / pred.verifications.length,
-      completedAt: Date.now()
-    };
+    const currentPrice = window.state?.price;
+    const startPrice = pred.startPrice || window.state?.price;
     
-    // Update models based on their predictions
-    this.updateModelWeights(pred, success);
+    if (!currentPrice || !startPrice) return;
     
-    // Store in long-term memory if interesting
-    if (pred.ensemble.confidence > 0.7 || Math.abs(avgPriceChange) > 0.5) {
-      this.storeInLongTermMemory(pred, { success, priceChange: avgPriceChange });
+    const priceChange = (currentPrice - startPrice) / startPrice;
+    const success = (pred.ensembleDirection === 'BULL' && priceChange > 0) ||
+                    (pred.ensembleDirection === 'BEAR' && priceChange < 0);
+    
+    horizonData.verified = true;
+    horizonData.success = success;
+    horizonData.priceChange = priceChange;
+    
+    // Update horizon stats
+    const hStats = this.predictions.byHorizon[horizon];
+    if (hStats) {
+      hStats.total++;
+      if (success) hStats.correct++;
+      hStats.accuracy = hStats.correct / hStats.total;
     }
     
+    // Trigger debounced save
+    this.scheduleSave();
+  },
+
+  // ============================================
+  // 📊 PRO MODEL UPDATES
+  // ============================================
+  updateProModels(completedPred) {
+    // Find matching pending prediction
+    const pred = this.predictions.pending.find(p => p.id === completedPred.id);
+    if (!pred) return;
+    
     // Move to completed
+    pred.outcome = completedPred.outcome;
     this.predictions.completed.push(pred);
-    this.predictions.pending = this.predictions.pending.filter(p => p.id !== pred.id);
+    this.predictions.pending = this.predictions.pending.filter(p => p.id !== completedPred.id);
+    
+    // Update each model based on their contribution
+    const success = completedPred.outcome?.success || false;
+    
+    for (const [modelName, model] of Object.entries(this.models)) {
+      const modelPred = pred.modelVotes?.[modelName];
+      if (!modelPred) continue;
+      
+      const modelCorrect = (modelPred > 0.5 && success && pred.ensembleDirection === 'BULL') ||
+                          (modelPred < 0.5 && success && pred.ensembleDirection === 'BEAR');
+      
+      if (modelCorrect) {
+        model.correct++;
+        model.weight = Math.min(2.0, model.weight * 1.02);
+      } else {
+        model.weight = Math.max(0.5, model.weight * 0.98);
+      }
+      
+      model.accuracy = model.correct / model.predictions;
+    }
+    
+    // Store in long-term memory
+    this.storeInLongTermMemory(pred, completedPred.outcome || {});
     
     // Update performance
     this.updatePerformance(pred);
     
-    // Keep completed list manageable
-    if (this.predictions.completed.length > 500) {
+    // Limit completed predictions
+    if (this.predictions.completed.length > 1000) {
       this.predictions.completed = this.predictions.completed.slice(-500);
     }
     
-    // Periodic save
-    if (this.performance.overall.totalPredictions % 10 === 0) {
-      this.saveState();
-    }
+    // Trigger debounced save
+    this.scheduleSave();
   },
 
-  // ============================================
-  // ⚖️ MODEL WEIGHT ADJUSTMENT
-  // ============================================
-  updateModelWeights(pred, overallSuccess) {
-    const lr = this.config.learningRate;
-    
-    for (const [modelName, modelPred] of Object.entries(pred.ensemble.modelPredictions)) {
-      const model = this.models[modelName];
-      if (!model) continue;
-      
-      // Did this model agree with the correct direction?
-      const modelCorrect = (overallSuccess && modelPred.direction === pred.ensemble.direction) ||
-                          (!overallSuccess && modelPred.direction !== pred.ensemble.direction);
-      
-      model.predictions++;
-      if (modelCorrect) model.correct++;
-      
-      // Update accuracy with exponential moving average
-      const newAccuracy = model.correct / model.predictions;
-      model.accuracy = model.accuracy * 0.9 + newAccuracy * 0.1;
-      
-      // Adjust weight based on accuracy
-      if (model.predictions >= 20) {
-        if (model.accuracy > 0.55) {
-          model.weight = Math.min(2.0, model.weight + lr);
-        } else if (model.accuracy < 0.45) {
-          model.weight = Math.max(0.3, model.weight - lr);
-        }
-      }
-    }
-  },
-
-  updateProModels(basePrediction) {
-    // Called when base AILearning completes a prediction
-    // Sync any relevant updates
-    if (basePrediction.outcome?.success) {
-      // Boost weights of indicators that performed well
-      for (const ind of Object.keys(basePrediction.indicators || {})) {
-        for (const [modelName, model] of Object.entries(this.models)) {
-          if (model.features.includes(ind)) {
-            model.accuracy = model.accuracy * 0.98 + 0.02;
-          }
-        }
-      }
-    }
-  },
-
-  // ============================================
-  // 📈 PERFORMANCE TRACKING
-  // ============================================
   updatePerformance(pred) {
     const perf = this.performance.overall;
-    
     perf.totalPredictions++;
-    if (pred.outcome.success) perf.correctPredictions++;
+    if (pred.outcome?.success) perf.correctPredictions++;
     perf.accuracy = perf.correctPredictions / perf.totalPredictions;
     
     // Update daily stats
@@ -844,112 +852,211 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // 💾 STATE PERSISTENCE
+  // 💾 OPTIMIZED STATE PERSISTENCE
   // ============================================
+  
+  // Schedule a debounced save
+  scheduleSave() {
+    this._firebaseState.pendingSave = true;
+    
+    // Clear existing timeout
+    if (this._firebaseState.saveTimeout) {
+      clearTimeout(this._firebaseState.saveTimeout);
+    }
+    
+    // Schedule new save with debounce
+    this._firebaseState.saveTimeout = setTimeout(() => {
+      this.saveState();
+    }, this._firebaseState.saveDebounceMs);
+  },
+
+  // Generate hash to detect changes
+  _generateStateHash() {
+    const key = JSON.stringify({
+      m: Object.values(this.models).map(m => m.predictions + m.correct),
+      p: this.memory.patterns.length,
+      t: this.performance.overall.totalPredictions
+    });
+    return btoa(key).slice(0, 16);
+  },
+
+  // Retry with exponential backoff
+  async _retryWithBackoff(operation, operationName) {
+    const fs = this._firebaseState;
+    
+    for (let attempt = 0; attempt <= fs.maxRetries; attempt++) {
+      try {
+        await operation();
+        fs.retryCount = 0;
+        return true;
+      } catch (error) {
+        const delay = fs.baseDelay * Math.pow(2, attempt);
+        
+        if (attempt < fs.maxRetries) {
+          console.warn(`[AI-PRO] ${operationName} failed, retry ${attempt + 1}/${fs.maxRetries} in ${delay}ms`);
+          await new Promise(r => setTimeout(r, delay));
+        } else {
+          console.error(`[AI-PRO] ${operationName} failed after ${fs.maxRetries} retries:`, error.message);
+          return false;
+        }
+      }
+    }
+    return false;
+  },
+
   async loadState() {
     // Try Firestore first
-    if (this.db) {
-      try {
+    if (this.db && this._firebaseState.isOnline) {
+      const loaded = await this._retryWithBackoff(async () => {
         const { doc, getDoc } = window.AILearning.firestore;
         
-        // Load models
-        const modelsDoc = await getDoc(doc(this.db, 'ai', 'pro_models'));
-        if (modelsDoc.exists()) {
-          const savedModels = modelsDoc.data();
-          for (const [name, data] of Object.entries(savedModels)) {
-            if (this.models[name]) {
-              Object.assign(this.models[name], data);
+        // ✅ OPTIMIZED: Single document read instead of 4
+        const stateDoc = await getDoc(doc(this.db, 'ai', 'pro_state_v2'));
+        
+        if (stateDoc.exists()) {
+          const state = stateDoc.data();
+          
+          // Restore models
+          if (state.models) {
+            for (const [name, data] of Object.entries(state.models)) {
+              if (this.models[name]) {
+                Object.assign(this.models[name], data);
+              }
             }
           }
+          
+          // Restore memory
+          if (state.memory) {
+            this.memory.patterns = state.memory.patterns || [];
+            this.memory.correlations = state.memory.correlations || {};
+          }
+          
+          // Restore performance
+          if (state.performance) {
+            Object.assign(this.performance, state.performance);
+          }
+          
+          // Restore horizon stats
+          if (state.horizons) {
+            Object.assign(this.predictions.byHorizon, state.horizons);
+          }
+          
+          // Store hash for change detection
+          this._firebaseState.lastLoadHash = this._generateStateHash();
+          
+          console.log('[AI-PRO] State loaded from Firestore');
+          console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
         }
-        
-        // Load memory
-        const memoryDoc = await getDoc(doc(this.db, 'ai', 'pro_memory'));
-        if (memoryDoc.exists()) {
-          const savedMemory = memoryDoc.data();
-          this.memory.patterns = savedMemory.patterns || [];
-          this.memory.correlations = savedMemory.correlations || {};
-        }
-        
-        // Load performance
-        const perfDoc = await getDoc(doc(this.db, 'ai', 'pro_performance'));
-        if (perfDoc.exists()) {
-          Object.assign(this.performance, perfDoc.data());
-        }
-        
-        // Load horizon stats
-        const horizonDoc = await getDoc(doc(this.db, 'ai', 'pro_horizons'));
-        if (horizonDoc.exists()) {
-          Object.assign(this.predictions.byHorizon, horizonDoc.data());
-        }
-        
-        console.log('[AI-PRO] State loaded from Firestore');
-        console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
-        return;
-      } catch (e) {
-        console.warn('[AI-PRO] Firestore load failed:', e);
-      }
+      }, 'Load state');
+      
+      if (loaded) return;
     }
     
     // Fallback to localStorage
     try {
-      const saved = localStorage.getItem('ai_pro_state');
+      const saved = localStorage.getItem('ai_pro_state_v2');
       if (saved) {
         const state = JSON.parse(saved);
-        if (state.models) Object.assign(this.models, state.models);
+        if (state.models) {
+          for (const [name, data] of Object.entries(state.models)) {
+            if (this.models[name]) Object.assign(this.models[name], data);
+          }
+        }
         if (state.memory) Object.assign(this.memory, state.memory);
         if (state.performance) Object.assign(this.performance, state.performance);
         if (state.horizons) Object.assign(this.predictions.byHorizon, state.horizons);
         console.log('[AI-PRO] State loaded from localStorage');
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[AI-PRO] localStorage load failed:', e);
+    }
   },
 
   async saveState() {
-    // Save to Firestore
-    if (this.db && window.AILearning?.user) {
-      try {
-        const { doc, setDoc } = window.AILearning.firestore;
-        
-        // Save models
-        const modelsData = {};
-        for (const [name, model] of Object.entries(this.models)) {
-          modelsData[name] = {
-            weight: model.weight,
-            accuracy: model.accuracy,
-            predictions: model.predictions,
-            correct: model.correct
-          };
-        }
-        await setDoc(doc(this.db, 'ai', 'pro_models'), modelsData);
-        
-        // Save memory (limit size)
-        await setDoc(doc(this.db, 'ai', 'pro_memory'), {
-          patterns: this.memory.patterns.slice(-500),
-          correlations: this.memory.correlations,
-          updatedAt: new Date().toISOString()
-        });
-        
-        // Save performance
-        await setDoc(doc(this.db, 'ai', 'pro_performance'), this.performance);
-        
-        // Save horizon stats
-        await setDoc(doc(this.db, 'ai', 'pro_horizons'), this.predictions.byHorizon);
-        
-      } catch (e) {
-        console.warn('[AI-PRO] Firestore save failed:', e);
-      }
+    const fs = this._firebaseState;
+    fs.pendingSave = false;
+    
+    // Check minimum interval between saves
+    const now = Date.now();
+    if (now - fs.lastSave < fs.minSaveInterval) {
+      // Reschedule for later
+      this.scheduleSave();
+      return;
     }
     
-    // Also save to localStorage as backup
+    // Check if state actually changed
+    const currentHash = this._generateStateHash();
+    if (currentHash === fs.lastLoadHash) {
+      return; // No changes to save
+    }
+    
+    // Prepare consolidated state
+    const stateData = {
+      version: this.version,
+      updatedAt: new Date().toISOString(),
+      
+      // Models (lightweight)
+      models: {},
+      
+      // Memory (limited)
+      memory: {
+        patterns: this.memory.patterns.slice(-500),
+        correlations: this.memory.correlations
+      },
+      
+      // Performance
+      performance: this.performance,
+      
+      // Horizons
+      horizons: this.predictions.byHorizon
+    };
+    
+    // Extract model data
+    for (const [name, model] of Object.entries(this.models)) {
+      stateData.models[name] = {
+        weight: model.weight,
+        accuracy: model.accuracy,
+        predictions: model.predictions,
+        correct: model.correct
+      };
+    }
+    
+    // Save to Firestore
+    if (this.db && window.AILearning?.user && fs.isOnline) {
+      const saved = await this._retryWithBackoff(async () => {
+        const { doc, setDoc } = window.AILearning.firestore;
+        
+        // ✅ OPTIMIZED: Single document write instead of 4
+        await setDoc(doc(this.db, 'ai', 'pro_state_v2'), stateData);
+        
+        fs.lastSave = now;
+        fs.lastLoadHash = currentHash;
+      }, 'Save state');
+      
+      if (!saved) {
+        // Firestore failed, ensure localStorage backup
+        this._saveToLocalStorage(stateData);
+      }
+    } else {
+      // Offline mode - save to localStorage
+      this._saveToLocalStorage(stateData);
+    }
+  },
+
+  _saveToLocalStorage(stateData) {
     try {
-      localStorage.setItem('ai_pro_state', JSON.stringify({
-        models: this.models,
-        memory: { patterns: this.memory.patterns.slice(-100), correlations: this.memory.correlations },
-        performance: this.performance,
-        horizons: this.predictions.byHorizon
-      }));
-    } catch (e) {}
+      // Compress for localStorage (limit patterns)
+      const localData = {
+        ...stateData,
+        memory: {
+          patterns: this.memory.patterns.slice(-100),
+          correlations: this.memory.correlations
+        }
+      };
+      localStorage.setItem('ai_pro_state_v2', JSON.stringify(localData));
+    } catch (e) {
+      console.warn('[AI-PRO] localStorage save failed:', e);
+    }
   },
 
   // ============================================
@@ -1014,13 +1121,29 @@ const AIEnginePro = {
       config: {
         learningRate: this.config.learningRate,
         minConfidence: this.config.minConfidence
+      },
+      firebase: {
+        lastSave: this._firebaseState.lastSave ? new Date(this._firebaseState.lastSave).toISOString() : 'never',
+        pendingSave: this._firebaseState.pendingSave,
+        isOnline: this._firebaseState.isOnline
       }
     };
   },
   
   // Force save
   forceSave() {
+    this._firebaseState.lastSave = 0; // Reset interval check
     return this.saveState();
+  },
+  
+  // Get Firebase status
+  getFirebaseStatus() {
+    return {
+      isOnline: this._firebaseState.isOnline,
+      lastSave: this._firebaseState.lastSave,
+      pendingSave: this._firebaseState.pendingSave,
+      retryCount: this._firebaseState.retryCount
+    };
   }
 };
 
