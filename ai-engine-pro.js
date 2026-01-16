@@ -1,5 +1,5 @@
 // =====================================================
-// AI ENGINE PRO - DEBUG WRAPPER MODE
+// AI ENGINE PRO - DEBUG WRAPPER MODE (FIXED)
 // OkrtSystem Labs – Learning Trace Enabled
 // =====================================================
 
@@ -29,13 +29,13 @@
                 cb(window.AIEnginePro);
             }
             tries++;
-            if (tries > 50) clearInterval(t);
+            if (tries > 100) clearInterval(t);
         }, 100);
     }
 
     waitForEngine((Engine) => {
 
-        log('Debug wrapper attached');
+        log('Debug wrapper attached to AIEnginePro');
 
         // ===============================
         // Hook: Ensemble Evaluation
@@ -153,4 +153,9 @@
 
 })();
 
-window.AIEnginePro = AIEnginePro;
+// =====================================================
+// SAFE EXPOSURE (no rompe si no existe)
+// =====================================================
+if (typeof window.AIEnginePro === 'undefined' && typeof AIEnginePro !== 'undefined') {
+    window.AIEnginePro = AIEnginePro;
+}
