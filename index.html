@@ -8175,23 +8175,12 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         );
       });
     `;
-    // Register Service Worker
-    if ('serviceWorker' in navigator && location.protocol !== 'file:' && location.origin !== 'null') {
-      // Create blob URL for inline SW
-      const swBlob = new Blob([swCode], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(swBlob);
-      
-      // Try to register
-      navigator.serviceWorker.register(swUrl, { scope: '.' })
-        .then((registration) => {
-          console.log('[PWA] Service Worker registered:', registration.scope);
-        })
-        .catch((error) => {
-          // SW registration may fail on file:// or some hosting
-          console.log('[PWA] Service Worker registration skipped:', error.message);
-        });
-    } else {
-      console.log("[PWA] Service worker registration skipped: local file origin");
+    // Register Service Worker (disabled in single-file build)
+    // NOTE: Registering a Service Worker from a Blob/Data URL triggers
+    // `ServiceWorkerContainer.register: Script URL's scheme is not 'http' or 'https'`.
+    // This project is deployed as a single HTML file on GitHub Pages, so we skip SW registration.
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      console.log('[PWA] Service Worker registration disabled (single-file build).');
     }
     // ============================================
     // ONLINE/OFFLINE STATUS
