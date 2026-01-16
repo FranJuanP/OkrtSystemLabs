@@ -152,3 +152,5 @@
     });
 
 })();
+
+window.AIEnginePro = AIEnginePro;
