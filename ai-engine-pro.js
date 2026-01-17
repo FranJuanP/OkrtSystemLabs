@@ -1538,6 +1538,21 @@ const AIEnginePro = {
   // ============================================
   // 📊 PUBLIC API
   // ============================================
+  onMarketData(candle) {
+    // Optional hook used by MarketFeedManager
+    // Keeps AI Engine PRO state in sync without requiring any changes
+    // to the main ORACULUM internal websocket logic.
+    try {
+      if (!window.state) window.state = {};
+      if (candle && candle.close != null && !isNaN(candle.close)) {
+        window.state.prevPrice = window.state.price || candle.close;
+        window.state.price = candle.close;
+        window.state.currentPrice = candle.close;
+      }
+      if (candle) window.state.lastCandle = candle;
+    } catch (e) {}
+  },
+
   getPrediction() {
     const marketState = this.getCurrentMarketState();
     return this.generateEnsemblePrediction(marketState);

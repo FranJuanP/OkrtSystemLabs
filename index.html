@@ -1890,6 +1890,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       candles: [],
       currentPrice: 0,
       price: 0,  // Alias para compatibilidad
+      prevPrice: 0,
       btcPrice: 0,
       whaleCount: 0,
       cvd: 0,
@@ -1907,6 +1908,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       predictionHistory: [],  // Historial de aciertos/fallos
       exportData: []          // Datos para exportar
     };
+
+    // Expose state globally so external modules (AI Engine PRO, feed managers, etc.)
+    // can read the same live market state without breaking internal references.
+    window.state = state;
     // --- AUDIO CONTEXT para alertas sonoras ---
     let audioCtx = null;
     
@@ -5828,6 +5833,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           };
           
           candleSeries.update(candle);
+          // Keep last candle available for external engines (AI Engine PRO)
+          state.lastCandle = candle;
           if (k.x) {
             state.candles.push(candle);
             if (state.candles.length > CONFIG.HISTORY_SIZE) state.candles.shift();
@@ -5842,6 +5849,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           const change = parseFloat(data.P);
           const volume = parseFloat(data.q);
           
+          // Preserve previous price so external engines can compute momentum
+          state.prevPrice = state.price || price;
           state.currentPrice = price;
           state.price = price; // Mantener ambos para compatibilidad
           
@@ -8492,6 +8501,17 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     const SYMBOL = 'XRPUSDT';
 
     const onCandle = function(candle){
+        // Sync candle-derived price into the global state so AI Engine PRO can operate
+        // even if the internal Binance ticker stream is not yet providing data.
+        try {
+            if (window.state && candle && candle.close != null && !isNaN(candle.close)) {
+                window.state.prevPrice = window.state.price || candle.close;
+                window.state.price = candle.close;
+                window.state.currentPrice = candle.close;
+                window.state.lastCandle = candle;
+            }
+        } catch(e) {}
+
         // Enlaza con tu AI Engine PRO sin tocar su lógica
         if(window.AIEnginePro && typeof window.AIEnginePro.onMarketData === 'function'){
             window.AIEnginePro.onMarketData(candle);
