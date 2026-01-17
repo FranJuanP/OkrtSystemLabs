@@ -22,7 +22,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.6.3',
+  version: '1.6.4',
   isReady: false,
   db: null,
   
@@ -32,6 +32,9 @@ const AIEnginePro = {
   config: {
     // Prediction horizons (minutes)
     horizons: [2, 5, 10, 15, 30, 60, 120, 240],
+
+    // Horizons used to compute live UI accuracy (fast verified metrics)
+    verificationAccuracyHorizons: [2, 5, 10, 15, 30],
     
     // Minimum confidence to generate signal
     minConfidence: 0.30,
@@ -189,6 +192,20 @@ const AIEnginePro = {
       profitFactor: 1.0,
       sharpeRatio: 0,
       maxDrawdown: 0
+    ,
+    // Long-term (full-horizon) prediction accuracy (240m completes)
+    longTerm: {
+      totalPredictions: 0,
+      correctPredictions: 0,
+      accuracy: 0,
+      totalDirectional: 0,
+      correctDirectional: 0,
+      accuracyDirectional: 0,
+      totalNeutral: 0,
+      correctNeutral: 0,
+      accuracyNeutral: 0
+    }
+
     }
   },
 
@@ -1156,6 +1173,10 @@ const AIEnginePro = {
       }
     }
     
+
+    // Update live verified accuracy (fast UI metric)
+    this.updateVerificationPerformance(direction, success, horizon);
+
     // Complete after longest horizon
     if (horizon === Math.max(...this.config.horizons)) {
       this.completeProPrediction(pred);
@@ -1285,12 +1306,41 @@ const AIEnginePro = {
       }
     }
   },
+  // ============================================
+  // ⚡ LIVE VERIFIED PERFORMANCE (fast, UI-facing)
+  // ============================================
+  updateVerificationPerformance(direction, success, horizon) {
+    // Only count selected short horizons for live UI accuracy
+    const list = this.config.verificationAccuracyHorizons || [2, 5, 10, 15, 30];
+    if (!list.includes(horizon)) return;
+
+    const perf = this.performance.overall || (this.performance.overall = {});
+
+    perf.totalPredictions = (perf.totalPredictions || 0) + 1;
+    if (success) perf.correctPredictions = (perf.correctPredictions || 0) + 1;
+    perf.accuracy = perf.totalPredictions > 0 ? (perf.correctPredictions / perf.totalPredictions) : 0;
+
+    const isNeutral = (direction === 'NEUTRAL');
+    if (isNeutral) {
+      perf.totalNeutral = (perf.totalNeutral || 0) + 1;
+      if (success) perf.correctNeutral = (perf.correctNeutral || 0) + 1;
+      perf.accuracyNeutral = perf.totalNeutral > 0 ? (perf.correctNeutral / perf.totalNeutral) : 0;
+    } else {
+      perf.totalDirectional = (perf.totalDirectional || 0) + 1;
+      if (success) perf.correctDirectional = (perf.correctDirectional || 0) + 1;
+      perf.accuracyDirectional = perf.totalDirectional > 0 ? (perf.correctDirectional / perf.totalDirectional) : 0;
+    }
+
+    perf.lastVerifiedAt = Date.now();
+  },
+
+
 
   // ============================================
   // 📈 PERFORMANCE TRACKING
   // ============================================
   updatePerformance(pred) {
-    const perf = this.performance.overall;
+    const perf = this.performance.longTerm || (this.performance.longTerm = {totalPredictions:0, correctPredictions:0, accuracy:0, totalDirectional:0, correctDirectional:0, accuracyDirectional:0, totalNeutral:0, correctNeutral:0, accuracyNeutral:0});
 
     // Base
     perf.totalPredictions++;
@@ -1732,12 +1782,13 @@ const AIEnginePro = {
     
     return {
       overall: this.performance.overall,
+      overallLong: this.performance.longTerm || null,
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
         patterns: this.memory.patterns.length,
         pending: this.predictions.pending.length,
-        completed: this.predictions.completed.length
+        completed: Math.max(this.predictions.completed.length, (this.performance.overall?.totalPredictions || 0))
       },
       session: {
         predictions: sessionPredictions,
