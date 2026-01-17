@@ -197,6 +197,13 @@ const AIEnginePro = {
   },
 
   // ============================================
+  // 🎯 CONFIDENCE CALIBRATION (UI telemetry)
+  // ============================================
+  // This tracking is used ONLY for panel metrics (LAST VERIFICATION / Calibration).
+  // It does NOT alter predictions, thresholds, or trading logic.
+  _calibration: null,
+
+  // ============================================
   // 🚀 INITIALIZATION
   // ============================================
   async init() {
@@ -244,6 +251,9 @@ const AIEnginePro = {
     this._sessionPredictions = 0;
     this._lastPredictionTime = null;
     this._lastVerification = null;
+
+    // Init confidence calibration buckets (telemetry-only)
+    this.initCalibration();
     
     this.isReady = true;
     console.log('[AI-PRO] ✓ AI Engine PRO ready');
@@ -1068,13 +1078,38 @@ const AIEnginePro = {
       success,
       timestamp: Date.now()
     });
-    
+
+    // -----------------------------
+    // Telemetry (LAST VERIFICATION)
+    // -----------------------------
+    const dir = pred?.ensemble?.direction || 'NEUTRAL';
+    const conf = Number(pred?.ensemble?.confidence || 0);
+    const confPct = (conf * 100).toFixed(1);
+    const bucket = this.getConfidenceBucket(conf);
+
+    // Update calibration ONCE per prediction (use shortest horizon)
+    // to avoid counting the same prediction multiple times.
+    const shortHs = Array.isArray(this.config.shortHorizons) && this.config.shortHorizons.length
+      ? this.config.shortHorizons
+      : [2, 5, 10, 15];
+    const calibrationH = Math.min(...shortHs);
+    let calSnap = null;
+    if (horizon === calibrationH) {
+      calSnap = this.updateCalibration(conf, success);
+    } else if (bucket) {
+      // Read-only snapshot for display
+      calSnap = { label: bucket.label, accuracy: bucket.accuracy, total: bucket.total };
+    }
+
     // Update session tracking
     this._lastVerification = {
       horizon,
       priceChange: priceChange.toFixed(3),
       success,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      direction: dir,
+      confidence: confPct,
+      calibration: calSnap
     };
     
     // Update horizon statistics (with safe check)
@@ -1319,6 +1354,53 @@ const AIEnginePro = {
       if (p && p.timestamp && p.timestamp >= cutoff) n++;
     }
     return n;
+  },
+
+  // ============================================
+  // 🎯 Calibration helpers (telemetry-only)
+  // ============================================
+  initCalibration() {
+    if (this._calibration && this._calibration.buckets) return this._calibration;
+
+    const ranges = [
+      { label: '0-40', min: 0.00, max: 0.40 },
+      { label: '40-55', min: 0.40, max: 0.55 },
+      { label: '55-70', min: 0.55, max: 0.70 },
+      { label: '70-100', min: 0.70, max: 1.01 }
+    ];
+
+    this._calibration = { buckets: {} };
+    for (const r of ranges) {
+      this._calibration.buckets[r.label] = {
+        label: r.label,
+        min: r.min,
+        max: r.max,
+        total: 0,
+        correct: 0,
+        accuracy: 0
+      };
+    }
+    return this._calibration;
+  },
+
+  getConfidenceBucket(conf) {
+    const c = Math.max(0, Math.min(1, Number(conf) || 0));
+    this.initCalibration();
+    const buckets = this._calibration.buckets;
+    for (const k of Object.keys(buckets)) {
+      const b = buckets[k];
+      if (c >= b.min && c < b.max) return b;
+    }
+    return buckets['0-40'] || null;
+  },
+
+  updateCalibration(conf, success) {
+    const b = this.getConfidenceBucket(conf);
+    if (!b) return null;
+    b.total += 1;
+    if (success) b.correct += 1;
+    b.accuracy = b.total > 0 ? (b.correct / b.total) : 0;
+    return { label: b.label, accuracy: b.accuracy, total: b.total };
   },
 
   generateAutoPrediction() {
@@ -1615,7 +1697,8 @@ const AIEnginePro = {
     return {
       overall: Object.assign({}, this.performance.overall, {
         accuracy: shortAccuracy,
-        sample: shortTotal,
+        sample: shortTotal,           // verification samples (sum across short horizons)
+        samplePreds: completedShort,  // unique predictions verified at the shortest horizon
         mode: shortTotal > 0 ? 'SHORT' : 'LONG'
       }),
       horizons: this.predictions.byHorizon,
