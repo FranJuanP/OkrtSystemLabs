@@ -1,14 +1,14 @@
 // ============================================
-// 🧠 AI ENGINE PRO v1.3.0
+// 🧠 AI ENGINE PRO v1.4.0
 // Advanced Self-Learning System for ORACULUM
 // Copyright (c) 2025-2026 OkrtSystem Labs
 // ============================================
+// CHANGELOG v1.4.0:
+// - ADD: Extended session stats (predictions count, uptime, last verification)
+// - ADD: Real-time tracking of predictions and verifications
+// - FIX: Lowered minConfidence to 0.55 for better NEUTRAL market handling
 // CHANGELOG v1.3.0:
 // - FIX: Persist pending predictions across page reloads
-// - FIX: Reschedule verifications for restored predictions
-// - FIX: 240min cycle now works correctly
-// CHANGELOG v1.2.0:
-// - ADD: Auto-prediction system (every 2 min)
 // CHANGELOG v1.1.0:
 // - FIX: byHorizon ahora incluye todos los horizontes (120, 240)
 // - FIX: Feature extraction completo con mapeos para features derivados
@@ -20,7 +20,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.3.0',
+  version: '1.4.0',
   isReady: false,
   db: null,
   
@@ -32,7 +32,7 @@ const AIEnginePro = {
     horizons: [2, 5, 10, 15, 30, 60, 120, 240],
     
     // Minimum confidence to generate signal
-    minConfidence: 0.65,
+    minConfidence: 0.55,
     
     // Ensemble voting threshold
     ensembleThreshold: 0.6,
@@ -225,6 +225,12 @@ const AIEnginePro = {
     
     // Start auto-prediction loop
     this.startAutoPrediction();
+    
+    // Initialize session tracking
+    this._sessionStart = Date.now();
+    this._sessionPredictions = 0;
+    this._lastPredictionTime = null;
+    this._lastVerification = null;
     
     this.isReady = true;
     console.log('[AI-PRO] ✓ AI Engine PRO ready');
@@ -1012,6 +1018,14 @@ const AIEnginePro = {
       timestamp: Date.now()
     });
     
+    // Update session tracking
+    this._lastVerification = {
+      horizon,
+      priceChange: priceChange.toFixed(3),
+      success,
+      timestamp: Date.now()
+    };
+    
     // Update horizon statistics (with safe check)
     if (this.predictions.byHorizon[horizon]) {
       this.predictions.byHorizon[horizon].total++;
@@ -1275,12 +1289,16 @@ const AIEnginePro = {
     
     this.predictions.pending.push(proPrediction);
     
+    // Update session tracking
+    this._sessionPredictions = (this._sessionPredictions || 0) + 1;
+    this._lastPredictionTime = Date.now();
+    
     // Schedule verifications
     for (const horizon of this.config.horizons) {
       setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
     }
     
-    console.log(`[AI-PRO] 🎯 Auto-prediction: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${window.state.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
+    console.log(`[AI-PRO] 🎯 Auto-prediction #${this._sessionPredictions}: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${window.state.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
   },
 
   // ============================================
@@ -1466,13 +1484,26 @@ const AIEnginePro = {
   },
   
   getStats() {
+    // Calculate session stats
+    const sessionStart = this._sessionStart || Date.now();
+    const sessionPredictions = this._sessionPredictions || 0;
+    const lastPredictionTime = this._lastPredictionTime || null;
+    const lastVerification = this._lastVerification || null;
+    
     return {
       overall: this.performance.overall,
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
         patterns: this.memory.patterns.length,
-        pending: this.predictions.pending.length
+        pending: this.predictions.pending.length,
+        completed: this.predictions.completed.length
+      },
+      session: {
+        predictions: sessionPredictions,
+        lastPrediction: lastPredictionTime,
+        lastVerification: lastVerification,
+        uptime: Math.floor((Date.now() - sessionStart) / 60000)
       },
       config: {
         learningRate: this.config.learningRate,
@@ -1509,4 +1540,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.3.0 module loaded (with memory management)');
+console.log('[AI-PRO] AI Engine PRO v1.4.0 loaded (dynamic stats enabled)');
