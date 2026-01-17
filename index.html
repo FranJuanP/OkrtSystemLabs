@@ -1621,6 +1621,99 @@
     Object.freeze(Security);
     Object.freeze(Security.storage);
     
+    // ============================================
+    // FREEZE PROTECTION MODULE v1.0
+    // Prevents UI freezing from unhandled errors
+    // ============================================
+    const FreezeGuard = {
+      intervals: new Map(),
+      timeouts: new Map(),
+      lastActivity: Date.now(),
+      watchdogId: null,
+      
+      // Safe setInterval with error protection
+      safeInterval: function(fn, delay, name = 'unnamed') {
+        const wrapped = () => {
+          try {
+            this.lastActivity = Date.now();
+            fn();
+          } catch (e) {
+            console.warn('[FreezeGuard] Interval error in ' + name + ':', e.message);
+          }
+        };
+        const id = setInterval(wrapped, delay);
+        this.intervals.set(id, { name, delay, fn: wrapped });
+        return id;
+      },
+      
+      // Safe setTimeout with error protection  
+      safeTimeout: function(fn, delay, name = 'unnamed') {
+        const wrapped = () => {
+          try {
+            this.lastActivity = Date.now();
+            fn();
+          } catch (e) {
+            console.warn('[FreezeGuard] Timeout error in ' + name + ':', e.message);
+          }
+          this.timeouts.delete(id);
+        };
+        const id = setTimeout(wrapped, delay);
+        this.timeouts.set(id, { name, delay });
+        return id;
+      },
+      
+      // Debounced ResizeObserver factory
+      createResizeObserver: function(callback, delay = 100) {
+        let timeout = null;
+        return new ResizeObserver((entries) => {
+          if (timeout) clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            try {
+              callback(entries);
+            } catch (e) {
+              console.warn('[FreezeGuard] ResizeObserver error:', e.message);
+            }
+          }, delay);
+        });
+      },
+      
+      // Watchdog to detect freezes
+      startWatchdog: function() {
+        if (this.watchdogId) return;
+        this.watchdogId = setInterval(() => {
+          const now = Date.now();
+          // If no activity for 30 seconds and we have pending work, something's wrong
+          if (now - this.lastActivity > 30000 && this.intervals.size > 0) {
+            console.warn('[FreezeGuard] Potential freeze detected, activity gap:', ((now - this.lastActivity)/1000).toFixed(0) + 's');
+            this.lastActivity = now; // Reset to avoid spam
+          }
+        }, 10000);
+      },
+      
+      // Clear all managed intervals
+      clearAll: function() {
+        this.intervals.forEach((_, id) => clearInterval(id));
+        this.intervals.clear();
+        this.timeouts.forEach((_, id) => clearTimeout(id));
+        this.timeouts.clear();
+      },
+      
+      // Get status
+      status: function() {
+        return {
+          intervals: this.intervals.size,
+          timeouts: this.timeouts.size,
+          lastActivity: new Date(this.lastActivity).toLocaleTimeString()
+        };
+      }
+    };
+    
+    // Start watchdog
+    FreezeGuard.startWatchdog();
+    
+    // Expose globally
+    window.FreezeGuard = FreezeGuard;
+    
     // CSP Violation logging
     document.addEventListener('securitypolicyviolation', (e) => {
       console.error('[CSP Violation]', e.violatedDirective, e.blockedURI);
@@ -1636,6 +1729,47 @@
       console.error('[Promise Error]', e.reason?.message || 'Unknown');
       e.preventDefault();
     });
+    
+    // ============================================
+    // FREEZE PROTECTION MODULE v1.0
+    // Prevents UI freezing from runaway intervals
+    // ============================================
+    (function() {
+      const _originalSetInterval = window.setInterval;
+      const _originalClearInterval = window.clearInterval;
+      const _activeIntervals = new Map();
+      let _intervalCounter = 0;
+      
+      // Override setInterval with error protection
+      window.setInterval = function(fn, delay, ...args) {
+        const id = ++_intervalCounter;
+        const wrappedFn = function() {
+          try {
+            if (typeof fn === 'function') {
+              fn.apply(this, args);
+            }
+          } catch (e) {
+            console.warn('[FreezeGuard] Interval error:', e.message);
+          }
+        };
+        const realId = _originalSetInterval.call(window, wrappedFn, delay);
+        _activeIntervals.set(realId, { delay, created: Date.now() });
+        return realId;
+      };
+      
+      // Override clearInterval
+      window.clearInterval = function(id) {
+        _activeIntervals.delete(id);
+        return _originalClearInterval.call(window, id);
+      };
+      
+      // Expose diagnostic function
+      window._getActiveIntervals = function() {
+        return { count: _activeIntervals.size, intervals: Array.from(_activeIntervals.entries()) };
+      };
+      
+      console.log('[FreezeGuard] Interval protection enabled');
+    })();
   </script><script nonce="okrt-oraculum-nonce-2026">
     // ============================================
     // XRP ORACULUM - OkrtSystem Labs
@@ -2649,8 +2783,15 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           autoscaleInfoProvider: () => null,
         }));
       }
+      // Debounced resize to prevent excessive redraws
+      let resizeTimeout = null;
       new ResizeObserver(() => {
-        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          try {
+            chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+          } catch(e) {}
+        }, 150);
       }).observe(container);
     }
     // ============================================
@@ -5959,6 +6100,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     let wsKraken;
     function connectKraken() {
       try {
+        // Close existing connection if any
+        if (wsKraken && wsKraken.readyState !== WebSocket.CLOSED) {
+          try { wsKraken.close(); } catch(e) {}
+        }
         wsKraken = new WebSocket('wss://ws.kraken.com');
         
         wsKraken.onopen = () => {
@@ -6003,6 +6148,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     let wsBitstamp;
     function connectBitstamp() {
       try {
+        // Close existing connection if any
+        if (wsBitstamp && wsBitstamp.readyState !== WebSocket.CLOSED) {
+          try { wsBitstamp.close(); } catch(e) {}
+        }
         wsBitstamp = new WebSocket('wss://ws.bitstamp.net');
         
         wsBitstamp.onopen = () => {
@@ -6042,6 +6191,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     let wsBybit;
     function connectBybit() {
       try {
+        // Close existing connection if any
+        if (wsBybit && wsBybit.readyState !== WebSocket.CLOSED) {
+          try { wsBybit.close(); } catch(e) {}
+        }
         wsBybit = new WebSocket('wss://stream.bybit.com/v5/public/spot');
         
         wsBybit.onopen = () => {
@@ -7883,9 +8036,15 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         // Fetch historical data
         fetchMultiChartData(asset);
         
-        // Resize observer
+        // Debounced resize observer
+        let mcResizeTimeout = null;
         new ResizeObserver(() => {
-          chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+          if (mcResizeTimeout) clearTimeout(mcResizeTimeout);
+          mcResizeTimeout = setTimeout(() => {
+            try {
+              chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+            } catch(e) {}
+          }, 150);
         }).observe(container);
       });
     }
