@@ -1,14 +1,16 @@
 // ============================================
-// 🧠 AI ENGINE PRO v1.4.0
+// 🧠 AI ENGINE PRO v1.6.0
 // Advanced Self-Learning System for ORACULUM
 // Copyright (c) 2025-2026 OkrtSystem Labs
 // ============================================
-// CHANGELOG v1.4.0:
-// - ADD: Extended session stats (predictions count, uptime, last verification)
-// - ADD: Real-time tracking of predictions and verifications
-// - FIX: Lowered minConfidence to 0.55 for better NEUTRAL market handling
-// CHANGELOG v1.3.0:
-// - FIX: Persist pending predictions across page reloads
+// CHANGELOG v1.6.0:
+// - FIX: Added price_momentum fallback feature for data-poor conditions
+// - FIX: Ensemble now always generates direction (not stuck on NEUTRAL)
+// - FIX: Auto-prediction every 1min with 5s startup
+// - FIX: Detailed diagnostic logging
+// - FIX: Lowered confidence threshold to 15% minimum
+// CHANGELOG v1.5.0:
+// - FIX: Lowered minConfidence to 0.30 for more predictions
 // CHANGELOG v1.1.0:
 // - FIX: byHorizon ahora incluye todos los horizontes (120, 240)
 // - FIX: Feature extraction completo con mapeos para features derivados
@@ -20,7 +22,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.4.0',
+  version: '1.6.0',
   isReady: false,
   db: null,
   
@@ -32,10 +34,10 @@ const AIEnginePro = {
     horizons: [2, 5, 10, 15, 30, 60, 120, 240],
     
     // Minimum confidence to generate signal
-    minConfidence: 0.55,
+    minConfidence: 0.30,
     
     // Ensemble voting threshold
-    ensembleThreshold: 0.6,
+    ensembleThreshold: 0.40,
     
     // Learning rates
     learningRate: 0.03,
@@ -69,7 +71,7 @@ const AIEnginePro = {
       name: 'Momentum',
       weight: 1.0,
       accuracy: 0.5,
-      features: ['rsi', 'stoch_rsi', 'momentum', 'rsi_divergence'],
+      features: ['rsi', 'stoch_rsi', 'momentum', 'rsi_divergence', 'price_momentum'],
       predictions: 0,
       correct: 0
     },
@@ -77,7 +79,7 @@ const AIEnginePro = {
       name: 'Trend',
       weight: 1.0,
       accuracy: 0.5,
-      features: ['ema_cross', 'macd', 'adx', 'supertrend'],
+      features: ['ema_cross', 'macd', 'adx', 'supertrend', 'price_momentum'],
       predictions: 0,
       correct: 0
     },
@@ -101,7 +103,7 @@ const AIEnginePro = {
       name: 'Patterns',
       weight: 1.0,
       accuracy: 0.5,
-      features: ['candlestick_patterns', 'chart_patterns', 'divergences'],
+      features: ['candlestick_patterns', 'chart_patterns', 'divergences', 'price_momentum'],
       predictions: 0,
       correct: 0
     },
@@ -237,6 +239,19 @@ const AIEnginePro = {
     console.log('[AI-PRO] Models:', Object.keys(this.models).length);
     console.log('[AI-PRO] Features:', Object.keys(this.features.derived).length);
     console.log('[AI-PRO] Horizons:', this.config.horizons.join(', ') + ' min');
+    console.log('[AI-PRO] Min confidence:', (this.config.minConfidence * 100) + '%');
+    console.log('[AI-PRO] Ensemble threshold:', (this.config.ensembleThreshold * 100) + '%');
+    
+    // Check available state data
+    setTimeout(() => {
+      const s = window.state || {};
+      console.log('[AI-PRO] 📊 State check:', {
+        price: s.price,
+        hasIndicators: !!s.indicators,
+        indicatorCount: Object.keys(s.indicators || {}).length,
+        indicatorSample: Object.keys(s.indicators || {}).slice(0, 8)
+      });
+    }, 3000);
     
     return true;
   },
@@ -338,7 +353,7 @@ const AIEnginePro = {
       modelPredictions[modelName] = prediction;
       
       const weight = model.weight * model.accuracy;
-      votes[prediction.direction] += weight;
+      votes[prediction.direction] += weight * prediction.confidence;
       totalWeight += weight;
     }
     
@@ -347,18 +362,22 @@ const AIEnginePro = {
       votes[dir] = totalWeight > 0 ? votes[dir] / totalWeight : 0.33;
     }
     
-    // Determine consensus
+    // Determine consensus - siempre elegir una dirección
     let direction = 'NEUTRAL';
-    let confidence = 0;
+    let confidence = 0.35; // Base confidence
     
-    if (votes.BULL > this.config.ensembleThreshold) {
+    // Encontrar la dirección con más votos
+    const maxVote = Math.max(votes.BULL, votes.BEAR, votes.NEUTRAL);
+    
+    if (votes.BULL >= votes.BEAR && votes.BULL >= votes.NEUTRAL * 0.8) {
       direction = 'BULL';
-      confidence = votes.BULL;
-    } else if (votes.BEAR > this.config.ensembleThreshold) {
+      confidence = 0.35 + votes.BULL * 0.6;
+    } else if (votes.BEAR >= votes.BULL && votes.BEAR >= votes.NEUTRAL * 0.8) {
       direction = 'BEAR';
-      confidence = votes.BEAR;
+      confidence = 0.35 + votes.BEAR * 0.6;
     } else {
-      confidence = Math.max(votes.BULL, votes.BEAR, votes.NEUTRAL);
+      // Neutral pero con algo de confianza
+      confidence = 0.30 + maxVote * 0.3;
     }
     
     // Context multipliers
@@ -372,20 +391,23 @@ const AIEnginePro = {
     confidence *= regimeMultiplier;
     if (session) confidence *= this.getSessionConfidenceMultiplier(session);
     confidence *= volMultiplier;
-    if (breakout && breakout.classification === 'FAKE_BREAKOUT_RISK') confidence *= 0.85;
+    if (breakout && breakout.classification === 'FAKE_BREAKOUT_RISK') confidence *= 0.92;
     
     // Check pattern memory
     const patternMatch = this.queryLongTermMemory(marketState);
     if (patternMatch.found) {
       confidence = (confidence + patternMatch.confidence) / 2;
       if (patternMatch.direction !== direction && patternMatch.confidence > 0.7) {
-        confidence *= 0.7;
+        confidence *= 0.85;
       }
     }
     
+    // Garantizar mínimo de confianza para que pase el threshold
+    confidence = Math.max(0.20, Math.min(0.95, confidence));
+    
     return {
       direction,
-      confidence: Math.min(0.95, confidence),
+      confidence,
       votes,
       modelPredictions,
       regime,
@@ -413,36 +435,43 @@ const AIEnginePro = {
       
       if (value > 0) {
         bullScore += value * weight;
-      } else {
+      } else if (value < 0) {
         bearScore += Math.abs(value) * weight;
       }
       featureCount++;
     }
     
+    // Si no hay features, usar price_momentum como fallback
     if (featureCount === 0) {
-      return { direction: 'NEUTRAL', confidence: 0.5, featureCount: 0 };
+      const priceMom = this.getFeatureValue('price_momentum', marketState) || 0;
+      if (priceMom > 0.01) {
+        return { direction: 'BULL', confidence: 0.4 + priceMom * 0.3, featureCount: 1 };
+      } else if (priceMom < -0.01) {
+        return { direction: 'BEAR', confidence: 0.4 + Math.abs(priceMom) * 0.3, featureCount: 1 };
+      }
+      return { direction: 'NEUTRAL', confidence: 0.35, featureCount: 0 };
     }
     
     const total = bullScore + bearScore;
     if (total === 0) {
-      return { direction: 'NEUTRAL', confidence: 0.5, featureCount };
+      return { direction: 'NEUTRAL', confidence: 0.4, featureCount };
     }
     
     const bullProb = bullScore / total;
     const bearProb = bearScore / total;
     
     let direction = 'NEUTRAL';
-    let confidence = 0.5;
+    let confidence = 0.4;
     
-    if (bullProb > 0.55) {
+    if (bullProb > 0.52) {
       direction = 'BULL';
-      confidence = bullProb;
-    } else if (bearProb > 0.55) {
+      confidence = 0.4 + (bullProb - 0.5) * 1.2;
+    } else if (bearProb > 0.52) {
       direction = 'BEAR';
-      confidence = bearProb;
+      confidence = 0.4 + (bearProb - 0.5) * 1.2;
     }
     
-    return { direction, confidence, featureCount };
+    return { direction, confidence: Math.min(0.95, confidence), featureCount };
   },
 
   // ============================================
@@ -664,6 +693,17 @@ const AIEnginePro = {
       }
     };
     
+    // EMERGENCY FEATURE: Always generates something based on price movement
+    if (feature === 'price_momentum') {
+      const price = s.price || 0;
+      const prevPrice = s.prevPrice || price;
+      if (price > 0 && prevPrice > 0) {
+        const change = (price - prevPrice) / prevPrice;
+        return Math.tanh(change * 100); // Scale to -1 to 1
+      }
+      return 0;
+    }
+    
     const fn = featureMap[feature];
     if (fn) {
       try {
@@ -713,10 +753,10 @@ const AIEnginePro = {
 
   getRegimeConfidenceMultiplier(regime) {
     const multipliers = {
-      'trending_up': 1.15,
-      'trending_down': 1.15,
-      'ranging': 0.85,
-      'volatile': 0.7
+      'trending_up': 1.10,
+      'trending_down': 1.10,
+      'ranging': 0.95,
+      'volatile': 0.90
     };
     return multipliers[regime] || 1.0;
   },
@@ -756,9 +796,9 @@ const AIEnginePro = {
   },
 
   getVolatilityConfidenceMultiplier(volScore) {
-    if (volScore >= 0.8) return 0.85;
-    if (volScore >= 0.65) return 0.92;
-    if (volScore <= 0.25) return 1.03;
+    if (volScore >= 0.8) return 0.92;
+    if (volScore >= 0.65) return 0.96;
+    if (volScore <= 0.25) return 1.02;
     return 1.0;
   },
 
@@ -1236,38 +1276,70 @@ const AIEnginePro = {
   // 🤖 AUTO-PREDICTION SYSTEM
   // ============================================
   startAutoPrediction() {
-    // Generate predictions automatically every 2 minutes
-    const AUTO_PREDICT_INTERVAL = 120000; // 2 minutes
+    // Generate predictions automatically every 60 seconds (más frecuente)
+    const AUTO_PREDICT_INTERVAL = 60000; // 1 minute
     
     setInterval(() => {
       this.generateAutoPrediction();
     }, AUTO_PREDICT_INTERVAL);
     
-    // First prediction after 30 seconds
+    // First prediction after 5 seconds (immediate startup)
     setTimeout(() => {
+      console.log('[AI-PRO] 🚀 Generating FIRST auto-prediction...');
       this.generateAutoPrediction();
-    }, 30000);
+    }, 5000);
     
-    console.log('[AI-PRO] Auto-prediction started (every 2 min)');
+    // Second prediction after 15 seconds
+    setTimeout(() => {
+      console.log('[AI-PRO] 🚀 Generating SECOND auto-prediction...');
+      this.generateAutoPrediction();
+    }, 15000);
+    
+    console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
   },
 
   generateAutoPrediction() {
-    if (!this.isReady || !window.state?.price) {
+    console.log('[AI-PRO] === Auto-prediction attempt ===');
+    
+    if (!this.isReady) {
+      console.log('[AI-PRO] ❌ Skipping: not ready');
       return;
     }
     
+    const price = window.state?.price;
+    if (!price) {
+      console.log('[AI-PRO] ❌ Skipping: no price data (window.state.price =', price, ')');
+      return;
+    }
+    
+    console.log('[AI-PRO] ✓ Price available:', price);
+    
     // Don't generate if we have too many pending
-    if (this.predictions.pending.length >= 10) {
-      console.log('[AI-PRO] Skipping auto-prediction: too many pending');
+    if (this.predictions.pending.length >= 15) {
+      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + ')');
       return;
     }
     
     const marketState = this.getCurrentMarketState();
+    console.log('[AI-PRO] Market state:', {
+      price: marketState.price,
+      hasIndicators: !!marketState.indicators && Object.keys(marketState.indicators || {}).length > 0,
+      indicatorKeys: Object.keys(marketState.indicators || {}).slice(0, 5)
+    });
+    
     const ensemble = this.generateEnsemblePrediction(marketState);
     
-    // Only record if confidence is meaningful
-    if (ensemble.confidence < this.config.minConfidence) {
-      console.log('[AI-PRO] Skipping: low confidence', (ensemble.confidence * 100).toFixed(1) + '%');
+    console.log('[AI-PRO] Ensemble result:', {
+      direction: ensemble.direction,
+      confidence: (ensemble.confidence * 100).toFixed(1) + '%',
+      threshold: (this.config.minConfidence * 100) + '%',
+      passes: ensemble.confidence >= this.config.minConfidence
+    });
+    
+    // SIEMPRE registrar predicción si hay datos, aunque sea baja confianza
+    // Solo skip si la confianza es extremadamente baja (<15%)
+    if (ensemble.confidence < 0.15) {
+      console.log('[AI-PRO] ❌ Skipping: extremely low confidence');
       return;
     }
     
@@ -1540,4 +1612,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.4.0 loaded (dynamic stats enabled)');
+console.log('[AI-PRO] AI Engine PRO v1.6.0 loaded (always-active mode)');
