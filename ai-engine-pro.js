@@ -22,7 +22,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.6.5',
+  version: '1.6.6',
   isReady: false,
   db: null,
   
@@ -306,6 +306,7 @@ const AIEnginePro = {
   hasFeatureMapping(feature) {
     const mappedFeatures = [
       'rsi', 'stoch_rsi', 'momentum', 'rsi_divergence',
+      'price_momentum',
       'ema_cross', 'macd', 'adx', 'supertrend',
       'volume', 'obv', 'cvd', 'whale_flow',
       'support_resistance', 'order_blocks', 'fvg', 'liquidity',
@@ -1180,6 +1181,11 @@ const AIEnginePro = {
         console.log('[AI-PRO] 🧹 Hard-cap applied. Pending trimmed to', SOFT_CAP);
       }
     }
+  },
+
+  // Backward-compatible alias (some builds call the underscored variant)
+  _sweepPendingPredictions() {
+    return this.sweepPendingPredictions();
   },
 
   // Reschedule verifications for restored predictions
