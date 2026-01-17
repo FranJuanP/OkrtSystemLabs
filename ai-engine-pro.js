@@ -22,7 +22,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.6.8',
+  version: '1.6.9',
   isReady: false,
   db: null,
   
@@ -55,6 +55,11 @@ const AIEnginePro = {
 
     // --- PRO enhancements ---
     minValidationsToLearn: 6,
+    // Auto-prediction tuning: keep the engine real-time + stable
+    // (avoid hours-long pending queues and a large number of long timers).
+    autoMaxHorizon: 15,          // validate auto-predictions up to 15m
+    minValidationsToLearnAuto: 4, // store learning after short horizons (2/5/10/15)
+    maxPending: 25,              // guardrail for pending queue size
     sessionAware: true,
     volatilityAware: true,
     breakoutAware: true,
@@ -1075,8 +1080,12 @@ const AIEnginePro = {
         this.predictions.byHorizon[horizon].correct / this.predictions.byHorizon[horizon].total;
     }
     
-    // Complete after longest horizon
-    if (horizon === Math.max(...this.config.horizons)) {
+    // Complete prediction
+    // - Auto mode: complete after the short-horizon cycle (default: 15m)
+    // - Non-auto mode: complete after the full configured horizon cycle
+    const autoMax = this.config.autoMaxHorizon || 15;
+    const fullMax = Math.max(...this.config.horizons);
+    if ((pred.isAuto && horizon === autoMax) || (!pred.isAuto && horizon === fullMax)) {
       this.completeProPrediction(pred);
     }
   },
@@ -1089,7 +1098,11 @@ const AIEnginePro = {
     const elapsed = now - pred.timestamp;
     const verified = pred.verifications ? pred.verifications.map(v => v.horizon) : [];
     
-    for (const horizon of this.config.horizons) {
+    const horizonsToVerify = pred.isAuto
+      ? this.config.horizons.filter(h => h <= (this.config.autoMaxHorizon || 15))
+      : this.config.horizons;
+
+    for (const horizon of horizonsToVerify) {
       // Skip already verified horizons
       if (verified.includes(horizon)) continue;
       
@@ -1109,7 +1122,11 @@ const AIEnginePro = {
 
   completeProPrediction(pred) {
     const verifs = pred.verifications || [];
-    const minValidations = Math.min(this.config.minValidationsToLearn, this.config.horizons.length);
+    // Auto-predictions validate only short horizons (default: 2/5/10/15m) to stay real-time.
+    // Allow learning with fewer validations in auto mode.
+    const baseMinValidations = Math.min(this.config.minValidationsToLearn, this.config.horizons.length);
+    const autoMinValidations = Math.min((this.config.minValidationsToLearnAuto || 4), this.config.horizons.length);
+    const minValidations = pred && pred.isAuto ? autoMinValidations : baseMinValidations;
 
     const maxH = Math.max(...this.config.horizons);
     let wSuccess = 0;
@@ -1316,8 +1333,9 @@ const AIEnginePro = {
     console.log('[AI-PRO] ✓ Price available:', price);
     
     // Don't generate if we have too many pending
-    if (this.predictions.pending.length >= 15) {
-      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + ')');
+    const maxPending = this.config.maxPending || 25;
+    if (this.predictions.pending.length >= maxPending) {
+      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + '/' + maxPending + ')');
       return;
     }
     
@@ -1366,8 +1384,9 @@ const AIEnginePro = {
     this._sessionPredictions = (this._sessionPredictions || 0) + 1;
     this._lastPredictionTime = Date.now();
     
-    // Schedule verifications
-    for (const horizon of this.config.horizons) {
+    // Schedule verifications (auto mode: only short horizons to stay real-time)
+    const horizonsToVerify = this.config.horizons.filter(h => h <= (this.config.autoMaxHorizon || 15));
+    for (const horizon of horizonsToVerify) {
       setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
     }
     
@@ -1420,7 +1439,7 @@ const AIEnginePro = {
           const savedPending = pendingDoc.data();
           if (savedPending.pending && Array.isArray(savedPending.pending)) {
             const now = Date.now();
-            const MAX_PENDING = 15;
+            const MAX_PENDING = this.config.maxPending || 25;
             // Restore only recent predictions, keep newest MAX_PENDING to avoid timer storms / freezes
             const recent = savedPending.pending
               .filter(p => p && typeof p === 'object' && p.timestamp && (now - p.timestamp) < 18000000)
@@ -1430,6 +1449,8 @@ const AIEnginePro = {
             let restored = 0;
             for (const pred of recent) {
               if (!pred.id) pred.id = `restored_${pred.timestamp || now}_${Math.random().toString(36).slice(2, 9)}`;
+              // Default restored predictions to auto-mode unless explicitly specified
+              if (typeof pred.isAuto !== 'boolean') pred.isAuto = true;
               this.predictions.pending.push(pred);
               this.rescheduleVerifications(pred);
               restored++;
@@ -1497,8 +1518,9 @@ const AIEnginePro = {
         await setDoc(doc(this.db, 'ai', 'pro_horizons'), this.predictions.byHorizon);
         
         // Save pending predictions (critical for 240min cycle)
+        const persistMax = this.config.maxPending || 25;
         await setDoc(doc(this.db, 'ai', 'pro_pending'), {
-          pending: this.predictions.pending.slice(-15),
+          pending: this.predictions.pending.slice(-persistMax),
           updatedAt: Date.now()
         });
         
@@ -1655,4 +1677,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.6.8 loaded (always-active mode)');
+console.log('[AI-PRO] AI Engine PRO v1.6.9 loaded (always-active mode)');
