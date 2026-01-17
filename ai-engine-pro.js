@@ -1673,27 +1673,49 @@ const AIEnginePro = {
     const lastPredictionTime = this._lastPredictionTime || null;
     const lastVerification = this._lastVerification || null;
     
-        // Live accuracy (fast feedback): use verification accuracy until long-horizon outcomes are available
+    // Live accuracy (fast feedback): blend verification stats + long-horizon outcomes
+    // IMPORTANT: for UI display we prefer directional accuracy when it has enough samples
+    // to avoid an inflated score due to NEUTRAL confirmations.
     const overall = { ...this.performance.overall };
     const vPerf = this.performance.verifications;
-    if (vPerf && vPerf.total >= 5) {
-      overall.accuracy = vPerf.accuracy;
+
+    if (vPerf && typeof vPerf.total === 'number' && vPerf.total >= 1) {
+      const hasDirectionalSamples = vPerf.directional && vPerf.directional.total >= 5;
+      const displayAcc = hasDirectionalSamples ? vPerf.directional.accuracy : vPerf.accuracy;
+
+      overall.accuracy = displayAcc;
+      overall.displayMode = hasDirectionalSamples ? 'directional' : 'overall';
       overall.verificationTotal = vPerf.total;
       overall.verificationCorrect = vPerf.correct;
       overall.breakdown = {
-        directional: { total: vPerf.directional.total, correct: vPerf.directional.correct, accuracy: vPerf.directional.accuracy },
-        neutral: { total: vPerf.neutral.total, correct: vPerf.neutral.correct, accuracy: vPerf.neutral.accuracy }
+        directional: {
+          total: vPerf.directional.total,
+          correct: vPerf.directional.correct,
+          accuracy: vPerf.directional.accuracy
+        },
+        neutral: {
+          total: vPerf.neutral.total,
+          correct: vPerf.neutral.correct,
+          accuracy: vPerf.neutral.accuracy
+        }
       };
     }
 
-return {
+    const verifiedTotal = (vPerf && typeof vPerf.total === 'number') ? vPerf.total : 0;
+    const longCompleted = this.predictions.completed.length;
+
+    return {
       overall: overall,
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
         patterns: this.memory.patterns.length,
         pending: this.predictions.pending.length,
-        completed: this.predictions.completed.length
+        // UI expects a fast-moving "COMPLETED" number; we expose verifications total here.
+        // Long-horizon completions are still available as completedLong.
+        completed: verifiedTotal,
+        completedLong: longCompleted,
+        verified: verifiedTotal
       },
       session: {
         predictions: sessionPredictions,
