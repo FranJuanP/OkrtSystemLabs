@@ -60,18 +60,7 @@ const AIEnginePro = {
     breakoutAware: true,
     
     // Debug mode
-    debugMode: true,
-
-    // --- Pending management (UI + stability) ---
-    // Long horizons (e.g., 240m) keep predictions pending for hours.
-    // We cap ONLY the "active" pending window so auto-prediction never stalls.
-    maxActivePending: 15,
-    activePendingWindowMin: 12,
-
-    // --- Short-horizon validation mode (fast authenticity) ---
-    // Used ONLY for UI metrics (ACCURACY / COMPLETED) so the engine becomes
-    // measurable from minute 2 without waiting for 240m.
-    shortHorizons: [2, 5, 10, 15]
+    debugMode: true
   },
 
   // ============================================
@@ -197,13 +186,6 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // 🎯 CONFIDENCE CALIBRATION (UI telemetry)
-  // ============================================
-  // This tracking is used ONLY for panel metrics (LAST VERIFICATION / Calibration).
-  // It does NOT alter predictions, thresholds, or trading logic.
-  _calibration: null,
-
-  // ============================================
   // 🚀 INITIALIZATION
   // ============================================
   async init() {
@@ -251,9 +233,6 @@ const AIEnginePro = {
     this._sessionPredictions = 0;
     this._lastPredictionTime = null;
     this._lastVerification = null;
-
-    // Init confidence calibration buckets (telemetry-only)
-    this.initCalibration();
     
     this.isReady = true;
     console.log('[AI-PRO] ✓ AI Engine PRO ready');
@@ -327,6 +306,8 @@ const AIEnginePro = {
   hasFeatureMapping(feature) {
     const mappedFeatures = [
       'rsi', 'stoch_rsi', 'momentum', 'rsi_divergence',
+      // ✅ NEW: explicit mapping for price momentum (used by multiple models)
+      'price_momentum',
       'ema_cross', 'macd', 'adx', 'supertrend',
       'volume', 'obv', 'cvd', 'whale_flow',
       'support_resistance', 'order_blocks', 'fvg', 'liquidity',
@@ -1078,38 +1059,13 @@ const AIEnginePro = {
       success,
       timestamp: Date.now()
     });
-
-    // -----------------------------
-    // Telemetry (LAST VERIFICATION)
-    // -----------------------------
-    const dir = pred?.ensemble?.direction || 'NEUTRAL';
-    const conf = Number(pred?.ensemble?.confidence || 0);
-    const confPct = (conf * 100).toFixed(1);
-    const bucket = this.getConfidenceBucket(conf);
-
-    // Update calibration ONCE per prediction (use shortest horizon)
-    // to avoid counting the same prediction multiple times.
-    const shortHs = Array.isArray(this.config.shortHorizons) && this.config.shortHorizons.length
-      ? this.config.shortHorizons
-      : [2, 5, 10, 15];
-    const calibrationH = Math.min(...shortHs);
-    let calSnap = null;
-    if (horizon === calibrationH) {
-      calSnap = this.updateCalibration(conf, success);
-    } else if (bucket) {
-      // Read-only snapshot for display
-      calSnap = { label: bucket.label, accuracy: bucket.accuracy, total: bucket.total };
-    }
-
+    
     // Update session tracking
     this._lastVerification = {
       horizon,
       priceChange: priceChange.toFixed(3),
       success,
-      timestamp: Date.now(),
-      direction: dir,
-      confidence: confPct,
-      calibration: calSnap
+      timestamp: Date.now()
     };
     
     // Update horizon statistics (with safe check)
@@ -1321,6 +1277,60 @@ const AIEnginePro = {
   // ============================================
   // 🤖 AUTO-PREDICTION SYSTEM
   // ============================================
+  // Get live price from any available source (robust against feed changes)
+  getLivePrice() {
+    try {
+      const st = window.state || {};
+
+      // 1) Primary: canonical state.price
+      let p = st.price;
+      if (p != null && !isNaN(p) && p > 0) return p;
+
+      // 2) Secondary: state.currentPrice
+      p = st.currentPrice;
+      if (p != null && !isNaN(p) && p > 0) {
+        st.price = p;
+        return p;
+      }
+
+      // 3) Fallback: last candle close
+      p = st.lastCandle && st.lastCandle.close;
+      if (p != null && !isNaN(p) && p > 0) {
+        st.price = p;
+        st.currentPrice = p;
+        return p;
+      }
+
+      // 4) Fallback: last candle in array
+      if (Array.isArray(st.candles) && st.candles.length) {
+        const last = st.candles[st.candles.length - 1];
+        p = last && last.close;
+        if (p != null && !isNaN(p) && p > 0) {
+          st.price = p;
+          st.currentPrice = p;
+          return p;
+        }
+      }
+
+      // 5) Optional: feed manager exposure (if present)
+      const fm = window.MarketFeedManager || window.feedManager || null;
+      if (fm && fm.currentPrice != null && !isNaN(fm.currentPrice) && fm.currentPrice > 0) {
+        st.price = fm.currentPrice;
+        st.currentPrice = fm.currentPrice;
+        return fm.currentPrice;
+      }
+    } catch (_) {}
+
+    return null;
+  },
+
+  // Count only “active” pending predictions (prevents old restored pending from blocking)
+  getActivePendingCount(windowMinutes = 12) {
+    const winMs = Math.max(1, windowMinutes) * 60000;
+    const now = Date.now();
+    return (this.predictions.pending || []).filter(p => p && p.timestamp && (now - p.timestamp) < winMs).length;
+  },
+
   startAutoPrediction() {
     // Generate predictions automatically every 60 seconds (más frecuente)
     const AUTO_PREDICT_INTERVAL = 60000; // 1 minute
@@ -1344,65 +1354,6 @@ const AIEnginePro = {
     console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
   },
 
-  // Active pending = predictions generated within a short rolling window.
-  // This prevents the engine from stalling due to long-horizon (240m) verifications.
-  getActivePendingCount() {
-    const winMin = Math.max(1, parseInt(this.config.activePendingWindowMin || 12, 10));
-    const cutoff = Date.now() - (winMin * 60000);
-    let n = 0;
-    for (const p of (this.predictions.pending || [])) {
-      if (p && p.timestamp && p.timestamp >= cutoff) n++;
-    }
-    return n;
-  },
-
-  // ============================================
-  // 🎯 Calibration helpers (telemetry-only)
-  // ============================================
-  initCalibration() {
-    if (this._calibration && this._calibration.buckets) return this._calibration;
-
-    const ranges = [
-      { label: '0-40', min: 0.00, max: 0.40 },
-      { label: '40-55', min: 0.40, max: 0.55 },
-      { label: '55-70', min: 0.55, max: 0.70 },
-      { label: '70-100', min: 0.70, max: 1.01 }
-    ];
-
-    this._calibration = { buckets: {} };
-    for (const r of ranges) {
-      this._calibration.buckets[r.label] = {
-        label: r.label,
-        min: r.min,
-        max: r.max,
-        total: 0,
-        correct: 0,
-        accuracy: 0
-      };
-    }
-    return this._calibration;
-  },
-
-  getConfidenceBucket(conf) {
-    const c = Math.max(0, Math.min(1, Number(conf) || 0));
-    this.initCalibration();
-    const buckets = this._calibration.buckets;
-    for (const k of Object.keys(buckets)) {
-      const b = buckets[k];
-      if (c >= b.min && c < b.max) return b;
-    }
-    return buckets['0-40'] || null;
-  },
-
-  updateCalibration(conf, success) {
-    const b = this.getConfidenceBucket(conf);
-    if (!b) return null;
-    b.total += 1;
-    if (success) b.correct += 1;
-    b.accuracy = b.total > 0 ? (b.correct / b.total) : 0;
-    return { label: b.label, accuracy: b.accuracy, total: b.total };
-  },
-
   generateAutoPrediction() {
     console.log('[AI-PRO] === Auto-prediction attempt ===');
     
@@ -1411,19 +1362,23 @@ const AIEnginePro = {
       return;
     }
     
-    const price = window.state?.price;
+    const price = this.getLivePrice();
     if (!price) {
-      console.log('[AI-PRO] ❌ Skipping: no price data (window.state.price =', price, ')');
+      // Avoid noisy logs during startup/reconnect (price may arrive a few seconds later)
+      if (!this._waitingForPriceLogged) {
+        console.log('[AI-PRO] ⏳ Waiting for live price feed (no state.price/currentPrice/lastCandle yet)');
+        this._waitingForPriceLogged = true;
+      }
       return;
     }
-    
+
+    this._waitingForPriceLogged = false;
     console.log('[AI-PRO] ✓ Price available:', price);
     
-    // Don't generate if we have too many ACTIVE pending (rolling window)
-    const activePending = this.getActivePendingCount();
-    const maxActive = Math.max(1, parseInt(this.config.maxActivePending || 15, 10));
-    if (activePending >= maxActive) {
-      console.log('[AI-PRO] ⏸ Skipping: too many pending (active ' + activePending + '/' + maxActive + ', total ' + this.predictions.pending.length + ')');
+    // Don't generate if we have too many ACTIVE pending (avoid blocking due to restored old predictions)
+    const activePending = this.getActivePendingCount(12);
+    if (activePending >= 15) {
+      console.log('[AI-PRO] ⏸ Skipping: too many active pending (' + activePending + ')');
       return;
     }
     
@@ -1619,9 +1574,10 @@ const AIEnginePro = {
   // ============================================
   getCurrentMarketState() {
     const s = window.state || {};
+    const livePrice = this.getLivePrice();
     return {
-      price: s.price,
-      prevPrice: s.prevPrice,
+      price: livePrice != null ? livePrice : s.price,
+      prevPrice: s.prevPrice != null ? s.prevPrice : (livePrice != null ? livePrice : s.price),
       indicators: s.indicators || {},
       volume: s.volume,
       cvd: s.cvd,
@@ -1668,47 +1624,15 @@ const AIEnginePro = {
     const sessionPredictions = this._sessionPredictions || 0;
     const lastPredictionTime = this._lastPredictionTime || null;
     const lastVerification = this._lastVerification || null;
-
-    // ------------------------------------------------------------
-    // Short-horizon authenticity metrics (2/5/10/15m)
-    // We keep the core engine logic intact. This ONLY changes what we
-    // expose in the UI for ACCURACY/COMPLETED so it becomes meaningful
-    // within minutes instead of waiting for the 240m horizon.
-    // ------------------------------------------------------------
-    const shortHs = Array.isArray(this.config.shortHorizons) && this.config.shortHorizons.length
-      ? this.config.shortHorizons
-      : [2, 5, 10, 15];
-
-    let shortTotal = 0;
-    let shortCorrect = 0;
-    for (const h of shortHs) {
-      const hs = this.predictions.byHorizon && this.predictions.byHorizon[h];
-      if (!hs || !hs.total) continue;
-      shortTotal += hs.total || 0;
-      shortCorrect += hs.correct || 0;
-    }
-    const shortAccuracy = shortTotal > 0 ? (shortCorrect / shortTotal) : (this.performance?.overall?.accuracy || 0);
-    const completedShort = (this.predictions.byHorizon && this.predictions.byHorizon[shortHs[0]] && this.predictions.byHorizon[shortHs[0]].total) || 0;
-
-    const activePending = (typeof this.getActivePendingCount === 'function')
-      ? this.getActivePendingCount()
-      : (this.predictions.pending || []).length;
     
     return {
-      overall: Object.assign({}, this.performance.overall, {
-        accuracy: shortAccuracy,
-        sample: shortTotal,           // verification samples (sum across short horizons)
-        samplePreds: completedShort,  // unique predictions verified at the shortest horizon
-        mode: shortTotal > 0 ? 'SHORT' : 'LONG'
-      }),
+      overall: this.performance.overall,
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
         patterns: this.memory.patterns.length,
-        pending: activePending,
-        pendingTotal: (this.predictions.pending || []).length,
-        completed: completedShort,
-        completedFull: (this.predictions.completed || []).length
+        pending: this.predictions.pending.length,
+        completed: this.predictions.completed.length
       },
       session: {
         predictions: sessionPredictions,
