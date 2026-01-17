@@ -175,6 +175,13 @@ const AIEnginePro = {
   performance: {
     daily: {},
     weekly: {},
+    // Confidence calibration buckets (for transparency in UI)
+    calibration: {
+      '0-40': { min: 0.0, max: 0.40, total: 0, correct: 0, accuracy: 0.5 },
+      '40-55': { min: 0.40, max: 0.55, total: 0, correct: 0, accuracy: 0.5 },
+      '55-70': { min: 0.55, max: 0.70, total: 0, correct: 0, accuracy: 0.5 },
+      '70-100': { min: 0.70, max: 1.01, total: 0, correct: 0, accuracy: 0.5 }
+    },
     overall: {
       totalPredictions: 0,
       correctPredictions: 0,
@@ -212,6 +219,9 @@ const AIEnginePro = {
     
     // Initialize byHorizon for all configured horizons
     this.initializeHorizons();
+
+    // Initialize confidence calibration buckets
+    this.initializeCalibration();
     
     // Validate feature mappings
     this.validateFeatures();
@@ -265,6 +275,36 @@ const AIEnginePro = {
       if (!this.predictions.byHorizon[h]) {
         this.predictions.byHorizon[h] = { total: 0, correct: 0, accuracy: 0.5 };
         console.log(`[AI-PRO] Initialized horizon: ${h}min`);
+      }
+    }
+  },
+
+  // ============================================
+  // 🎛️ CALIBRATION BUCKETS (NEW)
+  // ============================================
+  initializeCalibration() {
+    // Ensure calibration structure exists even after Firestore/local merges
+    if (!this.performance) this.performance = {};
+    if (!this.performance.calibration || typeof this.performance.calibration !== 'object') {
+      this.performance.calibration = {};
+    }
+    const base = {
+      '0-40': { min: 0.0, max: 0.40, total: 0, correct: 0, accuracy: 0.5 },
+      '40-55': { min: 0.40, max: 0.55, total: 0, correct: 0, accuracy: 0.5 },
+      '55-70': { min: 0.55, max: 0.70, total: 0, correct: 0, accuracy: 0.5 },
+      '70-100': { min: 0.70, max: 1.01, total: 0, correct: 0, accuracy: 0.5 }
+    };
+    for (const k of Object.keys(base)) {
+      if (!this.performance.calibration[k]) {
+        this.performance.calibration[k] = base[k];
+      } else {
+        // Backfill missing fields safely
+        const b = this.performance.calibration[k];
+        b.min = (typeof b.min === 'number') ? b.min : base[k].min;
+        b.max = (typeof b.max === 'number') ? b.max : base[k].max;
+        b.total = (typeof b.total === 'number') ? b.total : 0;
+        b.correct = (typeof b.correct === 'number') ? b.correct : 0;
+        b.accuracy = (typeof b.accuracy === 'number') ? b.accuracy : (b.total ? (b.correct / b.total) : 0.5);
       }
     }
   },
@@ -1063,6 +1103,9 @@ const AIEnginePro = {
       horizon,
       priceChange: priceChange.toFixed(3),
       success,
+      direction: pred.ensemble?.direction || 'NEUTRAL',
+      confidence: Number(pred.ensemble?.confidence || 0),
+      bucket: this.getConfidenceBucketName(pred.ensemble?.confidence || 0),
       timestamp: Date.now()
     };
     
@@ -1153,6 +1196,7 @@ const AIEnginePro = {
     this.predictions.pending = this.predictions.pending.filter(p => p.id !== pred.id);
     
     this.updatePerformance(pred);
+    this.updateCalibrationStats(pred.ensemble?.confidence || 0, !!pred.outcome?.success);
     
     if (this.predictions.completed.length > 500) {
       this.predictions.completed = this.predictions.completed.slice(-500);
@@ -1207,6 +1251,42 @@ const AIEnginePro = {
   // ============================================
   // 📈 PERFORMANCE TRACKING
   // ============================================
+  // ============================================
+  // 🎯 CONFIDENCE CALIBRATION (NEW)
+  // ============================================
+  getConfidenceBucketName(conf) {
+    const c = Math.max(0, Math.min(1, Number(conf) || 0));
+    if (c < 0.40) return '0-40';
+    if (c < 0.55) return '40-55';
+    if (c < 0.70) return '55-70';
+    return '70-100';
+  },
+
+  updateCalibrationStats(conf, success) {
+    try {
+      this.initializeCalibration();
+      const bucket = this.getConfidenceBucketName(conf);
+      const b = this.performance.calibration[bucket];
+      if (!b) return;
+      b.total = (b.total || 0) + 1;
+      if (success) b.correct = (b.correct || 0) + 1;
+      b.accuracy = b.total ? (b.correct / b.total) : 0.5;
+    } catch (e) {}
+  },
+
+  getCalibrationStats() {
+    this.initializeCalibration();
+    const out = {};
+    for (const [k, v] of Object.entries(this.performance.calibration || {})) {
+      out[k] = {
+        total: v.total || 0,
+        correct: v.correct || 0,
+        accuracy: (v.total ? (v.correct / v.total) : 0)
+      };
+    }
+    return out;
+  },
+
   updatePerformance(pred) {
     const perf = this.performance.overall;
     
@@ -1579,6 +1659,7 @@ const AIEnginePro = {
     
     return {
       overall: this.performance.overall,
+      calibration: this.getCalibrationStats(),
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {

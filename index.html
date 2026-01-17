@@ -8608,12 +8608,13 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         }
       }
       
-      // Accuracy
+      // Accuracy (with sample size N)
       var accEl = document.getElementById('aiAccuracy');
       var accBar = document.getElementById('aiAccuracyBar');
       if (accEl && stats.overall) {
         var acc = stats.overall.accuracy || 0;
-        accEl.textContent = (acc * 100).toFixed(1) + '%';
+        var nTotal = stats.overall.totalPredictions || 0;
+        accEl.textContent = (acc * 100).toFixed(1) + '%' + (nTotal > 0 ? (' (N=' + nTotal + ')') : '');
         accEl.style.color = acc >= 0.55 ? '#00ff88' : acc >= 0.45 ? '#f4b942' : '#ff4466';
         if (accBar) accBar.style.width = Math.min(100, acc * 100) + '%';
       }
@@ -8641,7 +8642,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         }
       }
       
-      // Last Verification (very dynamic)
+      // Last Verification (with direction + confidence calibration)
       var verifEl = document.getElementById('aiLastVerif');
       if (verifEl && stats.session && stats.session.lastVerification) {
         var v = stats.session.lastVerification;
@@ -8649,7 +8650,29 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         var col = v.success ? '#00ff88' : '#ff4466';
         var change = parseFloat(v.priceChange);
         var changeStr = change >= 0 ? '+' + change + '%' : change + '%';
-        verifEl.innerHTML = '<span style="color:'+col+';">'+icon+'</span> '+v.horizon+'m → <span style="color:'+(change>=0?'#00ff88':'#ff4466')+';">'+changeStr+'</span>';
+        var dir = v.direction || 'NEUTRAL';
+        var dirTxt = dir === 'BULL' ? 'BULL' : dir === 'BEAR' ? 'BEAR' : 'NEUTRAL';
+        var confPct = (typeof v.confidence === 'number') ? (v.confidence * 100) : null;
+        var bucket = v.bucket || null;
+
+        // Bucket accuracy (if available)
+        var bucketAcc = null, bucketN = 0;
+        if (bucket && stats.calibration && stats.calibration[bucket]) {
+          bucketAcc = stats.calibration[bucket].accuracy || 0;
+          bucketN = stats.calibration[bucket].total || 0;
+        }
+
+        // Horizon sample size
+        var hKey = String(v.horizon);
+        var hN = (stats.horizons && stats.horizons[hKey]) ? (stats.horizons[hKey].total || 0) : 0;
+
+        var meta = '';
+        if (confPct != null) meta += ' | ' + confPct.toFixed(1) + '%';
+        meta += ' | ' + dirTxt;
+        if (bucketAcc != null && bucketN > 0) meta += ' | Cal ' + (bucketAcc * 100).toFixed(0) + '% (n=' + bucketN + ')';
+
+        verifEl.innerHTML = '<span style="color:'+col+';">'+icon+'</span> '+v.horizon+'m → <span style="color:'+(change>=0?'#00ff88':'#ff4466')+';">'+changeStr+'</span>' + '<span style="color:#64748b;">' + meta + '</span>';
+        verifEl.title = 'Horizon n=' + hN + (bucket ? (' | Bucket ' + bucket) : '') + (bucketN ? (' | Bucket n=' + bucketN) : '');
       }
       
       // Patterns & Pending
@@ -8669,8 +8692,9 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         } else {
           sorted.slice(0,4).forEach(function(e){
             var h=e[0], d=e[1], a=(d.accuracy*100).toFixed(0);
+            var nH = d.total || 0;
             var col = d.accuracy>=0.55?'#00ff88':d.accuracy>=0.45?'#f4b942':'#ff4466';
-            html += '<div style="background:rgba(255,255,255,0.05);padding:3px 6px;border-radius:3px;font-size:9px;"><span style="color:#94a3b8;">'+h+'m</span> <span style="color:'+col+';font-weight:bold;">'+a+'%</span></div>';
+            html += '<div style="background:rgba(255,255,255,0.05);padding:3px 6px;border-radius:3px;font-size:9px;"><span style="color:#94a3b8;">'+h+'m</span> <span style="color:'+col+';font-weight:bold;">'+a+'%</span> <span style="color:#64748b;">(n='+nH+')</span></div>';
           });
         }
         hGrid.innerHTML = html;
