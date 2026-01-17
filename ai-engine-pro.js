@@ -22,7 +22,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.6.6',
+  version: '1.6.7',
   isReady: false,
   db: null,
   
@@ -1042,150 +1042,43 @@ const AIEnginePro = {
 
   verifyProPrediction(id, horizon) {
     const pred = this.predictions.pending.find(p => p.id === id);
-    if (!pred || !pred.price) return;
-
-    // Ensure verifications array exists
-    pred.verifications = pred.verifications || [];
-
-    // Avoid duplicated verifications for the same horizon
-    if (pred.verifications.some(v => v && v.horizon === horizon)) return;
-
-    // If live price is not available at the verification moment, retry safely
-    const livePrice = window.state && typeof window.state.price === 'number' ? window.state.price : null;
-    if (!livePrice) {
-      pred._verifyRetry = pred._verifyRetry || {};
-      pred._verifyRetry[horizon] = (pred._verifyRetry[horizon] || 0) + 1;
-
-      // Retry window: allow up to ~1 minute of retries (12 x 5s)
-      if (pred._verifyRetry[horizon] <= 12) {
-        setTimeout(() => this.verifyProPrediction(id, horizon), 5000);
-      }
-      return;
-    }
-
-    const priceChange = ((livePrice - pred.price) / pred.price) * 100;
-    const direction = pred.ensemble?.direction || 'NEUTRAL';
-
-    // Direction-aware success rule
+    if (!pred || !window.state?.price || !pred.price) return;
+    
+    const priceChange = ((window.state.price - pred.price) / pred.price) * 100;
+    const direction = pred.ensemble.direction;
+    
     const threshold = direction === 'NEUTRAL' ? 0.05 : 0.1;
     const success = (direction === 'BULL' && priceChange > threshold) ||
                    (direction === 'BEAR' && priceChange < -threshold) ||
                    (direction === 'NEUTRAL' && Math.abs(priceChange) < 0.15);
-
+    
     pred.verifications.push({
       horizon,
       priceChange,
       success,
-      timestamp: Date.now(),
-      direction
+      timestamp: Date.now()
     });
-
+    
     // Update session tracking
     this._lastVerification = {
       horizon,
       priceChange: priceChange.toFixed(3),
       success,
-      timestamp: Date.now(),
-      direction
+      timestamp: Date.now()
     };
-
+    
     // Update horizon statistics (with safe check)
     if (this.predictions.byHorizon[horizon]) {
       this.predictions.byHorizon[horizon].total++;
       if (success) this.predictions.byHorizon[horizon].correct++;
-      this.predictions.byHorizon[horizon].accuracy =
+      this.predictions.byHorizon[horizon].accuracy = 
         this.predictions.byHorizon[horizon].correct / this.predictions.byHorizon[horizon].total;
     }
-
-    // Update LIVE verification accuracy (so the card is not stuck at 0.0%)
-    if (this.performance.verifications) {
-      const vPerf = this.performance.verifications;
-      vPerf.total++;
-      if (success) vPerf.correct++;
-
-      if (direction === 'NEUTRAL') {
-        vPerf.neutral.total++;
-        if (success) vPerf.neutral.correct++;
-        vPerf.neutral.accuracy = vPerf.neutral.total ? (vPerf.neutral.correct / vPerf.neutral.total) : 0;
-      } else {
-        vPerf.directional.total++;
-        if (success) vPerf.directional.correct++;
-        vPerf.directional.accuracy = vPerf.directional.total ? (vPerf.directional.correct / vPerf.directional.total) : 0;
-      }
-
-      vPerf.accuracy = vPerf.total ? (vPerf.correct / vPerf.total) : 0;
-    }
-
+    
     // Complete after longest horizon
     if (horizon === Math.max(...this.config.horizons)) {
       this.completeProPrediction(pred);
     }
-  },
-
-  // ============================================
-  // 🧹 PENDING SWEEP (anti-freeze / anti-leak)
-  // ============================================
-  sweepPendingPredictions() {
-    if (!this.isReady || !Array.isArray(this.predictions.pending)) return;
-
-    const now = Date.now();
-    const maxH = Math.max(...this.config.horizons);
-
-    // Verification grace window and expiry
-    const GRACE_MS = 10 * 60000; // 10 minutes
-    const EXPIRE_MS = (maxH + 15) * 60000; // max horizon + 15 minutes
-
-    const pending = this.predictions.pending;
-    const toDrop = new Set();
-
-    for (const pred of pending) {
-      if (!pred || !pred.id || !pred.timestamp) continue;
-
-      pred.verifications = pred.verifications || [];
-      const verified = new Set(pred.verifications.map(v => v && v.horizon).filter(Boolean));
-
-      // Rescue missed verifications (e.g. live price was undefined at the exact timeout)
-      for (const horizon of this.config.horizons) {
-        if (verified.has(horizon)) continue;
-
-        const targetTime = pred.timestamp + (horizon * 60000);
-        const lateBy = now - targetTime;
-
-        if (lateBy >= 0 && lateBy <= GRACE_MS) {
-          // Attempt immediate verification
-          setTimeout(() => this.verifyProPrediction(pred.id, horizon), 0);
-        }
-      }
-
-      // Drop predictions that are too old (prevents unbounded pending growth)
-      if ((now - pred.timestamp) > EXPIRE_MS) {
-        toDrop.add(pred.id);
-      }
-    }
-
-    // Remove expired
-    if (toDrop.size) {
-      this.predictions.pending = pending.filter(p => p && !toDrop.has(p.id));
-      if (this.config.debugMode) {
-        console.log('[AI-PRO] 🧹 Dropped expired pending predictions:', toDrop.size);
-      }
-    }
-
-    // Hard cap safety (keeps UI responsive)
-    const HARD_CAP = 50;
-    const SOFT_CAP = 25;
-    if (this.predictions.pending.length > HARD_CAP) {
-      this.predictions.pending.sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
-      this.predictions.pending = this.predictions.pending.slice(-SOFT_CAP);
-      if (this.config.debugMode) {
-        console.log('[AI-PRO] 🧹 Hard-cap applied. Pending trimmed to', SOFT_CAP);
-      }
-    }
-  },
-
-  // Backward-compatible alias (some builds call the underscored variant)
-  _sweepPendingPredictions() {
-    return this.sweepPendingPredictions();
   },
 
   // Reschedule verifications for restored predictions
@@ -1421,12 +1314,9 @@ const AIEnginePro = {
     }
     
     console.log('[AI-PRO] ✓ Price available:', price);
-
-    // Keep pending queue healthy (prevents freezes / leaks)
-    this._sweepPendingPredictions();
     
     // Don't generate if we have too many pending
-    if (this.predictions.pending.length >= 25) {
+    if (this.predictions.pending.length >= 15) {
       console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + ')');
       return;
     }
@@ -1667,66 +1557,56 @@ const AIEnginePro = {
   },
   
   getStats() {
-    // Calculate session stats
-    const sessionStart = this._sessionStart || Date.now();
-    const sessionPredictions = this._sessionPredictions || 0;
-    const lastPredictionTime = this._lastPredictionTime || null;
-    const lastVerification = this._lastVerification || null;
-    
-    // Live accuracy (fast feedback): blend verification stats + long-horizon outcomes
-    // IMPORTANT: for UI display we prefer directional accuracy when it has enough samples
-    // to avoid an inflated score due to NEUTRAL confirmations.
-    const overall = { ...this.performance.overall };
-    const vPerf = this.performance.verifications;
+    // Provide UI-friendly stats without waiting for the longest horizon (240m)
+    const baseOverall = this.performance?.overall || { totalPredictions: 0, correctPredictions: 0, accuracy: 0 };
+    const daily = this.performance?.daily || {};
 
-    if (vPerf && typeof vPerf.total === 'number' && vPerf.total >= 1) {
-      const hasDirectionalSamples = vPerf.directional && vPerf.directional.total >= 5;
-      const displayAcc = hasDirectionalSamples ? vPerf.directional.accuracy : vPerf.accuracy;
+    const shortHs = Array.isArray(this.config.shortHorizons) ? this.config.shortHorizons : [2, 5, 10, 15];
 
-      overall.accuracy = displayAcc;
-      overall.displayMode = hasDirectionalSamples ? 'directional' : 'overall';
-      overall.verificationTotal = vPerf.total;
-      overall.verificationCorrect = vPerf.correct;
-      overall.breakdown = {
-        directional: {
-          total: vPerf.directional.total,
-          correct: vPerf.directional.correct,
-          accuracy: vPerf.directional.accuracy
-        },
-        neutral: {
-          total: vPerf.neutral.total,
-          correct: vPerf.neutral.correct,
-          accuracy: vPerf.neutral.accuracy
-        }
-      };
+    // Horizon accuracy snapshot
+    const horizonAccuracy = {};
+    let shortTotal = 0;
+    let shortCorrect = 0;
+    for (const h of shortHs) {
+      const hs = this.predictions?.byHorizon?.[h];
+      if (hs) {
+        horizonAccuracy[h] = hs.accuracy || 0;
+        if (typeof hs.total === 'number') shortTotal += hs.total;
+        if (typeof hs.correct === 'number') shortCorrect += hs.correct;
+      }
     }
 
-    const verifiedTotal = (vPerf && typeof vPerf.total === 'number') ? vPerf.total : 0;
-    const longCompleted = this.predictions.completed.length;
+    // If long-horizon outcomes are not ready yet, approximate overall accuracy from short horizons
+    const overall = { ...baseOverall };
+    if ((overall.totalPredictions || 0) === 0 && shortTotal > 0) {
+      overall.totalPredictions = shortTotal;
+      overall.correctPredictions = shortCorrect;
+      overall.accuracy = shortCorrect / shortTotal;
+    }
+
+    // "Completed" should represent verified work (short horizons) rather than only 240m finalized outcomes
+    const completedLong = this.predictions?.completed?.length || 0;
+    const completedPerf = this.performance?.overall?.totalPredictions || 0;
+    const completedShort = shortTotal; // total verifications executed across short horizons
+    const completed = Math.max(completedLong, completedPerf, completedShort);
 
     return {
-      overall: overall,
-      horizons: this.predictions.byHorizon,
-      models: this.getModelStats(),
+      overall,
+      daily,
+      horizons: horizonAccuracy,
+      lastVerification: this._lastVerification || null,
       memory: {
-        patterns: this.memory.patterns.length,
-        pending: this.predictions.pending.length,
-        // UI expects a fast-moving "COMPLETED" number; we expose verifications total here.
-        // Long-horizon completions are still available as completedLong.
-        completed: verifiedTotal,
-        completedLong: longCompleted,
-        verified: verifiedTotal
+        patterns: this.memory?.patterns?.length || 0,
+        pending: this.predictions?.pending?.length || 0,
+        completed
       },
-      session: {
-        predictions: sessionPredictions,
-        lastPrediction: lastPredictionTime,
-        lastVerification: lastVerification,
-        uptime: Math.floor((Date.now() - sessionStart) / 60000)
-      },
-      config: {
-        learningRate: this.config.learningRate,
-        minConfidence: this.config.minConfidence
-      }
+      models: Object.entries(this.models || {}).map(([k, v]) => ({
+        key: k,
+        name: v.name,
+        weight: v.weight,
+        accuracy: v.accuracy,
+        predictions: v.predictions
+      }))
     };
   },
   
@@ -1758,4 +1638,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.6.5 loaded (always-active mode)');
+console.log('[AI-PRO] AI Engine PRO v1.6.0 loaded (always-active mode)');
