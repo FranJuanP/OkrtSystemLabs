@@ -21,10 +21,95 @@
 
 'use strict';
 
+// ============================================
+// 💾 LOCAL PERSISTENCE (IndexedDB)
+// Local-first storage to reduce freezes from sync localStorage and
+// to minimize high-frequency remote writes.
+// ============================================
+const OraculumLocalDB = (() => {
+  const DB_NAME = 'oraculum_ai_engine_pro';
+  const DB_VERSION = 1;
+  const STORE = 'kv';
+  let _dbPromise = null;
+
+  function isSupported() {
+    return typeof indexedDB !== 'undefined';
+  }
+
+  function open() {
+    if (!isSupported()) return Promise.resolve(null);
+    if (_dbPromise) return _dbPromise;
+    _dbPromise = new Promise((resolve) => {
+      try {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE)) {
+            db.createObjectStore(STORE, { keyPath: 'k' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => {
+          console.warn('[AI-PRO] LocalDB open failed:', req.error);
+          resolve(null);
+        };
+      } catch (e) {
+        console.warn('[AI-PRO] LocalDB open exception:', e);
+        resolve(null);
+      }
+    });
+    return _dbPromise;
+  }
+
+  async function get(key) {
+    const db = await open();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const st = tx.objectStore(STORE);
+      const rq = st.get(key);
+      rq.onsuccess = () => resolve(rq.result ? rq.result.v : null);
+      rq.onerror = () => resolve(null);
+    });
+  }
+
+  async function set(key, value) {
+    const db = await open();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.objectStore(STORE).put({ k: key, v: value });
+    });
+  }
+
+  async function del(key) {
+    const db = await open();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.objectStore(STORE).delete(key);
+    });
+  }
+
+  return { isSupported, open, get, set, del };
+})();
+
+
 const AIEnginePro = {
-  version: '1.6.9',
+  version: '1.7.0',
   isReady: false,
   db: null,
+
+  // Local-first persistence knobs
+  _localSaveTimer: null,
+  _lastRemoteSaveAt: 0,
+  _remoteSaveCooldownMs: 120000, // 2 minutes
+  _localSaveDebounceMs: 700,
+
   
   // ============================================
   // 🎯 CONFIGURATION
@@ -55,11 +140,6 @@ const AIEnginePro = {
 
     // --- PRO enhancements ---
     minValidationsToLearn: 6,
-    // Auto-prediction tuning: keep the engine real-time + stable
-    // (avoid hours-long pending queues and a large number of long timers).
-    autoMaxHorizon: 15,          // validate auto-predictions up to 15m
-    minValidationsToLearnAuto: 4, // store learning after short horizons (2/5/10/15)
-    maxPending: 25,              // guardrail for pending queue size
     sessionAware: true,
     volatilityAware: true,
     breakoutAware: true,
@@ -311,7 +391,6 @@ const AIEnginePro = {
   hasFeatureMapping(feature) {
     const mappedFeatures = [
       'rsi', 'stoch_rsi', 'momentum', 'rsi_divergence',
-      'price_momentum',
       'ema_cross', 'macd', 'adx', 'supertrend',
       'volume', 'obv', 'cvd', 'whale_flow',
       'support_resistance', 'order_blocks', 'fvg', 'liquidity',
@@ -1080,12 +1159,8 @@ const AIEnginePro = {
         this.predictions.byHorizon[horizon].correct / this.predictions.byHorizon[horizon].total;
     }
     
-    // Complete prediction
-    // - Auto mode: complete after the short-horizon cycle (default: 15m)
-    // - Non-auto mode: complete after the full configured horizon cycle
-    const autoMax = this.config.autoMaxHorizon || 15;
-    const fullMax = Math.max(...this.config.horizons);
-    if ((pred.isAuto && horizon === autoMax) || (!pred.isAuto && horizon === fullMax)) {
+    // Complete after longest horizon
+    if (horizon === Math.max(...this.config.horizons)) {
       this.completeProPrediction(pred);
     }
   },
@@ -1098,11 +1173,7 @@ const AIEnginePro = {
     const elapsed = now - pred.timestamp;
     const verified = pred.verifications ? pred.verifications.map(v => v.horizon) : [];
     
-    const horizonsToVerify = pred.isAuto
-      ? this.config.horizons.filter(h => h <= (this.config.autoMaxHorizon || 15))
-      : this.config.horizons;
-
-    for (const horizon of horizonsToVerify) {
+    for (const horizon of this.config.horizons) {
       // Skip already verified horizons
       if (verified.includes(horizon)) continue;
       
@@ -1122,11 +1193,7 @@ const AIEnginePro = {
 
   completeProPrediction(pred) {
     const verifs = pred.verifications || [];
-    // Auto-predictions validate only short horizons (default: 2/5/10/15m) to stay real-time.
-    // Allow learning with fewer validations in auto mode.
-    const baseMinValidations = Math.min(this.config.minValidationsToLearn, this.config.horizons.length);
-    const autoMinValidations = Math.min((this.config.minValidationsToLearnAuto || 4), this.config.horizons.length);
-    const minValidations = pred && pred.isAuto ? autoMinValidations : baseMinValidations;
+    const minValidations = Math.min(this.config.minValidationsToLearn, this.config.horizons.length);
 
     const maxH = Math.max(...this.config.horizons);
     let wSuccess = 0;
@@ -1333,9 +1400,8 @@ const AIEnginePro = {
     console.log('[AI-PRO] ✓ Price available:', price);
     
     // Don't generate if we have too many pending
-    const maxPending = this.config.maxPending || 25;
-    if (this.predictions.pending.length >= maxPending) {
-      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + '/' + maxPending + ')');
+    if (this.predictions.pending.length >= 15) {
+      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + ')');
       return;
     }
     
@@ -1384,9 +1450,8 @@ const AIEnginePro = {
     this._sessionPredictions = (this._sessionPredictions || 0) + 1;
     this._lastPredictionTime = Date.now();
     
-    // Schedule verifications (auto mode: only short horizons to stay real-time)
-    const horizonsToVerify = this.config.horizons.filter(h => h <= (this.config.autoMaxHorizon || 15));
-    for (const horizon of horizonsToVerify) {
+    // Schedule verifications
+    for (const horizon of this.config.horizons) {
       setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
     }
     
@@ -1396,508 +1461,202 @@ const AIEnginePro = {
   // ============================================
   // 💾 STATE PERSISTENCE
   // ============================================
-  async loadState() {
-    if (this.db) {
+
+// Load state (Local-first: IndexedDB -> localStorage, then optional Firestore merge)
+async loadState() {
+  try {
+    const uid = window.aiUserId || 'default';
+    const localIdbKey = `ai_state_${uid}`;
+    const localKey = `oraculum_ai_state_${uid}`;
+
+    let localState = null;
+
+    // 1) IndexedDB (preferred: async, non-blocking)
+    try {
+      if (typeof OraculumLocalDB !== 'undefined' && OraculumLocalDB.isSupported()) {
+        localState = await OraculumLocalDB.get(localIdbKey);
+      }
+    } catch (e) {
+      if (this.config.debugMode) console.warn('[AI-PRO] LocalDB read failed:', e);
+    }
+
+    // 2) localStorage fallback (legacy)
+    if (!localState) {
       try {
-        const { doc, getDoc } = window.AILearning.firestore;
-        
-        const modelsDoc = await getDoc(doc(this.db, 'ai', 'pro_models'));
-        if (modelsDoc.exists()) {
-          const savedModels = modelsDoc.data();
-          for (const [name, data] of Object.entries(savedModels)) {
-            if (this.models[name]) {
-              Object.assign(this.models[name], data);
-            }
-          }
-        }
-        
-        const memoryDoc = await getDoc(doc(this.db, 'ai', 'pro_memory'));
-        if (memoryDoc.exists()) {
-          const savedMemory = memoryDoc.data();
-          this.memory.patterns = savedMemory.patterns || [];
-          this.memory.correlations = savedMemory.correlations || {};
-        }
-        
-        const perfDoc = await getDoc(doc(this.db, 'ai', 'pro_performance'));
-        if (perfDoc.exists()) {
-          Object.assign(this.performance, perfDoc.data());
-        }
-        
-        const horizonDoc = await getDoc(doc(this.db, 'ai', 'pro_horizons'));
-        if (horizonDoc.exists()) {
-          const savedHorizons = horizonDoc.data();
-          for (const [h, data] of Object.entries(savedHorizons)) {
-            if (this.predictions.byHorizon[h]) {
-              Object.assign(this.predictions.byHorizon[h], data);
-            }
-          }
-        }
-        
-        // Load pending predictions and reschedule verifications
-        const pendingDoc = await getDoc(doc(this.db, 'ai', 'pro_pending'));
-        if (pendingDoc.exists()) {
-          const savedPending = pendingDoc.data();
-          if (savedPending.pending && Array.isArray(savedPending.pending)) {
-            const now = Date.now();
-            const MAX_PENDING = this.config.maxPending || 25;
-            // Restore only recent predictions, keep newest MAX_PENDING to avoid timer storms / freezes
-            const recent = savedPending.pending
-              .filter(p => p && typeof p === 'object' && p.timestamp && (now - p.timestamp) < 18000000)
-              .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
-              .slice(-MAX_PENDING);
+        const raw = localStorage.getItem(localKey);
+        if (raw) localState = JSON.parse(raw);
+      } catch (e) {}
+    }
 
-            let restored = 0;
-            for (const pred of recent) {
-              if (!pred.id) pred.id = `restored_${pred.timestamp || now}_${Math.random().toString(36).slice(2, 9)}`;
-              // Default restored predictions to auto-mode unless explicitly specified
-              if (typeof pred.isAuto !== 'boolean') pred.isAuto = true;
-              this.predictions.pending.push(pred);
-              this.rescheduleVerifications(pred);
-              restored++;
-            }
+    let localUpdatedAt = 0;
 
-            if (savedPending.pending.length > MAX_PENDING) {
-              console.log(`[AI-PRO] Pending trimmed on load: ${savedPending.pending.length} -> ${restored}`);
-            }
-            if (restored > 0) {
-              console.log(`[AI-PRO] Restored ${restored} pending predictions`);
-            }
-          }
-        }
-        
-        console.log('[AI-PRO] State loaded from Firestore');
-        console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
-        return;
-      } catch (e) {
-        console.warn('[AI-PRO] Firestore load failed:', e);
+    if (localState) {
+      localUpdatedAt = Number(localState.updatedAt || 0);
+      this.models = localState.models || this.models;
+      this.memory = localState.memory || this.memory;
+      this.performance = localState.performance || this.performance;
+      this.horizonStats = localState.horizonStats || this.horizonStats;
+      if (Array.isArray(localState.pendingPredictions)) {
+        this.pendingPredictions = localState.pendingPredictions.slice(-25);
+      }
+      if (this.config.debugMode) console.log('[AI-PRO] ✅ State loaded from Local persistence');
+    } else {
+      if (this.config.debugMode) console.log('[AI-PRO] ℹ️ No local state found, starting fresh');
+    }
+
+    // 3) Firestore merge (only if newer than local)
+    if (this.db && window.AILearning?.firestore) {
+      const { doc, getDoc } = window.AILearning.firestore;
+      const base = `ai_engine_pro_state/${uid}`;
+
+      const [modelsDoc, memoryDoc, performanceDoc, horizonsDoc, pendingDoc] = await Promise.all([
+        getDoc(doc(this.db, `${base}/models`)),
+        getDoc(doc(this.db, `${base}/memory`)),
+        getDoc(doc(this.db, `${base}/performance`)),
+        getDoc(doc(this.db, `${base}/horizons`)),
+        getDoc(doc(this.db, `${base}/pending`))
+      ]);
+
+      let remoteUpdatedAt = 0;
+      const remote = {};
+
+      if (modelsDoc.exists()) {
+        const d = modelsDoc.data() || {};
+        remoteUpdatedAt = Math.max(remoteUpdatedAt, Number(d.updatedAt || 0));
+        remote.models = d._payload || d;
+        if (remote.models && typeof remote.models === 'object') delete remote.models.updatedAt;
+      }
+      if (memoryDoc.exists()) {
+        const d = memoryDoc.data() || {};
+        remoteUpdatedAt = Math.max(remoteUpdatedAt, Number(d.updatedAt || 0));
+        remote.memory = d._payload || d;
+        if (remote.memory && typeof remote.memory === 'object') delete remote.memory.updatedAt;
+      }
+      if (performanceDoc.exists()) {
+        const d = performanceDoc.data() || {};
+        remoteUpdatedAt = Math.max(remoteUpdatedAt, Number(d.updatedAt || 0));
+        remote.performance = d._payload || d;
+        if (remote.performance && typeof remote.performance === 'object') delete remote.performance.updatedAt;
+      }
+      if (horizonsDoc.exists()) {
+        const d = horizonsDoc.data() || {};
+        remoteUpdatedAt = Math.max(remoteUpdatedAt, Number(d.updatedAt || 0));
+        remote.horizonStats = d._payload || d;
+        if (remote.horizonStats && typeof remote.horizonStats === 'object') delete remote.horizonStats.updatedAt;
+      }
+      if (pendingDoc.exists()) {
+        const d = pendingDoc.data() || {};
+        remoteUpdatedAt = Math.max(remoteUpdatedAt, Number(d.updatedAt || 0));
+        if (Array.isArray(d.predictions)) remote.pendingPredictions = d.predictions.slice(-25);
+      }
+
+      const shouldApplyRemote = (!localState && remoteUpdatedAt > 0) || (remoteUpdatedAt > localUpdatedAt);
+
+      if (shouldApplyRemote) {
+        if (remote.models) this.models = remote.models;
+        if (remote.memory) this.memory = remote.memory;
+        if (remote.performance) this.performance = remote.performance;
+        if (remote.horizonStats) this.horizonStats = remote.horizonStats;
+        if (remote.pendingPredictions) this.pendingPredictions = remote.pendingPredictions;
+
+        if (this.config.debugMode) console.log('[AI-PRO] ✅ Remote state applied (Firestore newer)');
+      } else {
+        if (this.config.debugMode) console.log('[AI-PRO] ℹ️ Remote state older; keeping local snapshot');
       }
     }
-    
-    try {
-      const saved = localStorage.getItem('ai_pro_state');
-      if (saved) {
-        const state = JSON.parse(saved);
-        if (state.models) Object.assign(this.models, state.models);
-        if (state.memory) Object.assign(this.memory, state.memory);
-        if (state.performance) Object.assign(this.performance, state.performance);
-        if (state.horizons) {
-          for (const [h, data] of Object.entries(state.horizons)) {
-            if (this.predictions.byHorizon[h]) {
-              Object.assign(this.predictions.byHorizon[h], data);
-            }
-          }
-        }
-        console.log('[AI-PRO] State loaded from localStorage');
-      }
-    } catch (e) {}
-  },
 
-  async saveState() {
-    if (this.db && window.AILearning?.user) {
+  } catch (error) {
+    console.error('[AI-PRO] Failed to load state:', error);
+  }
+},
+
+// Save state (Local-first with debounced IndexedDB; remote writes throttled)
+async saveState(forceRemote = false) {
+  try {
+    const uid = window.aiUserId || 'default';
+    const localIdbKey = `ai_state_${uid}`;
+    const localKey = `oraculum_ai_state_${uid}`;
+    const now = Date.now();
+
+    const snapshot = {
+      models: this.models,
+      memory: this.memory,
+      performance: this.performance,
+      horizonStats: this.horizonStats,
+      pendingPredictions: (this.pendingPredictions || []).slice(-25),
+      updatedAt: now
+    };
+
+    // Debounced local save (avoids sync jank)
+    if (this._localSaveTimer) clearTimeout(this._localSaveTimer);
+    this._localSaveTimer = setTimeout(async () => {
       try {
-        const { doc, setDoc } = window.AILearning.firestore;
-        
-        const modelsData = {};
-        for (const [name, model] of Object.entries(this.models)) {
-          modelsData[name] = {
-            weight: model.weight,
-            accuracy: model.accuracy,
-            predictions: model.predictions,
-            correct: model.correct
-          };
+        if (typeof OraculumLocalDB !== 'undefined' && OraculumLocalDB.isSupported()) {
+          await OraculumLocalDB.set(localIdbKey, snapshot);
+          // tiny legacy marker only (avoid huge sync writes)
+          try {
+            localStorage.setItem(`${localKey}_meta`, JSON.stringify({ updatedAt: now }));
+          } catch (e) {}
+        } else {
+          // Legacy fallback (sync) if IndexedDB is not available
+          localStorage.setItem(localKey, JSON.stringify(snapshot));
         }
-        await setDoc(doc(this.db, 'ai', 'pro_models'), modelsData);
-        
-        await setDoc(doc(this.db, 'ai', 'pro_memory'), {
-          patterns: this.memory.patterns.slice(-500),
-          correlations: this.memory.correlations,
-          updatedAt: new Date().toISOString()
-        });
-        
-        await setDoc(doc(this.db, 'ai', 'pro_performance'), this.performance);
-        await setDoc(doc(this.db, 'ai', 'pro_horizons'), this.predictions.byHorizon);
-        
-        // Save pending predictions (critical for 240min cycle)
-        const persistMax = this.config.maxPending || 25;
-        await setDoc(doc(this.db, 'ai', 'pro_pending'), {
-          pending: this.predictions.pending.slice(-persistMax),
-          updatedAt: Date.now()
-        });
-        
+        if (this.config.debugMode) console.log('[AI-PRO] 💾 Local snapshot saved (debounced)');
       } catch (e) {
-        console.warn('[AI-PRO] Firestore save failed:', e);
+        if (this.config.debugMode) console.warn('[AI-PRO] Local snapshot save failed:', e);
       }
+    }, this._localSaveDebounceMs || 600);
+
+    // Remote save (throttled)
+    const canRemote = this.db && window.AILearning?.firestore;
+    const due = (now - (this._lastRemoteSaveAt || 0)) > (this._remoteSaveCooldownMs || 120000);
+
+    if (canRemote && (forceRemote || due)) {
+      this._lastRemoteSaveAt = now;
+
+      const { doc, setDoc } = window.AILearning.firestore;
+      const base = `ai_engine_pro_state/${uid}`;
+
+      await Promise.all([
+        setDoc(doc(this.db, `${base}/models`), { _payload: this.models, updatedAt: now }, { merge: true }),
+        setDoc(doc(this.db, `${base}/memory`), { _payload: this.memory, updatedAt: now }, { merge: true }),
+        setDoc(doc(this.db, `${base}/performance`), { _payload: this.performance, updatedAt: now }, { merge: true }),
+        setDoc(doc(this.db, `${base}/horizons`), { _payload: this.horizonStats, updatedAt: now }, { merge: true }),
+        setDoc(doc(this.db, `${base}/pending`), { predictions: (this.pendingPredictions || []).slice(-25), updatedAt: now }, { merge: true })
+      ]);
+
+      if (this.config.debugMode) console.log('[AI-PRO] ☁️ Remote state saved (throttled)');
     }
-    
-    try {
-      localStorage.setItem('ai_pro_state', JSON.stringify({
-        models: this.models,
-        memory: { patterns: this.memory.patterns.slice(-100), correlations: this.memory.correlations },
-        performance: this.performance,
-        horizons: this.predictions.byHorizon
-      }));
-    } catch (e) {}
-  },
+
+  } catch (error) {
+    console.error('[AI-PRO] Failed to save state:', error);
+  }
+},
 
   // ============================================
   // 🔧 UTILITY METHODS
   // ============================================
-
-  // ============================================
-  // 🧮 INDICATOR DERIVATION (fallback from candles)
-  // ============================================
-  deriveIndicatorsFromState(s, price, prevPrice) {
-    try {
-      const candles = this._getCandlesFromState(s);
-      const lastCandle = candles.length ? candles[candles.length - 1] : (s.lastCandle || s.candle || s.lastOHLC || null);
-
-      // If we have no candle history, return existing state as-is
-      if (!candles.length) {
-        return {
-          indicators: s.indicators || {},
-          volume: s.volume,
-          atr: s.atr,
-          atrAvg: s.atrAvg,
-          volatility: s.volatility,
-          lastCandle
-        };
-      }
-
-      const closes = candles.map(c => this._getCandleClose(c)).filter(v => Number.isFinite(v));
-      const highs  = candles.map(c => this._getCandleHigh(c)).filter(v => Number.isFinite(v));
-      const lows   = candles.map(c => this._getCandleLow(c)).filter(v => Number.isFinite(v));
-      const vols   = candles.map(c => this._getCandleVol(c)).filter(v => Number.isFinite(v));
-
-      // Minimal guards
-      if (closes.length < 20) {
-        return {
-          indicators: s.indicators || {},
-          volume: s.volume,
-          atr: s.atr,
-          atrAvg: s.atrAvg,
-          volatility: s.volatility,
-          lastCandle
-        };
-      }
-
-      // --- Core indicators
-      const rsi = this._calcRSI(closes, 14);
-      const stochRsi = this._calcStochRSI(closes, 14, 14);
-      const emaFast = this._calcEMA(closes, 9);
-      const emaSlow = this._calcEMA(closes, 21);
-      const ema20 = this._calcEMA(closes, 20);
-      const macd = this._calcMACD(closes, 12, 26, 9);
-      const atr = this._calcATR(candles, 14);
-      const atrAvg = this._calcATR(candles, 50);
-
-      const priceRef = Number.isFinite(price) ? price : closes[closes.length - 1];
-      const volRatio = (Number.isFinite(atr) && priceRef > 0) ? (atr / priceRef) : 0;
-      const volatility = volRatio > 0.012 ? 'high' : (volRatio > 0.006 ? 'normal' : 'low');
-
-      // Momentum (ROC)
-      const lookback = Math.min(10, closes.length - 1);
-      const base = closes[closes.length - 1 - lookback] || closes[0];
-      const momentum = (base && base !== 0) ? ((closes[closes.length - 1] - base) / base) * 100 : 0;
-
-      // OBV (signal via slope)
-      const obvObj = this._calcOBV(candles);
-
-      const emaTrend =
-        (emaFast > emaSlow * 1.0005) ? 'bull' :
-        (emaFast < emaSlow * 0.9995) ? 'bear' : 'neutral';
-
-      // ADX approximation (trend strength proxy)
-      const trendStrength = (priceRef > 0) ? Math.abs(emaFast - emaSlow) / priceRef : 0;
-      const adx = Math.max(8, Math.min(55, 18 + trendStrength * 800)); // bounded 8..55
-
-      // Supertrend proxy
-      const supertrendSignal =
-        (emaTrend === 'neutral')
-          ? ((priceRef > ema20) ? 'bull' : 'bear')
-          : emaTrend;
-
-      // Divergence proxy (price slope vs RSI slope)
-      let divergence = null;
-      if (closes.length >= 25) {
-        const p0 = closes[closes.length - 1];
-        const p1 = closes[closes.length - 11];
-        const r0 = this._calcRSI(closes.slice(0, closes.length), 14);
-        const r1 = this._calcRSI(closes.slice(0, closes.length - 10), 14);
-        if (Number.isFinite(p0) && Number.isFinite(p1) && Number.isFinite(r0) && Number.isFinite(r1)) {
-          if (p0 < p1 && r0 > r1) divergence = { type: 'bullish' };
-          else if (p0 > p1 && r0 < r1) divergence = { type: 'bearish' };
-        }
-      }
-
-      // Volume snapshot
-      const lastVol = vols.length ? vols[vols.length - 1] : (this._getCandleVol(lastCandle) || 0);
-      const avgVolWindow = vols.slice(-20);
-      const avgVol = avgVolWindow.length ? (avgVolWindow.reduce((a, b) => a + b, 0) / avgVolWindow.length) : lastVol;
-      const volObj = {
-        ratio: avgVol > 0 ? (lastVol / avgVol) : 1,
-        trend: (lastVol > avgVol * 1.1) ? 'increasing' : (lastVol < avgVol * 0.9 ? 'decreasing' : 'stable')
-      };
-
-      // Build indicators in the format expected by AI Engine PRO (feature map)
-      const indicators = Object.assign({}, (s.indicators || {}));
-
-      if (indicators.rsi == null) indicators.rsi = { value: rsi };
-      if (typeof indicators.rsi === 'number') indicators.rsi = { value: indicators.rsi };
-
-      if (indicators.stochRsi == null) indicators.stochRsi = { value: stochRsi };
-      if (typeof indicators.stochRsi === 'number') indicators.stochRsi = { value: indicators.stochRsi };
-
-      if (indicators.macd == null) indicators.macd = { histogram: macd.histogram, signal: macd.histogram >= 0 ? 'bull' : 'bear' };
-      if (typeof indicators.macd === 'number') indicators.macd = { histogram: indicators.macd, signal: indicators.macd >= 0 ? 'bull' : 'bear' };
-
-      if (indicators.ema == null) indicators.ema = { emaFast, emaSlow, ema20, signal: emaTrend };
-
-      if (indicators.adx == null) indicators.adx = { value: adx, trend: emaTrend };
-
-      if (indicators.supertrend == null) indicators.supertrend = { signal: supertrendSignal };
-
-      if (indicators.obv == null) indicators.obv = obvObj;
-
-      if (indicators.momentum == null) indicators.momentum = { value: momentum, signal: momentum >= 0 ? 'bull' : 'bear' };
-
-      // Optional divergence hook for feature map
-      if (divergence && indicators.divergence == null) indicators.divergence = divergence;
-
-      // Ensure basic prices exist for price_momentum feature
-      if (typeof s.prevPrice !== 'number' && Number.isFinite(prevPrice)) {
-        // keep it local: do not mutate global state aggressively
-      }
-
-      return {
-        indicators,
-        volume: s.volume || volObj,
-        atr: Number.isFinite(s.atr) ? s.atr : atr,
-        atrAvg: Number.isFinite(s.atrAvg) ? s.atrAvg : atrAvg,
-        volatility: s.volatility || volatility,
-        lastCandle
-      };
-    } catch (e) {
-      // Fail-safe: never break app flow due to indicator derivation
-      return {
-        indicators: s.indicators || {},
-        volume: s.volume,
-        atr: s.atr,
-        atrAvg: s.atrAvg,
-        volatility: s.volatility,
-        lastCandle: s.lastCandle || s.candle || s.lastOHLC || null
-      };
-    }
-  },
-
-  _getCandlesFromState(s) {
-    if (Array.isArray(s.candles) && s.candles.length) return s.candles;
-    if (Array.isArray(s.ohlc) && s.ohlc.length) return s.ohlc;
-    if (Array.isArray(s.ohlcHistory) && s.ohlcHistory.length) return s.ohlcHistory;
-    return [];
-  },
-
-  _getCandleClose(c) {
-    if (!c) return NaN;
-    return this._num(c.close ?? c.c ?? c.C ?? c[4], NaN);
-  },
-  _getCandleHigh(c) {
-    if (!c) return NaN;
-    return this._num(c.high ?? c.h ?? c.H ?? c[2], NaN);
-  },
-  _getCandleLow(c) {
-    if (!c) return NaN;
-    return this._num(c.low ?? c.l ?? c.L ?? c[3], NaN);
-  },
-  _getCandleVol(c) {
-    if (!c) return NaN;
-    return this._num(c.volume ?? c.v ?? c.V ?? c[5], NaN);
-  },
-
-  _num(v, fallback = 0) {
-    const n = (typeof v === 'string') ? parseFloat(v) : v;
-    return Number.isFinite(n) ? n : fallback;
-  },
-
-  _calcEMA(values, period) {
-    if (!Array.isArray(values) || values.length === 0) return NaN;
-    const p = Math.max(2, period | 0);
-    const k = 2 / (p + 1);
-    let ema = values[0];
-    for (let i = 1; i < values.length; i++) {
-      const v = values[i];
-      if (!Number.isFinite(v)) continue;
-      ema = (v * k) + (ema * (1 - k));
-    }
-    return ema;
-  },
-
-  _calcRSI(closes, period = 14) {
-    if (!Array.isArray(closes) || closes.length < period + 2) return 50;
-    const p = Math.max(2, period | 0);
-    let gain = 0, loss = 0;
-
-    // last p changes
-    for (let i = closes.length - p; i < closes.length; i++) {
-      const prev = closes[i - 1];
-      const cur = closes[i];
-      if (!Number.isFinite(prev) || !Number.isFinite(cur)) continue;
-      const ch = cur - prev;
-      if (ch >= 0) gain += ch;
-      else loss -= ch;
-    }
-
-    const avgGain = gain / p;
-    const avgLoss = loss / p;
-    if (avgLoss === 0) return 100;
-    const rs = avgGain / avgLoss;
-    const rsi = 100 - (100 / (1 + rs));
-    return Math.max(0, Math.min(100, rsi));
-  },
-
-  _calcMACD(closes, fast = 12, slow = 26, signal = 9) {
-    if (!Array.isArray(closes) || closes.length < slow + signal) {
-      return { histogram: 0 };
-    }
-    const emaFast = this._calcEMA(closes, fast);
-    const emaSlow = this._calcEMA(closes, slow);
-    const macdLine = emaFast - emaSlow;
-
-    // Build a short series for signal EMA: approximate by re-running EMA on macdLine samples
-    const sampleN = Math.min(60, closes.length);
-    const macdSeries = [];
-    for (let i = closes.length - sampleN; i < closes.length; i++) {
-      const slice = closes.slice(0, i + 1);
-      macdSeries.push(this._calcEMA(slice, fast) - this._calcEMA(slice, slow));
-    }
-    const signalLine = this._calcEMA(macdSeries, signal);
-    const histogram = macdLine - signalLine;
-    return { histogram };
-  },
-
-  _calcATR(candles, period = 14) {
-    if (!Array.isArray(candles) || candles.length < 3) return NaN;
-    const p = Math.max(2, period | 0);
-    const start = Math.max(1, candles.length - p);
-    let sumTR = 0;
-    let count = 0;
-
-    for (let i = start; i < candles.length; i++) {
-      const c = candles[i];
-      const prev = candles[i - 1];
-      const high = this._getCandleHigh(c);
-      const low = this._getCandleLow(c);
-      const prevClose = this._getCandleClose(prev);
-      if (![high, low, prevClose].every(Number.isFinite)) continue;
-      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-      sumTR += tr;
-      count++;
-    }
-
-    return count ? (sumTR / count) : NaN;
-  },
-
-  _calcStochRSI(closes, rsiPeriod = 14, stochPeriod = 14) {
-    if (!Array.isArray(closes) || closes.length < (rsiPeriod + stochPeriod + 2)) return 50;
-    const rsiSeries = [];
-    for (let i = rsiPeriod + 1; i < closes.length; i++) {
-      rsiSeries.push(this._calcRSI(closes.slice(0, i + 1), rsiPeriod));
-    }
-    const window = rsiSeries.slice(-stochPeriod);
-    const rsiLast = window[window.length - 1];
-    const minRsi = Math.min(...window);
-    const maxRsi = Math.max(...window);
-    if (maxRsi === minRsi) return 50;
-    const stoch = ((rsiLast - minRsi) / (maxRsi - minRsi)) * 100;
-    return Math.max(0, Math.min(100, stoch));
-  },
-
-  _calcOBV(candles) {
-    if (!Array.isArray(candles) || candles.length < 3) return { value: 0, signal: 'neutral', slope: 0 };
-    let obv = 0;
-    for (let i = 1; i < candles.length; i++) {
-      const prevClose = this._getCandleClose(candles[i - 1]);
-      const close = this._getCandleClose(candles[i]);
-      const vol = this._getCandleVol(candles[i]);
-      if (![prevClose, close, vol].every(Number.isFinite)) continue;
-      if (close > prevClose) obv += vol;
-      else if (close < prevClose) obv -= vol;
-    }
-
-    // slope over last 10 points (proxy)
-    const n = Math.min(10, candles.length - 2);
-    let obv2 = 0;
-    for (let i = candles.length - n; i < candles.length; i++) {
-      const prevClose = this._getCandleClose(candles[i - 1]);
-      const close = this._getCandleClose(candles[i]);
-      const vol = this._getCandleVol(candles[i]);
-      if (![prevClose, close, vol].every(Number.isFinite)) continue;
-      if (close > prevClose) obv2 += vol;
-      else if (close < prevClose) obv2 -= vol;
-    }
-
-    const slope = obv2;
-    const signal = slope > 0 ? 'bull' : (slope < 0 ? 'bear' : 'neutral');
-    return { value: obv, signal, slope };
-  },
-
-  
-getCurrentMarketState() {
+  getCurrentMarketState() {
     const s = window.state || {};
-
-    // Price & prevPrice (fallback: internal tracking)
-    const price = (typeof s.price === 'number')
-      ? s.price
-      : (typeof s.currentPrice === 'number')
-        ? s.currentPrice
-        : (typeof s.lastPrice === 'number')
-          ? s.lastPrice
-          : 0;
-
-    const prevPrice = (typeof s.prevPrice === 'number')
-      ? s.prevPrice
-      : (typeof this._lastPriceSeen === 'number')
-        ? this._lastPriceSeen
-        : price;
-
-    // Keep internal last price for momentum features
-    if (Number.isFinite(price)) this._lastPriceSeen = price;
-
-    // Derive missing indicators from candle history (safe + cached)
-    const now = Date.now();
-    if (!this._derivedCache || (now - this._derivedCache.ts > 750)) {
-      const derived = this.deriveIndicatorsFromState(s, price, prevPrice);
-      this._derivedCache = Object.assign({ ts: now }, derived);
-    }
-
-    const d = this._derivedCache || {};
-
     return {
-      price,
-      prevPrice,
-
-      indicators: d.indicators || s.indicators || {},
-      indicatorKeys: Object.keys((d.indicators || s.indicators || {})),
-
-      volume: d.volume || s.volume,
+      price: s.price,
+      prevPrice: s.prevPrice,
+      indicators: s.indicators || {},
+      volume: s.volume,
       cvd: s.cvd,
       whaleFlow: s.whaleFlow,
-
       supportResistance: s.supportResistance,
       orderBlocks: s.orderBlocks,
       fvg: s.fvg,
       liquidity: s.liquidity,
-
       patterns: s.patterns,
       chartPattern: s.chartPattern,
-      divergence: s.divergence || (d.indicators && d.indicators.divergence) || null,
-
+      divergence: s.divergence,
       mtf: s.mtf,
-
-      volatility: d.volatility || s.volatility,
-      atr: d.atr ?? s.atr,
-      atrAvg: d.atrAvg ?? s.atrAvg,
-
-      lastCandle: d.lastCandle || s.lastCandle || s.candle || s.lastOHLC || null,
+      volatility: s.volatility,
+      atr: s.atr,
+      atrAvg: s.atrAvg,
+      lastCandle: s.lastCandle || s.candle || s.lastOHLC || null,
       orderbook: s.orderbook || s.depth || null
     };
   },
@@ -1923,64 +1682,31 @@ getCurrentMarketState() {
   },
   
   getStats() {
-    const baseOverall = this.performance?.overall || { accuracy: 0, totalPredictions: 0, correctPredictions: 0 };
-    const daily = this.performance?.daily || {};
-
-    // Horizon stats snapshot (UI contract)
-    const byH = this.predictions?.byHorizon || {};
-    const horizons = {};
-    for (const [h, hs] of Object.entries(byH)) {
-      horizons[h] = {
-        accuracy: typeof hs?.accuracy === 'number' ? hs.accuracy : 0,
-        total: typeof hs?.total === 'number' ? hs.total : 0,
-        correct: typeof hs?.correct === 'number' ? hs.correct : 0,
-      };
-    }
-
-    // Use short-horizon stats as the primary "real-time" truth when available
-    const shortHs = Array.isArray(this.config.shortHorizons) ? this.config.shortHorizons : [2, 5, 10, 15];
-    let shortTotal = 0;
-    let shortCorrect = 0;
-    for (const h of shortHs) {
-      const hs = byH?.[h];
-      if (!hs) continue;
-      shortTotal += (typeof hs.total === 'number') ? hs.total : 0;
-      shortCorrect += (typeof hs.correct === 'number') ? hs.correct : 0;
-    }
-
-    const overall = { ...baseOverall };
-    if ((overall.totalPredictions || 0) === 0 && shortTotal > 0) {
-      overall.totalPredictions = shortTotal;
-      overall.correctPredictions = shortCorrect;
-      overall.accuracy = shortCorrect / shortTotal;
-    }
-
-    // Completed should reflect verified workload (not only 240m outcomes)
-    const completedLong = this.predictions?.completed?.length || 0;
-    const completedPerf = this.performance?.overall?.totalPredictions || 0;
-    const completedShort = shortTotal;
-    const completed = Math.max(completedLong, completedPerf, completedShort);
-
-    // Session snapshot (UI contract)
-    const startedAt = this._sessionStart || Date.now();
-    const uptimeMin = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
-    const session = {
-      predictions: this._sessionPredictions || 0,
-      uptime: uptimeMin,
-      lastVerification: this._lastVerification || null,
-    };
-
+    // Calculate session stats
+    const sessionStart = this._sessionStart || Date.now();
+    const sessionPredictions = this._sessionPredictions || 0;
+    const lastPredictionTime = this._lastPredictionTime || null;
+    const lastVerification = this._lastVerification || null;
+    
     return {
-      overall,
-      daily,
-      session,
-      horizons,
+      overall: this.performance.overall,
+      horizons: this.predictions.byHorizon,
+      models: this.getModelStats(),
       memory: {
-        patterns: this.memory?.patterns?.length || 0,
-        pending: this.predictions?.pending?.length || 0,
-        completed,
+        patterns: this.memory.patterns.length,
+        pending: this.predictions.pending.length,
+        completed: this.predictions.completed.length
       },
-      models: (typeof this.getModelStats === 'function') ? this.getModelStats() : {},
+      session: {
+        predictions: sessionPredictions,
+        lastPrediction: lastPredictionTime,
+        lastVerification: lastVerification,
+        uptime: Math.floor((Date.now() - sessionStart) / 60000)
+      },
+      config: {
+        learningRate: this.config.learningRate,
+        minConfidence: this.config.minConfidence
+      }
     };
   },
   
@@ -2012,4 +1738,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.6.9 loaded (always-active mode)');
+console.log('[AI-PRO] AI Engine PRO v1.6.0 loaded (always-active mode)');
