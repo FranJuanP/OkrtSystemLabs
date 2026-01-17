@@ -1907,11 +1907,6 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       predictionHistory: [],  // Historial de aciertos/fallos
       exportData: []          // Datos para exportar
     };
-
-    // ✅ IMPORTANT: expose shared runtime state globally so external modules
-    // (AI Engine Pro, tools, etc.) can read live price/indicators reliably.
-    // This must reference the same object (not a copy) to keep updates in sync.
-    window.state = state;
     // --- AUDIO CONTEXT para alertas sonoras ---
     let audioCtx = null;
     
@@ -8432,7 +8427,6 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     console.log('%c OkrtSystem Labs ', 'color: #00d4ff; font-size: 14px; font-weight: bold;');
     console.log('%c Keyboard shortcuts: T=Tools, S=Sound, D=Dark mode, L=Lite mode, ESC=Close ', 'color: #94a3b8; font-size: 10px;');
   </script><script nonce="okrt-oraculum-nonce-2026">window.AILearning=AILearning;</script>
-<script nonce="okrt-oraculum-nonce-2026">window.recaptchaOptions = Object.assign(window.recaptchaOptions||{}, {useRecaptchaNet:true});</script>
 <script nonce="okrt-oraculum-nonce-2026">
 (()=>{
   const __OKRT_FB_VER__='10.7.1';
@@ -8482,9 +8476,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(__okrtEnsureAnonAuth__, 200));
 })();
 </script>
-<!-- AI Engine PRO (cache-busted) -->
-<!-- Cache-buster to avoid GitHub Pages/browser caching issues -->
-<script src="ai-engine-pro.js?v=1.2.4"></script> 
+<script src="ai-engine-pro.js?v=1.2.0"></script> 
 <!-- ========================= -->
 <!-- MARKET FEED MANAGER (Multi-feed + Failover) -->
 <!-- ========================= -->
@@ -8600,12 +8592,28 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       var accEl = document.getElementById('aiAccuracy');
       var accBar = document.getElementById('aiAccuracyBar');
       if (accEl && stats.overall) {
-        var acc = stats.overall.accuracy || 0;
-        accEl.textContent = (acc * 100).toFixed(1) + '%';
-        accEl.style.color = acc >= 0.55 ? '#00ff88' : acc >= 0.45 ? '#f4b942' : '#ff4466';
-        if (accBar) accBar.style.width = Math.min(100, acc * 100) + '%';
+        var o = stats.overall || {};
+        var overallAcc = o.accuracy || 0;
+        var dirAcc = (typeof o.accuracyDirectional === 'number') ? o.accuracyDirectional : null;
+        var neuAcc = (typeof o.accuracyNeutral === 'number') ? o.accuracyNeutral : null;
+        var nDir = o.totalDirectional || 0;
+        var nNeu = o.totalNeutral || 0;
+
+        // PRO authenticity: show directional accuracy when we have enough samples
+        var displayAcc = (dirAcc !== null && nDir >= 5) ? dirAcc : overallAcc;
+
+        accEl.textContent = (displayAcc * 100).toFixed(1) + '%';
+        accEl.style.color = displayAcc >= 0.55 ? '#00ff88' : displayAcc >= 0.45 ? '#f4b942' : '#ff4466';
+        if (accBar) accBar.style.width = Math.min(100, displayAcc * 100) + '%';
+
+        // Tooltip with full breakdown (no layout impact)
+        var dirTxt = (dirAcc === null) ? '--' : (dirAcc * 100).toFixed(1) + '%';
+        var neuTxt = (neuAcc === null) ? '--' : (neuAcc * 100).toFixed(1) + '%';
+        var ovTxt  = (overallAcc * 100).toFixed(1) + '%';
+        accEl.title = 'Directional: ' + dirTxt + ' (n=' + nDir + ')' + '\n' +
+                     'Neutral: ' + neuTxt + ' (n=' + nNeu + ')' + '\n' +
+                     'Overall: ' + ovTxt + ' (n=' + (o.totalPredictions || 0) + ')';
       }
-      
       // Session Stats (new dynamic elements)
       var sessCountEl = document.getElementById('aiSessionCount');
       if (sessCountEl && stats.session) {
@@ -8637,9 +8645,14 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         var col = v.success ? '#00ff88' : '#ff4466';
         var change = parseFloat(v.priceChange);
         var changeStr = change >= 0 ? '+' + change + '%' : change + '%';
-        verifEl.innerHTML = '<span style="color:'+col+';">'+icon+'</span> '+v.horizon+'m → <span style="color:'+(change>=0?'#00ff88':'#ff4466')+';">'+changeStr+'</span>';
+
+        // Direction tag (short, does not affect layout)
+        var dir = (v.direction || '').toUpperCase();
+        var dirTag = (dir === 'BULL') ? 'BULL' : (dir === 'BEAR') ? 'BEAR' : (dir ? 'NEU' : '');
+        var dirHtml = dirTag ? ' <span style="color:#64748b;">' + dirTag + '</span>' : '';
+
+        verifEl.innerHTML = '<span style="color:' + col + ';">' + icon + '</span> ' + v.horizon + 'm → <span style="color:' + (change>=0?'#00ff88':'#ff4466') + ';">' + changeStr + '</span>' + dirHtml;
       }
-      
       // Patterns & Pending
       var patEl = document.getElementById('aiPatterns');
       if (patEl && stats.memory) patEl.textContent = stats.memory.patterns || 0;
@@ -8650,20 +8663,39 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       // Horizons
       var hGrid = document.getElementById('aiHorizonsGrid');
       if (hGrid && stats.horizons) {
-        var sorted = Object.entries(stats.horizons).filter(function(e){return e[1].total>=1;}).sort(function(a,b){return b[1].accuracy-a[1].accuracy;});
+        var metricFor = function(d){
+          // Prefer directional accuracy when available (authentic)
+          if (d && typeof d.dirAccuracy === 'number' && (d.dirTotal||0) >= 1) return d.dirAccuracy;
+          return d && typeof d.accuracy === 'number' ? d.accuracy : 0;
+        };
+
+        var sorted = Object.entries(stats.horizons)
+          .filter(function(e){ return e[1].total >= 1; })
+          .sort(function(a,b){ return metricFor(b[1]) - metricFor(a[1]); });
+
         var html = '';
         if (sorted.length === 0) {
           html = '<span style="color:#64748b;font-size:9px;">Collecting...</span>';
         } else {
           sorted.slice(0,4).forEach(function(e){
-            var h=e[0], d=e[1], a=(d.accuracy*100).toFixed(0);
-            var col = d.accuracy>=0.55?'#00ff88':d.accuracy>=0.45?'#f4b942':'#ff4466';
-            html += '<div style="background:rgba(255,255,255,0.05);padding:3px 6px;border-radius:3px;font-size:9px;"><span style="color:#94a3b8;">'+h+'m</span> <span style="color:'+col+';font-weight:bold;">'+a+'%</span></div>';
+            var h = e[0], d = e[1];
+            var m = metricFor(d);
+            var a = (m * 100).toFixed(0);
+            var col = m >= 0.55 ? '#00ff88' : m >= 0.45 ? '#f4b942' : '#ff4466';
+
+            var tip = '';
+            if (typeof d.dirAccuracy === 'number' && typeof d.neuAccuracy === 'number') {
+              tip = 'title="DIR ' + (d.dirAccuracy*100).toFixed(0) + '% (n=' + (d.dirTotal||0) + ') | NEU ' + (d.neuAccuracy*100).toFixed(0) + '% (n=' + (d.neuTotal||0) + ')"';
+            }
+
+            html += '<div ' + tip + ' style="background:rgba(255,255,255,0.05);padding:3px 6px;border-radius:3px;font-size:9px;">' +
+                    '<span style="color:#94a3b8;">'+h+'m</span> ' +
+                    '<span style="color:'+col+';font-weight:bold;">'+a+'%</span>' +
+                    '</div>';
           });
         }
         hGrid.innerHTML = html;
       }
-      
       // Models
       var mGrid = document.getElementById('aiModelsGrid');
       if (mGrid && stats.models) {
