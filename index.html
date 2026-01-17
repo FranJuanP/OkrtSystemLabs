@@ -1907,6 +1907,9 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       predictionHistory: [],  // Historial de aciertos/fallos
       exportData: []          // Datos para exportar
     };
+    // Exponer estado global para módulos externos (AI Engine PRO, feeds, etc.)
+    // Mantiene compatibilidad con auto-prediction y evita valores undefined en window.state.*
+    window.state = state;
     // --- AUDIO CONTEXT para alertas sonoras ---
     let audioCtx = null;
     
