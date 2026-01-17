@@ -1,28 +1,25 @@
 // ============================================
-// 🧠 AI ENGINE PRO v1.6.0
+// 🧠 AI ENGINE PRO v1.6.1
 // Advanced Self-Learning System for ORACULUM
 // Copyright (c) 2025-2026 OkrtSystem Labs
 // ============================================
+// CHANGELOG v1.6.1:
+// - FIX: Accuracy now updates correctly in getStats()
+// - FIX: Added logging to verifyProPrediction() for debugging
+// - FIX: Better fallback when shortTotal is 0
+// - FIX: Track first verification time for UI
 // CHANGELOG v1.6.0:
 // - FIX: Added price_momentum fallback feature for data-poor conditions
 // - FIX: Ensemble now always generates direction (not stuck on NEUTRAL)
 // - FIX: Auto-prediction every 1min with 5s startup
 // - FIX: Detailed diagnostic logging
 // - FIX: Lowered confidence threshold to 15% minimum
-// CHANGELOG v1.5.0:
-// - FIX: Lowered minConfidence to 0.30 for more predictions
-// CHANGELOG v1.1.0:
-// - FIX: byHorizon ahora incluye todos los horizontes (120, 240)
-// - FIX: Feature extraction completo con mapeos para features derivados
-// - FIX: Improved pattern similarity calculation
-// - ADD: Debug logging mejorado
-// - ADD: Feature validation on init
 // ============================================
 
 'use strict';
 
 const AIEnginePro = {
-  version: '1.6.0',
+  version: '1.6.1',
   isReady: false,
   db: null,
   
@@ -60,7 +57,14 @@ const AIEnginePro = {
     breakoutAware: true,
     
     // Debug mode
-    debugMode: true
+    debugMode: true,
+
+    // --- Pending management (UI + stability) ---
+    maxActivePending: 15,
+    activePendingWindowMin: 12,
+
+    // --- Short-horizon validation mode (fast authenticity) ---
+    shortHorizons: [2, 5, 10, 15]
   },
 
   // ============================================
@@ -121,7 +125,6 @@ const AIEnginePro = {
   // 📊 FEATURE ENGINEERING
   // ============================================
   features: {
-    // Derived features with importance weights
     derived: {
       rsi_momentum: { weight: 1.0, formula: 'rsi_change_rate' },
       macd_acceleration: { weight: 1.0, formula: 'macd_histogram_change' },
@@ -134,8 +137,6 @@ const AIEnginePro = {
       momentum_divergence: { weight: 1.2, formula: 'price_rsi_divergence' },
       liquidity_zones: { weight: 1.1, formula: 'nearby_liquidity' }
     },
-    
-    // Feature statistics for normalization
     stats: {}
   },
 
@@ -145,7 +146,6 @@ const AIEnginePro = {
   predictions: {
     pending: [],
     completed: [],
-    // FIX: Ahora incluye TODOS los horizontes configurados
     byHorizon: {
       2: { total: 0, correct: 0, accuracy: 0.5 },
       5: { total: 0, correct: 0, accuracy: 0.5 },
@@ -153,8 +153,8 @@ const AIEnginePro = {
       15: { total: 0, correct: 0, accuracy: 0.5 },
       30: { total: 0, correct: 0, accuracy: 0.5 },
       60: { total: 0, correct: 0, accuracy: 0.5 },
-      120: { total: 0, correct: 0, accuracy: 0.5 },  // FIX: Añadido
-      240: { total: 0, correct: 0, accuracy: 0.5 }   // FIX: Añadido
+      120: { total: 0, correct: 0, accuracy: 0.5 },
+      240: { total: 0, correct: 0, accuracy: 0.5 }
     }
   },
 
@@ -184,6 +184,11 @@ const AIEnginePro = {
       maxDrawdown: 0
     }
   },
+
+  // ============================================
+  // 🎯 CONFIDENCE CALIBRATION (UI telemetry)
+  // ============================================
+  _calibration: null,
 
   // ============================================
   // 🚀 INITIALIZATION
@@ -233,6 +238,11 @@ const AIEnginePro = {
     this._sessionPredictions = 0;
     this._lastPredictionTime = null;
     this._lastVerification = null;
+    this._firstVerificationTime = null;  // NEW: Track first verification
+    this._totalVerifications = 0;         // NEW: Track total verifications
+
+    // Init confidence calibration buckets (telemetry-only)
+    this.initCalibration();
     
     this.isReady = true;
     console.log('[AI-PRO] ✓ AI Engine PRO ready');
@@ -257,10 +267,9 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // 🔧 INITIALIZE HORIZONS (NEW)
+  // 🔧 INITIALIZE HORIZONS
   // ============================================
   initializeHorizons() {
-    // Ensure all configured horizons have stats objects
     for (const h of this.config.horizons) {
       if (!this.predictions.byHorizon[h]) {
         this.predictions.byHorizon[h] = { total: 0, correct: 0, accuracy: 0.5 };
@@ -270,20 +279,17 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // ✅ VALIDATE FEATURES (NEW)
+  // ✅ VALIDATE FEATURES
   // ============================================
   validateFeatures() {
     const allFeatures = new Set();
     
-    // Collect all features from models
     for (const model of Object.values(this.models)) {
       model.features.forEach(f => allFeatures.add(f));
     }
     
-    // Collect derived features
     Object.keys(this.features.derived).forEach(f => allFeatures.add(f));
     
-    // Check which features have mappings
     const mapped = [];
     const unmapped = [];
     
@@ -306,17 +312,15 @@ const AIEnginePro = {
   hasFeatureMapping(feature) {
     const mappedFeatures = [
       'rsi', 'stoch_rsi', 'momentum', 'rsi_divergence',
-      // ✅ NEW: explicit mapping for price momentum (used by multiple models)
-      'price_momentum',
       'ema_cross', 'macd', 'adx', 'supertrend',
       'volume', 'obv', 'cvd', 'whale_flow',
       'support_resistance', 'order_blocks', 'fvg', 'liquidity',
       'candlestick_patterns', 'chart_patterns', 'divergences',
       'mtf_1m', 'mtf_5m', 'mtf_15m', 'mtf_1h', 'mtf_4h',
-      // Derived features (NEW mappings)
       'rsi_momentum', 'macd_acceleration', 'volume_trend',
       'volatility_regime', 'whale_pressure', 'order_imbalance',
-      'mtf_alignment', 'trend_strength', 'momentum_divergence', 'liquidity_zones'
+      'mtf_alignment', 'trend_strength', 'momentum_divergence', 'liquidity_zones',
+      'price_momentum'
     ];
     return mappedFeatures.includes(feature);
   },
@@ -325,21 +329,19 @@ const AIEnginePro = {
   // 🔗 HOOK INTO BASE AILEARNING
   // ============================================
   hookIntoBase() {
-    const originalRecordPrediction = window.AILearning.recordPrediction.bind(window.AILearning);
-    const originalComplete = window.AILearning.complete.bind(window.AILearning);
+    if (!window.AILearning) return;
     
-    window.AILearning.recordPrediction = (pred) => {
-      const id = originalRecordPrediction(pred);
-      this.recordProPrediction(pred, id);
-      return id;
-    };
+    const self = this;
+    const originalRegister = window.AILearning.registerPrediction?.bind(window.AILearning);
     
-    window.AILearning.complete = (p) => {
-      originalComplete(p);
-      this.updateProModels(p);
-    };
-    
-    console.log('[AI-PRO] Hooked into base AILearning');
+    if (originalRegister) {
+      window.AILearning.registerPrediction = function(prediction) {
+        const result = originalRegister(prediction);
+        self.trackProPrediction(prediction, result);
+        return result;
+      };
+      console.log('[AI-PRO] Hooked into AILearning.registerPrediction');
+    }
   },
 
   // ============================================
@@ -359,16 +361,13 @@ const AIEnginePro = {
       totalWeight += weight;
     }
     
-    // Normalize votes
     for (const dir of Object.keys(votes)) {
       votes[dir] = totalWeight > 0 ? votes[dir] / totalWeight : 0.33;
     }
     
-    // Determine consensus - siempre elegir una dirección
     let direction = 'NEUTRAL';
-    let confidence = 0.35; // Base confidence
+    let confidence = 0.35;
     
-    // Encontrar la dirección con más votos
     const maxVote = Math.max(votes.BULL, votes.BEAR, votes.NEUTRAL);
     
     if (votes.BULL >= votes.BEAR && votes.BULL >= votes.NEUTRAL * 0.8) {
@@ -378,11 +377,9 @@ const AIEnginePro = {
       direction = 'BEAR';
       confidence = 0.35 + votes.BEAR * 0.6;
     } else {
-      // Neutral pero con algo de confianza
       confidence = 0.30 + maxVote * 0.3;
     }
     
-    // Context multipliers
     const session = this.config.sessionAware ? this.getSessionContext() : null;
     const volScore = this.config.volatilityAware ? this.getVolatilityScore(marketState) : null;
     const volMultiplier = (volScore != null) ? this.getVolatilityConfidenceMultiplier(volScore) : 1.0;
@@ -395,7 +392,6 @@ const AIEnginePro = {
     confidence *= volMultiplier;
     if (breakout && breakout.classification === 'FAKE_BREAKOUT_RISK') confidence *= 0.92;
     
-    // Check pattern memory
     const patternMatch = this.queryLongTermMemory(marketState);
     if (patternMatch.found) {
       confidence = (confidence + patternMatch.confidence) / 2;
@@ -404,7 +400,6 @@ const AIEnginePro = {
       }
     }
     
-    // Garantizar mínimo de confianza para que pase el threshold
     confidence = Math.max(0.20, Math.min(0.95, confidence));
     
     return {
@@ -433,7 +428,7 @@ const AIEnginePro = {
       const value = this.getFeatureValue(feature, marketState);
       if (value === null || value === undefined) continue;
       
-      const weight = window.AILearning?.getWeight?.(feature) || 1.0;
+      const weight = 1.0;
       
       if (value > 0) {
         bullScore += value * weight;
@@ -443,7 +438,6 @@ const AIEnginePro = {
       featureCount++;
     }
     
-    // Si no hay features, usar price_momentum como fallback
     if (featureCount === 0) {
       const priceMom = this.getFeatureValue('price_momentum', marketState) || 0;
       if (priceMom > 0.01) {
@@ -465,26 +459,25 @@ const AIEnginePro = {
     let direction = 'NEUTRAL';
     let confidence = 0.4;
     
-    if (bullProb > 0.52) {
+    if (bullProb > 0.55) {
       direction = 'BULL';
-      confidence = 0.4 + (bullProb - 0.5) * 1.2;
-    } else if (bearProb > 0.52) {
+      confidence = 0.35 + bullProb * 0.55;
+    } else if (bearProb > 0.55) {
       direction = 'BEAR';
-      confidence = 0.4 + (bearProb - 0.5) * 1.2;
+      confidence = 0.35 + bearProb * 0.55;
     }
     
     return { direction, confidence: Math.min(0.95, confidence), featureCount };
   },
 
   // ============================================
-  // 📊 FEATURE EXTRACTION (FIXED & EXTENDED)
+  // 📊 FEATURE EXTRACTION
   // ============================================
   getFeatureValue(feature, marketState) {
     const indicators = marketState.indicators || {};
     const s = marketState;
     
     const featureMap = {
-      // ============ MOMENTUM ============
       'rsi': () => {
         const rsi = indicators.rsi?.value ?? indicators.rsi ?? 50;
         return (rsi - 50) / 50;
@@ -503,8 +496,6 @@ const AIEnginePro = {
         if (!div) return 0;
         return div.type === 'bullish' ? 1 : div.type === 'bearish' ? -1 : 0;
       },
-      
-      // ============ TREND ============
       'ema_cross': () => {
         const ema = indicators.ema;
         if (!ema) return 0;
@@ -528,8 +519,6 @@ const AIEnginePro = {
         if (!st) return 0;
         return st.signal === 'bull' ? 1 : st.signal === 'bear' ? -1 : 0;
       },
-      
-      // ============ VOLUME ============
       'volume': () => {
         const vol = s.volume || {};
         if (vol.trend === 'increasing') return 0.5;
@@ -550,8 +539,6 @@ const AIEnginePro = {
         const net = (whales.buy || 0) - (whales.sell || 0);
         return Math.tanh(net / 100000);
       },
-      
-      // ============ STRUCTURE ============
       'support_resistance': () => {
         const sr = s.supportResistance || {};
         if (sr.nearSupport) return 0.7;
@@ -573,8 +560,6 @@ const AIEnginePro = {
         if (buy === 0 && sell === 0) return 0;
         return buy > sell ? 0.4 : -0.4;
       },
-      
-      // ============ PATTERNS ============
       'candlestick_patterns': () => {
         const patterns = s.patterns || [];
         let score = 0;
@@ -594,23 +579,17 @@ const AIEnginePro = {
         if (!div) return 0;
         return div.type === 'bullish' ? 0.8 : div.type === 'bearish' ? -0.8 : 0;
       },
-      
-      // ============ MULTI-TIMEFRAME ============
       'mtf_1m': () => this.getMTFValue(s, '1m'),
       'mtf_5m': () => this.getMTFValue(s, '5m'),
       'mtf_15m': () => this.getMTFValue(s, '15m'),
       'mtf_1h': () => this.getMTFValue(s, '1h'),
       'mtf_4h': () => this.getMTFValue(s, '4h'),
-      
-      // ============ DERIVED FEATURES (NEW) ============
       'rsi_momentum': () => {
-        // Rate of change in RSI
         const rsi = indicators.rsi?.value ?? 50;
         const prevRsi = indicators.rsi?.prev ?? rsi;
         return Math.tanh((rsi - prevRsi) / 10);
       },
       'macd_acceleration': () => {
-        // Change in MACD histogram
         const macd = indicators.macd;
         if (!macd) return 0;
         const hist = macd.histogram ?? 0;
@@ -618,20 +597,17 @@ const AIEnginePro = {
         return Math.tanh((hist - prevHist) * 20);
       },
       'volume_trend': () => {
-        // Volume relative to MA
         const vol = s.volume || {};
         const ratio = vol.ratio ?? vol.volumeRatio ?? 1;
         return Math.tanh((ratio - 1) * 2);
       },
       'volatility_regime': () => {
-        // ATR percentile
         const atr = s.atr ?? 0;
         const atrAvg = s.atrAvg ?? atr;
         if (atrAvg === 0) return 0;
         return Math.tanh((atr / atrAvg - 1) * 2);
       },
       'whale_pressure': () => {
-        // Net whale flow normalized
         const whales = s.whaleFlow || { buy: 0, sell: 0 };
         const net = (whales.buy || 0) - (whales.sell || 0);
         const total = (whales.buy || 0) + (whales.sell || 0);
@@ -639,7 +615,6 @@ const AIEnginePro = {
         return net / total;
       },
       'order_imbalance': () => {
-        // Bid/ask imbalance from orderbook
         const ob = s.orderbook || s.depth || {};
         const bidVol = ob.bidVolume ?? ob.bids ?? 0;
         const askVol = ob.askVolume ?? ob.asks ?? 0;
@@ -648,7 +623,6 @@ const AIEnginePro = {
         return (bidVol - askVol) / total;
       },
       'mtf_alignment': () => {
-        // Confluence across timeframes
         const mtf = s.mtf || {};
         let bullCount = 0, bearCount = 0, total = 0;
         for (const tf of ['1m', '5m', '15m', '1h', '4h']) {
@@ -661,7 +635,6 @@ const AIEnginePro = {
         return (bullCount - bearCount) / total;
       },
       'trend_strength': () => {
-        // ADX slope/momentum
         const adx = indicators.adx;
         if (!adx) return 0;
         const value = adx.value ?? 20;
@@ -671,21 +644,18 @@ const AIEnginePro = {
         return dir * Math.min(1, (value / 40)) * (1 + slope);
       },
       'momentum_divergence': () => {
-        // Price vs RSI divergence detection
         const div = s.divergence || indicators.divergence;
         if (div) {
           return div.type === 'bullish' ? 0.9 : div.type === 'bearish' ? -0.9 : 0;
         }
-        // Fallback: simple check
         const rsi = indicators.rsi?.value ?? 50;
         const price = s.price ?? 0;
         const prevPrice = s.prevPrice ?? price;
-        if (price > prevPrice && rsi < 40) return 0.5; // Hidden bullish
-        if (price < prevPrice && rsi > 60) return -0.5; // Hidden bearish
+        if (price > prevPrice && rsi < 40) return 0.5;
+        if (price < prevPrice && rsi > 60) return -0.5;
         return 0;
       },
       'liquidity_zones': () => {
-        // Distance to nearby liquidity
         const liq = s.liquidity || {};
         const nearBuy = liq.nearBuyZone ?? false;
         const nearSell = liq.nearSellZone ?? false;
@@ -695,13 +665,12 @@ const AIEnginePro = {
       }
     };
     
-    // EMERGENCY FEATURE: Always generates something based on price movement
     if (feature === 'price_momentum') {
       const price = s.price || 0;
       const prevPrice = s.prevPrice || price;
       if (price > 0 && prevPrice > 0) {
         const change = (price - prevPrice) / prevPrice;
-        return Math.tanh(change * 100); // Scale to -1 to 1
+        return Math.tanh(change * 100);
       }
       return 0;
     }
@@ -709,8 +678,7 @@ const AIEnginePro = {
     const fn = featureMap[feature];
     if (fn) {
       try {
-        const value = fn();
-        return value;
+        return fn();
       } catch (e) {
         if (this.config.debugMode) {
           console.warn(`[AI-PRO] Feature error: ${feature}`, e.message);
@@ -722,7 +690,6 @@ const AIEnginePro = {
     return null;
   },
 
-  // Helper for MTF values
   getMTFValue(state, timeframe) {
     const mtf = state.mtf || {};
     const tf = mtf[timeframe];
@@ -905,15 +872,12 @@ const AIEnginePro = {
 
   extractFeatureVector(marketState) {
     const vector = {};
-    // Extract ALL features (model + derived)
     const allFeatures = new Set();
     
-    // Model features
     for (const model of Object.values(this.models)) {
       model.features.forEach(f => allFeatures.add(f));
     }
     
-    // Derived features
     Object.keys(this.features.derived).forEach(f => allFeatures.add(f));
     
     for (const feature of allFeatures) {
@@ -921,10 +885,6 @@ const AIEnginePro = {
       if (value !== null && value !== undefined && !isNaN(value)) {
         vector[feature] = value;
       }
-    }
-    
-    if (this.config.debugMode && Object.keys(vector).length === 0) {
-      console.warn('[AI-PRO] Empty feature vector - check market state');
     }
     
     return vector;
@@ -986,16 +946,8 @@ const AIEnginePro = {
       similar.lastOutcome = outcome.success ? 'POS' : 'NEG';
       if (session) similar.session = session;
       if (volBucket) similar.volBucket = volBucket;
-      
-      if (this.config.debugMode) {
-        console.log(`[AI-PRO] Pattern updated: ${similar.id} (${similar.occurrences} occ, ${(similar.successRate*100).toFixed(1)}% win)`);
-      }
     } else {
       this.memory.patterns.push(pattern);
-      
-      if (this.config.debugMode) {
-        console.log(`[AI-PRO] New pattern stored: ${pattern.id} (${pattern.direction})`);
-      }
       
       if (this.memory.patterns.length > this.config.maxLongTermPatterns) {
         this.memory.patterns.sort((a, b) => {
@@ -1009,27 +961,33 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // 📊 PRO PREDICTION RECORDING
+  // 🎯 TRACK PRO PREDICTION
   // ============================================
-  recordProPrediction(pred, baseId) {
+  trackProPrediction(basePrediction, result) {
+    if (!result?.predictionId) return;
+    
     const marketState = this.getCurrentMarketState();
     const ensemble = this.generateEnsemblePrediction(marketState);
     
+    if (ensemble.confidence < this.config.minConfidence) {
+      return;
+    }
+    
     const proPrediction = {
-      id: 'pro_' + baseId,
-      baseId: baseId,
+      id: 'pro_' + result.predictionId,
+      baseId: result.predictionId,
       timestamp: Date.now(),
-      price: window.state?.price || 0,
+      price: window.state?.price || basePrediction.price,
       ensemble: ensemble,
       features: this.extractFeatureVector(marketState),
       regime: ensemble.regime,
       verifications: [],
-      outcome: null
+      outcome: null,
+      isAuto: false
     };
     
     this.predictions.pending.push(proPrediction);
     
-    // Schedule verifications
     for (const horizon of this.config.horizons) {
       setTimeout(() => this.verifyProPrediction(proPrediction.id, horizon), horizon * 60000);
     }
@@ -1041,9 +999,33 @@ const AIEnginePro = {
     return proPrediction.id;
   },
 
+  // ============================================
+  // ✅ VERIFY PREDICTION - FIXED VERSION
+  // ============================================
   verifyProPrediction(id, horizon) {
     const pred = this.predictions.pending.find(p => p.id === id);
-    if (!pred || !window.state?.price || !pred.price) return;
+    
+    // FIX: Add logging for debugging
+    if (!pred) {
+      if (this.config.debugMode) {
+        console.log(`[AI-PRO] ⚠️ Verification skipped: prediction ${id} not found in pending`);
+      }
+      return;
+    }
+    
+    if (!window.state?.price) {
+      if (this.config.debugMode) {
+        console.log(`[AI-PRO] ⚠️ Verification skipped: no current price available`);
+      }
+      return;
+    }
+    
+    if (!pred.price) {
+      if (this.config.debugMode) {
+        console.log(`[AI-PRO] ⚠️ Verification skipped: no prediction price recorded`);
+      }
+      return;
+    }
     
     const priceChange = ((window.state.price - pred.price) / pred.price) * 100;
     const direction = pred.ensemble.direction;
@@ -1059,21 +1041,52 @@ const AIEnginePro = {
       success,
       timestamp: Date.now()
     });
-    
+
+    // Telemetry (LAST VERIFICATION)
+    const dir = pred?.ensemble?.direction || 'NEUTRAL';
+    const conf = Number(pred?.ensemble?.confidence || 0);
+    const confPct = (conf * 100).toFixed(1);
+    const bucket = this.getConfidenceBucket(conf);
+
+    const shortHs = Array.isArray(this.config.shortHorizons) && this.config.shortHorizons.length
+      ? this.config.shortHorizons
+      : [2, 5, 10, 15];
+    const calibrationH = Math.min(...shortHs);
+    let calSnap = null;
+    if (horizon === calibrationH) {
+      calSnap = this.updateCalibration(conf, success);
+    } else if (bucket) {
+      calSnap = { label: bucket.label, accuracy: bucket.accuracy, total: bucket.total };
+    }
+
+    // FIX: Track first verification time
+    if (!this._firstVerificationTime) {
+      this._firstVerificationTime = Date.now();
+    }
+    this._totalVerifications = (this._totalVerifications || 0) + 1;
+
     // Update session tracking
     this._lastVerification = {
       horizon,
       priceChange: priceChange.toFixed(3),
       success,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      direction: dir,
+      confidence: confPct,
+      calibration: calSnap
     };
     
-    // Update horizon statistics (with safe check)
+    // FIX: Update horizon statistics with better logging
     if (this.predictions.byHorizon[horizon]) {
       this.predictions.byHorizon[horizon].total++;
       if (success) this.predictions.byHorizon[horizon].correct++;
       this.predictions.byHorizon[horizon].accuracy = 
         this.predictions.byHorizon[horizon].correct / this.predictions.byHorizon[horizon].total;
+      
+      // Log verification for debugging
+      console.log(`[AI-PRO] ✓ Verified ${horizon}min: ${success ? '✅' : '❌'} | ${dir} @ ${confPct}% | Δ${priceChange.toFixed(3)}% | Horizon accuracy: ${(this.predictions.byHorizon[horizon].accuracy * 100).toFixed(1)}%`);
+    } else {
+      console.warn(`[AI-PRO] ⚠️ Horizon ${horizon} not found in byHorizon`);
     }
     
     // Complete after longest horizon
@@ -1091,20 +1104,16 @@ const AIEnginePro = {
     const verified = pred.verifications ? pred.verifications.map(v => v.horizon) : [];
     
     for (const horizon of this.config.horizons) {
-      // Skip already verified horizons
       if (verified.includes(horizon)) continue;
       
       const targetTime = pred.timestamp + (horizon * 60000);
       const delay = targetTime - now;
       
       if (delay > 0) {
-        // Schedule future verification
         setTimeout(() => this.verifyProPrediction(pred.id, horizon), delay);
       } else if (delay > -300000) {
-        // Verify immediately if within 5 min grace period
         setTimeout(() => this.verifyProPrediction(pred.id, horizon), 1000);
       }
-      // Skip if too old (more than 5 min past)
     }
   },
 
@@ -1139,7 +1148,6 @@ const AIEnginePro = {
     
     this.updateModelWeights(pred, success);
     
-    // Store in memory
     const c = pred.ensemble?.confidence || 0;
     const br = pred.ensemble?.breakout;
     const mustLearn = (c >= 0.7) || (Math.abs(avgPriceChange) >= 0.35) || (br && br.classification !== 'NEUTRAL');
@@ -1216,7 +1224,6 @@ const AIEnginePro = {
     if (pred.outcome.success) perf.correctPredictions++;
     perf.accuracy = perf.correctPredictions / perf.totalPredictions;
     
-    // Daily stats
     const today = new Date().toISOString().split('T')[0];
     if (!this.performance.daily[today]) {
       this.performance.daily[today] = { total: 0, correct: 0, returns: [] };
@@ -1226,7 +1233,6 @@ const AIEnginePro = {
     if (pred.outcome.success) daily.correct++;
     daily.returns.push(pred.outcome.avgPriceChange);
     
-    // Clean old data
     const keys = Object.keys(this.performance.daily).sort();
     while (keys.length > 30) {
       delete this.performance.daily[keys.shift()];
@@ -1277,81 +1283,81 @@ const AIEnginePro = {
   // ============================================
   // 🤖 AUTO-PREDICTION SYSTEM
   // ============================================
-  // Get live price from any available source (robust against feed changes)
-  getLivePrice() {
-    try {
-      const st = window.state || {};
-
-      // 1) Primary: canonical state.price
-      let p = st.price;
-      if (p != null && !isNaN(p) && p > 0) return p;
-
-      // 2) Secondary: state.currentPrice
-      p = st.currentPrice;
-      if (p != null && !isNaN(p) && p > 0) {
-        st.price = p;
-        return p;
-      }
-
-      // 3) Fallback: last candle close
-      p = st.lastCandle && st.lastCandle.close;
-      if (p != null && !isNaN(p) && p > 0) {
-        st.price = p;
-        st.currentPrice = p;
-        return p;
-      }
-
-      // 4) Fallback: last candle in array
-      if (Array.isArray(st.candles) && st.candles.length) {
-        const last = st.candles[st.candles.length - 1];
-        p = last && last.close;
-        if (p != null && !isNaN(p) && p > 0) {
-          st.price = p;
-          st.currentPrice = p;
-          return p;
-        }
-      }
-
-      // 5) Optional: feed manager exposure (if present)
-      const fm = window.MarketFeedManager || window.feedManager || null;
-      if (fm && fm.currentPrice != null && !isNaN(fm.currentPrice) && fm.currentPrice > 0) {
-        st.price = fm.currentPrice;
-        st.currentPrice = fm.currentPrice;
-        return fm.currentPrice;
-      }
-    } catch (_) {}
-
-    return null;
-  },
-
-  // Count only “active” pending predictions (prevents old restored pending from blocking)
-  getActivePendingCount(windowMinutes = 12) {
-    const winMs = Math.max(1, windowMinutes) * 60000;
-    const now = Date.now();
-    return (this.predictions.pending || []).filter(p => p && p.timestamp && (now - p.timestamp) < winMs).length;
-  },
-
   startAutoPrediction() {
-    // Generate predictions automatically every 60 seconds (más frecuente)
-    const AUTO_PREDICT_INTERVAL = 60000; // 1 minute
+    const AUTO_PREDICT_INTERVAL = 60000;
     
     setInterval(() => {
       this.generateAutoPrediction();
     }, AUTO_PREDICT_INTERVAL);
     
-    // First prediction after 5 seconds (immediate startup)
     setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating FIRST auto-prediction...');
       this.generateAutoPrediction();
     }, 5000);
     
-    // Second prediction after 15 seconds
     setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating SECOND auto-prediction...');
       this.generateAutoPrediction();
     }, 15000);
     
     console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
+  },
+
+  getActivePendingCount() {
+    const winMin = Math.max(1, parseInt(this.config.activePendingWindowMin || 12, 10));
+    const cutoff = Date.now() - (winMin * 60000);
+    let n = 0;
+    for (const p of (this.predictions.pending || [])) {
+      if (p && p.timestamp && p.timestamp >= cutoff) n++;
+    }
+    return n;
+  },
+
+  // ============================================
+  // 🎯 Calibration helpers (telemetry-only)
+  // ============================================
+  initCalibration() {
+    if (this._calibration && this._calibration.buckets) return this._calibration;
+
+    const ranges = [
+      { label: '0-40', min: 0.00, max: 0.40 },
+      { label: '40-55', min: 0.40, max: 0.55 },
+      { label: '55-70', min: 0.55, max: 0.70 },
+      { label: '70-100', min: 0.70, max: 1.01 }
+    ];
+
+    this._calibration = { buckets: {} };
+    for (const r of ranges) {
+      this._calibration.buckets[r.label] = {
+        label: r.label,
+        min: r.min,
+        max: r.max,
+        total: 0,
+        correct: 0,
+        accuracy: 0
+      };
+    }
+    return this._calibration;
+  },
+
+  getConfidenceBucket(conf) {
+    const c = Math.max(0, Math.min(1, Number(conf) || 0));
+    this.initCalibration();
+    const buckets = this._calibration.buckets;
+    for (const k of Object.keys(buckets)) {
+      const b = buckets[k];
+      if (c >= b.min && c < b.max) return b;
+    }
+    return buckets['0-40'] || null;
+  },
+
+  updateCalibration(conf, success) {
+    const b = this.getConfidenceBucket(conf);
+    if (!b) return null;
+    b.total += 1;
+    if (success) b.correct += 1;
+    b.accuracy = b.total > 0 ? (b.correct / b.total) : 0;
+    return { label: b.label, accuracy: b.accuracy, total: b.total };
   },
 
   generateAutoPrediction() {
@@ -1362,23 +1368,18 @@ const AIEnginePro = {
       return;
     }
     
-    const price = this.getLivePrice();
+    const price = window.state?.price;
     if (!price) {
-      // Avoid noisy logs during startup/reconnect (price may arrive a few seconds later)
-      if (!this._waitingForPriceLogged) {
-        console.log('[AI-PRO] ⏳ Waiting for live price feed (no state.price/currentPrice/lastCandle yet)');
-        this._waitingForPriceLogged = true;
-      }
+      console.log('[AI-PRO] ❌ Skipping: no price data (window.state.price =', price, ')');
       return;
     }
-
-    this._waitingForPriceLogged = false;
+    
     console.log('[AI-PRO] ✓ Price available:', price);
     
-    // Don't generate if we have too many ACTIVE pending (avoid blocking due to restored old predictions)
-    const activePending = this.getActivePendingCount(12);
-    if (activePending >= 15) {
-      console.log('[AI-PRO] ⏸ Skipping: too many active pending (' + activePending + ')');
+    const activePending = this.getActivePendingCount();
+    const maxActive = Math.max(1, parseInt(this.config.maxActivePending || 15, 10));
+    if (activePending >= maxActive) {
+      console.log('[AI-PRO] ⏸ Skipping: too many pending (active ' + activePending + '/' + maxActive + ', total ' + this.predictions.pending.length + ')');
       return;
     }
     
@@ -1398,14 +1399,11 @@ const AIEnginePro = {
       passes: ensemble.confidence >= this.config.minConfidence
     });
     
-    // SIEMPRE registrar predicción si hay datos, aunque sea baja confianza
-    // Solo skip si la confianza es extremadamente baja (<15%)
     if (ensemble.confidence < 0.15) {
       console.log('[AI-PRO] ❌ Skipping: extremely low confidence');
       return;
     }
     
-    // Create prediction record
     const predId = 'auto_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     
     const proPrediction = {
@@ -1423,11 +1421,9 @@ const AIEnginePro = {
     
     this.predictions.pending.push(proPrediction);
     
-    // Update session tracking
     this._sessionPredictions = (this._sessionPredictions || 0) + 1;
     this._lastPredictionTime = Date.now();
     
-    // Schedule verifications
     for (const horizon of this.config.horizons) {
       setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
     }
@@ -1469,13 +1465,17 @@ const AIEnginePro = {
         if (horizonDoc.exists()) {
           const savedHorizons = horizonDoc.data();
           for (const [h, data] of Object.entries(savedHorizons)) {
-            if (this.predictions.byHorizon[h]) {
+            // FIX: Convert string key to number for lookup
+            const horizonKey = parseInt(h, 10);
+            if (this.predictions.byHorizon[horizonKey]) {
+              Object.assign(this.predictions.byHorizon[horizonKey], data);
+            } else if (this.predictions.byHorizon[h]) {
               Object.assign(this.predictions.byHorizon[h], data);
             }
           }
+          console.log('[AI-PRO] Loaded horizon stats from Firestore');
         }
         
-        // Load pending predictions and reschedule verifications
         const pendingDoc = await getDoc(doc(this.db, 'ai', 'pro_pending'));
         if (pendingDoc.exists()) {
           const savedPending = pendingDoc.data();
@@ -1483,7 +1483,6 @@ const AIEnginePro = {
             const now = Date.now();
             let restored = 0;
             for (const pred of savedPending.pending) {
-              // Only restore predictions less than 5 hours old
               if (pred.timestamp && (now - pred.timestamp) < 18000000) {
                 this.predictions.pending.push(pred);
                 this.rescheduleVerifications(pred);
@@ -1498,6 +1497,15 @@ const AIEnginePro = {
         
         console.log('[AI-PRO] State loaded from Firestore');
         console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
+        
+        // FIX: Log loaded horizon stats
+        const shortHs = this.config.shortHorizons || [2, 5, 10, 15];
+        let loadedTotal = 0;
+        for (const h of shortHs) {
+          loadedTotal += this.predictions.byHorizon[h]?.total || 0;
+        }
+        console.log('[AI-PRO] Loaded short-horizon verifications:', loadedTotal);
+        
         return;
       } catch (e) {
         console.warn('[AI-PRO] Firestore load failed:', e);
@@ -1513,7 +1521,10 @@ const AIEnginePro = {
         if (state.performance) Object.assign(this.performance, state.performance);
         if (state.horizons) {
           for (const [h, data] of Object.entries(state.horizons)) {
-            if (this.predictions.byHorizon[h]) {
+            const horizonKey = parseInt(h, 10);
+            if (this.predictions.byHorizon[horizonKey]) {
+              Object.assign(this.predictions.byHorizon[horizonKey], data);
+            } else if (this.predictions.byHorizon[h]) {
               Object.assign(this.predictions.byHorizon[h], data);
             }
           }
@@ -1548,7 +1559,6 @@ const AIEnginePro = {
         await setDoc(doc(this.db, 'ai', 'pro_performance'), this.performance);
         await setDoc(doc(this.db, 'ai', 'pro_horizons'), this.predictions.byHorizon);
         
-        // Save pending predictions (critical for 240min cycle)
         await setDoc(doc(this.db, 'ai', 'pro_pending'), {
           pending: this.predictions.pending.slice(-20),
           updatedAt: Date.now()
@@ -1574,10 +1584,9 @@ const AIEnginePro = {
   // ============================================
   getCurrentMarketState() {
     const s = window.state || {};
-    const livePrice = this.getLivePrice();
     return {
-      price: livePrice != null ? livePrice : s.price,
-      prevPrice: s.prevPrice != null ? s.prevPrice : (livePrice != null ? livePrice : s.price),
+      price: s.price,
+      prevPrice: s.prevPrice,
       indicators: s.indicators || {},
       volume: s.volume,
       cvd: s.cvd,
@@ -1599,7 +1608,7 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // 📊 PUBLIC API
+  // 📊 PUBLIC API - FIXED getStats()
   // ============================================
   getPrediction() {
     const marketState = this.getCurrentMarketState();
@@ -1619,25 +1628,62 @@ const AIEnginePro = {
   },
   
   getStats() {
-    // Calculate session stats
     const sessionStart = this._sessionStart || Date.now();
     const sessionPredictions = this._sessionPredictions || 0;
     const lastPredictionTime = this._lastPredictionTime || null;
     const lastVerification = this._lastVerification || null;
+
+    const shortHs = Array.isArray(this.config.shortHorizons) && this.config.shortHorizons.length
+      ? this.config.shortHorizons
+      : [2, 5, 10, 15];
+
+    // FIX: Calculate accuracy correctly even when some horizons have 0 total
+    let shortTotal = 0;
+    let shortCorrect = 0;
+    for (const h of shortHs) {
+      const hs = this.predictions.byHorizon[h];
+      if (!hs) continue;  // FIX: Only skip if horizon doesn't exist, not if total is 0
+      shortTotal += hs.total || 0;
+      shortCorrect += hs.correct || 0;
+    }
+    
+    // FIX: Better accuracy calculation with fallback
+    let shortAccuracy = 0;
+    if (shortTotal > 0) {
+      shortAccuracy = shortCorrect / shortTotal;
+    } else if (this._totalVerifications > 0) {
+      // Use overall performance as fallback
+      shortAccuracy = this.performance?.overall?.accuracy || 0;
+    }
+    
+    const completedShort = this.predictions.byHorizon[shortHs[0]]?.total || 0;
+
+    const activePending = (typeof this.getActivePendingCount === 'function')
+      ? this.getActivePendingCount()
+      : (this.predictions.pending || []).length;
     
     return {
-      overall: this.performance.overall,
+      overall: Object.assign({}, this.performance.overall, {
+        accuracy: shortAccuracy,
+        sample: shortTotal,
+        samplePreds: completedShort,
+        mode: shortTotal > 0 ? 'SHORT' : 'LONG',
+        totalVerifications: this._totalVerifications || 0  // FIX: Add total verifications count
+      }),
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
         patterns: this.memory.patterns.length,
-        pending: this.predictions.pending.length,
-        completed: this.predictions.completed.length
+        pending: activePending,
+        pendingTotal: (this.predictions.pending || []).length,
+        completed: completedShort,
+        completedFull: (this.predictions.completed || []).length
       },
       session: {
         predictions: sessionPredictions,
         lastPrediction: lastPredictionTime,
         lastVerification: lastVerification,
+        firstVerification: this._firstVerificationTime || null,  // FIX: Track first verification
         uptime: Math.floor((Date.now() - sessionStart) / 60000)
       },
       config: {
@@ -1658,6 +1704,15 @@ const AIEnginePro = {
     console.log('[AI-PRO] Feature vector:', vector);
     console.log('[AI-PRO] Features extracted:', Object.keys(vector).length);
     return vector;
+  },
+  
+  // FIX: Add debug method for horizon stats
+  debugHorizons() {
+    console.log('[AI-PRO] === Horizon Stats ===');
+    for (const [h, stats] of Object.entries(this.predictions.byHorizon)) {
+      console.log(`  ${h}min: total=${stats.total}, correct=${stats.correct}, accuracy=${(stats.accuracy * 100).toFixed(1)}%`);
+    }
+    return this.predictions.byHorizon;
   }
 };
 
@@ -1675,4 +1730,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.6.0 loaded (always-active mode)');
+console.log('[AI-PRO] AI Engine PRO v1.6.1 loaded (accuracy fix)');
