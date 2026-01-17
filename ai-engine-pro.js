@@ -63,12 +63,15 @@ const AIEnginePro = {
     debugMode: true,
 
     // --- Pending management (UI + stability) ---
-    // NOTE: With long horizons (e.g., 240m) predictions can remain pending for hours.
-    // We cap ONLY the "active" pending window to avoid halting auto-predictions.
+    // Long horizons (e.g., 240m) keep predictions pending for hours.
+    // We cap ONLY the "active" pending window so auto-prediction never stalls.
     maxActivePending: 15,
-    // Active window intentionally smaller than maxActivePending to avoid throttling
-    // (1 prediction/minute). Example: 12-min window keeps activePending ~12.
-    activePendingWindowMin: 12
+    activePendingWindowMin: 12,
+
+    // --- Short-horizon validation mode (fast authenticity) ---
+    // Used ONLY for UI metrics (ACCURACY / COMPLETED) so the engine becomes
+    // measurable from minute 2 without waiting for 240m.
+    shortHorizons: [2, 5, 10, 15]
   },
 
   // ============================================
@@ -1306,12 +1309,16 @@ const AIEnginePro = {
     console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
   },
 
-  // Count only "active" pending predictions within a recent window.
-  // This avoids freezing auto-prediction when long horizons keep items pending for hours.
+  // Active pending = predictions generated within a short rolling window.
+  // This prevents the engine from stalling due to long-horizon (240m) verifications.
   getActivePendingCount() {
-    const winMin = (typeof this.config.activePendingWindowMin === 'number') ? this.config.activePendingWindowMin : 15;
+    const winMin = Math.max(1, parseInt(this.config.activePendingWindowMin || 12, 10));
     const cutoff = Date.now() - (winMin * 60000);
-    return this.predictions.pending.filter(p => (p && typeof p.timestamp === 'number' && p.timestamp >= cutoff)).length;
+    let n = 0;
+    for (const p of (this.predictions.pending || [])) {
+      if (p && p.timestamp && p.timestamp >= cutoff) n++;
+    }
+    return n;
   },
 
   generateAutoPrediction() {
@@ -1330,11 +1337,11 @@ const AIEnginePro = {
     
     console.log('[AI-PRO] ✓ Price available:', price);
     
-    // Don't generate if we have too many *active* pending
+    // Don't generate if we have too many ACTIVE pending (rolling window)
     const activePending = this.getActivePendingCount();
-    const maxActive = (typeof this.config.maxActivePending === 'number') ? this.config.maxActivePending : 15;
+    const maxActive = Math.max(1, parseInt(this.config.maxActivePending || 15, 10));
     if (activePending >= maxActive) {
-      console.log('[AI-PRO] ⏸ Skipping: too many active pending (' + activePending + '/' + maxActive + ')');
+      console.log('[AI-PRO] ⏸ Skipping: too many pending (active ' + activePending + '/' + maxActive + ', total ' + this.predictions.pending.length + ')');
       return;
     }
     
@@ -1579,18 +1586,46 @@ const AIEnginePro = {
     const sessionPredictions = this._sessionPredictions || 0;
     const lastPredictionTime = this._lastPredictionTime || null;
     const lastVerification = this._lastVerification || null;
-    const activePending = this.getActivePendingCount();
+
+    // ------------------------------------------------------------
+    // Short-horizon authenticity metrics (2/5/10/15m)
+    // We keep the core engine logic intact. This ONLY changes what we
+    // expose in the UI for ACCURACY/COMPLETED so it becomes meaningful
+    // within minutes instead of waiting for the 240m horizon.
+    // ------------------------------------------------------------
+    const shortHs = Array.isArray(this.config.shortHorizons) && this.config.shortHorizons.length
+      ? this.config.shortHorizons
+      : [2, 5, 10, 15];
+
+    let shortTotal = 0;
+    let shortCorrect = 0;
+    for (const h of shortHs) {
+      const hs = this.predictions.byHorizon && this.predictions.byHorizon[h];
+      if (!hs || !hs.total) continue;
+      shortTotal += hs.total || 0;
+      shortCorrect += hs.correct || 0;
+    }
+    const shortAccuracy = shortTotal > 0 ? (shortCorrect / shortTotal) : (this.performance?.overall?.accuracy || 0);
+    const completedShort = (this.predictions.byHorizon && this.predictions.byHorizon[shortHs[0]] && this.predictions.byHorizon[shortHs[0]].total) || 0;
+
+    const activePending = (typeof this.getActivePendingCount === 'function')
+      ? this.getActivePendingCount()
+      : (this.predictions.pending || []).length;
     
     return {
-      overall: this.performance.overall,
+      overall: Object.assign({}, this.performance.overall, {
+        accuracy: shortAccuracy,
+        sample: shortTotal,
+        mode: shortTotal > 0 ? 'SHORT' : 'LONG'
+      }),
       horizons: this.predictions.byHorizon,
       models: this.getModelStats(),
       memory: {
         patterns: this.memory.patterns.length,
-        // Show only active pending in UI to avoid inflating the counter with long-horizon items
         pending: activePending,
-        pendingTotal: this.predictions.pending.length,
-        completed: this.predictions.completed.length
+        pendingTotal: (this.predictions.pending || []).length,
+        completed: completedShort,
+        completedFull: (this.predictions.completed || []).length
       },
       session: {
         predictions: sessionPredictions,
