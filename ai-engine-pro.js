@@ -1542,27 +1542,362 @@ const AIEnginePro = {
   // ============================================
   // 🔧 UTILITY METHODS
   // ============================================
-  getCurrentMarketState() {
+
+  // ============================================
+  // 🧮 INDICATOR DERIVATION (fallback from candles)
+  // ============================================
+  deriveIndicatorsFromState(s, price, prevPrice) {
+    try {
+      const candles = this._getCandlesFromState(s);
+      const lastCandle = candles.length ? candles[candles.length - 1] : (s.lastCandle || s.candle || s.lastOHLC || null);
+
+      // If we have no candle history, return existing state as-is
+      if (!candles.length) {
+        return {
+          indicators: s.indicators || {},
+          volume: s.volume,
+          atr: s.atr,
+          atrAvg: s.atrAvg,
+          volatility: s.volatility,
+          lastCandle
+        };
+      }
+
+      const closes = candles.map(c => this._getCandleClose(c)).filter(v => Number.isFinite(v));
+      const highs  = candles.map(c => this._getCandleHigh(c)).filter(v => Number.isFinite(v));
+      const lows   = candles.map(c => this._getCandleLow(c)).filter(v => Number.isFinite(v));
+      const vols   = candles.map(c => this._getCandleVol(c)).filter(v => Number.isFinite(v));
+
+      // Minimal guards
+      if (closes.length < 20) {
+        return {
+          indicators: s.indicators || {},
+          volume: s.volume,
+          atr: s.atr,
+          atrAvg: s.atrAvg,
+          volatility: s.volatility,
+          lastCandle
+        };
+      }
+
+      // --- Core indicators
+      const rsi = this._calcRSI(closes, 14);
+      const stochRsi = this._calcStochRSI(closes, 14, 14);
+      const emaFast = this._calcEMA(closes, 9);
+      const emaSlow = this._calcEMA(closes, 21);
+      const ema20 = this._calcEMA(closes, 20);
+      const macd = this._calcMACD(closes, 12, 26, 9);
+      const atr = this._calcATR(candles, 14);
+      const atrAvg = this._calcATR(candles, 50);
+
+      const priceRef = Number.isFinite(price) ? price : closes[closes.length - 1];
+      const volRatio = (Number.isFinite(atr) && priceRef > 0) ? (atr / priceRef) : 0;
+      const volatility = volRatio > 0.012 ? 'high' : (volRatio > 0.006 ? 'normal' : 'low');
+
+      // Momentum (ROC)
+      const lookback = Math.min(10, closes.length - 1);
+      const base = closes[closes.length - 1 - lookback] || closes[0];
+      const momentum = (base && base !== 0) ? ((closes[closes.length - 1] - base) / base) * 100 : 0;
+
+      // OBV (signal via slope)
+      const obvObj = this._calcOBV(candles);
+
+      const emaTrend =
+        (emaFast > emaSlow * 1.0005) ? 'bull' :
+        (emaFast < emaSlow * 0.9995) ? 'bear' : 'neutral';
+
+      // ADX approximation (trend strength proxy)
+      const trendStrength = (priceRef > 0) ? Math.abs(emaFast - emaSlow) / priceRef : 0;
+      const adx = Math.max(8, Math.min(55, 18 + trendStrength * 800)); // bounded 8..55
+
+      // Supertrend proxy
+      const supertrendSignal =
+        (emaTrend === 'neutral')
+          ? ((priceRef > ema20) ? 'bull' : 'bear')
+          : emaTrend;
+
+      // Divergence proxy (price slope vs RSI slope)
+      let divergence = null;
+      if (closes.length >= 25) {
+        const p0 = closes[closes.length - 1];
+        const p1 = closes[closes.length - 11];
+        const r0 = this._calcRSI(closes.slice(0, closes.length), 14);
+        const r1 = this._calcRSI(closes.slice(0, closes.length - 10), 14);
+        if (Number.isFinite(p0) && Number.isFinite(p1) && Number.isFinite(r0) && Number.isFinite(r1)) {
+          if (p0 < p1 && r0 > r1) divergence = { type: 'bullish' };
+          else if (p0 > p1 && r0 < r1) divergence = { type: 'bearish' };
+        }
+      }
+
+      // Volume snapshot
+      const lastVol = vols.length ? vols[vols.length - 1] : (this._getCandleVol(lastCandle) || 0);
+      const avgVolWindow = vols.slice(-20);
+      const avgVol = avgVolWindow.length ? (avgVolWindow.reduce((a, b) => a + b, 0) / avgVolWindow.length) : lastVol;
+      const volObj = {
+        ratio: avgVol > 0 ? (lastVol / avgVol) : 1,
+        trend: (lastVol > avgVol * 1.1) ? 'increasing' : (lastVol < avgVol * 0.9 ? 'decreasing' : 'stable')
+      };
+
+      // Build indicators in the format expected by AI Engine PRO (feature map)
+      const indicators = Object.assign({}, (s.indicators || {}));
+
+      if (indicators.rsi == null) indicators.rsi = { value: rsi };
+      if (typeof indicators.rsi === 'number') indicators.rsi = { value: indicators.rsi };
+
+      if (indicators.stochRsi == null) indicators.stochRsi = { value: stochRsi };
+      if (typeof indicators.stochRsi === 'number') indicators.stochRsi = { value: indicators.stochRsi };
+
+      if (indicators.macd == null) indicators.macd = { histogram: macd.histogram, signal: macd.histogram >= 0 ? 'bull' : 'bear' };
+      if (typeof indicators.macd === 'number') indicators.macd = { histogram: indicators.macd, signal: indicators.macd >= 0 ? 'bull' : 'bear' };
+
+      if (indicators.ema == null) indicators.ema = { emaFast, emaSlow, ema20, signal: emaTrend };
+
+      if (indicators.adx == null) indicators.adx = { value: adx, trend: emaTrend };
+
+      if (indicators.supertrend == null) indicators.supertrend = { signal: supertrendSignal };
+
+      if (indicators.obv == null) indicators.obv = obvObj;
+
+      if (indicators.momentum == null) indicators.momentum = { value: momentum, signal: momentum >= 0 ? 'bull' : 'bear' };
+
+      // Optional divergence hook for feature map
+      if (divergence && indicators.divergence == null) indicators.divergence = divergence;
+
+      // Ensure basic prices exist for price_momentum feature
+      if (typeof s.prevPrice !== 'number' && Number.isFinite(prevPrice)) {
+        // keep it local: do not mutate global state aggressively
+      }
+
+      return {
+        indicators,
+        volume: s.volume || volObj,
+        atr: Number.isFinite(s.atr) ? s.atr : atr,
+        atrAvg: Number.isFinite(s.atrAvg) ? s.atrAvg : atrAvg,
+        volatility: s.volatility || volatility,
+        lastCandle
+      };
+    } catch (e) {
+      // Fail-safe: never break app flow due to indicator derivation
+      return {
+        indicators: s.indicators || {},
+        volume: s.volume,
+        atr: s.atr,
+        atrAvg: s.atrAvg,
+        volatility: s.volatility,
+        lastCandle: s.lastCandle || s.candle || s.lastOHLC || null
+      };
+    }
+  },
+
+  _getCandlesFromState(s) {
+    if (Array.isArray(s.candles) && s.candles.length) return s.candles;
+    if (Array.isArray(s.ohlc) && s.ohlc.length) return s.ohlc;
+    if (Array.isArray(s.ohlcHistory) && s.ohlcHistory.length) return s.ohlcHistory;
+    return [];
+  },
+
+  _getCandleClose(c) {
+    if (!c) return NaN;
+    return this._num(c.close ?? c.c ?? c.C ?? c[4], NaN);
+  },
+  _getCandleHigh(c) {
+    if (!c) return NaN;
+    return this._num(c.high ?? c.h ?? c.H ?? c[2], NaN);
+  },
+  _getCandleLow(c) {
+    if (!c) return NaN;
+    return this._num(c.low ?? c.l ?? c.L ?? c[3], NaN);
+  },
+  _getCandleVol(c) {
+    if (!c) return NaN;
+    return this._num(c.volume ?? c.v ?? c.V ?? c[5], NaN);
+  },
+
+  _num(v, fallback = 0) {
+    const n = (typeof v === 'string') ? parseFloat(v) : v;
+    return Number.isFinite(n) ? n : fallback;
+  },
+
+  _calcEMA(values, period) {
+    if (!Array.isArray(values) || values.length === 0) return NaN;
+    const p = Math.max(2, period | 0);
+    const k = 2 / (p + 1);
+    let ema = values[0];
+    for (let i = 1; i < values.length; i++) {
+      const v = values[i];
+      if (!Number.isFinite(v)) continue;
+      ema = (v * k) + (ema * (1 - k));
+    }
+    return ema;
+  },
+
+  _calcRSI(closes, period = 14) {
+    if (!Array.isArray(closes) || closes.length < period + 2) return 50;
+    const p = Math.max(2, period | 0);
+    let gain = 0, loss = 0;
+
+    // last p changes
+    for (let i = closes.length - p; i < closes.length; i++) {
+      const prev = closes[i - 1];
+      const cur = closes[i];
+      if (!Number.isFinite(prev) || !Number.isFinite(cur)) continue;
+      const ch = cur - prev;
+      if (ch >= 0) gain += ch;
+      else loss -= ch;
+    }
+
+    const avgGain = gain / p;
+    const avgLoss = loss / p;
+    if (avgLoss === 0) return 100;
+    const rs = avgGain / avgLoss;
+    const rsi = 100 - (100 / (1 + rs));
+    return Math.max(0, Math.min(100, rsi));
+  },
+
+  _calcMACD(closes, fast = 12, slow = 26, signal = 9) {
+    if (!Array.isArray(closes) || closes.length < slow + signal) {
+      return { histogram: 0 };
+    }
+    const emaFast = this._calcEMA(closes, fast);
+    const emaSlow = this._calcEMA(closes, slow);
+    const macdLine = emaFast - emaSlow;
+
+    // Build a short series for signal EMA: approximate by re-running EMA on macdLine samples
+    const sampleN = Math.min(60, closes.length);
+    const macdSeries = [];
+    for (let i = closes.length - sampleN; i < closes.length; i++) {
+      const slice = closes.slice(0, i + 1);
+      macdSeries.push(this._calcEMA(slice, fast) - this._calcEMA(slice, slow));
+    }
+    const signalLine = this._calcEMA(macdSeries, signal);
+    const histogram = macdLine - signalLine;
+    return { histogram };
+  },
+
+  _calcATR(candles, period = 14) {
+    if (!Array.isArray(candles) || candles.length < 3) return NaN;
+    const p = Math.max(2, period | 0);
+    const start = Math.max(1, candles.length - p);
+    let sumTR = 0;
+    let count = 0;
+
+    for (let i = start; i < candles.length; i++) {
+      const c = candles[i];
+      const prev = candles[i - 1];
+      const high = this._getCandleHigh(c);
+      const low = this._getCandleLow(c);
+      const prevClose = this._getCandleClose(prev);
+      if (![high, low, prevClose].every(Number.isFinite)) continue;
+      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+      sumTR += tr;
+      count++;
+    }
+
+    return count ? (sumTR / count) : NaN;
+  },
+
+  _calcStochRSI(closes, rsiPeriod = 14, stochPeriod = 14) {
+    if (!Array.isArray(closes) || closes.length < (rsiPeriod + stochPeriod + 2)) return 50;
+    const rsiSeries = [];
+    for (let i = rsiPeriod + 1; i < closes.length; i++) {
+      rsiSeries.push(this._calcRSI(closes.slice(0, i + 1), rsiPeriod));
+    }
+    const window = rsiSeries.slice(-stochPeriod);
+    const rsiLast = window[window.length - 1];
+    const minRsi = Math.min(...window);
+    const maxRsi = Math.max(...window);
+    if (maxRsi === minRsi) return 50;
+    const stoch = ((rsiLast - minRsi) / (maxRsi - minRsi)) * 100;
+    return Math.max(0, Math.min(100, stoch));
+  },
+
+  _calcOBV(candles) {
+    if (!Array.isArray(candles) || candles.length < 3) return { value: 0, signal: 'neutral', slope: 0 };
+    let obv = 0;
+    for (let i = 1; i < candles.length; i++) {
+      const prevClose = this._getCandleClose(candles[i - 1]);
+      const close = this._getCandleClose(candles[i]);
+      const vol = this._getCandleVol(candles[i]);
+      if (![prevClose, close, vol].every(Number.isFinite)) continue;
+      if (close > prevClose) obv += vol;
+      else if (close < prevClose) obv -= vol;
+    }
+
+    // slope over last 10 points (proxy)
+    const n = Math.min(10, candles.length - 2);
+    let obv2 = 0;
+    for (let i = candles.length - n; i < candles.length; i++) {
+      const prevClose = this._getCandleClose(candles[i - 1]);
+      const close = this._getCandleClose(candles[i]);
+      const vol = this._getCandleVol(candles[i]);
+      if (![prevClose, close, vol].every(Number.isFinite)) continue;
+      if (close > prevClose) obv2 += vol;
+      else if (close < prevClose) obv2 -= vol;
+    }
+
+    const slope = obv2;
+    const signal = slope > 0 ? 'bull' : (slope < 0 ? 'bear' : 'neutral');
+    return { value: obv, signal, slope };
+  },
+
+  
+getCurrentMarketState() {
     const s = window.state || {};
+
+    // Price & prevPrice (fallback: internal tracking)
+    const price = (typeof s.price === 'number')
+      ? s.price
+      : (typeof s.currentPrice === 'number')
+        ? s.currentPrice
+        : (typeof s.lastPrice === 'number')
+          ? s.lastPrice
+          : 0;
+
+    const prevPrice = (typeof s.prevPrice === 'number')
+      ? s.prevPrice
+      : (typeof this._lastPriceSeen === 'number')
+        ? this._lastPriceSeen
+        : price;
+
+    // Keep internal last price for momentum features
+    if (Number.isFinite(price)) this._lastPriceSeen = price;
+
+    // Derive missing indicators from candle history (safe + cached)
+    const now = Date.now();
+    if (!this._derivedCache || (now - this._derivedCache.ts > 750)) {
+      const derived = this.deriveIndicatorsFromState(s, price, prevPrice);
+      this._derivedCache = Object.assign({ ts: now }, derived);
+    }
+
+    const d = this._derivedCache || {};
+
     return {
-      price: s.price,
-      prevPrice: s.prevPrice,
-      indicators: s.indicators || {},
-      volume: s.volume,
+      price,
+      prevPrice,
+
+      indicators: d.indicators || s.indicators || {},
+      indicatorKeys: Object.keys((d.indicators || s.indicators || {})),
+
+      volume: d.volume || s.volume,
       cvd: s.cvd,
       whaleFlow: s.whaleFlow,
+
       supportResistance: s.supportResistance,
       orderBlocks: s.orderBlocks,
       fvg: s.fvg,
       liquidity: s.liquidity,
+
       patterns: s.patterns,
       chartPattern: s.chartPattern,
-      divergence: s.divergence,
+      divergence: s.divergence || (d.indicators && d.indicators.divergence) || null,
+
       mtf: s.mtf,
-      volatility: s.volatility,
-      atr: s.atr,
-      atrAvg: s.atrAvg,
-      lastCandle: s.lastCandle || s.candle || s.lastOHLC || null,
+
+      volatility: d.volatility || s.volatility,
+      atr: d.atr ?? s.atr,
+      atrAvg: d.atrAvg ?? s.atrAvg,
+
+      lastCandle: d.lastCandle || s.lastCandle || s.candle || s.lastOHLC || null,
       orderbook: s.orderbook || s.depth || null
     };
   },
