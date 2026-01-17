@@ -1907,6 +1907,11 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       predictionHistory: [],  // Historial de aciertos/fallos
       exportData: []          // Datos para exportar
     };
+
+    // ✅ IMPORTANT: expose shared runtime state globally so external modules
+    // (AI Engine Pro, tools, etc.) can read live price/indicators reliably.
+    // This must reference the same object (not a copy) to keep updates in sync.
+    window.state = state;
     // --- AUDIO CONTEXT para alertas sonoras ---
     let audioCtx = null;
     
@@ -8477,7 +8482,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
 })();
 </script>
 <!-- AI Engine PRO (cache-busted) -->
-<script src="ai-engine-pro.js?v=1.2.2"></script> 
+<!-- Cache-buster to avoid GitHub Pages/browser caching issues -->
+<script src="ai-engine-pro.js?v=1.2.3"></script> 
 <!-- ========================= -->
 <!-- MARKET FEED MANAGER (Multi-feed + Failover) -->
 <!-- ========================= -->
