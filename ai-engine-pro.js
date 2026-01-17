@@ -22,7 +22,7 @@
 'use strict';
 
 const AIEnginePro = {
-  version: '1.6.2',
+  version: '1.6.3',
   isReady: false,
   db: null,
   
@@ -1085,7 +1085,7 @@ const AIEnginePro = {
       id: 'pro_' + baseId,
       baseId: baseId,
       timestamp: Date.now(),
-      price: window.state?.price || 0,
+      price: this.getLivePrice() || 0,
       ensemble: ensemble,
       features: this.extractFeatureVector(marketState),
       regime: ensemble.regime,
@@ -1109,9 +1109,10 @@ const AIEnginePro = {
 
   verifyProPrediction(id, horizon) {
     const pred = this.predictions.pending.find(p => p.id === id);
-    if (!pred || !window.state?.price || !pred.price) return;
+    const live = this.getLivePrice();
+    if (!pred || !live || !pred.price) return;
     
-    const priceChange = ((window.state.price - pred.price) / pred.price) * 100;
+    const priceChange = ((live - pred.price) / pred.price) * 100;
     const direction = pred.ensemble.direction;
     
     const threshold = direction === 'NEUTRAL' ? 0.05 : 0.1;
@@ -1369,50 +1370,121 @@ const AIEnginePro = {
   },
 
   // ============================================
+  // 🧩 DATA ACCESS HELPERS (PRO STABILITY)
+  // ============================================
+  getLivePrice() {
+    const s = window.state || window.__okrtState__ || {};
+
+    // 1) direct aliases
+    let p = s.price || s.currentPrice || 0;
+
+    // 2) candle fallback
+    if (!p && Array.isArray(s.candles) && s.candles.length) {
+      const last = s.candles[s.candles.length - 1];
+      p = (last && (last.close || last.c)) || 0;
+    }
+
+    // 3) feed manager fallback (if present)
+    const fm = window.__okrtFeedMgr__ || window.MarketFeedManager || null;
+    if (!p && fm) {
+      p = fm.currentPrice || fm.lastPrice || fm.price || 0;
+    }
+
+    // Normalize
+    if (typeof p === 'string') {
+      const n = Number(p);
+      p = Number.isFinite(n) ? n : 0;
+    }
+
+    return Number.isFinite(p) && p > 0 ? p : 0;
+  },
+
+  getActivePendingCount(windowMinutes = 12) {
+    const now = Date.now();
+    const cutoff = now - windowMinutes * 60000;
+    const list = this.predictions?.pending || [];
+    let count = 0;
+    for (const p of list) {
+      if (!p || !p.timestamp) continue;
+      if (p.timestamp >= cutoff) count++;
+    }
+    return count;
+  },
+
+  
+  // Optional hook for external feed manager callbacks
+  onMarketData(candle) {
+    try {
+      if (!candle) return;
+      const s = window.state || window.__okrtState__;
+      if (!s) return;
+      const close = candle.close || candle.c || candle.price || 0;
+      if (close) {
+        s.currentPrice = close;
+        s.price = close;
+      }
+      // Keep a rolling candle buffer if provided
+      if (Array.isArray(s.candles)) {
+        s.candles.push(candle);
+        if (s.candles.length > 400) s.candles.shift();
+      }
+    } catch(e) {}
+  },
+// ============================================
   // 🤖 AUTO-PREDICTION SYSTEM
   // ============================================
   startAutoPrediction() {
-    // Generate predictions automatically every 60 seconds (más frecuente)
+    // Prevent duplicate timers (important in re-init scenarios)
+    if (this._autoIntervalId) {
+      return;
+    }
+
     const AUTO_PREDICT_INTERVAL = 60000; // 1 minute
-    
-    setInterval(() => {
+
+    this._autoIntervalId = setInterval(() => {
       this.generateAutoPrediction();
     }, AUTO_PREDICT_INTERVAL);
-    
-    // First prediction after 5 seconds (immediate startup)
-    setTimeout(() => {
+
+    // First prediction after 8 seconds (gives feeds time to warm up)
+    this._autoTimeout1 = setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating FIRST auto-prediction...');
       this.generateAutoPrediction();
-    }, 5000);
-    
-    // Second prediction after 15 seconds
-    setTimeout(() => {
+    }, 8000);
+
+    // Second prediction after 18 seconds
+    this._autoTimeout2 = setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating SECOND auto-prediction...');
       this.generateAutoPrediction();
-    }, 15000);
-    
-    console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
+    }, 18000);
+
+    console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 8s)');
   },
 
   generateAutoPrediction() {
     console.log('[AI-PRO] === Auto-prediction attempt ===');
-    
+
     if (!this.isReady) {
       console.log('[AI-PRO] ❌ Skipping: not ready');
       return;
     }
-    
-    const price = window.state?.price;
+
+    const price = this.getLivePrice();
     if (!price) {
-      console.log('[AI-PRO] ❌ Skipping: no price data (window.state.price =', price, ')');
+      // Avoid spamming the console on startup
+      const now = Date.now();
+      if (!this._noPriceLastLog || (now - this._noPriceLastLog) > 30000) {
+        this._noPriceLastLog = now;
+        console.log('[AI-PRO] ⏳ Waiting for live price feed...');
+      }
       return;
     }
-    
+
     console.log('[AI-PRO] ✓ Price available:', price);
     
-    // Don't generate if we have too many pending
-    if (this.predictions.pending.length >= 15) {
-      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + ')');
+    // Don't generate if we have too many ACTIVE pending (windowed)
+    const activePending = this.getActivePendingCount(12);
+    if (activePending >= 15) {
+      console.log('[AI-PRO] ⏸ Skipping: too many active pending (' + activePending + ')');
       return;
     }
     
@@ -1446,7 +1518,7 @@ const AIEnginePro = {
       id: predId,
       baseId: null,
       timestamp: Date.now(),
-      price: window.state.price,
+      price: price,
       ensemble: ensemble,
       features: this.extractFeatureVector(marketState),
       regime: ensemble.regime,
@@ -1466,7 +1538,7 @@ const AIEnginePro = {
       setTimeout(() => this.verifyProPrediction(predId, horizon), horizon * 60000);
     }
     
-    console.log(`[AI-PRO] 🎯 Auto-prediction #${this._sessionPredictions}: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${window.state.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
+    console.log(`[AI-PRO] 🎯 Auto-prediction #${this._sessionPredictions}: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
   },
 
   // ============================================
@@ -1708,4 +1780,4 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.6.0 loaded (always-active mode)');
+console.log('[AI-PRO] AI Engine PRO v' + AIEnginePro.version + ' loaded (always-active mode)');

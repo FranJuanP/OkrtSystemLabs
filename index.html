@@ -1907,6 +1907,11 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       predictionHistory: [],  // Historial de aciertos/fallos
       exportData: []          // Datos para exportar
     };
+
+    // Expose shared state for external modules (AI Engine / feeds)
+    window.state = state;
+    window.__okrtState__ = state;
+
     // --- AUDIO CONTEXT para alertas sonoras ---
     let audioCtx = null;
     
@@ -8476,7 +8481,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(__okrtEnsureAnonAuth__, 200));
 })();
 </script>
-<script src="ai-engine-pro.js?v=1.2.0"></script> 
+<script src="ai-engine-pro.js?v=1.2.6"></script> 
 <!-- ========================= -->
 <!-- MARKET FEED MANAGER (Multi-feed + Failover) -->
 <!-- ========================= -->
