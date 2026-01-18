@@ -1560,6 +1560,86 @@
       main { max-width: 1700px; margin: 0 auto; }
     }
 
+    /* ============================================================
+       Mobile readability overrides (<= 520px)
+       Goal: avoid "micro UI" on phones without changing desktop look
+       ============================================================ */
+    @media screen and (max-width: 520px) {
+
+      html { font-size: 16px; } /* raise baseline */
+      body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      /* Single-column layout */
+      main {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto !important;
+        gap: 10px !important;
+        padding: 10px !important;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+      }
+
+      /* Header / top controls: allow wrap */
+      header, .topbar, .header-row, .toolbar, .controls, .controls-row {
+        flex-wrap: wrap !important;
+      }
+
+      /* KPI row: wrap into 2 columns for readability */
+      .metrics-wrapper {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+      }
+      .kpi-card {
+        flex: 1 1 calc(50% - 10px) !important;
+        min-width: calc(50% - 10px) !important;
+      }
+
+      /* Panels should not be clipped */
+      .side-left, .side-right, .chart-box, .bottom-box, .panel {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+
+      /* Increase key text sizes on mobile */
+      .kpi-lbl { font-size: 12px !important; }
+      .kpi-val { font-size: 22px !important; }
+      .kpi-sub { font-size: 12px !important; }
+
+      /* AI Engine / AI PRO: bump minimums to avoid illegible labels */
+      .ai-label { font-size: 10px !important; }
+      .ai-regime, .ai-quality { font-size: 15px !important; }
+      .ai-prob { font-size: 22px !important; }
+      .ai-target-price { font-size: 24px !important; }
+      .ai-conf { font-size: 12px !important; }
+      .smc-label { font-size: 10px !important; }
+      .smc-value { font-size: 12px !important; }
+      .mtf-label { font-size: 9px !important; }
+      .mtf-value { font-size: 12px !important; }
+      .conf-value { font-size: 16px !important; }
+
+      /* Internal grids: stack instead of squeezing */
+      .mtf-grid,
+      .session-grid,
+      .corr-grid,
+      .watchlist-grid,
+      .alerts-container,
+      .risk-grid,
+      .input-row,
+      .fibo-container,
+      .strategy-container,
+      .derivatives-grid,
+      .etf-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Buttons / pills: a bit taller and less cramped */
+      button, .btn, .chip, .pill, .toggle, .mode-btn {
+        min-height: 44px;
+      }
+    }
+
 </style></head><body><!-- Hidden elements for legacy code compatibility -->
 <div style="display:none;">
 <span id="r2"></span>
