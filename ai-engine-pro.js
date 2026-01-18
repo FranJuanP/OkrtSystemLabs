@@ -23,7 +23,8 @@
 
 const AIEnginePro = {
   version: '1.6.9',
-  _okrtBuild: 'nomerge-cap',
+  // Internal build marker (for debugging cache / deployments). Not shown in UI.
+  __okrtBuild: '2026-01-18.quota-nomerge',
   isReady: false,
   db: null,
   
@@ -1333,12 +1334,14 @@ const AIEnginePro = {
     
     console.log('[AI-PRO] ✓ Price available:', price);
     
-    // Pending cap enforcement (do not skip generation)
+    // Pending management: if we hit the cap, drop the oldest to make room (no skipping)
     const maxPending = this.config.maxPending || 25;
     if (this.predictions.pending.length >= maxPending) {
-      this._okrtEnforcePendingCap(maxPending, 18000000);
+      // Keep maxPending-1 so the new prediction is always preserved
+      this._okrtEnforcePendingCap(Math.max(0, maxPending - 1), 18000000);
     }
-		const marketState = this.getCurrentMarketState();
+    
+    const marketState = this.getCurrentMarketState();
     console.log('[AI-PRO] Market state:', {
       price: marketState.price,
       hasIndicators: !!marketState.indicators && Object.keys(marketState.indicators || {}).length > 0,
@@ -1430,7 +1433,11 @@ const AIEnginePro = {
 
       if (Array.isArray(v)) return v.map(norm);
       const out = {};
-      for (const k of Object.keys(v).sort()) out[k] = norm(v[k]);
+      // Ignore volatile fields (quota optimization)
+      for (const k of Object.keys(v).sort()) {
+        if (k === 'updatedAt' || k === '_updatedAt' || k === 'lastSavedAt') continue;
+        out[k] = norm(v[k]);
+      }
       return out;
     };
     return JSON.stringify(norm(value));
@@ -1523,7 +1530,14 @@ const AIEnginePro = {
 
     try {
       const { setDoc } = window.AILearning.firestore;
-      await setDoc(ref, data);
+      // IMPORTANT: For strict-schema docs, avoid merge to prevent legacy fields from
+      // persisting and breaking rules (keys().hasOnly...).
+      const strictNoMerge = new Set(['pro_models','pro_memory','pro_horizons','pro_pending']);
+      if (strictNoMerge.has(docId)) {
+        await setDoc(ref, data); // overwrite
+      } else {
+        await setDoc(ref, data, { merge: true });
+      }
       if (sig) this._lastDocSigs[docId] = sig;
       return true;
     } catch (e) {
@@ -1695,8 +1709,7 @@ const AIEnginePro = {
       const allowedModels = ['momentum','trend','volume','structure','patterns','mtf'];
       const modelsData = {};
       for (const name of allowedModels) {
-        const m = this.models?.[name];
-        if (!m) continue;
+        const m = (this.models && this.models[name]) ? this.models[name] : {};
         const w = Number(m.weight);
         const a = Number(m.accuracy);
         const p = Number(m.predictions);
@@ -1720,8 +1733,7 @@ const AIEnginePro = {
       const allowedHorizons = ['2','5','10','15','30','60','120','240'];
       const horizonsData = {};
       for (const h of allowedHorizons) {
-        const v = this.predictions?.byHorizon?.[h] ?? this.predictions?.byHorizon?.[Number(h)];
-        if (!v) continue;
+        const v = this.predictions?.byHorizon?.[h] ?? this.predictions?.byHorizon?.[Number(h)] ?? {};
         const total = Number(v.total);
         const correct = Number(v.correct);
         const accuracy = Number(v.accuracy);
