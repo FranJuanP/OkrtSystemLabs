@@ -1741,6 +1741,26 @@
       #chartContainer { min-height: 220px; }
     }
 
+    /* ============================================================
+       Mobile chart visibility fix (<= 520px)
+       Ensure chart card stays in normal flow and spans full width
+       ============================================================ */
+    @media screen and (max-width: 520px) {
+      .chart-box {
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+        position: relative !important;
+        z-index: 1 !important;
+        overflow: hidden !important;
+        height: auto !important;
+      }
+      #chartContainer {
+        width: 100% !important;
+        height: 260px !important;
+        min-height: 260px !important;
+      }
+    }
+
 </style></head><body><!-- Hidden elements for legacy code compatibility -->
 <div style="display:none;">
 <span id="r2"></span>
