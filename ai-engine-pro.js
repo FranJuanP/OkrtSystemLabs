@@ -1398,12 +1398,30 @@ const AIEnginePro = {
   // ============================================
   // 💾 STATE PERSISTENCE
   // ============================================
+ 
   async loadState() {
     if (this.db) {
       try {
         const { doc, getDoc } = window.AILearning.firestore;
-        
-        const modelsDoc = await getDoc(doc(this.db, 'ai', 'pro_models'));
+        const uid = window.AILearning?.user?.uid || null;
+
+        // Prefer per-user scoped storage; fall back to legacy /ai for backwards compatibility (read-only).
+        const engineDoc = (id) => uid ? doc(this.db, 'aiUsers', uid, 'engine', id) : doc(this.db, 'ai', id);
+        const legacyDoc = (id) => doc(this.db, 'ai', id);
+
+        const loadWithFallback = async (id) => {
+          const primary = await getDoc(engineDoc(id));
+          if (primary.exists()) return { snap: primary, source: uid ? 'scoped' : 'legacy' };
+          if (uid) {
+            const legacy = await getDoc(legacyDoc(id));
+            if (legacy.exists()) return { snap: legacy, source: 'legacy' };
+          }
+          return { snap: primary, source: null };
+        };
+
+        let migrateFromLegacy = false;
+
+        const { snap: modelsDoc, source: modelsSrc } = await loadWithFallback('pro_models');
         if (modelsDoc.exists()) {
           const savedModels = modelsDoc.data();
           for (const [name, data] of Object.entries(savedModels)) {
@@ -1411,21 +1429,24 @@ const AIEnginePro = {
               Object.assign(this.models[name], data);
             }
           }
+          if (uid && modelsSrc == 'legacy') migrateFromLegacy = true
         }
-        
-        const memoryDoc = await getDoc(doc(this.db, 'ai', 'pro_memory'));
+
+        const { snap: memoryDoc, source: memorySrc } = await loadWithFallback('pro_memory');
         if (memoryDoc.exists()) {
           const savedMemory = memoryDoc.data();
           this.memory.patterns = savedMemory.patterns || [];
           this.memory.correlations = savedMemory.correlations || {};
+          if (uid && memorySrc == 'legacy') migrateFromLegacy = true
         }
-        
-        const perfDoc = await getDoc(doc(this.db, 'ai', 'pro_performance'));
+
+        const { snap: perfDoc, source: perfSrc } = await loadWithFallback('pro_performance');
         if (perfDoc.exists()) {
           Object.assign(this.performance, perfDoc.data());
+          if (uid && perfSrc == 'legacy') migrateFromLegacy = true
         }
-        
-        const horizonDoc = await getDoc(doc(this.db, 'ai', 'pro_horizons'));
+
+        const { snap: horizonDoc, source: horizonSrc } = await loadWithFallback('pro_horizons');
         if (horizonDoc.exists()) {
           const savedHorizons = horizonDoc.data();
           for (const [h, data] of Object.entries(savedHorizons)) {
@@ -1433,10 +1454,11 @@ const AIEnginePro = {
               Object.assign(this.predictions.byHorizon[h], data);
             }
           }
+          if (uid && horizonSrc == 'legacy') migrateFromLegacy = true
         }
-        
+
         // Load pending predictions and reschedule verifications
-        const pendingDoc = await getDoc(doc(this.db, 'ai', 'pro_pending'));
+        const { snap: pendingDoc, source: pendingSrc } = await loadWithFallback('pro_pending');
         if (pendingDoc.exists()) {
           const savedPending = pendingDoc.data();
           if (savedPending.pending && Array.isArray(savedPending.pending)) {
@@ -1465,16 +1487,23 @@ const AIEnginePro = {
               console.log(`[AI-PRO] Restored ${restored} pending predictions`);
             }
           }
+          if (uid && pendingSrc == 'legacy') migrateFromLegacy = true
         }
-        
-        console.log('[AI-PRO] State loaded from Firestore');
+
+        console.log(`[AI-PRO] State loaded from Firestore${uid ? ' (scoped)' : ''}`);
         console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
+
+        // Best-effort migration: if we loaded legacy docs, persist them into the user-scoped location.
+        if (uid && migrateFromLegacy) {
+          setTimeout(() => { try { this.saveState(); } catch(e){} }, 1500);
+        }
+
         return;
       } catch (e) {
         console.warn('[AI-PRO] Firestore load failed:', e);
       }
     }
-    
+
     try {
       const saved = localStorage.getItem('ai_pro_state');
       if (saved) {
@@ -1495,10 +1524,13 @@ const AIEnginePro = {
   },
 
   async saveState() {
-    if (this.db && window.AILearning?.user) {
+    const uid = window.AILearning?.user?.uid;
+
+    if (this.db && uid) {
       try {
         const { doc, setDoc } = window.AILearning.firestore;
-        
+        const ref = (id) => doc(this.db, 'aiUsers', uid, 'engine', id);
+
         const modelsData = {};
         for (const [name, model] of Object.entries(this.models)) {
           modelsData[name] = {
@@ -1508,29 +1540,29 @@ const AIEnginePro = {
             correct: model.correct
           };
         }
-        await setDoc(doc(this.db, 'ai', 'pro_models'), modelsData);
-        
-        await setDoc(doc(this.db, 'ai', 'pro_memory'), {
+        await setDoc(ref('pro_models'), modelsData);
+
+        await setDoc(ref('pro_memory'), {
           patterns: this.memory.patterns.slice(-500),
           correlations: this.memory.correlations,
           updatedAt: new Date().toISOString()
         });
-        
-        await setDoc(doc(this.db, 'ai', 'pro_performance'), this.performance);
-        await setDoc(doc(this.db, 'ai', 'pro_horizons'), this.predictions.byHorizon);
-        
-        // Save pending predictions (critical for 240min cycle)
+
+        await setDoc(ref('pro_performance'), this.performance);
+        await setDoc(ref('pro_horizons'), this.predictions.byHorizon);
+
+        // Save pending predictions
         const persistMax = this.config.maxPending || 25;
-        await setDoc(doc(this.db, 'ai', 'pro_pending'), {
+        await setDoc(ref('pro_pending'), {
           pending: this.predictions.pending.slice(-persistMax),
           updatedAt: Date.now()
         });
-        
+
       } catch (e) {
         console.warn('[AI-PRO] Firestore save failed:', e);
       }
     }
-    
+
     try {
       localStorage.setItem('ai_pro_state', JSON.stringify({
         models: this.models,
@@ -1540,6 +1572,7 @@ const AIEnginePro = {
       }));
     } catch (e) {}
   },
+
 
   // ============================================
   // 🔧 UTILITY METHODS
