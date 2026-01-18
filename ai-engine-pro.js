@@ -23,6 +23,8 @@
 
 const AIEnginePro = {
   version: '1.6.9',
+  // Internal build marker (for debugging cache / deployments). Not shown in UI.
+  __okrtBuild: '2026-01-18.quota-nomerge',
   isReady: false,
   db: null,
   
@@ -1177,7 +1179,7 @@ const AIEnginePro = {
     }
     
     if (this.performance.overall.totalPredictions % 10 === 0) {
-      this.scheduleSave();
+      this.saveState();
     }
   },
 
@@ -1253,17 +1255,11 @@ const AIEnginePro = {
   // 🔄 AUTO-OPTIMIZATION
   // ============================================
   startOptimizationLoop() {
-    // Avoid duplicate intervals (prevents freezes on re-init)
-    if (this._optInterval) clearInterval(this._optInterval);
-    if (this._optTimeout) clearTimeout(this._optTimeout);
-    this._optInterval = setInterval(() => this.runOptimization(), this.config.optimizationInterval);
-    this._optTimeout = setTimeout(() => this.runOptimization(), 300000);
+    setInterval(() => this.runOptimization(), this.config.optimizationInterval);
+    setTimeout(() => this.runOptimization(), 300000);
   },
 
   runOptimization() {
-    // Skip heavy work when tab is hidden (stability + battery)
-    if (this.config.sessionAware && typeof document !== 'undefined' && document.hidden) return;
-
     console.log('[AI-PRO] Running auto-optimization...');
     
     const recentPredictions = this.predictions.completed.slice(-50);
@@ -1289,7 +1285,7 @@ const AIEnginePro = {
       console.log(`[AI-PRO] Best horizon: ${bestHorizon[0]}min (${(bestHorizon[1].accuracy * 100).toFixed(1)}%)`);
     }
     
-    this.scheduleSave();
+    this.saveState();
     
     console.log('[AI-PRO] Optimization complete. Accuracy:', (this.performance.overall.accuracy * 100).toFixed(1) + '%');
     console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
@@ -1302,36 +1298,28 @@ const AIEnginePro = {
   startAutoPrediction() {
     // Generate predictions automatically every 60 seconds (más frecuente)
     const AUTO_PREDICT_INTERVAL = 60000; // 1 minute
-
-    // Avoid duplicate timers (prevents timer storms on reload)
-    if (this._autoInterval) clearInterval(this._autoInterval);
-    if (this._autoT1) clearTimeout(this._autoT1);
-    if (this._autoT2) clearTimeout(this._autoT2);
-
-    this._autoInterval = setInterval(() => {
+    
+    setInterval(() => {
       this.generateAutoPrediction();
     }, AUTO_PREDICT_INTERVAL);
-
+    
     // First prediction after 5 seconds (immediate startup)
-    this._autoT1 = setTimeout(() => {
+    setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating FIRST auto-prediction...');
       this.generateAutoPrediction();
     }, 5000);
-
+    
     // Second prediction after 15 seconds
-    this._autoT2 = setTimeout(() => {
+    setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating SECOND auto-prediction...');
       this.generateAutoPrediction();
     }, 15000);
-
+    
     console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
   },
 
   generateAutoPrediction() {
     console.log('[AI-PRO] === Auto-prediction attempt ===');
-
-    // Skip background auto-prediction when tab is hidden to reduce CPU + timers
-    if (this.config.sessionAware && typeof document !== 'undefined' && document.hidden) return;
     
     if (!this.isReady) {
       console.log('[AI-PRO] ❌ Skipping: not ready');
@@ -1346,11 +1334,11 @@ const AIEnginePro = {
     
     console.log('[AI-PRO] ✓ Price available:', price);
     
-    // Don't generate if we have too many pending
+    // Pending management: if we hit the cap, drop the oldest to make room (no skipping)
     const maxPending = this.config.maxPending || 25;
     if (this.predictions.pending.length >= maxPending) {
-      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + '/' + maxPending + ')');
-      return;
+      // Keep maxPending-1 so the new prediction is always preserved
+      this._okrtEnforcePendingCap(Math.max(0, maxPending - 1), 18000000);
     }
     
     const marketState = this.getCurrentMarketState();
@@ -1408,126 +1396,230 @@ const AIEnginePro = {
   },
 
   // ============================================
-  // 💾 STATE PERSISTENCE (Scoped + Auth-aware)
+  // 💾 STATE PERSISTENCE
   // ============================================
-
-  _getUid() {
-    const uid = (typeof window.__OKRT_UID__ === 'string' && window.__OKRT_UID__) ||
-                (typeof (window.AILearning && window.AILearning.user) === 'string' && window.AILearning.user) ||
-                null;
-    return uid || null;
-  },
-
-  async _waitForUid(timeoutMs = 8000) {
-    const start = Date.now();
-    let uid = this._getUid();
-    while (!uid && (Date.now() - start) < timeoutMs) {
-      await new Promise(r => setTimeout(r, 100));
-      uid = this._getUid();
+  
+  // ======================================
+  // 🔐 Scoped persistence helpers (per-user)
+  // ======================================
+  _getUidSafe() {
+    try {
+      return window.AILearning?.auth?.currentUser?.uid
+        || (typeof window.AILearning?.user === 'string' ? window.AILearning.user : window.AILearning?.user?.uid)
+        || null;
+    } catch (e) {
+      return null;
     }
-    return uid;
   },
 
   _userDocRef(docId) {
-    if (!this.db || !window.AILearning || !window.AILearning.firestore) return null;
-    const uid = this._getUid();
-    if (!uid) return null;
-    const { doc } = window.AILearning.firestore;
-    return doc(this.db, 'aiUsers', uid, 'engine', docId);
-  },
-
-  _legacyDocRef(docId) {
-    if (!this.db || !window.AILearning || !window.AILearning.firestore) return null;
-    const { doc } = window.AILearning.firestore;
-    return doc(this.db, 'ai', docId);
-  },
-
-  scheduleSave() {
     try {
-      if (this._saveT) clearTimeout(this._saveT);
-      this._saveT = setTimeout(() => {
-        this.saveState();
-      }, 1200);
+      const uid = this._getUidSafe();
+      if (!uid || !this.db || !window.AILearning?.firestore?.doc) return null;
+      const { doc } = window.AILearning.firestore;
+      return doc(this.db, 'aiUsers', uid, 'engine', docId);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  _stableStringify(value) {
+    const seen = new WeakSet();
+    const norm = (v) => {
+      if (v === null || v === undefined) return v;
+      if (typeof v !== 'object') return v;
+      if (seen.has(v)) return null;
+      seen.add(v);
+
+      if (Array.isArray(v)) return v.map(norm);
+      const out = {};
+      // Ignore volatile fields (quota optimization)
+      for (const k of Object.keys(v).sort()) {
+        if (k === 'updatedAt' || k === '_updatedAt' || k === 'lastSavedAt') continue;
+        out[k] = norm(v[k]);
+      }
+      return out;
+    };
+    return JSON.stringify(norm(value));
+  },
+
+  _sig(obj) {
+    try { return this._stableStringify(obj); } catch (e) { return ''; }
+  },
+
+  _sanitizeState() {
+    try {
+      // Heal old/corrupted docs (undefined/NaN) so writes pass rules.
+      const allowedModels = ['momentum','trend','volume','structure','patterns','mtf'];
+      for (const name of allowedModels) {
+        const m = this.models?.[name];
+        if (!m) continue;
+
+        const w = Number(m.weight);
+        m.weight = (Number.isFinite(w) && w >= 0) ? Math.min(100, w) : 1;
+
+        const acc = Number(m.accuracy);
+        m.accuracy = (Number.isFinite(acc) && acc >= 0 && acc <= 1) ? acc : 0.5;
+
+        const pred = Number(m.predictions);
+        m.predictions = (Number.isFinite(pred) && pred >= 0) ? Math.floor(pred) : 0;
+
+        const cor = Number(m.correct);
+        m.correct = (Number.isFinite(cor) && cor >= 0) ? Math.floor(cor) : 0;
+      }
+
+      const allowedHorizons = [2,5,10,15,30,60,120,240];
+      this.predictions = this.predictions || {};
+      this.predictions.byHorizon = this.predictions.byHorizon || {};
+      for (const h of allowedHorizons) {
+        const o = this.predictions.byHorizon[h] || this.predictions.byHorizon[String(h)] || {};
+        const total = Number(o.total);
+        const correct = Number(o.correct);
+        const accuracy = Number(o.accuracy);
+
+        const safeTotal = (Number.isFinite(total) && total >= 0) ? total : 0;
+        const safeCorrect = (Number.isFinite(correct) && correct >= 0) ? correct : 0;
+        const safeAcc = (Number.isFinite(accuracy) && accuracy >= 0 && accuracy <= 1)
+          ? accuracy
+          : (safeTotal > 0 ? (safeCorrect / safeTotal) : 0.5);
+
+        this.predictions.byHorizon[h] = { total: safeTotal, correct: safeCorrect, accuracy: safeAcc };
+      }
+
+      if (!Array.isArray(this.predictions.pending)) this.predictions.pending = [];
+      for (const p of this.predictions.pending) {
+        if (p && !Number.isFinite(Number(p.timestamp))) p.timestamp = Date.now();
+      }
+
+      if (!Array.isArray(this.memory?.patterns)) this.memory.patterns = [];
+      if (typeof this.memory?.correlations !== 'object' || this.memory.correlations === null || Array.isArray(this.memory.correlations)) {
+        this.memory.correlations = {};
+      }
     } catch (e) {}
   },
 
-  async loadState() {
-    // Prefer Firestore (scoped per user), fallback to localStorage
-    if (this.db && window.AILearning && window.AILearning.firestore) {
-      try {
-        // Wait briefly for anon auth to complete (rules typically require request.auth)
-        await this._waitForUid(8000);
-        const uid = this._getUid();
-        if (!uid) throw new Error('UID not ready (anon auth pending)');
+  _okrtEnforcePendingCap(cap = 25, maxAgeMs = 18000000) {
+    try {
+      if (!this.predictions || !Array.isArray(this.predictions.pending)) return;
+      const now = Date.now();
+      // Filter invalid/old entries first
+      let pending = this.predictions.pending
+        .filter(p => p && typeof p === 'object' && p.timestamp && (now - p.timestamp) < maxAgeMs);
 
+      pending.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      if (pending.length > cap) {
+        const dropped = pending.length - cap;
+        pending = pending.slice(-cap);
+        console.log(`[AI-PRO] Pending cap: dropped ${dropped} oldest (kept ${pending.length}, cap ${cap})`);
+      }
+      this.predictions.pending = pending;
+    } catch (e) {}
+  },
+
+  async _maybeSetDoc(docId, data) {
+    // Reduce writes (quota) + protect against intermittent permission issues
+    const now = Date.now();
+    if (this._fsDisabledUntil && now < this._fsDisabledUntil) return false;
+
+    const ref = this._userDocRef(docId);
+    if (!ref || !window.AILearning?.firestore?.setDoc) return false;
+
+    this._lastDocSigs = this._lastDocSigs || {};
+    const sig = this._sig(data);
+    if (sig && this._lastDocSigs[docId] === sig) return false;
+
+    try {
+      const { setDoc } = window.AILearning.firestore;
+      // IMPORTANT: For strict-schema docs, avoid merge to prevent legacy fields from
+      // persisting and breaking rules (keys().hasOnly...).
+      const strictNoMerge = new Set(['pro_models','pro_memory','pro_horizons','pro_pending']);
+      if (strictNoMerge.has(docId)) {
+        await setDoc(ref, data); // overwrite
+      } else {
+        await setDoc(ref, data, { merge: true });
+      }
+      if (sig) this._lastDocSigs[docId] = sig;
+      return true;
+    } catch (e) {
+      // Backoff on permission issues to stop console spam and quota thrash
+      const code = e?.code || '';
+      if (code === 'permission-denied' || String(e?.message || '').includes('Missing or insufficient permissions')) {
+        this._fsDisabledUntil = now + 120000; // 2 min
+      }
+      // Re-throw so caller logs docId context
+      throw e;
+    }
+  },
+
+
+  async loadState() {
+    if (this.db) {
+      try {
         const { getDoc } = window.AILearning.firestore;
 
         const modelsRef = this._userDocRef('pro_models');
-        const memoryRef = this._userDocRef('pro_memory');
-        const perfRef = this._userDocRef('pro_performance');
-        const horizonsRef = this._userDocRef('pro_horizons');
-        const pendingRef = this._userDocRef('pro_pending');
-
-        let loadedAny = false;
-
-        // Models
         if (modelsRef) {
           const modelsDoc = await getDoc(modelsRef);
           if (modelsDoc.exists()) {
             const savedModels = modelsDoc.data();
-            for (const [name, data] of Object.entries(savedModels)) {
-              if (this.models[name]) Object.assign(this.models[name], data);
+            const allowed = ['momentum','trend','volume','structure','patterns','mtf'];
+            for (const name of allowed) {
+              const data = savedModels?.[name];
+              if (data && this.models?.[name]) Object.assign(this.models[name], data);
             }
-            loadedAny = true;
           }
         }
 
-        // Memory
+        const memoryRef = this._userDocRef('pro_memory');
         if (memoryRef) {
-          const memoryDoc = await getDoc(memoryRef);
-          if (memoryDoc.exists()) {
-            const savedMemory = memoryDoc.data();
-            this.memory.patterns = savedMemory.patterns || [];
-            this.memory.correlations = savedMemory.correlations || {};
-            loadedAny = true;
+          const memDoc = await getDoc(memoryRef);
+          if (memDoc.exists()) {
+            const savedMemory = memDoc.data() || {};
+            if (savedMemory.patterns && Array.isArray(savedMemory.patterns)) this.memory.patterns = savedMemory.patterns;
+            if (savedMemory.correlations && typeof savedMemory.correlations === 'object') this.memory.correlations = savedMemory.correlations;
           }
         }
 
-        // Performance
+        const perfRef = this._userDocRef('pro_performance');
         if (perfRef) {
           const perfDoc = await getDoc(perfRef);
           if (perfDoc.exists()) {
-            Object.assign(this.performance, perfDoc.data());
-            loadedAny = true;
+            const savedPerf = perfDoc.data();
+            if (savedPerf && typeof savedPerf === 'object') Object.assign(this.performance, savedPerf);
           }
         }
 
-        // Horizons
+        const horizonsRef = this._userDocRef('pro_horizons');
         if (horizonsRef) {
-          const horizonDoc = await getDoc(horizonsRef);
-          if (horizonDoc.exists()) {
-            const savedHorizons = horizonDoc.data();
-            for (const [h, data] of Object.entries(savedHorizons)) {
-              if (this.predictions.byHorizon[h]) Object.assign(this.predictions.byHorizon[h], data);
+          const hDoc = await getDoc(horizonsRef);
+          if (hDoc.exists()) {
+            const savedH = hDoc.data() || {};
+            const allowed = ['2','5','10','15','30','60','120','240'];
+            for (const h of allowed) {
+              const data = savedH?.[h];
+              if (data && this.predictions.byHorizon?.[h]) Object.assign(this.predictions.byHorizon[h], data);
+              if (data && this.predictions.byHorizon?.[Number(h)]) Object.assign(this.predictions.byHorizon[Number(h)], data);
             }
-            loadedAny = true;
           }
         }
 
-        // Pending predictions and reschedule verifications
+        // Load pending predictions and reschedule verifications
+        const pendingRef = this._userDocRef('pro_pending');
         if (pendingRef) {
           const pendingDoc = await getDoc(pendingRef);
           if (pendingDoc.exists()) {
-            const savedPending = pendingDoc.data();
+            const savedPending = pendingDoc.data() || {};
             if (savedPending.pending && Array.isArray(savedPending.pending)) {
               const now = Date.now();
               const MAX_PENDING = this.config.maxPending || 25;
+
               const recent = savedPending.pending
                 .filter(p => p && typeof p === 'object' && p.timestamp && (now - p.timestamp) < 18000000)
                 .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
                 .slice(-MAX_PENDING);
 
               let restored = 0;
+              this.predictions.pending = [];
               for (const pred of recent) {
                 if (!pred.id) pred.id = `restored_${pred.timestamp || now}_${Math.random().toString(36).slice(2, 9)}`;
                 if (typeof pred.isAuto !== 'boolean') pred.isAuto = true;
@@ -1539,191 +1631,147 @@ const AIEnginePro = {
               if (savedPending.pending.length > MAX_PENDING) {
                 console.log(`[AI-PRO] Pending trimmed on load: ${savedPending.pending.length} -> ${restored}`);
               }
-              if (restored > 0) {
-                console.log(`[AI-PRO] Restored ${restored} pending predictions`);
-              }
-              loadedAny = loadedAny || restored > 0;
             }
           }
         }
 
-        if (loadedAny) {
-          console.log('[AI-PRO] State loaded from Firestore (scoped)');
-          console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
-          return;
-        }
+        this._sanitizeState();
+        this._okrtEnforcePendingCap(25, 18000000);
 
-        // Optional legacy one-shot migration (only if allowed by rules)
-        if (!this._legacyTried) {
-          this._legacyTried = true;
-          try {
-            const legacyModelsRef = this._legacyDocRef('pro_models');
-            const legacyMemoryRef = this._legacyDocRef('pro_memory');
-            const legacyPerfRef = this._legacyDocRef('pro_performance');
-            const legacyHorizonsRef = this._legacyDocRef('pro_horizons');
-            const legacyPendingRef = this._legacyDocRef('pro_pending');
-
-            let migrated = false;
-
-            if (legacyModelsRef) {
-              const d = await getDoc(legacyModelsRef);
-              if (d.exists()) {
-                const savedModels = d.data();
-                for (const [name, data] of Object.entries(savedModels)) {
-                  if (this.models[name]) Object.assign(this.models[name], data);
-                }
-                migrated = true;
-              }
-            }
-
-            if (legacyMemoryRef) {
-              const d = await getDoc(legacyMemoryRef);
-              if (d.exists()) {
-                const savedMemory = d.data();
-                this.memory.patterns = savedMemory.patterns || [];
-                this.memory.correlations = savedMemory.correlations || {};
-                migrated = true;
-              }
-            }
-
-            if (legacyPerfRef) {
-              const d = await getDoc(legacyPerfRef);
-              if (d.exists()) {
-                Object.assign(this.performance, d.data());
-                migrated = true;
-              }
-            }
-
-            if (legacyHorizonsRef) {
-              const d = await getDoc(legacyHorizonsRef);
-              if (d.exists()) {
-                const savedHorizons = d.data();
-                for (const [h, data] of Object.entries(savedHorizons)) {
-                  if (this.predictions.byHorizon[h]) Object.assign(this.predictions.byHorizon[h], data);
-                }
-                migrated = true;
-              }
-            }
-
-            if (legacyPendingRef) {
-              const d = await getDoc(legacyPendingRef);
-              if (d.exists()) {
-                const savedPending = d.data();
-                if (savedPending.pending && Array.isArray(savedPending.pending)) {
-                  const now = Date.now();
-                  const MAX_PENDING = this.config.maxPending || 25;
-                  const recent = savedPending.pending
-                    .filter(p => p && typeof p === 'object' && p.timestamp && (now - p.timestamp) < 18000000)
-                    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
-                    .slice(-MAX_PENDING);
-
-                  for (const pred of recent) {
-                    if (!pred.id) pred.id = `restored_${pred.timestamp || now}_${Math.random().toString(36).slice(2, 9)}`;
-                    if (typeof pred.isAuto !== 'boolean') pred.isAuto = true;
-                    this.predictions.pending.push(pred);
-                    this.rescheduleVerifications(pred);
-                  }
-                  migrated = true;
-                }
-              }
-            }
-
-            if (migrated) {
-              console.log('[AI-PRO] Legacy state loaded (one-shot). Migrating to scoped...');
-              await this.saveState();
-              return;
-            }
-          } catch (e) {
-            // Ignore legacy read errors (common if legacy collection is now blocked)
-          }
-        }
-
+        console.log('[AI-PRO] State loaded from Firestore (scoped)');
+        return;
       } catch (e) {
-        console.warn('[AI-PRO] Firestore load failed:', e);
-        // One-shot retry after auth, if this looked like auth timing
-        if (!this._didRetryFsLoad && !this._getUid()) {
-          this._didRetryFsLoad = true;
-          setTimeout(() => {
-            try { this.loadState(); } catch(_) {}
-          }, 1500);
-        }
+        console.warn('[AI-PRO] Firestore load failed (scoped), using localStorage:', e);
       }
     }
 
     // Local fallback
     try {
-      const saved = localStorage.getItem('ai_pro_state');
-      if (saved) {
-        const state = JSON.parse(saved);
-        if (state.models) Object.assign(this.models, state.models);
+      const stateStr = localStorage.getItem('ai_pro_state');
+      if (stateStr) {
+        const state = JSON.parse(stateStr);
+
+        if (state.models) {
+          for (const [name, data] of Object.entries(state.models)) {
+            if (this.models[name]) Object.assign(this.models[name], data);
+          }
+        }
         if (state.memory) Object.assign(this.memory, state.memory);
         if (state.performance) Object.assign(this.performance, state.performance);
         if (state.horizons) {
           for (const [h, data] of Object.entries(state.horizons)) {
             if (this.predictions.byHorizon[h]) Object.assign(this.predictions.byHorizon[h], data);
+            if (this.predictions.byHorizon[Number(h)]) Object.assign(this.predictions.byHorizon[Number(h)], data);
           }
         }
+        if (state.pending && Array.isArray(state.pending)) {
+          this.predictions.pending = state.pending;
+          for (const pred of this.predictions.pending) this.rescheduleVerifications(pred);
+        }
+
+        this._sanitizeState();
+        this._okrtEnforcePendingCap(25, 18000000);
+
         console.log('[AI-PRO] State loaded from localStorage');
       }
     } catch (e) {}
   },
 
+
+  
   async saveState() {
-    // Firestore first (scoped), then localStorage
-    if (this.db && window.AILearning && window.AILearning.firestore) {
-      try {
-        await this._waitForUid(8000);
-        const uid = this._getUid();
-        if (!uid) throw new Error('UID not ready (anon auth pending)');
-
-        const { setDoc } = window.AILearning.firestore;
-
-        const modelsData = {};
-        for (const [name, model] of Object.entries(this.models)) {
-          modelsData[name] = {
-            weight: model.weight,
-            accuracy: model.accuracy,
-            predictions: model.predictions,
-            correct: model.correct
-          };
-        }
-
-        // Scoped docs (per-user)
-        const modelsRef = this._userDocRef('pro_models');
-        const memoryRef = this._userDocRef('pro_memory');
-        const perfRef = this._userDocRef('pro_performance');
-        const horizonsRef = this._userDocRef('pro_horizons');
-        const pendingRef = this._userDocRef('pro_pending');
-
-        if (modelsRef) await setDoc(modelsRef, modelsData);
-        if (memoryRef) await setDoc(memoryRef, {
-          patterns: this.memory.patterns.slice(-500),
-          correlations: this.memory.correlations,
-          updatedAt: new Date().toISOString()
-        });
-        if (perfRef) await setDoc(perfRef, this.performance);
-        if (horizonsRef) await setDoc(horizonsRef, this.predictions.byHorizon);
-
-        const persistMax = this.config.maxPending || 25;
-        if (pendingRef) await setDoc(pendingRef, {
-          pending: this.predictions.pending.slice(-persistMax),
-          updatedAt: Date.now()
-        });
-
-      } catch (e) {
-        console.warn('[AI-PRO] Firestore save failed:', e);
-      }
-    }
-
+    // Always keep local fallback (never blocks UI)
     try {
       localStorage.setItem('ai_pro_state', JSON.stringify({
         models: this.models,
-        memory: { patterns: this.memory.patterns.slice(-100), correlations: this.memory.correlations },
+        memory: { patterns: (this.memory?.patterns || []).slice(-100), correlations: this.memory?.correlations || {} },
         performance: this.performance,
-        horizons: this.predictions.byHorizon
+        horizons: this.predictions.byHorizon,
+        pending: (this.predictions?.pending || []).slice(-25)
       }));
     } catch (e) {}
+
+    // Firestore scoped persistence (quota-optimized)
+    if (!this.db) return;
+
+    // Only attempt if we have a UID (anonymous auth counts)
+    const uid = this._getUidSafe();
+    if (!uid) return;
+
+    // Don't hammer Firestore if we're in backoff
+    const now = Date.now();
+    if (this._fsDisabledUntil && now < this._fsDisabledUntil) return;
+
+    try {
+      this._sanitizeState();
+      this._okrtEnforcePendingCap(25, 18000000);
+
+      const allowedModels = ['momentum','trend','volume','structure','patterns','mtf'];
+      const modelsData = {};
+      for (const name of allowedModels) {
+        const m = (this.models && this.models[name]) ? this.models[name] : {};
+        const w = Number(m.weight);
+        const a = Number(m.accuracy);
+        const p = Number(m.predictions);
+        const c = Number(m.correct);
+        modelsData[name] = {
+          weight: (Number.isFinite(w) ? Math.max(0, Math.min(100, w)) : 1),
+          accuracy: (Number.isFinite(a) ? Math.max(0, Math.min(1, a)) : 0.5),
+          predictions: (Number.isFinite(p) ? Math.max(0, Math.floor(p)) : 0),
+          correct: (Number.isFinite(c) ? Math.max(0, Math.floor(c)) : 0)
+        };
+      }
+
+      const memoryData = {
+        patterns: (this.memory?.patterns || []).slice(-500),
+        correlations: this.memory?.correlations || {},
+        updatedAt: new Date().toISOString()
+      };
+
+      const performanceData = this.performance;
+
+      const allowedHorizons = ['2','5','10','15','30','60','120','240'];
+      const horizonsData = {};
+      for (const h of allowedHorizons) {
+        const v = this.predictions?.byHorizon?.[h] ?? this.predictions?.byHorizon?.[Number(h)] ?? {};
+        const total = Number(v.total);
+        const correct = Number(v.correct);
+        const accuracy = Number(v.accuracy);
+        const safeTotal = (Number.isFinite(total) && total >= 0) ? total : 0;
+        const safeCorrect = (Number.isFinite(correct) && correct >= 0) ? correct : 0;
+        const safeAcc = (Number.isFinite(accuracy) && accuracy >= 0 && accuracy <= 1)
+          ? accuracy
+          : (safeTotal > 0 ? (safeCorrect / safeTotal) : 0.5);
+        horizonsData[h] = { total: safeTotal, correct: safeCorrect, accuracy: safeAcc };
+      }
+
+      const pendingData = {
+        pending: (this.predictions?.pending || []).slice(-25),
+        updatedAt: Date.now()
+      };
+
+      // Write only when changed (signature-based)
+      const writes = [
+        ['pro_models', modelsData],
+        ['pro_memory', memoryData],
+        ['pro_performance', performanceData],
+        ['pro_horizons', horizonsData],
+        ['pro_pending', pendingData]
+      ];
+
+      for (const [docId, data] of writes) {
+        try {
+          await this._maybeSetDoc(docId, data);
+        } catch (e) {
+          console.warn(`[AI-PRO] Firestore save failed (${docId}):`, e);
+          // keep going to allow partial persistence
+        }
+      }
+    } catch (e) {
+      console.warn('[AI-PRO] Firestore save failed (scoped):', e);
+    }
   },
+
 
   // ============================================
   // 🔧 UTILITY METHODS
