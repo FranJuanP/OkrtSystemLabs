@@ -1761,6 +1761,70 @@
       }
     }
 
+    /* ============================================================
+       Mobile: force independent cards stacked vertically (no overlap)
+       ============================================================ */
+    @media screen and (max-width: 520px) {
+
+      /* Replace grid with normal document flow */
+      main {
+        display: block !important;
+        overflow: auto !important;
+      }
+
+      /* Top-level sections: stack one after another */
+      main > .metrics-wrapper,
+      main > .side-left,
+      main > .chart-box,
+      main > .side-right,
+      main > .bottom-box {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 12px 0 !important;
+        position: relative !important;
+        z-index: auto !important;
+      }
+
+      /* Ensure column containers don't behave like flex columns with shared height */
+      .side-left,
+      .side-right,
+      .bottom-box {
+        display: block !important;
+        height: auto !important;
+      }
+
+      /* Every panel/card becomes its own independent block */
+      .panel,
+      .chart-box.panel {
+        position: static !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+
+      /* If some panels were flex children, disable flex sizing */
+      .side-left .panel,
+      .side-right .panel,
+      .bottom-box .panel {
+        flex: 0 0 auto !important;
+        margin: 0 0 12px 0 !important;
+      }
+
+      /* Chart must have explicit height in mobile */
+      #chartContainer {
+        width: 100% !important;
+        height: 320px !important;
+        min-height: 320px !important;
+      }
+
+      /* Avoid any sticky/absolute headers that can cover content */
+      .panel-head, header {
+        position: relative !important;
+        top: auto !important;
+      }
+    }
+
 </style></head><body><!-- Hidden elements for legacy code compatibility -->
 <div style="display:none;">
 <span id="r2"></span>
