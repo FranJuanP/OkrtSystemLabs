@@ -1498,66 +1498,103 @@
     }
 
     /* ============================================================
-       Responsive layout & typography stabilization (no UI changes)
-       - Prevent clipping on desktop (remove hard row constraints)
-       - Make key grids fluid (auto-fit/minmax)
-       - Scale AI typography with clamp() so it adapts per screen
+       Mobile: stack cards (no overlap) — restore iPhone readability
+       (No changes to desktop UI)
        ============================================================ */
+    @media screen and (max-width: 520px) {
 
-    /* Main layout: avoid content clipping in fixed grid */
-    main {
-      grid-template-columns: minmax(260px, 340px) minmax(0, 1fr) minmax(260px, 320px);
-      grid-template-rows: minmax(64px, auto) minmax(0, 1fr) minmax(180px, auto);
-      gap: clamp(8px, 1vw, 12px);
-      padding: clamp(8px, 1vw, 12px);
-      overflow: auto; /* was hidden: prevents cutting panels on different viewport heights */
-    }
+      html { font-size: 16px; }
+      body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
 
-    /* Ensure grid/flex children can shrink properly (prevents overflow cutoffs) */
-    .side-left, .side-right, .chart-box, .bottom-box, .metrics-wrapper, .panel {
-      min-height: 0;
-      min-width: 0;
-    }
+      /* Replace the dashboard grid with normal document flow */
+      main {
+        display: block !important;
+        overflow: auto !important;
+        padding: 10px !important;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+      }
 
-    /* Fluid grids: prevent forced horizontal squeeze */
-    .mtf-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-    .session-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-    .corr-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-    .watchlist-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-    .alerts-container { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-    .risk-grid,
-    .input-row,
-    .fibo-container,
-    .strategy-container,
-    .derivatives-grid,
-    .etf-grid {
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    }
+      /* Stack top-level sections one after another */
+      main > .metrics-wrapper,
+      main > .side-left,
+      main > .chart-box,
+      main > .side-right,
+      main > .bottom-box {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 12px 0 !important;
+        position: relative !important;
+      }
 
-    /* KPI scaling (keeps current look, adapts to screen) */
-    .kpi-lbl { font-size: clamp(10px, 0.9vw, 12px); }
-    .kpi-val { font-size: clamp(16px, 1.6vw, 20px); }
-    .kpi-sub { font-size: clamp(10px, 0.85vw, 12px); }
+      /* KPI row: wrap into 2 columns */
+      .metrics-wrapper {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+      }
+      .kpi-card {
+        flex: 1 1 calc(50% - 10px) !important;
+        min-width: calc(50% - 10px) !important;
+      }
 
-    /* AI Engine classes: responsive clamp (preserve proportions, avoid overflow) */
-    .ai-label { font-size: clamp(8px, 0.7vw, 10px); }
-    .ai-regime { font-size: clamp(12px, 1.1vw, 14px); }
-    .ai-quality { font-size: clamp(12px, 1.1vw, 14px); }
-    .ai-prob { font-size: clamp(18px, 1.8vw, 22px); }
-    .ai-target-price { font-size: clamp(20px, 2.0vw, 24px); }
-    .ai-conf { font-size: clamp(9px, 0.8vw, 11px); }
-    .smc-label { font-size: clamp(8px, 0.7vw, 10px); }
-    .smc-value { font-size: clamp(9px, 0.8vw, 11px); }
-    .mtf-label { font-size: clamp(7px, 0.65vw, 9px); }
-    .mtf-value { font-size: clamp(9px, 0.85vw, 11px); }
-    .conf-value { font-size: clamp(14px, 1.2vw, 16px); }
+      /* Column containers: no shared-height flex behavior */
+      .side-left, .side-right, .bottom-box {
+        display: block !important;
+        height: auto !important;
+      }
 
-    /* Prevent long inline blocks from breaking layout */
-    .panel, .panel * { word-break: break-word; }
+      /* Every card/panel becomes independent */
+      .panel, .chart-box.panel {
+        position: static !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
 
-    /* Wide screens: keep density sane */
-    @media screen and (min-width: 1700px) {
-      main { max-width: 1700px; margin: 0 auto; }
+      /* If any panels were flex children, disable flex sizing */
+      .side-left .panel,
+      .side-right .panel,
+      .bottom-box .panel {
+        flex: 0 0 auto !important;
+        margin: 0 0 12px 0 !important;
+      }
+
+      /* Tabs: prevent overlap */
+      .panel-head {
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+      }
+      .tab-buttons {
+        width: 100% !important;
+        flex: 0 0 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        padding: 0 !important;
+        border-bottom: 0 !important;
+      }
+      .tab-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 10px 10px !important;
+        font-size: 12px !important;
+        line-height: 1.1 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      /* Chart must have explicit height in mobile */
+      #chartContainer {
+        width: 100% !important;
+        height: 320px !important;
+        min-height: 320px !important;
+      }
     }
 
 </style></head><body><!-- Hidden elements for legacy code compatibility -->
