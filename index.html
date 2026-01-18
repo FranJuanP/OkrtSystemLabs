@@ -1640,6 +1640,41 @@
       }
     }
 
+    /* ============================================================
+       Mobile tabs: prevent overlap (ALERTS/SIGNALS, WHALES/ETF, etc.)
+       ============================================================ */
+    @media screen and (max-width: 520px) {
+      .tab-buttons {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        padding: 0 !important;
+        width: 100% !important;
+        align-items: stretch !important;
+      }
+
+      .tab-buttons .tab-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 10px 10px !important;
+        font-size: 12px !important;
+        line-height: 1.1 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 6px !important;
+      }
+
+      /* Badges should not push button width */
+      .tab-buttons .tab-btn span {
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+      }
+    }
+
 </style></head><body><!-- Hidden elements for legacy code compatibility -->
 <div style="display:none;">
 <span id="r2"></span>
