@@ -69,6 +69,67 @@ const AIEnginePro = {
   },
 
   // ============================================
+  // 🧰 OKRT Helpers: pending cap + Firestore write dedupe
+  // ============================================
+
+  _okrtStableStringify(value) {
+    const seen = new WeakSet();
+    const sorter = (obj) => {
+      if (obj && typeof obj === 'object') {
+        if (seen.has(obj)) return null;
+        seen.add(obj);
+
+        if (Array.isArray(obj)) return obj.map(sorter);
+
+        const out = {};
+        Object.keys(obj).sort().forEach(k => {
+          out[k] = sorter(obj[k]);
+        });
+        return out;
+      }
+      return obj;
+    };
+    try {
+      return JSON.stringify(sorter(value));
+    } catch (e) {
+      try { return JSON.stringify(value); } catch (_) { return String(Date.now()); }
+    }
+  },
+
+  _okrtHash32(str) {
+    // FNV-1a 32-bit
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h >>> 0;
+  },
+
+  _okrtComputePersistHash(payload) {
+    const s = this._okrtStableStringify(payload);
+    return this._okrtHash32(s);
+  },
+
+  _okrtEnforcePendingCap(maxPending, reserveForNew = 0) {
+    const p = this.predictions?.pending;
+    if (!Array.isArray(p) || !maxPending) return;
+
+    const cap = Math.max(1, maxPending | 0);
+    const reserve = Math.max(0, reserveForNew | 0);
+    const allowedNow = Math.max(0, cap - reserve);
+
+    if (p.length > allowedNow) {
+      const drop = p.length - allowedNow;
+      p.splice(0, drop); // drop oldest
+      if (this.config?.debugMode) {
+        console.log(`[AI-PRO] Pending cap: dropped ${drop} oldest (kept ${p.length}, cap ${cap})`);
+      }
+    }
+
+  },
+
+  // ============================================
   // 🧠 ENSEMBLE MODELS
   // ============================================
   models: {
@@ -1030,7 +1091,7 @@ const AIEnginePro = {
       verifications: [],
       outcome: null
     };
-    
+    this._okrtEnforcePendingCap(this.config.maxPending || 25, 1);
     this.predictions.pending.push(proPrediction);
     
     // Schedule verifications
@@ -1345,12 +1406,10 @@ const AIEnginePro = {
     }
     
     console.log('[AI-PRO] ✓ Price available:', price);
-    
-    // Don't generate if we have too many pending
+    // Keep pending queue bounded: drop oldest and keep latest (no UI/behavior impact)
     const maxPending = this.config.maxPending || 25;
     if (this.predictions.pending.length >= maxPending) {
-      console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + '/' + maxPending + ')');
-      return;
+      this._okrtEnforcePendingCap(maxPending, 1);
     }
     
     const marketState = this.getCurrentMarketState();
@@ -1391,9 +1450,9 @@ const AIEnginePro = {
       outcome: null,
       isAuto: true
     };
-    
+    this._okrtEnforcePendingCap(this.config.maxPending || 25, 1);
     this.predictions.pending.push(proPrediction);
-    
+
     // Update session tracking
     this._sessionPredictions = (this._sessionPredictions || 0) + 1;
     this._lastPredictionTime = Date.now();
@@ -1695,23 +1754,73 @@ const AIEnginePro = {
         const horizonsRef = this._userDocRef('pro_horizons');
         const pendingRef = this._userDocRef('pro_pending');
 
-        if (modelsRef) await setDoc(modelsRef, modelsData);
-        if (memoryRef) await setDoc(memoryRef, {
+        // Build payloads (core objects only)
+        const memoryDataCore = {
           patterns: this.memory.patterns.slice(-500),
-          correlations: this.memory.correlations,
-          updatedAt: new Date().toISOString()
-        });
-        if (perfRef) await setDoc(perfRef, this.performance);
-        if (horizonsRef) await setDoc(horizonsRef, this.predictions.byHorizon);
-
+          correlations: this.memory.correlations
+        };
+        const perfData = this.performance;
+        const horizonsData = this.predictions.byHorizon;
         const persistMax = this.config.maxPending || 25;
-        if (pendingRef) await setDoc(pendingRef, {
-          pending: this.predictions.pending.slice(-persistMax),
+        const pendingDataCore = {
+          pending: this.predictions.pending.slice(-persistMax)
+        };
+
+        // Firestore write dedupe (skip if unchanged)
+        const payloadForHash = {
+          modelsData,
+          memoryData: memoryDataCore,
+          perfData,
+          horizonsData,
+          pendingData: pendingDataCore
+        };
+
+        const h = this._okrtComputePersistHash(payloadForHash);
+        if (this._okrtSaveInFlight) {
+          if (this.config?.debugMode) {
+            console.log('[AI-PRO] Firestore save skipped (save already in-flight)');
+          }
+          throw new Error('__OKRT_SKIP_FIRESTORE__');
+        }
+
+        if (this._okrtLastPersistHash === h) {
+          if (this.config?.debugMode) {
+            console.log('[AI-PRO] Firestore save skipped (unchanged payload)');
+          }
+          // Still allow localStorage persistence reminder below
+          throw new Error('__OKRT_SKIP_FIRESTORE__');
+        }
+
+        this._okrtSaveInFlight = true;
+        this._okrtPendingPersistHash = h;
+
+        const memoryData = {
+          ...memoryDataCore,
+          updatedAt: new Date().toISOString()
+        };
+        const pendingData = {
+          ...pendingDataCore,
           updatedAt: Date.now()
-        });
+        };
+
+        if (modelsRef) await setDoc(modelsRef, modelsData);
+        if (memoryRef) await setDoc(memoryRef, memoryData);
+        if (perfRef) await setDoc(perfRef, perfData);
+        if (horizonsRef) await setDoc(horizonsRef, horizonsData);
+        if (pendingRef) await setDoc(pendingRef, pendingData);
+
+        // Mark hash only after successful Firestore writes
+        this._okrtLastPersistHash = this._okrtPendingPersistHash;
+        this._okrtPendingPersistHash = null;
+        this._okrtSaveInFlight = false;
 
       } catch (e) {
-        console.warn('[AI-PRO] Firestore save failed:', e);
+        if (e && e.message === '__OKRT_SKIP_FIRESTORE__') {
+          // No-op: payload unchanged; Firestore write skipped
+        } else {
+          console.warn('[AI-PRO] Firestore save failed:', e);
+        }
+        this._okrtSaveInFlight = false;
       }
     }
 
