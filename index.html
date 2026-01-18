@@ -1675,6 +1675,72 @@
       }
     }
 
+    /* ============================================================
+       Mobile stacking fix (<= 520px)
+       Root cause addressed: flex:1 panels inside side-right/side-left
+       get squeezed into micro-heights, causing visual "overlap/clipping".
+       We force natural heights and allow normal scrolling.
+       ============================================================ */
+    @media screen and (max-width: 520px) {
+
+      /* Let columns become normal document flow blocks */
+      .side-left, .side-right, .chart-box, .bottom-box {
+        display: block !important;
+        height: auto !important;
+      }
+
+      /* Panels should size to content, not share viewport height */
+      .side-left .panel,
+      .side-right .panel,
+      .bottom-box .panel {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+      }
+
+      /* Tabbed panels: ensure header wraps and does not compress */
+      .panel-head {
+        align-items: stretch !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+      }
+
+      /* Force tab container to occupy full width and wrap safely */
+      .tab-buttons {
+        width: 100% !important;
+        flex: 0 0 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        padding: 0 !important;
+        border-bottom: 0 !important;
+      }
+
+      .tab-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 10px 10px !important;
+        font-size: 12px !important;
+        line-height: 1.1 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      /* Badges: keep compact */
+      .tab-btn span {
+        font-size: 11px !important;
+      }
+
+      /* Remove the global 44px rule that can bloat header areas */
+      button, .btn, .chip, .pill, .toggle, .mode-btn {
+        min-height: 40px !important;
+      }
+
+      /* Chart: prevent micro height if any fixed rows apply */
+      #chartContainer { min-height: 220px; }
+    }
+
 </style></head><body><!-- Hidden elements for legacy code compatibility -->
 <div style="display:none;">
 <span id="r2"></span>
