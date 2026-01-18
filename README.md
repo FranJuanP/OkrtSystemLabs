@@ -107,9 +107,8 @@ AIEnginePro.__okrtBuild
 
 
 
-Ejemplo:
-```md
-![ORACULUM](https://franjuanp.github.io/OkrtSystemLabs/)
+[![LIVE DEMO](https://img.shields.io/badge/LIVE-DEMO-00E5FF?style=for-the-badge&logo=github&logoColor=white)](https://franjuanp.github.io/OkrtSystemLabs/)
+
 
 ---
 
@@ -119,10 +118,10 @@ ORACULUM es una herramienta de análisis y visualización. No constituye asesora
 ---
 
 ## Licencia / Copyright
-© 2025–2026 **OkrtSystem Labs**. Todos los derechos reservados.
+© 2025–2026 OkrtSystem Labs. Todos los derechos reservados.
 
 ---
 
 ### Autor / Branding
-**OkrtSystem Labs** · ORACULUM  
+OkrtSystem Labs · ORACULUM  
 Diseñado para rendimiento, seguridad y presencia “production‑grade”.
