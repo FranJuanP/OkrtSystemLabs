@@ -1,159 +1,127 @@
-<div align="center">
+# ORACULUM — OkrtSystem Labs  
+### Real‑Time Market Intelligence + AI Engine PRO (Self‑Learning) · Web App (Desktop + Mobile)
 
-# ORACULUM  
-### Market Intelligence Dashboard for XRP — OkrtSystem Labs
-
-**Real-time multi-feed + AI Engine PRO with auto-prediction and live performance metrics.**
-
-> © 2025–2026 **OkrtSystem Labs** — All rights reserved.
-
-</div>
+> **ORACULUM** es un panel operativo de inteligencia de mercado diseñado para **tomar el pulso a XRP/USDT en tiempo real**, detectar señales, visualizar estructura y ejecutar un **motor de aprendizaje continuo** orientado a precisión, estabilidad y rendimiento en producción.
 
 ---
 
-## Table of Contents
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [AI ENGINE PRO](#ai-engine-pro)
-- [Live Accuracy Update](#live-accuracy-update)
-- [Screenshots](#screenshots)
-- [Run ORACULUM](#run-oraculum)
-  - [Web (local server)](#web-local-server)
-  - [Desktop App (Windows Installer)](#desktop-app-windows-installer)
-- [Technical Notes](#technical-notes)
-- [Security](#security)
-- [Roadmap](#roadmap)
-- [License](#license)
+## Lo que hace ORACULUM (en una frase)
+**Convierte streams de mercado en decisión accionable**: *datos → contexto → señales → aprendizaje → memoria → optimización*.
 
 ---
 
-## Overview
-
-**ORACULUM** is a real-time market intelligence dashboard designed to monitor **XRP** across multiple exchanges, displaying key telemetry, liquidity/flow signals and an integrated **AI Engine** capable of generating **multi-horizon predictions**, validating results and improving over time.
-
-This project is built and maintained by **OkrtSystem Labs**, oriented to a **high-performance, enterprise-looking UI** with a **robust feed layer** and an AI module ready for long-running sessions.
-
----
-
-## Key Features
-
-### Real-time Multi-Feed (Failover)
-- WebSocket streaming from multiple sources  
-- Automatic feed failover logic *(e.g., Binance → Coinbase → Kraken)*
-- Designed for long sessions with recovery patterns
-
-### AI ENGINE PRO (Integrated)
-- Auto-prediction cycles
-- Multi-horizon validation
-- Performance tracking + “Best Horizon” signal
-- State persistence supported *(Firestore when enabled)*
-
-### Dashboard Experience
-- Compact, readable cards & telemetry blocks  
-- Designed for desktop, ultrawide and long-running usage  
-- Fast, single-file delivery (web build) + installable desktop packaging
+## Highlights (por qué es diferente)
+- **Tiempo real de verdad**: integración con feeds/streams para un flujo continuo de datos.
+- **AI ENGINE PRO v1.6.9**: motor de aprendizaje siempre activo con:
+  - **Auto‑Prediction** con horizontes configurables  
+  - **Ensemble** y umbral de confianza  
+  - **Optimización automática** para mejorar precisión con el tiempo  
+  - **Memoria** y patrones persistentes por usuario
+- **Persistencia segura multiusuario (Firebase/Firestore)**:
+  - Estado **scoped por UID** (aislamiento por usuario)
+  - Validación en reglas
+  - Ahorro de cuota: escrituras **deduplicadas** cuando el estado no cambia
+- **Rendimiento y estabilidad**:
+  - Capping de cola de predicciones (mantiene las últimas, descarta antiguas)
+  - Guardado robusto y control de frecuencia
+- **UI “Enterprise‑grade”**:
+  - Tarjetas modulares, lectura rápida, jerarquía visual
+  - **Mobile‑first real**: en iPhone las cards se muestran **independientes y apiladas**, sin solapes
 
 ---
 
-## AI ENGINE PRO
+## Arquitectura (visión clara)
+**ORACULUM (Front)**
+- UI + dashboards + paneles operativos
+- Motor AI (cliente) para predicción y aprendizaje
+- Capa de persistencia (Firestore)
 
-The **AI ENGINE PRO** module runs as a self-contained engine connected to the live market feed:
+**Fuentes (Feeds)**
+- Streams/REST de mercado (con failover en el feed manager)
 
-### Workflow
-1. **Market ingestion**
-   - Receives price/candle data from connectors.
-2. **Auto-prediction generation**
-   - Creates prediction jobs at fixed intervals.
-3. **Verification & scoring**
-   - Validates each prediction against configured horizons.
-4. **Metrics & optimization**
-   - Updates accuracy, best horizon, pending queue and memory patterns.
-
-### Default Horizons
-`2m, 5m, 10m, 15m, 30m, 60m, 120m, 240m`
-
-### UI Metrics (AI ENGINE PRO Card)
-- **Status**: engine state (READY, etc.)
-- **Accuracy**: live + consolidated accuracy
-- **Patterns**: learned patterns stored in memory
-- **Pending**: active predictions waiting validation
-- **Best H**: best-performing horizon in current runtime
+**Persistencia**
+- **Cloud Firestore**: estado del motor AI por usuario
 
 ---
 
-## Live Accuracy Update
+## Componentes principales
+- `index.html` — Aplicación web (UI + layout + wiring de módulos)
+- `ai-engine-pro.js` — **AI ENGINE PRO** (predicción, memoria, optimización, persistencia)
+- `market-feed-manager.js` — Gestión de datos de mercado (streaming/failover)
 
-Previously, during the first hours of runtime, **Accuracy** could remain at **0.0%** even though the engine was working correctly.
-
-### Why it happened
-Global accuracy was primarily consolidated after completing long-horizon predictions  
-(e.g., `240m = 4 hours`).  
-Before the first full prediction was closed, the UI had little to display.
-
-### What’s improved now (PRO approach)
-ORACULUM now computes an **in-live provisional accuracy** based on validated short/medium horizons (`2m/5m/10m/...`) **without changing the true final scoring logic**.
-
-✅ Accuracy becomes meaningful within minutes  
-✅ Final accuracy remains authoritative after full horizon completion  
-✅ No changes to the AI workflow, UI layout or prediction model behavior
+> ORACULUM está diseñado para desplegarse de forma simple (GitHub Pages / hosting estático) con un backend gestionado (Firebase).
 
 ---
 
-## Screenshots
+## Seguridad (en serio)
+ORACULUM está pensado para un repositorio público sin exponer el sistema a envenenamiento de datos:
 
-<div align="center">
-
-**AI ENGINE PRO — Live Metrics Card**  
-<img src="docs/screens/ai_engine_pro_card.png" width="640"/>
-
-<br/>
-
-**Runtime Console — Engine Loading + Feeds Connected**  
-<img src="docs/screens/console_runitime.png" width="640"/>
-
-</div>
+- Legacy **`/ai/*` en solo lectura** (escritura bloqueada para evitar poisoning)
+- Persistencia **por usuario** en:
+  - `aiUsers/{uid}/engine/{docId}`
+- Reglas con validaciones conservadoras y **catch‑all deny**
+- Autenticación anónima compatible (UID aislado por sesión/navegador)
+- Integrable con App Check / endurecimiento adicional
 
 ---
 
-## Run ORACULUM
+## Firestore (modelo de datos)
+Documentos del motor (por usuario):
 
-### Web (local server)
+- `pro_models` — estadísticas por modelo (momentum/trend/volume/structure/patterns/mtf)
+- `pro_memory` — memoria/patrones y correlaciones
+- `pro_performance` — telemetría y métricas internas del motor
+- `pro_horizons` — precisión por horizonte (2,5,10,15,30,60,120,240)
+- `pro_pending` — cola de predicciones (**cap 25**)
 
-Recommended to avoid `file://` execution.
+---
 
-```bash
-python -m http.server 8080
+
+## Operativa y verificación
+En consola (DevTools) deberías ver:
+- `State loaded from Firestore (scoped)`
+- `AI Engine PRO ready`
+- Auto‑predicción en ciclos
+
+Verificación rápida del build:
+```js
+AIEnginePro.__okrtBuild
 ```
 
-Open:
-- `http://localhost:8080`
+---
+
+## Rendimiento (principios)
+- Escrituras deduplicadas (no se guarda si el estado no cambia)
+- Cap de `pending` para evitar crecimiento infinito
+- Layout responsive sin reflows destructivos en móvil
+- Diseño “observability‑first”: logs útiles para diagnóstico
+
 
 ---
 
-## Technical Notes
+## Capturas
+Coloca tus imágenes en `docs/screens/` y enlázalas aquí:
 
-### Browser warning: ResizeObserver loop
-You may occasionally see:
+- `docs/screens/oraculum_desktop.png`
+- `docs/screens/oraculum_mobile.png`
+- `docs/screens/ai_engine_pro.png`
 
-`ResizeObserver loop completed with undelivered notifications`
-
-This is a common dashboard/UI warning in Chrome/Edge when layouts resize rapidly during frequent updates.  
-In normal conditions it does **not** affect ORACULUM’s functionality.
-
----
-
-## Security
-
-Depending on build configuration, ORACULUM supports:
-- **App Check enabled mode**
-- CSP hardening paths
-- safer UI rendering patterns (anti-self-XSS discipline)
+Ejemplo:
+```md
+![ORACULUM](https://franjuanp.github.io/OkrtSystemLabs/)
 
 ---
 
-## License
+## Disclaimer
+ORACULUM es una herramienta de análisis y visualización. No constituye asesoramiento financiero.
 
-**Proprietary Software**  
-© 2025–2026 OkrtSystem Labs — All rights reserved.
+---
 
-No redistribution, modification or commercial use without explicit authorization.
+## Licencia / Copyright
+© 2025–2026 **OkrtSystem Labs**. Todos los derechos reservados.
+
+---
+
+### Autor / Branding
+**OkrtSystem Labs** · ORACULUM  
+Diseñado para rendimiento, seguridad y presencia “production‑grade”.
