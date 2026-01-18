@@ -15,6 +15,20 @@
   const PANEL_ID = 'aiEnginePanel';
   let initialized = false;
   let updateCount = 0;
+
+  // Safety guard: do NOT override the default WIDE panel unless explicitly enabled.
+  // This avoids UI conflicts and preserves the current look & behavior by default.
+  const ENHANCER_ENABLED = !!window.__ORACULUM_USE_AI_PANEL_ENHANCER;
+  if (!ENHANCER_ENABLED) {
+    return;
+  }
+
+  if (window.__ORACULUM_AI_PANEL_OWNER && window.__ORACULUM_AI_PANEL_OWNER !== 'ENHANCER') {
+    console.warn('[AI-PANEL] Another panel owner detected:', window.__ORACULUM_AI_PANEL_OWNER, '- enhancer disabled');
+    return;
+  }
+  window.__ORACULUM_AI_PANEL_OWNER = 'ENHANCER';
+
   
   // Nuevo HTML del panel mejorado
   const enhancedPanelHTML = `
