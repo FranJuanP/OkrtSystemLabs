@@ -100,11 +100,12 @@ AIEnginePro.__okrtBuild
 ---
 
 ## Capturas
-Coloca tus imágenes en `docs/screens/` y enlázalas aquí:
 
-- `docs/screens/oraculum_desktop.png`
-- `docs/screens/oraculum_mobile.png`
-- `docs/screens/ai_engine_pro.png`
+<img src="docs/screens/oraculum_desktop.png" width="900">
+<img src="docs/screens/oraculum_mobile.jpeg" width="320">
+<img src="docs/screens/ai_engine_pro.png" width="900">
+
+
 
 Ejemplo:
 ```md
