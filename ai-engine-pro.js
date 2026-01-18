@@ -25,25 +25,7 @@ const AIEnginePro = {
   version: '1.6.9',
   isReady: false,
   db: null,
-
-  // ============================================
-  // 🛡️ RUNTIME GUARDS / LOOP IDS (stability)
-  // ============================================
-  _initInProgress: false,
-  _firestoreDisabled: false,
-
-  _saveDebounceMs: 1500,
-  _saveTimer: null,
-  _saveInFlight: Promise.resolve(),
-  _saveQueuedPayload: null,
-  _saveWaiters: [],
-
-  _optIntervalId: null,
-  _optWarmupTimeoutId: null,
-
-  _autoIntervalId: null,
-  _autoTimeoutIds: [],
-
+  
   // ============================================
   // 🎯 CONFIGURATION
   // ============================================
@@ -212,11 +194,7 @@ const AIEnginePro = {
   // 🚀 INITIALIZATION
   // ============================================
   async init() {
-    if (this.isReady) return true;
-    if (this._initInProgress) return false;
-    this._initInProgress = true;
-    try {
-      console.log('[AI-PRO] Initializing AI Engine PRO v' + this.version + ' with Auto-Prediction');
+    console.log('[AI-PRO] Initializing AI Engine PRO v' + this.version + ' with Auto-Prediction');
     
     // Wait for base AILearning to be ready
     let attempts = 0;
@@ -281,9 +259,6 @@ const AIEnginePro = {
     }, 3000);
     
     return true;
-    } finally {
-      this._initInProgress = false;
-    }
   },
 
   // ============================================
@@ -1202,7 +1177,7 @@ const AIEnginePro = {
     }
     
     if (this.performance.overall.totalPredictions % 10 === 0) {
-      this.saveState();
+      this.scheduleSave();
     }
   },
 
@@ -1278,16 +1253,17 @@ const AIEnginePro = {
   // 🔄 AUTO-OPTIMIZATION
   // ============================================
   startOptimizationLoop() {
-    // Prevent duplicate loops (double-init / double-load)
-    if (this._optIntervalId) clearInterval(this._optIntervalId);
-    if (this._optWarmupTimeoutId) clearTimeout(this._optWarmupTimeoutId);
-
-    this._optIntervalId = setInterval(() => this.runOptimization(), this.config.optimizationInterval);
-    this._optWarmupTimeoutId = setTimeout(() => this.runOptimization(), 300000);
+    // Avoid duplicate intervals (prevents freezes on re-init)
+    if (this._optInterval) clearInterval(this._optInterval);
+    if (this._optTimeout) clearTimeout(this._optTimeout);
+    this._optInterval = setInterval(() => this.runOptimization(), this.config.optimizationInterval);
+    this._optTimeout = setTimeout(() => this.runOptimization(), 300000);
   },
 
   runOptimization() {
-    if (document.hidden) return;
+    // Skip heavy work when tab is hidden (stability + battery)
+    if (this.config.sessionAware && typeof document !== 'undefined' && document.hidden) return;
+
     console.log('[AI-PRO] Running auto-optimization...');
     
     const recentPredictions = this.predictions.completed.slice(-50);
@@ -1313,7 +1289,7 @@ const AIEnginePro = {
       console.log(`[AI-PRO] Best horizon: ${bestHorizon[0]}min (${(bestHorizon[1].accuracy * 100).toFixed(1)}%)`);
     }
     
-    this.saveState();
+    this.scheduleSave();
     
     console.log('[AI-PRO] Optimization complete. Accuracy:', (this.performance.overall.accuracy * 100).toFixed(1) + '%');
     console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
@@ -1327,35 +1303,35 @@ const AIEnginePro = {
     // Generate predictions automatically every 60 seconds (más frecuente)
     const AUTO_PREDICT_INTERVAL = 60000; // 1 minute
 
-    // Prevent duplicate loops (double-init / double-load)
-    if (this._autoIntervalId) clearInterval(this._autoIntervalId);
-    if (Array.isArray(this._autoTimeoutIds) && this._autoTimeoutIds.length) {
-      this._autoTimeoutIds.forEach(id => { try { clearTimeout(id); } catch (e) {} });
-    }
-    this._autoTimeoutIds = [];
+    // Avoid duplicate timers (prevents timer storms on reload)
+    if (this._autoInterval) clearInterval(this._autoInterval);
+    if (this._autoT1) clearTimeout(this._autoT1);
+    if (this._autoT2) clearTimeout(this._autoT2);
 
-    this._autoIntervalId = setInterval(() => {
+    this._autoInterval = setInterval(() => {
       this.generateAutoPrediction();
     }, AUTO_PREDICT_INTERVAL);
 
     // First prediction after 5 seconds (immediate startup)
-    this._autoTimeoutIds.push(setTimeout(() => {
+    this._autoT1 = setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating FIRST auto-prediction...');
       this.generateAutoPrediction();
-    }, 5000));
+    }, 5000);
 
     // Second prediction after 15 seconds
-    this._autoTimeoutIds.push(setTimeout(() => {
+    this._autoT2 = setTimeout(() => {
       console.log('[AI-PRO] 🚀 Generating SECOND auto-prediction...');
       this.generateAutoPrediction();
-    }, 15000));
+    }, 15000);
 
     console.log('[AI-PRO] Auto-prediction started (every 1 min, first in 5s)');
   },
 
   generateAutoPrediction() {
-    if (document.hidden) return;
     console.log('[AI-PRO] === Auto-prediction attempt ===');
+
+    // Skip background auto-prediction when tab is hidden to reduce CPU + timers
+    if (this.config.sessionAware && typeof document !== 'undefined' && document.hidden) return;
     
     if (!this.isReady) {
       console.log('[AI-PRO] ❌ Skipping: not ready');
@@ -1430,26 +1406,19 @@ const AIEnginePro = {
     
     console.log(`[AI-PRO] 🎯 Auto-prediction #${this._sessionPredictions}: ${ensemble.direction} @ ${(ensemble.confidence * 100).toFixed(1)}% | Price: ${window.state.price.toFixed(4)} | Pending: ${this.predictions.pending.length}`);
   },
+
   // ============================================
-  // 💾 STATE PERSISTENCE (Per-UID + Debounced)
+  // 💾 STATE PERSISTENCE (Scoped + Auth-aware)
   // ============================================
+
   _getUid() {
-    try {
-      const u = window.AILearning ? window.AILearning.user : null;
-      if (typeof u === 'string' && u) return u;
-      if (u && typeof u === 'object' && u.uid) return u.uid;
-
-      if (window.__OKRT_UID__ && typeof window.__OKRT_UID__ === 'string') return window.__OKRT_UID__;
-
-      return (window.AILearning?.auth?.currentUser && window.AILearning.auth.currentUser.uid)
-        || window.AILearning?.userUid
-        || null;
-    } catch (e) {
-      return null;
-    }
+    const uid = (typeof window.__OKRT_UID__ === 'string' && window.__OKRT_UID__) ||
+                (typeof (window.AILearning && window.AILearning.user) === 'string' && window.AILearning.user) ||
+                null;
+    return uid || null;
   },
 
-  async _awaitUid(timeoutMs = 2500) {
+  async _waitForUid(timeoutMs = 8000) {
     const start = Date.now();
     let uid = this._getUid();
     while (!uid && (Date.now() - start) < timeoutMs) {
@@ -1459,159 +1428,97 @@ const AIEnginePro = {
     return uid;
   },
 
-  _shouldUseFirestore() {
-    return !!this.db && !this._firestoreDisabled && !!window.AILearning?.firestore;
+  _userDocRef(docId) {
+    if (!this.db || !window.AILearning || !window.AILearning.firestore) return null;
+    const uid = this._getUid();
+    if (!uid) return null;
+    const { doc } = window.AILearning.firestore;
+    return doc(this.db, 'aiUsers', uid, 'engine', docId);
   },
 
-  _docRef(docName, uid) {
+  _legacyDocRef(docId) {
+    if (!this.db || !window.AILearning || !window.AILearning.firestore) return null;
+    const { doc } = window.AILearning.firestore;
+    return doc(this.db, 'ai', docId);
+  },
+
+  scheduleSave() {
     try {
-      const { doc } = window.AILearning.firestore || {};
-      if (!doc || !this.db || !uid) return null;
-      // Per-user namespace to prevent public poisoning / collisions
-      return doc(this.db, 'aiUsers', uid, 'engine', docName);
-    } catch (e) {
-      return null;
-    }
-  },
-
-  _buildPersistPayload() {
-    const modelsData = {};
-    for (const [name, model] of Object.entries(this.models || {})) {
-      modelsData[name] = {
-        weight: model.weight,
-        accuracy: model.accuracy,
-        predictions: model.predictions,
-        correct: model.correct
-      };
-    }
-
-    const persistMax = this.config.maxPending || 25;
-
-    return {
-      modelsData,
-      memoryData: {
-        patterns: (this.memory?.patterns || []).slice(-500),
-        correlations: this.memory?.correlations || {},
-        updatedAt: new Date().toISOString()
-      },
-      performanceData: this.performance,
-      horizonsData: this.predictions?.byHorizon || {},
-      pendingData: {
-        pending: (this.predictions?.pending || []).slice(-persistMax),
-        updatedAt: Date.now()
-      }
-    };
-  },
-
-  _queueFirestoreSave(uid, payload) {
-    // Coalesce frequent saves to keep the UI smooth and prevent write storms
-    this._saveQueuedPayload = payload;
-
-    const p = new Promise((resolve) => {
-      this._saveWaiters.push(resolve);
-    });
-
-    if (this._saveTimer) return p;
-
-    this._saveTimer = setTimeout(() => {
-      const uidNow = this._getUid() || uid;
-      const toSave = this._saveQueuedPayload;
-      this._saveQueuedPayload = null;
-      this._saveTimer = null;
-
-      this._saveInFlight = this._saveInFlight
-        .then(() => this._flushFirestoreSave(uidNow, toSave))
-        .catch(() => {});
-    }, this._saveDebounceMs);
-
-    return p;
-  },
-
-  async _flushFirestoreSave(uid, payload) {
-    const waiters = this._saveWaiters.splice(0);
-    try {
-      if (!payload || !uid || !this._shouldUseFirestore()) {
-        waiters.forEach(r => r(false));
-        return false;
-      }
-
-      const { setDoc } = window.AILearning.firestore;
-      const { modelsData, memoryData, performanceData, horizonsData, pendingData } = payload;
-
-      const modelsRef = this._docRef('pro_models', uid);
-      const memoryRef = this._docRef('pro_memory', uid);
-      const perfRef = this._docRef('pro_performance', uid);
-      const horizonRef = this._docRef('pro_horizons', uid);
-      const pendingRef = this._docRef('pro_pending', uid);
-
-      if (!modelsRef || !memoryRef || !perfRef || !horizonRef || !pendingRef) {
-        waiters.forEach(r => r(false));
-        return false;
-      }
-
-      await setDoc(modelsRef, modelsData);
-      await setDoc(memoryRef, memoryData);
-      await setDoc(perfRef, performanceData);
-      await setDoc(horizonRef, horizonsData);
-      await setDoc(pendingRef, pendingData);
-
-      waiters.forEach(r => r(true));
-      return true;
-    } catch (e) {
-      // Disable Firestore saves after an auth/rules failure to avoid repeated exceptions
-      this._firestoreDisabled = true;
-      console.warn('[AI-PRO] Firestore save failed (disabled for session):', e);
-      waiters.forEach(r => r(false));
-      return false;
-    }
+      if (this._saveT) clearTimeout(this._saveT);
+      this._saveT = setTimeout(() => {
+        this.saveState();
+      }, 1200);
+    } catch (e) {}
   },
 
   async loadState() {
-    // 1) Prefer per-UID Firestore when available (safe namespace)
-    if (this._shouldUseFirestore()) {
-      const uid = await this._awaitUid(2500);
-      if (uid) {
-        try {
-          const { getDoc } = window.AILearning.firestore;
+    // Prefer Firestore (scoped per user), fallback to localStorage
+    if (this.db && window.AILearning && window.AILearning.firestore) {
+      try {
+        // Wait briefly for anon auth to complete (rules typically require request.auth)
+        await this._waitForUid(8000);
+        const uid = this._getUid();
+        if (!uid) throw new Error('UID not ready (anon auth pending)');
 
-          const modelsRef = this._docRef('pro_models', uid);
-          const memoryRef = this._docRef('pro_memory', uid);
-          const perfRef = this._docRef('pro_performance', uid);
-          const horizonRef = this._docRef('pro_horizons', uid);
-          const pendingRef = this._docRef('pro_pending', uid);
+        const { getDoc } = window.AILearning.firestore;
 
-          const modelsDoc = modelsRef ? await getDoc(modelsRef) : null;
-          if (modelsDoc && modelsDoc.exists()) {
+        const modelsRef = this._userDocRef('pro_models');
+        const memoryRef = this._userDocRef('pro_memory');
+        const perfRef = this._userDocRef('pro_performance');
+        const horizonsRef = this._userDocRef('pro_horizons');
+        const pendingRef = this._userDocRef('pro_pending');
+
+        let loadedAny = false;
+
+        // Models
+        if (modelsRef) {
+          const modelsDoc = await getDoc(modelsRef);
+          if (modelsDoc.exists()) {
             const savedModels = modelsDoc.data();
-            for (const [name, data] of Object.entries(savedModels || {})) {
+            for (const [name, data] of Object.entries(savedModels)) {
               if (this.models[name]) Object.assign(this.models[name], data);
             }
+            loadedAny = true;
           }
+        }
 
-          const memoryDoc = memoryRef ? await getDoc(memoryRef) : null;
-          if (memoryDoc && memoryDoc.exists()) {
-            const savedMemory = memoryDoc.data() || {};
+        // Memory
+        if (memoryRef) {
+          const memoryDoc = await getDoc(memoryRef);
+          if (memoryDoc.exists()) {
+            const savedMemory = memoryDoc.data();
             this.memory.patterns = savedMemory.patterns || [];
             this.memory.correlations = savedMemory.correlations || {};
+            loadedAny = true;
           }
+        }
 
-          const perfDoc = perfRef ? await getDoc(perfRef) : null;
-          if (perfDoc && perfDoc.exists()) {
+        // Performance
+        if (perfRef) {
+          const perfDoc = await getDoc(perfRef);
+          if (perfDoc.exists()) {
             Object.assign(this.performance, perfDoc.data());
+            loadedAny = true;
           }
+        }
 
-          const horizonDoc = horizonRef ? await getDoc(horizonRef) : null;
-          if (horizonDoc && horizonDoc.exists()) {
-            const savedHorizons = horizonDoc.data() || {};
+        // Horizons
+        if (horizonsRef) {
+          const horizonDoc = await getDoc(horizonsRef);
+          if (horizonDoc.exists()) {
+            const savedHorizons = horizonDoc.data();
             for (const [h, data] of Object.entries(savedHorizons)) {
               if (this.predictions.byHorizon[h]) Object.assign(this.predictions.byHorizon[h], data);
             }
+            loadedAny = true;
           }
+        }
 
-          // Pending predictions and reschedule verifications
-          const pendingDoc = pendingRef ? await getDoc(pendingRef) : null;
-          if (pendingDoc && pendingDoc.exists()) {
-            const savedPending = pendingDoc.data() || {};
+        // Pending predictions and reschedule verifications
+        if (pendingRef) {
+          const pendingDoc = await getDoc(pendingRef);
+          if (pendingDoc.exists()) {
+            const savedPending = pendingDoc.data();
             if (savedPending.pending && Array.isArray(savedPending.pending)) {
               const now = Date.now();
               const MAX_PENDING = this.config.maxPending || 25;
@@ -1635,19 +1542,115 @@ const AIEnginePro = {
               if (restored > 0) {
                 console.log(`[AI-PRO] Restored ${restored} pending predictions`);
               }
+              loadedAny = loadedAny || restored > 0;
             }
           }
+        }
 
-          console.log('[AI-PRO] State loaded from Firestore (per-UID)');
+        if (loadedAny) {
+          console.log('[AI-PRO] State loaded from Firestore (scoped)');
           console.log('[AI-PRO] Memory patterns:', this.memory.patterns.length);
           return;
-        } catch (e) {
-          console.warn('[AI-PRO] Firestore load failed:', e);
+        }
+
+        // Optional legacy one-shot migration (only if allowed by rules)
+        if (!this._legacyTried) {
+          this._legacyTried = true;
+          try {
+            const legacyModelsRef = this._legacyDocRef('pro_models');
+            const legacyMemoryRef = this._legacyDocRef('pro_memory');
+            const legacyPerfRef = this._legacyDocRef('pro_performance');
+            const legacyHorizonsRef = this._legacyDocRef('pro_horizons');
+            const legacyPendingRef = this._legacyDocRef('pro_pending');
+
+            let migrated = false;
+
+            if (legacyModelsRef) {
+              const d = await getDoc(legacyModelsRef);
+              if (d.exists()) {
+                const savedModels = d.data();
+                for (const [name, data] of Object.entries(savedModels)) {
+                  if (this.models[name]) Object.assign(this.models[name], data);
+                }
+                migrated = true;
+              }
+            }
+
+            if (legacyMemoryRef) {
+              const d = await getDoc(legacyMemoryRef);
+              if (d.exists()) {
+                const savedMemory = d.data();
+                this.memory.patterns = savedMemory.patterns || [];
+                this.memory.correlations = savedMemory.correlations || {};
+                migrated = true;
+              }
+            }
+
+            if (legacyPerfRef) {
+              const d = await getDoc(legacyPerfRef);
+              if (d.exists()) {
+                Object.assign(this.performance, d.data());
+                migrated = true;
+              }
+            }
+
+            if (legacyHorizonsRef) {
+              const d = await getDoc(legacyHorizonsRef);
+              if (d.exists()) {
+                const savedHorizons = d.data();
+                for (const [h, data] of Object.entries(savedHorizons)) {
+                  if (this.predictions.byHorizon[h]) Object.assign(this.predictions.byHorizon[h], data);
+                }
+                migrated = true;
+              }
+            }
+
+            if (legacyPendingRef) {
+              const d = await getDoc(legacyPendingRef);
+              if (d.exists()) {
+                const savedPending = d.data();
+                if (savedPending.pending && Array.isArray(savedPending.pending)) {
+                  const now = Date.now();
+                  const MAX_PENDING = this.config.maxPending || 25;
+                  const recent = savedPending.pending
+                    .filter(p => p && typeof p === 'object' && p.timestamp && (now - p.timestamp) < 18000000)
+                    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+                    .slice(-MAX_PENDING);
+
+                  for (const pred of recent) {
+                    if (!pred.id) pred.id = `restored_${pred.timestamp || now}_${Math.random().toString(36).slice(2, 9)}`;
+                    if (typeof pred.isAuto !== 'boolean') pred.isAuto = true;
+                    this.predictions.pending.push(pred);
+                    this.rescheduleVerifications(pred);
+                  }
+                  migrated = true;
+                }
+              }
+            }
+
+            if (migrated) {
+              console.log('[AI-PRO] Legacy state loaded (one-shot). Migrating to scoped...');
+              await this.saveState();
+              return;
+            }
+          } catch (e) {
+            // Ignore legacy read errors (common if legacy collection is now blocked)
+          }
+        }
+
+      } catch (e) {
+        console.warn('[AI-PRO] Firestore load failed:', e);
+        // One-shot retry after auth, if this looked like auth timing
+        if (!this._didRetryFsLoad && !this._getUid()) {
+          this._didRetryFsLoad = true;
+          setTimeout(() => {
+            try { this.loadState(); } catch(_) {}
+          }, 1500);
         }
       }
     }
 
-    // 2) Fallback: localStorage (device-local)
+    // Local fallback
     try {
       const saved = localStorage.getItem('ai_pro_state');
       if (saved) {
@@ -1666,69 +1669,60 @@ const AIEnginePro = {
   },
 
   async saveState() {
-    // Always persist a lightweight snapshot locally (fast + works offline)
+    // Firestore first (scoped), then localStorage
+    if (this.db && window.AILearning && window.AILearning.firestore) {
+      try {
+        await this._waitForUid(8000);
+        const uid = this._getUid();
+        if (!uid) throw new Error('UID not ready (anon auth pending)');
+
+        const { setDoc } = window.AILearning.firestore;
+
+        const modelsData = {};
+        for (const [name, model] of Object.entries(this.models)) {
+          modelsData[name] = {
+            weight: model.weight,
+            accuracy: model.accuracy,
+            predictions: model.predictions,
+            correct: model.correct
+          };
+        }
+
+        // Scoped docs (per-user)
+        const modelsRef = this._userDocRef('pro_models');
+        const memoryRef = this._userDocRef('pro_memory');
+        const perfRef = this._userDocRef('pro_performance');
+        const horizonsRef = this._userDocRef('pro_horizons');
+        const pendingRef = this._userDocRef('pro_pending');
+
+        if (modelsRef) await setDoc(modelsRef, modelsData);
+        if (memoryRef) await setDoc(memoryRef, {
+          patterns: this.memory.patterns.slice(-500),
+          correlations: this.memory.correlations,
+          updatedAt: new Date().toISOString()
+        });
+        if (perfRef) await setDoc(perfRef, this.performance);
+        if (horizonsRef) await setDoc(horizonsRef, this.predictions.byHorizon);
+
+        const persistMax = this.config.maxPending || 25;
+        if (pendingRef) await setDoc(pendingRef, {
+          pending: this.predictions.pending.slice(-persistMax),
+          updatedAt: Date.now()
+        });
+
+      } catch (e) {
+        console.warn('[AI-PRO] Firestore save failed:', e);
+      }
+    }
+
     try {
       localStorage.setItem('ai_pro_state', JSON.stringify({
         models: this.models,
-        memory: { patterns: (this.memory?.patterns || []).slice(-100), correlations: this.memory?.correlations || {} },
+        memory: { patterns: this.memory.patterns.slice(-100), correlations: this.memory.correlations },
         performance: this.performance,
-        horizons: this.predictions?.byHorizon || {}
+        horizons: this.predictions.byHorizon
       }));
     } catch (e) {}
-
-    // Firestore (debounced) when authenticated / allowed
-    if (!this._shouldUseFirestore()) return;
-    const uid = this._getUid();
-    if (!uid) return;
-
-    const payload = this._buildPersistPayload();
-    return this._queueFirestoreSave(uid, payload);
-  },
-
-
-  // Optional manual migration from legacy global docs (ai/pro_*) to per-UID namespace.
-  // Disabled by default to avoid importing untrusted global data in a public deployment.
-  // Enable by setting: localStorage.setItem('ai_pro_allow_legacy_migrate','1')
-  async migrateLegacyGlobalToUser() {
-    try {
-      if (!this._shouldUseFirestore()) return false;
-      const uid = this._getUid();
-      if (!uid) return false;
-      if (localStorage.getItem('ai_pro_allow_legacy_migrate') !== '1') {
-        console.warn('[AI-PRO] Legacy migration blocked (set ai_pro_allow_legacy_migrate=1)');
-        return false;
-      }
-
-      const { doc, getDoc, setDoc } = window.AILearning.firestore;
-
-      // Read legacy global docs
-      const legacyModels = await getDoc(doc(this.db, 'ai', 'pro_models'));
-      const legacyMemory = await getDoc(doc(this.db, 'ai', 'pro_memory'));
-      const legacyPerf = await getDoc(doc(this.db, 'ai', 'pro_performance'));
-      const legacyHorizons = await getDoc(doc(this.db, 'ai', 'pro_horizons'));
-      const legacyPending = await getDoc(doc(this.db, 'ai', 'pro_pending'));
-
-      const payload = {
-        modelsData: legacyModels.exists() ? (legacyModels.data() || {}) : {},
-        memoryData: legacyMemory.exists() ? (legacyMemory.data() || {}) : {},
-        performanceData: legacyPerf.exists() ? (legacyPerf.data() || {}) : {},
-        horizonsData: legacyHorizons.exists() ? (legacyHorizons.data() || {}) : {},
-        pendingData: legacyPending.exists() ? (legacyPending.data() || {}) : { pending: [], updatedAt: Date.now() }
-      };
-
-      // Write into per-UID namespace
-      await setDoc(this._docRef('pro_models', uid), payload.modelsData);
-      await setDoc(this._docRef('pro_memory', uid), payload.memoryData);
-      await setDoc(this._docRef('pro_performance', uid), payload.performanceData);
-      await setDoc(this._docRef('pro_horizons', uid), payload.horizonsData);
-      await setDoc(this._docRef('pro_pending', uid), payload.pendingData);
-
-      console.log('[AI-PRO] Legacy migration completed into aiUsers/' + uid + '/engine');
-      return true;
-    } catch (e) {
-      console.warn('[AI-PRO] Legacy migration failed:', e);
-      return false;
-    }
   },
 
   // ============================================
@@ -2193,23 +2187,15 @@ getCurrentMarketState() {
 // ============================================
 // 🚀 AUTO-INITIALIZE
 // ============================================
-(function() {
-  // Prevent duplicate engine instances (e.g., script included twice)
-  if (window.AIEnginePro && (window.AIEnginePro.isReady || window.AIEnginePro._initInProgress)) {
-    console.log('[AI-PRO] AI Engine PRO already initialized - skipping duplicate load');
-    return;
-  }
-
-  // Export for global access
-  window.AIEnginePro = AIEnginePro;
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(() => AIEnginePro.init(), 2000);
-    });
-  } else {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => AIEnginePro.init(), 2000);
-  }
-})();
+  });
+} else {
+  setTimeout(() => AIEnginePro.init(), 2000);
+}
+
+// Export for global access
+window.AIEnginePro = AIEnginePro;
 
 console.log('[AI-PRO] AI Engine PRO v1.6.9 loaded (always-active mode)');
