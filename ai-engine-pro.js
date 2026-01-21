@@ -1521,15 +1521,41 @@ const AIEnginePro = {
         console.log('[AI-PRO] State loaded from localStorage');
       }
     } catch (e) {}
-  },
-
-  async saveState() {
+  },  async saveState() {
     const uid = window.AILearning?.user?.uid;
 
     if (this.db && uid) {
       try {
         const { doc, setDoc } = window.AILearning.firestore;
         const ref = (id) => doc(this.db, 'aiUsers', uid, 'engine', id);
+
+        // Firestore does not accept `undefined` anywhere in the payload.
+        // Clean objects deeply to prevent "Unsupported field value: undefined".
+        const cleanFS = (value) => {
+          const seen = new WeakSet();
+          const _clean = (v) => {
+            if (v === undefined) return null;
+            if (v === null) return null;
+            const t = typeof v;
+            if (t === 'number') return Number.isFinite(v) ? v : null;
+            if (t === 'string' || t === 'boolean') return v;
+            if (t === 'function' || t === 'symbol') return null;
+            if (v instanceof Date) return v.toISOString();
+            if (Array.isArray(v)) return v.map(_clean);
+            if (t === 'object') {
+              if (seen.has(v)) return null;
+              seen.add(v);
+              const out = {};
+              for (const [k, val] of Object.entries(v)) {
+                if (val === undefined) continue; // omit undefined keys
+                out[k] = _clean(val);
+              }
+              return out;
+            }
+            return null;
+          };
+          return _clean(value);
+        };
 
         const modelsData = {};
         for (const [name, model] of Object.entries(this.models)) {
@@ -1540,23 +1566,23 @@ const AIEnginePro = {
             correct: model.correct
           };
         }
-        await setDoc(ref('pro_models'), modelsData);
+        await setDoc(ref('pro_models'), cleanFS(modelsData));
 
-        await setDoc(ref('pro_memory'), {
+        await setDoc(ref('pro_memory'), cleanFS({
           patterns: this.memory.patterns.slice(-500),
           correlations: this.memory.correlations,
           updatedAt: new Date().toISOString()
-        });
+        }));
 
-        await setDoc(ref('pro_performance'), this.performance);
-        await setDoc(ref('pro_horizons'), this.predictions.byHorizon);
+        await setDoc(ref('pro_performance'), cleanFS(this.performance));
+        await setDoc(ref('pro_horizons'), cleanFS(this.predictions.byHorizon));
 
         // Save pending predictions
         const persistMax = this.config.maxPending || 25;
-        await setDoc(ref('pro_pending'), {
+        await setDoc(ref('pro_pending'), cleanFS({
           pending: this.predictions.pending.slice(-persistMax),
           updatedAt: Date.now()
-        });
+        }));
 
       } catch (e) {
         console.warn('[AI-PRO] Firestore save failed:', e);
