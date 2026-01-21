@@ -2559,8 +2559,13 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       state.rsiHistory = [];
       state.obvHistory = [];
       
-      // Reconectar WebSocket con nuevo timeframe
-      if (ws) ws.close();
+      // Reconectar WebSocket con nuevo timeframe (manual close: avoids duplicate reconnects)
+      closeWsGracefully('timeframe-change');
+      if (candleSeries) candleSeries.setData([]);
+      if (ema9Series) ema9Series.setData([]);
+      if (ema21Series) ema21Series.setData([]);
+      if (trendLineUp) trendLineUp.setData([]);
+      if (trendLineDown) trendLineDown.setData([]);
       fetchHistoricalData();
       connectAPI();
       
@@ -2719,6 +2724,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     }
     // --- CHART ---
     let chart, candleSeries, trendLineUp, trendLineDown, ema9Series, ema21Series;
+    let isChartInteracting = false;
     let supportLines = [], resistanceLines = [], fiboLines = [];
     function initChart() {
       const container = document.getElementById('chartContainer');
@@ -2747,6 +2753,19 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           }
         }
       });
+
+      // Interaction guard: pause expensive UI work while user drags/zooms the chart
+      const markChartInteract = () => {
+        isChartInteracting = true;
+        if (markChartInteract._t) clearTimeout(markChartInteract._t);
+        markChartInteract._t = setTimeout(() => { isChartInteracting = false; }, 400);
+      };
+      container.addEventListener('pointerdown', markChartInteract, { passive: true });
+      container.addEventListener('wheel', markChartInteract, { passive: true });
+      container.addEventListener('pointermove', () => { if (isChartInteracting) markChartInteract(); }, { passive: true });
+      window.addEventListener('pointerup', () => { isChartInteracting = false; }, { passive: true });
+      window.addEventListener('blur', () => { isChartInteracting = false; }, { passive: true });
+
       candleSeries = chart.addCandlestickSeries({
         upColor: '#00ff88', downColor: '#ff4466',
         borderUpColor: '#00ff88', borderDownColor: '#ff4466',
@@ -5847,6 +5866,31 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     let wsReconnectAttempts = 0;
     let wsReconnectTimer = null;
 
+    // Manual close flag: prevents duplicate reconnects on intentional close (e.g., timeframe switch)
+    let wsManualClose = false;
+
+    function closeWsGracefully(reason) {
+      try {
+        wsManualClose = true;
+        wsResetReconnect();
+        if (ws) {
+          try {
+            ws.onopen = null;
+            ws.onmessage = null;
+            ws.onerror = null;
+            ws.onclose = null;
+          } catch (_) {}
+          try {
+            ws.close(1000, reason || 'manual');
+          } catch (_) {
+            try { ws.close(); } catch (_) {}
+          }
+          ws = null;
+        }
+      } catch (_) {}
+    }
+
+
     function wsNextDelayMs() {
       const base = 800;        // ms
       const cap  = 30000;      // ms
@@ -5864,6 +5908,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     }
 
     function wsScheduleReconnect(reason) {
+      if (wsManualClose) {
+        console.warn('[WS] Manual close - reconnect suppressed', reason || '');
+        return;
+      }
       if (wsReconnectTimer) return;
       wsReconnectAttempts = Math.min(wsReconnectAttempts + 1, 10);
       const delay = wsNextDelayMs();
@@ -5876,9 +5924,11 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       }, delay);
     }
     function getWsUrl() {
-      return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@100ms/xrpusdt@ticker/xrpusdt@aggTrade`;
+      return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@1000ms/xrpusdt@ticker/xrpusdt@aggTrade`;
     }
     function connectAPI() {
+      // reconnect path
+      wsManualClose = false;
       ui.statusText.innerText = 'CONNECTING...';
       ui.statusPill.className = 'status-pill';
       
@@ -5890,10 +5940,16 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           ws.onmessage = null;
           ws.onerror = null;
           ws.onclose = null;
+          wsManualClose = true;
           ws.close();
         } catch (_) {}
         ws = null;
       }
+      wsManualClose = false;
+
+      // Throttle prediction engine on ticker updates (prevents main-thread saturation)
+      const PREDICT_TICK_MS = 300;
+      let lastPredictTick = 0;
 
       ws = new WebSocket(wsUrl);
       ws.onopen = () => {
@@ -5905,7 +5961,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       
       // ============================================
       // PERF GUARD: Throttle heavy depth (order book) renders
-      // depth20@100ms can saturate CPU/DOM and freeze the tab over time.
+      // depth20@1000ms can saturate CPU/DOM and freeze the tab over time.
       // ============================================
       const OB_RENDER_MS = 250;     // UI refresh cap for order book
       let obPending = null;
@@ -5927,6 +5983,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           if (!obPending) return;
           const pending = obPending;
           obPending = null;
+
+          if (isChartInteracting) { return; }
 
           // Spoof detection (cooldown to avoid alert spam)
           const spoofDetected = detectSpoofing(pending.bids, pending.asks);
@@ -5979,9 +6037,13 @@ ws.onmessage = (event) => {
           ui.priceChange.innerHTML = `<span class="${change >= 0 ? 'c-green' : 'c-red'}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`;
           ui.volume.innerText = (volume / 1000000).toFixed(2) + 'M';
           
-          if (state.candles.length > 0) {
+          {
+          const nowT = Date.now();
+          if (!isChartInteracting && state.candles.length > 0 && (nowT - lastPredictTick) >= PREDICT_TICK_MS) {
+            lastPredictTick = nowT;
             runPredictionEngine(price);
           }
+        }
         }
         if (stream.includes('depth')) {
           scheduleOrderBookRender(data.bids, data.asks);
@@ -6129,6 +6191,12 @@ ws.onmessage = (event) => {
     // ============================================
     window.addEventListener('DOMContentLoaded', () => {
       console.log('ORACULUM OkrtSystem Labs - INITIALIZING...');
+
+      // Close sockets cleanly when the tab is being unloaded (prevents reconnect loops)
+      window.addEventListener('beforeunload', () => { closeWsGracefully('unload'); }, { once: true });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') { closeWsGracefully('hidden'); }
+      });
       
       // Initialize AI Learning System
       AILearning.init().then(() => {
