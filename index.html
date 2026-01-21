@@ -1906,8 +1906,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       currentTimeframe: '1m',
       predictionHistory: [],  // Historial de aciertos/fallos
       exportData: []          // Datos para exportar
+    ,_lastSpoofAlertTs: 0
+    ,_lastWhaleVoiceTs: 0
     };
-    // Exponer estado global para módulos externos (AI Engine PRO, feeds, etc.)
+// Exponer estado global para módulos externos (AI Engine PRO, feeds, etc.)
     // Mantiene compatibilidad con auto-prediction y evita valores undefined en window.state.*
     window.state = state;
     // --- AUDIO CONTEXT para alertas sonoras ---
@@ -5780,7 +5782,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         
         if (state.candles.length > 0) {
           state.currentPrice = state.candles[state.candles.length - 1].close;
-          runPredictionEngine(state.currentPrice);
+          runPredictionEngineGuarded(state.currentPrice, true);
         }
         
         // Ajustar zoom inicial - mostrar ltimas 50 velas para mejor visibilidad
@@ -5804,6 +5806,74 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     function getWsUrl() {
       return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@100ms/xrpusdt@ticker/xrpusdt@aggTrade`;
     }
+    // === PERF GUARDS: render gating (auto) ===
+    // Objetivo: evitar congelaciones por exceso de trabajo en el hilo UI (DOM churn + cálculo intensivo)
+    // sin cambiar el comportamiento funcional.
+    const Guards = (() => {
+      const state = {
+        lastTickerUI: 0,
+        lastCvdUI: 0,
+        lastOrderBookUI: 0,
+        lastEngine: 0,
+        lastSpoofAlert: 0
+      };
+      const now = () => Date.now();
+      return {
+        shouldTickerUI() {
+          const t = now();
+          const min = Performance.liteMode ? 500 : 200; // ms
+          if (t - state.lastTickerUI < min) return false;
+          state.lastTickerUI = t; return true;
+        },
+        shouldCvdUI() {
+          const t = now();
+          const min = Performance.liteMode ? 700 : 250;
+          if (t - state.lastCvdUI < min) return false;
+          state.lastCvdUI = t; return true;
+        },
+        shouldOrderBookUI() {
+          const t = now();
+          const min = Performance.liteMode ? 900 : 300;
+          if (t - state.lastOrderBookUI < min) return false;
+          state.lastOrderBookUI = t; return true;
+        },
+        shouldEngine(force = false) {
+          const t = now();
+          const min = Performance.liteMode ? 1400 : 650;
+          if (!force and (t - state.lastEngine < min)) return false;
+          state.lastEngine = t; return true;
+        },
+        spoofCooldownOk() {
+          const t = now();
+          if (t - state.lastSpoofAlert < 60000) return false; // 60s
+          state.lastSpoofAlert = t; return true;
+        }
+      };
+    })();
+
+    function updateTickerUI(price, change, volume) {
+      ui.price.innerText = price.toFixed(4);
+      ui.midPrice.innerText = price.toFixed(4);
+      ui.priceChange.innerHTML = `<span class="${change >= 0 ? 'c-green' : 'c-red'}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`;
+      ui.volume.innerText = (volume / 1000000).toFixed(2) + 'M';
+    }
+
+    function updateCvdUI() {
+      ui.cvdText.innerHTML = `CVD: <span class="${state.cvd >= 0 ? 'c-green' : 'c-red'}">${state.cvd >= 0 ? '+' : ''}${(state.cvd / 1000).toFixed(1)}K</span>`;
+    }
+
+    function runPredictionEngineGuarded(price, force = false) {
+      if (!Guards.shouldEngine(force)) return;
+      // Batch DOM updates for UI sections produced inside runPredictionEngine
+      // (el propio motor ya escribe en UI; al menos evitamos ejecutarlo demasiado)
+      runPredictionEngine(price);
+    }
+
+    function updateOrderBookGuarded(bids, asks) {
+      if (!Guards.shouldOrderBookUI()) return;
+      Performance.scheduleUpdate('orderbook', () => updateOrderBook(bids, asks));
+    }
+
     function connectAPI() {
       ui.statusText.innerText = 'CONNECTING...';
       ui.statusPill.className = 'status-pill';
@@ -5834,7 +5904,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           if (k.x) {
             state.candles.push(candle);
             if (state.candles.length > CONFIG.HISTORY_SIZE) state.candles.shift();
-            runPredictionEngine(candle.close);
+            runPredictionEngineGuarded(candle.close, true);
             // Actualizar EMAs y lneas de tendencia cuando se cierra una vela
             updateEMAs();
             updateTrendLines();
@@ -5844,29 +5914,24 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           const price = parseFloat(data.c);
           const change = parseFloat(data.P);
           const volume = parseFloat(data.q);
-          
+
           state.currentPrice = price;
           state.price = price; // Mantener ambos para compatibilidad
-          
-          ui.price.innerText = price.toFixed(4);
-          ui.midPrice.innerText = price.toFixed(4);
-          ui.priceChange.innerHTML = `<span class="${change >= 0 ? 'c-green' : 'c-red'}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`;
-          ui.volume.innerText = (volume / 1000000).toFixed(2) + 'M';
-          
+
+          // UI throttled
+          if (Guards.shouldTickerUI()) {
+            updateTickerUI(price, change, volume);
+          }
+
+          // AI Engine throttled
           if (state.candles.length > 0) {
-            runPredictionEngine(price);
+            runPredictionEngineGuarded(price);
           }
         }
         if (stream.includes('depth')) {
-          // Spoof detection
-          const spoofDetected = detectSpoofing(data.bids, data.asks);
-          ui.spoofWarning.style.display = spoofDetected ? 'inline' : 'none';
-          if (spoofDetected) {
-            addAlert('Potential SPOOFING detected in order book!', 'warning');
-          }
-          
+          // Guardar el último snapshot. Renderizado throttled (evita congelaciones por DOM churn a 100ms)
           state.lastOrderBook = { bids: data.bids, asks: data.asks };
-          updateOrderBook(data.bids, data.asks);
+          updateOrderBookGuarded(data.bids, data.asks);
         }
         if (stream.includes('aggtrade') || stream.includes('aggTrade')) {
           const qty = parseFloat(data.q);
@@ -5874,7 +5939,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           const isBuy = !data.m;
           
           state.cvd += isBuy ? qty : -qty;
-          ui.cvdText.innerHTML = `CVD: <span class="${state.cvd >= 0 ? 'c-green' : 'c-red'}">${state.cvd >= 0 ? '+' : ''}${(state.cvd / 1000).toFixed(1)}K</span>`;
+          if (Guards.shouldCvdUI()) updateCvdUI();
           
           if (qty >= CONFIG.WHALE_THRESHOLD) {
             addWhaleAlert(qty, price, isBuy, 'BINANCE');
@@ -5893,68 +5958,163 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         setTimeout(connectAPI, 3000);
       };
     }
-    function updateOrderBook(bids, asks) {
-      ui.bids.innerHTML = '';
-      ui.asks.innerHTML = '';
-      
-      let totalBidVol = 0, totalAskVol = 0;
-      let walls = [];
-      const reversedAsks = asks.slice(0, 7).reverse();
-      for (const ask of reversedAsks) {
-        const price = parseFloat(ask[0]);
-        const vol = parseFloat(ask[1]);
-        totalAskVol += vol;
-        if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'SELL', price, vol });
-        
-        const row = document.createElement('div');
-        row.className = 'ob-row ob-ask';
-        row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
-        if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(255,68,102,0.15)';
-        ui.asks.appendChild(row);
-      }
-      for (let i = 0; i < 7 && i < bids.length; i++) {
-        const price = parseFloat(bids[i][0]);
-        const vol = parseFloat(bids[i][1]);
-        totalBidVol += vol;
-        if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'BUY', price, vol });
-        
-        const row = document.createElement('div');
-        row.className = 'ob-row ob-bid';
-        row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
-        if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(0,255,136,0.15)';
-        ui.bids.appendChild(row);
-      }
-      const total = totalBidVol + totalAskVol;
-      if (total > 0) {
-        const bidPct = (totalBidVol / total) * 100;
-        ui.liqBarBid.style.width = bidPct + '%';
-        ui.liqBarAsk.style.width = (100 - bidPct) + '%';
-        
-        const dominant = bidPct > 55 ? 'BULLS' : (bidPct < 45 ? 'BEARS' : 'BALANCED');
-        const domColor = bidPct > 55 ? 'c-green' : (bidPct < 45 ? 'c-red' : '');
-        ui.liqText.innerHTML = `<span class="${domColor}"><strong>${dominant}</strong></span> ${bidPct.toFixed(0)}% / ${(100-bidPct).toFixed(0)}%`;
-        
-        const imbalance = ((totalBidVol - totalAskVol) / total) * 100;
-        document.getElementById('obValue').innerText = imbalance.toFixed(1) + '%';
-        const obEl = document.getElementById('obSignal');
-        
-        if (imbalance > 15) {
-          obEl.className = 'indicator-signal signal-buy'; obEl.innerText = 'BUY WALL';
-        } else if (imbalance < -15) {
-          obEl.className = 'indicator-signal signal-sell'; obEl.innerText = 'SELL WALL';
-        } else {
-          obEl.className = 'indicator-signal signal-neutral'; obEl.innerText = 'BALANCED';
-        }
-      }
-      ui.wallDetection.innerHTML = '';
-      walls.slice(0, 2).forEach(wall => {
-        const div = document.createElement('div');
-        div.className = 'wall-indicator';
-        div.innerHTML = `<span class="${wall.type === 'BUY' ? 'c-green' : 'c-red'}"> ${wall.type}</span> @ ${wall.price.toFixed(4)} (${(wall.vol/1000).toFixed(0)}K)`;
-        ui.wallDetection.appendChild(div);
-      });
+    
+
+function updateOrderBook(bids, asks) {
+  // Spoof detection (cooldown + render-gated)
+  const spoofDetected = detectSpoofing(bids, asks);
+  ui.spoofWarning.style.display = spoofDetected ? 'inline' : 'none';
+  if (spoofDetected && (typeof Guards !== 'undefined') && Guards.spoofCooldownOk()) {
+    addAlert('Potential SPOOFING detected in order book!', 'warning');
+  }
+
+  let totalBidVol = 0, totalAskVol = 0;
+  let walls = [];
+
+  // Render order book rows using DocumentFragment to reduce layout thrash
+  const asksFrag = document.createDocumentFragment();
+  const bidsFrag = document.createDocumentFragment();
+
+  const reversedAsks = asks.slice(0, 7).reverse();
+  for (const ask of reversedAsks) {
+    const price = parseFloat(ask[0]);
+    const vol = parseFloat(ask[1]);
+    totalAskVol += vol;
+    if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'SELL', price, vol });
+
+    const row = document.createElement('div');
+    row.className = 'ob-row ob-ask';
+    row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
+    if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(255,68,102,0.15)';
+    asksFrag.appendChild(row);
+  }
+
+  for (let i = 0; i < 7 && i < bids.length; i++) {
+    const price = parseFloat(bids[i][0]);
+    const vol = parseFloat(bids[i][1]);
+    totalBidVol += vol;
+    if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'BUY', price, vol });
+
+    const row = document.createElement('div');
+    row.className = 'ob-row ob-bid';
+    row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
+    if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(0,255,136,0.15)';
+    bidsFrag.appendChild(row);
+  }
+
+  // Commit DOM in a single step
+  if (ui.asks.replaceChildren) ui.asks.replaceChildren(asksFrag);
+  else { ui.asks.innerHTML = ''; ui.asks.appendChild(asksFrag); }
+  if (ui.bids.replaceChildren) ui.bids.replaceChildren(bidsFrag);
+  else { ui.bids.innerHTML = ''; ui.bids.appendChild(bidsFrag); }
+
+  const total = totalBidVol + totalAskVol;
+  if (total > 0) {
+    const bidPct = (totalBidVol / total) * 100;
+    ui.liqBarBid.style.width = bidPct + '%';
+    ui.liqBarAsk.style.width = (100 - bidPct) + '%';
+
+    const dominant = bidPct > 55 ? 'BULLS' : (bidPct < 45 ? 'BEARS' : 'BALANCED');
+    const domColor = bidPct > 55 ? 'c-green' : (bidPct < 45 ? 'c-red' : '');
+    ui.liqText.innerHTML = `<span class="${domColor}"><strong>${dominant}</strong></span> ${bidPct.toFixed(0)}% / ${(100-bidPct).toFixed(0)}%`;
+
+    const imbalance = ((totalBidVol - totalAskVol) / total) * 100;
+    document.getElementById('obValue').innerText = imbalance.toFixed(1) + '%';
+    const obEl = document.getElementById('obSignal');
+
+    if (imbalance > 15) {
+      obEl.className = 'indicator-signal signal-buy'; obEl.innerText = 'BUY WALL';
+    } else if (imbalance < -15) {
+      obEl.className = 'indicator-signal signal-sell'; obEl.innerText = 'SELL WALL';
+    } else {
+      obEl.className = 'indicator-signal signal-neutral'; obEl.innerText = 'BALANCED';
     }
-    function addWhaleAlert(qty, price, isBuy, exchange = 'BINANCE') {
+  }
+
+  // Walls panel (small; safe to rebuild)
+  ui.wallDetection.innerHTML = '';
+  walls.slice(0, 2).forEach(wall => {
+    const div = document.createElement('div');
+    div.className = 'wall-indicator';
+    div.innerHTML = `<span class="${wall.type === 'BUY' ? 'c-green' : 'c-red'}"> ${wall.type}</span> @ ${wall.price.toFixed(4)} (${(wall.vol/1000).toFixed(0)}K)`;
+    ui.wallDetection.appendChild(div);
+  });
+}
+
+  let totalBidVol = 0, totalAskVol = 0;
+  let walls = [];
+
+  const asksFrag = document.createDocumentFragment();
+  const bidsFrag = document.createDocumentFragment();
+
+  const reversedAsks = asks.slice(0, 7).reverse();
+  for (const ask of reversedAsks) {
+    const price = parseFloat(ask[0]);
+    const vol = parseFloat(ask[1]);
+    totalAskVol += vol;
+    if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'SELL', price, vol });
+
+    const row = document.createElement('div');
+    row.className = 'ob-row ob-ask';
+    row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
+    if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(255,68,102,0.15)';
+    asksFrag.appendChild(row);
+  }
+
+  for (let i = 0; i < 7 && i < bids.length; i++) {
+    const price = parseFloat(bids[i][0]);
+    const vol = parseFloat(bids[i][1]);
+    totalBidVol += vol;
+    if (vol >= CONFIG.WALL_THRESHOLD) walls.push({ type: 'BUY', price, vol });
+
+    const row = document.createElement('div');
+    row.className = 'ob-row ob-bid';
+    row.innerHTML = `<span>${price.toFixed(4)}</span><span>${(vol/1000).toFixed(1)}K</span>`;
+    if (vol >= CONFIG.WALL_THRESHOLD) row.style.background = 'rgba(0,255,136,0.15)';
+    bidsFrag.appendChild(row);
+  }
+
+  // Replace children in one shot to minimize layout thrash
+  ui.asks.replaceChildren(asksFrag);
+  ui.bids.replaceChildren(bidsFrag);
+
+  const total = totalBidVol + totalAskVol;
+  if (total > 0) {
+    const bidPct = (totalBidVol / total) * 100;
+    ui.liqBarBid.style.width = bidPct + '%';
+    ui.liqBarAsk.style.width = (100 - bidPct) + '%';
+
+    const dominant = bidPct > 55 ? 'BULLS' : (bidPct < 45 ? 'BEARS' : 'BALANCED');
+    const domColor = bidPct > 55 ? 'c-green' : (bidPct < 45 ? 'c-red' : '');
+    ui.liqText.innerHTML = `<span class="${domColor}"><strong>${dominant}</strong></span> ${bidPct.toFixed(0)}% / ${(100-bidPct).toFixed(0)}%`;
+
+    const imbalance = ((totalBidVol - totalAskVol) / total) * 100;
+    document.getElementById('obValue').innerText = imbalance.toFixed(1) + '%';
+    const obEl = document.getElementById('obSignal');
+
+    if (imbalance > 15) {
+      obEl.className = 'indicator-signal signal-buy';
+      obEl.innerText = 'BUY WALL';
+    } else if (imbalance < -15) {
+      obEl.className = 'indicator-signal signal-sell';
+      obEl.innerText = 'SELL WALL';
+    } else {
+      obEl.className = 'indicator-signal signal-neutral';
+      obEl.innerText = 'BALANCED';
+    }
+  }
+
+  // Walls UI (small, so OK)
+  ui.wallDetection.innerHTML = '';
+  walls.slice(0, 2).forEach(wall => {
+    const div = document.createElement('div');
+    div.className = 'wall-indicator';
+    div.innerHTML = `<span class="${wall.type === 'BUY' ? 'c-green' : 'c-red'}"> ${wall.type}</span> @ ${wall.price.toFixed(4)} (${(wall.vol/1000).toFixed(0)}K)`;
+    ui.wallDetection.appendChild(div);
+  });
+}
+
+function addWhaleAlert(qty, price, isBuy, exchange = 'BINANCE') {
       state.whaleCount++;
       ui.whaleCount.innerText = state.whaleCount;
       
