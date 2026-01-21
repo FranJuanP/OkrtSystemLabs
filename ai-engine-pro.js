@@ -39,6 +39,7 @@ const AIEnginePro = {
     // Ensemble voting threshold
     ensembleThreshold: 0.40,
     
+    minHealthScore: 60, // Minimum feed health score (0-100) required for auto-prediction
     // Learning rates
     learningRate: 0.03,
     decayRate: 0.995,
@@ -187,6 +188,11 @@ const AIEnginePro = {
       profitFactor: 1.0,
       sharpeRatio: 0,
       maxDrawdown: 0
+    },
+    // STEP2: Outcome scoreboard (rolling, lightweight)
+    scoreboard: {
+      overall: { n: 0, win: 0, brier: 0, confAvg: 0 },
+      byHorizon: {}
     }
   },
 
@@ -223,6 +229,9 @@ const AIEnginePro = {
     
     // Load saved state
     await this.loadState();
+
+    // STEP2: ensure scoreboard structures exist (safe after load)
+    this._ensureScoreboard();
     
     // Start optimization loop
     this.startOptimizationLoop();
@@ -273,6 +282,28 @@ const AIEnginePro = {
       }
     }
   },
+
+  // ============================================
+  // 🧾 STEP2: SCOREBOARD INIT
+  // ============================================
+  _ensureScoreboard() {
+    if (!this.performance) this.performance = {};
+    if (!this.performance.scoreboard) {
+      this.performance.scoreboard = { overall: { n: 0, win: 0, brier: 0, confAvg: 0 }, byHorizon: {} };
+    }
+    if (!this.performance.scoreboard.overall) {
+      this.performance.scoreboard.overall = { n: 0, win: 0, brier: 0, confAvg: 0 };
+    }
+    if (!this.performance.scoreboard.byHorizon) {
+      this.performance.scoreboard.byHorizon = {};
+    }
+    for (const h of (this.config?.horizons || [])) {
+      if (!this.performance.scoreboard.byHorizon[h]) {
+        this.performance.scoreboard.byHorizon[h] = { n: 0, win: 0, brier: 0, confAvg: 0 };
+      }
+    }
+  },
+
 
   // ============================================
   // ✅ VALIDATE FEATURES (NEW)
@@ -1173,6 +1204,8 @@ const AIEnginePro = {
     this.predictions.pending = this.predictions.pending.filter(p => p.id !== pred.id);
     
     this.updatePerformance(pred);
+    // STEP2: outcome scoreboard (safe, lightweight)
+    this.updateScoreboard(pred);
     
     if (this.predictions.completed.length > 500) {
       this.predictions.completed = this.predictions.completed.slice(-500);
@@ -1252,6 +1285,64 @@ const AIEnginePro = {
   },
 
   // ============================================
+  // 🧾 STEP2: OUTCOME SCOREBOARD (rolling aggregates)
+  // ============================================
+  updateScoreboard(pred) {
+    try {
+      this._ensureScoreboard();
+      const sb = this.performance.scoreboard;
+
+      const y = pred?.outcome?.success ? 1 : 0;
+      const p0 = Number(pred?.ensemble?.confidence);
+      const p = Number.isFinite(p0) ? Math.max(0, Math.min(1, p0)) : 0.5;
+      const brier = (p - y) * (p - y);
+
+      // Overall
+      sb.overall.n += 1;
+      sb.overall.win += y;
+      sb.overall.brier += brier;
+      sb.overall.confAvg += p;
+
+      // Horizon-specific: use configured "autoMaxHorizon" for auto-preds; otherwise max horizon.
+      const h = (pred?.isAuto ? (this.config?.autoMaxHorizon || 15) : Math.max(...(this.config?.horizons || [15])));
+      if (!sb.byHorizon[h]) sb.byHorizon[h] = { n: 0, win: 0, brier: 0, confAvg: 0 };
+      sb.byHorizon[h].n += 1;
+      sb.byHorizon[h].win += y;
+      sb.byHorizon[h].brier += brier;
+      sb.byHorizon[h].confAvg += p;
+
+      // Keep numbers bounded (avoid unbounded growth if running for days)
+      const cap = 5000;
+      if (sb.overall.n > cap) {
+        // decay all aggregates to keep scale stable
+        const k = cap / sb.overall.n;
+        sb.overall.n = Math.round(sb.overall.n * k);
+        sb.overall.win = sb.overall.win * k;
+        sb.overall.brier = sb.overall.brier * k;
+        sb.overall.confAvg = sb.overall.confAvg * k;
+        for (const key of Object.keys(sb.byHorizon || {})) {
+          const bh = sb.byHorizon[key];
+          if (!bh || !bh.n) continue;
+          const kh = cap / bh.n;
+          bh.n = Math.round(bh.n * kh);
+          bh.win = bh.win * kh;
+          bh.brier = bh.brier * kh;
+          bh.confAvg = bh.confAvg * kh;
+        }
+      }
+
+      // Occasional log (low noise)
+      if ((sb.overall.n % 10) === 0) {
+        const winRate = sb.overall.n ? (sb.overall.win / sb.overall.n) : 0;
+        const b = sb.overall.n ? (sb.overall.brier / sb.overall.n) : 0;
+        const c = sb.overall.n ? (sb.overall.confAvg / sb.overall.n) : 0;
+        console.log(`[AI-PRO][STEP2] Scoreboard overall: win=${(winRate*100).toFixed(1)}% brier=${b.toFixed(3)} confAvg=${(c*100).toFixed(1)}% n=${sb.overall.n}`);
+      }
+    } catch (_) { /* no-op */ }
+  },
+
+
+  // ============================================
   // 🔄 AUTO-OPTIMIZATION
   // ============================================
   startOptimizationLoop() {
@@ -1319,6 +1410,17 @@ const AIEnginePro = {
   },
 
   generateAutoPrediction() {
+    // Feed health gate: skip auto-prediction if market data stream is degraded
+    try {
+      const fh = (window.state && window.state.feedHealth) ? window.state.feedHealth : null;
+      const score = (fh && typeof fh.score === 'number') ? fh.score : null;
+      const minH = this.config.minHealthScore ?? 60;
+      if (score !== null && score < minH) {
+        console.warn(`[AI-PRO] ⛔ Auto-prediction skipped: feed health ${score}% < ${minH}% (ws=${fh.ws || 'n/a'})`);
+        return;
+      }
+    } catch (_) { /* no-op */ }
+
     console.log('[AI-PRO] === Auto-prediction attempt ===');
     
     if (!this.isReady) {
