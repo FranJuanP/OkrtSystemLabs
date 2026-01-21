@@ -6022,11 +6022,18 @@ window.state = state;
       }
 
 ws.onmessage = (event) => {
-        const msg = JSON.parse
+        let msg;
+        try { msg = JSON.parse(event.data); } catch (e) { return; }
         try { state.feedHealth.lastBinanceMsg = Date.now(); } catch (_) {}
-(event.data);
-        const data = msg.data;
-        const stream = msg.stream;
+        const data = msg.data || msg;
+        const stream = String(
+          msg.stream ||
+          data.stream ||
+          msg.channel || data.channel ||
+          msg.event || data.event ||
+          msg.type || data.type ||
+          ''
+        );
         try {
           const nowTs = Date.now();
           if (stream && stream.includes('depth')) state.feedHealth.lastDepth = nowTs;
