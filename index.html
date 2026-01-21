@@ -5840,7 +5840,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         shouldEngine(force = false) {
           const t = now();
           const min = Performance.liteMode ? 1400 : 650;
-          if (!force and (t - state.lastEngine < min)) return false;
+          if (!force && (t - state.lastEngine < min)) return false;
           state.lastEngine = t; return true;
         },
         spoofCooldownOk() {
