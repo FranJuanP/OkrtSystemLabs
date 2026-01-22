@@ -636,10 +636,22 @@ const AIEnginePro = {
       const _microScore = (0.65 * _imb) + (0.35 * _div);
 
       // Apply only when confidence is in mid band or NEUTRAL (avoid destabilizing strong signals)
-      if (direction === 'NEUTRAL' && ((confidence >= 0.22 && confidence <= 0.65) || _confWindow)) {
-        const _gate = 0.14;
-        const _boostBase = 0.10;
-        const _boostVar = 0.18;
+      const _calWarm = (typeof _confCal === 'number' ? _confCal : confidence);
+const _rawWarm = (typeof _confRaw === 'number' ? _confRaw : confidence);
+
+// STEP 4.2 — Warm-up override:
+// When calibration is early/harsh (cal << raw) and microstructure is strong,
+// allow the NEUTRAL tiebreaker to act even if confidence is below activation floor.
+const _allowLowConf = (
+  (confidence < 0.22 && _rawWarm >= 0.28 && _calWarm < 0.22) ||
+  (confidence < 0.22 && Math.abs(_microScore) >= 0.22)
+);
+
+// Apply only when confidence is in mid band or NEUTRAL (avoid destabilizing strong signals)
+if (direction === 'NEUTRAL' && ((confidence >= 0.22 && confidence <= 0.65) || _confWindow || _allowLowConf)) {
+        const _gate = _allowLowConf ? 0.22 : 0.14;
+const _boostBase = _allowLowConf ? 0.06 : 0.10;
+const _boostVar = _allowLowConf ? 0.12 : 0.18;
         if (_microScore >= _gate) {
           direction = 'BULL';
           confidence = Math.min(0.95, confidence + _boostBase + Math.min(0.12, _microScore * _boostVar) + Math.max(0, _dImb) * 0.05);
