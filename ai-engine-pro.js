@@ -1444,6 +1444,81 @@ const _boostVar = _allowLowConf ? 0.12 : 0.18;
       this.saveState();
     }
   },
+  // ============================================
+  // 🧠 STEP5: FLOW CONTROL / VERIFICATION SWEEP
+  // Prevent "pending" saturation by verifying due horizons using a single lightweight scheduler.
+  // This avoids relying solely on long setTimeouts (can be throttled) and keeps the engine flowing.
+  // ============================================
+  _ensureVerificationLoop() {
+    if (this._verifLoopStarted) return;
+    this._verifLoopStarted = true;
+
+    // Run a sweep every 15s (cheap: pending <= ~30)
+    setInterval(() => {
+      try { this._runVerificationSweep(); } catch (e) { /* no-op */ }
+    }, 15000);
+
+    // First sweep shortly after boot
+    setTimeout(() => {
+      try { this._runVerificationSweep(); } catch (e) { /* no-op */ }
+    }, 7000);
+  },
+
+  _runVerificationSweep() {
+    if (!this.predictions || !Array.isArray(this.predictions.pending) || this.predictions.pending.length === 0) return;
+    const now = Date.now();
+    const price = window.state?.price;
+    if (!price) return;
+
+    const autoMax = this.config.autoMaxHorizon || 15;
+    const fullMax = Math.max(...(this.config.horizons || [15]));
+    const graceMs = 5000;
+
+    for (const pred of this.predictions.pending.slice()) {
+      if (!pred || !pred.id || !pred.timestamp || !pred.price) continue;
+      const maxH = pred.isAuto ? autoMax : fullMax;
+      const horizons = (this.config.horizons || []).filter(h => h <= maxH);
+
+      // Build a fast lookup of verified horizons
+      const verified = new Set((pred.verifications || []).map(v => v && v.horizon).filter(v => typeof v === 'number'));
+
+      for (const h of horizons) {
+        if (verified.has(h)) continue;
+        const dueAt = pred.timestamp + (h * 60000) + graceMs;
+        if (now >= dueAt) {
+          this.verifyProPrediction(pred.id, h);
+        }
+      }
+
+      // Safety: if an auto prediction exceeded its max horizon + 2min, force completion
+      if (pred.isAuto) {
+        const hardDue = pred.timestamp + ((autoMax + 2) * 60000);
+        if (now >= hardDue) {
+          // Ensure max horizon verification exists before completion
+          const hasMax = verified.has(autoMax);
+          if (!hasMax) {
+            this.verifyProPrediction(pred.id, autoMax);
+          } else {
+            // If for any reason it's still pending, complete it
+            try { this.completeProPrediction(pred); } catch (_) { /* no-op */ }
+          }
+        }
+      }
+    }
+
+    // If still saturated, purge very old auto predictions to keep the UI responsive
+    const maxPending = this.config.maxPending || 25;
+    if (this.predictions.pending.length > maxPending) {
+      const autoMaxMs = (autoMax + 5) * 60000;
+      const before = this.predictions.pending.length;
+      this.predictions.pending = this.predictions.pending.filter(p => !(p && p.isAuto && p.timestamp && (now - p.timestamp) > autoMaxMs));
+      const after = this.predictions.pending.length;
+      if (after < before) {
+        console.warn(`[AI-PRO] 🧹 FlowControl: purged ${before - after} stale auto predictions (pending ${after}/${maxPending})`);
+      }
+    }
+  },
+
 
   // ============================================
   // ⚖️ MODEL WEIGHT ADJUSTMENT
@@ -1668,15 +1743,21 @@ const _boostVar = _allowLowConf ? 0.12 : 0.18;
     }
     
     console.log('[AI-PRO] ✓ Price available:', price);
-    
+
+    // Start verification loop to prevent pending saturation
+    this._ensureVerificationLoop();
+
     // Don't generate if we have too many pending
     const maxPending = this.config.maxPending || 25;
+    if (this.predictions.pending.length >= maxPending) {
+      // Try to free slots by verifying overdue predictions (avoids getting stuck at 25/25)
+      this._runVerificationSweep();
+    }
     if (this.predictions.pending.length >= maxPending) {
       console.log('[AI-PRO] ⏸ Skipping: too many pending (' + this.predictions.pending.length + '/' + maxPending + ')');
       return;
     }
-    
-    const marketState = this.getCurrentMarketState();
+const marketState = this.getCurrentMarketState();
     console.log('[AI-PRO] Market state:', {
       price: marketState.price,
       hasIndicators: !!marketState.indicators && Object.keys(marketState.indicators || {}).length > 0,
