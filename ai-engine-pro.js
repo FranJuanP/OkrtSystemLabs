@@ -2535,7 +2535,8 @@ getCurrentMarketState() {
     console.log('[AI-PRO] Feature vector:', vector);
     console.log('[AI-PRO] Features extracted:', Object.keys(vector).length);
     return vector;
-  }
+  },
+
   // ============================================
   // 🧠 STEP 7 — EXPLAINABILITY ("WHY")
   // ============================================
