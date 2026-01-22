@@ -2,10 +2,15 @@
 
 <img width="600" height="900" alt="image" src="https://github.com/user-attachments/assets/f6c66d03-40dd-4da7-a961-dcb148a84af0" />
 
-## 🔴 Demo en vivo
+## 🔴 Demo live (experimental)
 
-Accede a la herramienta directamente desde aquí:  
+Accede a la demo en tiempo real de **XRP ORACULUM — AI ENGINE PRO**:  
 👉 https://franjuanp.github.io/OkrtSystemLabs/
+
+> ⚠️ **Demo experimental**  
+> Esta versión se ejecuta en tiempo real con datos de mercado reales y está sujeta a cambios, ajustes dinámicos y fases de aprendizaje.
+
+---
 
 **XRP ORACULUM** es una plataforma avanzada de análisis y predicción de mercado desarrollada por **OkrtSystem Labs**, diseñada para operar en tiempo real sobre criptomercados con un enfoque profesional, estable y explicable.
 
@@ -137,14 +142,25 @@ Probado en sesiones prolongadas (+540min) sin bloqueos.
 
 ---
 
-## 🧪 Aviso
+## ⚠️ Aviso de uso
 
-Este proyecto **no es una herramienta de trading automático**.  
-Es un sistema de **análisis, apoyo a la decisión y aprendizaje de mercado**.
+Este proyecto **NO es una herramienta de trading automático** ni emite recomendaciones financieras.
+
+**XRP ORACULUM** y **AI ENGINE PRO** son sistemas de:
+- análisis de mercado,
+- apoyo a la toma de decisiones,
+- investigación y aprendizaje de comportamiento de precios.
+
+Las señales, predicciones y niveles mostrados **no deben interpretarse como consejo financiero**.  
+El usuario es el único responsable de cualquier decisión de inversión que tome.
+
+> En muchos casos, la decisión correcta del motor será **NEUTRAL**.  
+> La ausencia de señal también es una señal.
+
 
 ---
 
-## 🧬 OkrtSystem Labs
+## 🧬 OkrtSystem Labs © 
 
 Investigación aplicada en:
 - Inteligencia Artificial
@@ -154,4 +170,4 @@ Investigación aplicada en:
 
 <img width="200" height="200" alt="image" src="https://github.com/user-attachments/assets/3bf1b716-6486-479c-82df-2391cf1f1ffb" />
 
-   © OkrtSystem Labs 
+ 
