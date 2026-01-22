@@ -79,7 +79,7 @@ Documentos del motor (por usuario):
 ### Intelligent Market Analysis Engine  
 **by OkrtSystem Labs**
 
-![AI ENGINE PRO](./docs/images/ai-engine-pro.png)
+![AI ENGINE PRO](./docs/images/ai-engine-prov2.png)
 
 ---
 
