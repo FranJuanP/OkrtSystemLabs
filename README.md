@@ -54,7 +54,7 @@ AI ENGINE PRO se ejecuta en modo *always-active* y está compuesto por los sigui
 ## 📊 Panel AI ENGINE PRO — Guía de interpretación
 
 
-<img width="970" height="373" alt="ai_enfine_prov2" src="https://github.com/user-attachments/assets/794325a5-63b2-4d20-9106-71f5159a04f8" />
+<img width="979" height="393" alt="Captura de pantalla 2026-01-22 195105" src="https://github.com/user-attachments/assets/81e7aeed-951b-4625-a427-56633c6885cd" />
 
 
 ### 🔹 CURRENT SIGNAL
