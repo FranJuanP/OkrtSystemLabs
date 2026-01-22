@@ -584,6 +584,77 @@ const AIEnginePro = {
     const _confFinal = _applyCal ? _confCal : _confRaw;
     confidence = _confFinal;
 
+    // ============================================
+    // STEP 4 (MICRO + OBV DIVERGENCE) — NEUTRAL TIEBREAKER
+    // - No UI changes
+    // - Lightweight, guarded
+    // ============================================
+    try {
+      const _thr = (typeof threshold === 'number') ? threshold : (this.config?.minConfidence ?? 0.30);
+      const _confWindow = (confidence >= _thr && confidence <= 0.55);
+
+      // Market microstructure (already supported by feature map)
+      const _imb = this.getFeatureValue('order_imbalance', marketState) || 0; // [-1..1]
+      if (!this._micro) this._micro = { lastImb: _imb, lastTs: 0 };
+      const _dImb = (_imb - (this._micro.lastImb ?? _imb));
+      this._micro.lastImb = _imb;
+
+      // OBV divergence (computed from candles, independent from discrete obv.signal)
+      const _candles = this._candlesFromState(marketState) || [];
+      let _div = 0; // [-1..1]
+      if (_candles.length >= 25) {
+        const closes = _candles.map(c => this._getCandleClose(c)).filter(Number.isFinite);
+        const vols = _candles.map(c => this._getCandleVol(c)).filter(Number.isFinite);
+        const n = Math.min(closes.length, vols.length, 60);
+        const w = 14;
+
+        if (n >= w + 2) {
+          const cSlice = closes.slice(-n);
+          const vSlice = vols.slice(-n);
+
+          let obv = 0;
+          const obvSeries = [];
+          for (let i = 1; i < cSlice.length; i++) {
+            const dc = cSlice[i] - cSlice[i - 1];
+            const v = vSlice[i] || 0;
+            if (dc > 0) obv += v;
+            else if (dc < 0) obv -= v;
+            obvSeries.push(obv);
+          }
+
+          // simple slope via last-first / w
+          const priceSlope = (cSlice[cSlice.length - 1] - cSlice[cSlice.length - 1 - w]) / (Math.abs(cSlice[cSlice.length - 1 - w]) || 1);
+          const obvSlope = (obvSeries[obvSeries.length - 1] - obvSeries[obvSeries.length - 1 - w]) / (Math.abs(obvSeries[obvSeries.length - 1 - w]) || 1);
+
+          // divergence: price down & obv up => bullish; price up & obv down => bearish
+          if (priceSlope < -0.001 && obvSlope > 0.001) _div = Math.min(1, (Math.abs(priceSlope) + Math.abs(obvSlope)) * 2);
+          else if (priceSlope > 0.001 && obvSlope < -0.001) _div = -Math.min(1, (Math.abs(priceSlope) + Math.abs(obvSlope)) * 2);
+        }
+      }
+
+      // Combined score (prioritize micro imbalance; divergence adds confirmation)
+      const _microScore = (0.65 * _imb) + (0.35 * _div);
+
+      // Apply only when confidence is in mid band or NEUTRAL (avoid destabilizing strong signals)
+      if ((direction === 'NEUTRAL' && _confWindow) || (direction === 'NEUTRAL' && confidence >= _thr && confidence <= 0.65)) {
+        const _gate = 0.18;
+        if (_microScore >= _gate) {
+          direction = 'BULL';
+          confidence = Math.min(0.95, confidence + 0.06 + Math.min(0.10, _microScore * 0.20) + Math.max(0, _dImb) * 0.05);
+        } else if (_microScore <= -_gate) {
+          direction = 'BEAR';
+          confidence = Math.min(0.95, confidence + 0.06 + Math.min(0.10, Math.abs(_microScore) * 0.20) + Math.max(0, -_dImb) * 0.05);
+        }
+      } else if (direction === 'BULL' && _microScore < -0.30) {
+        // Contradiction damping (do not flip aggressively)
+        confidence = Math.max(0.05, confidence - 0.08);
+      } else if (direction === 'BEAR' && _microScore > 0.30) {
+        confidence = Math.max(0.05, confidence - 0.08);
+      }
+    } catch (e) {
+      // Never break core engine
+    }
+
     return {
       direction,
       confidence,
