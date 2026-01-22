@@ -21,6 +21,8 @@
 
 'use strict';
 
+// BUILD: STEP3CALIB_FIX1_20260122
+
 const AIEnginePro = {
   version: '1.6.9',
   isReady: false,
@@ -2322,3 +2324,16 @@ if (document.readyState === 'loading') {
 window.AIEnginePro = AIEnginePro;
 
 console.log('[AI-PRO] AI Engine PRO v1.6.9 loaded (always-active mode)');
+
+
+// --- Safety shim (non-invasive) ---
+try {
+  if (typeof AIEnginePro !== 'undefined') {
+    if (typeof AIEnginePro._calibrateProb !== 'function') {
+      AIEnginePro._calibrateProb = function(pRaw){ return pRaw; };
+    }
+    if (typeof AIEnginePro._ensureCalibration !== 'function') {
+      AIEnginePro._ensureCalibration = function(){};
+    }
+  }
+} catch(e) {}
