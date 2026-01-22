@@ -123,7 +123,7 @@ Esto convierte a AI ENGINE PRO en un sistema **auditable**, ideal para:
 - Persistencia segura en Firestore (scoped)
 - Sin dependencias de Service Workers
 
-Probado en sesiones prolongadas (+240 min) sin bloqueos.
+Probado en sesiones prolongadas (+540min) sin bloqueos.
 
 ---
 
