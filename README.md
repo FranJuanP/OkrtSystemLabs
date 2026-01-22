@@ -75,6 +75,188 @@ Documentos del motor (por usuario):
 - `pro_pending` — cola de predicciones (**cap 25**)
 
 ---
+# 🧠 AI ENGINE PRO  
+### Intelligent Market Analysis Engine  
+**by OkrtSystem Labs**
+
+![AI ENGINE PRO](./docs/images/ai-engine-pro.png)
+
+---
+
+## 🚀 ¿Qué es AI ENGINE PRO?
+
+**AI ENGINE PRO** es un motor avanzado de análisis predictivo asistido por inteligencia artificial, diseñado para **interpretar el contexto del mercado en tiempo real** y determinar si existe o no una **ventaja estadística real para operar**.
+
+No es un bot de trading automático.  
+No fuerza señales.  
+No “predice por predecir”.
+
+Su misión es clara:
+
+> **Operar solo cuando el mercado ofrece una ventaja medible.**
+
+---
+
+## 🧭 Filosofía del motor
+
+AI ENGINE PRO prioriza:
+- **Precisión sobre frecuencia**
+- **Disciplina sobre sobreoperar**
+- **Contexto sobre impulsos**
+
+Una señal **NEUTRAL** no es un fallo:  
+es una decisión consciente de **no asumir riesgo innecesario**.
+
+---
+
+## 🖥️ Guía de interpretación del panel
+
+### 1️⃣ CURRENT SIGNAL
+
+#### 🔹 Signal: BULL / BEAR / NEUTRAL
+Indica el **sesgo operativo recomendado** según el análisis conjunto del motor:
+
+- **BULL** → Ventaja estadística alcista
+- **BEAR** → Ventaja estadística bajista
+- **NEUTRAL** → No existe ventaja clara
+
+> NEUTRAL significa *“esperar”*, no *“dudar”*.
+
+---
+
+#### 🔹 Confidence (%)
+Nivel de **confianza estadística real** de la señal.
+
+- No es una promesa
+- No es una probabilidad teórica
+- Es una **confianza calibrada según resultados históricos verificados**
+
+---
+
+### 2️⃣ REGIME & SESSION
+
+#### 🔹 Regime
+Describe el **tipo de mercado detectado**:
+
+- **Ranging** → Mercado lateral, alta probabilidad de falsas señales
+- **Trending Up / Down** → Tendencia definida
+
+El motor **adapta su agresividad y umbrales** según el régimen.
+
+---
+
+#### 🔹 Session
+Identifica la **sesión activa** (US / EU / Asia), influyendo directamente en:
+- Volumen
+- Liquidez
+- Fiabilidad de señales
+
+---
+
+### 3️⃣ ACCURACY & PERFORMANCE
+
+#### 🔹 Accuracy
+Porcentaje de acierto **real y verificado**, no simulado.
+
+- Solo se calcula sobre predicciones cerradas
+- Refleja rendimiento histórico en condiciones reales
+
+> Un 52–55% sostenido es **muy sólido**, especialmente en mercados laterales.
+
+---
+
+#### 🔹 Completed / Pending
+- **Completed** → Predicciones ya verificadas
+- **Pending** → Predicciones en evaluación
+
+El sistema **limita deliberadamente** las predicciones pendientes para:
+- Evitar sobreoperar
+- Reducir ruido estadístico
+- Mantener estabilidad del motor
+
+---
+
+### 4️⃣ BEST HORIZONS
+
+Muestra los **marcos temporales donde el motor es más fiable**:
+
+Ejemplo:
+- **2m → 74%**
+- **5m → 64%**
+- **10m → 59%**
+- **15m → 55%**
+
+Permite al usuario:
+- Operar donde existe mayor ventaja
+- Evitar horizontes poco fiables en ese contexto
+
+---
+
+### 5️⃣ MODELS (Componentes del análisis)
+
+AI ENGINE PRO combina múltiples enfoques:
+
+- **Momentum** → Fuerza del movimiento
+- **Trend** → Dirección sostenida
+- **Volume** → Confirmación por participación
+- **Structure** → Soportes, resistencias, estructura de mercado
+- **MTF** → Coherencia entre marcos temporales
+- **Patterns** → Patrones aprendidos y verificados
+
+Cada porcentaje indica **peso y relevancia actual**, no un valor fijo.
+
+---
+
+### 6️⃣ LAST VERIFICATION
+
+Resultado de la última predicción cerrada:
+
+- Horizonte temporal
+- Resultado real (%)
+- ✔️ Acierto / ❌ Fallo
+
+Esto aporta **transparencia total** y autoauditoría continua.
+
+---
+
+### 7️⃣ LEARNING MODE
+
+Cuando aparece `LEARNING (XX)`:
+
+- El motor está **ajustando calibraciones internas**
+- Optimiza umbrales, confianza y pesos
+- Aprende del mercado **en tiempo real**
+
+> AI ENGINE PRO no repite reglas fijas. Evoluciona.
+
+---
+
+## 📌 Mensaje clave para el usuario
+
+> **AI ENGINE PRO no intenta predecir siempre.  
+> Intenta acertar cuando merece la pena.**
+
+Si la señal es **NEUTRAL**:
+- El mercado no ofrece ventaja
+- El riesgo supera al beneficio esperado
+- La mejor decisión puede ser **no operar**
+
+---
+
+## 🏁 Conclusión
+
+AI ENGINE PRO es una herramienta de **lectura del mercado**, no de impulsos.  
+Está diseñada para traders que valoran:
+- Disciplina
+- Contexto
+- Estadística real
+
+**Operar menos, pero mejor.**
+
+---
+
+© 2025–2026 **OkrtSystem Labs**  
+All rights reserved.
 
 
 ## Operativa y verificación
