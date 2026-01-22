@@ -636,14 +636,16 @@ const AIEnginePro = {
       const _microScore = (0.65 * _imb) + (0.35 * _div);
 
       // Apply only when confidence is in mid band or NEUTRAL (avoid destabilizing strong signals)
-      if ((direction === 'NEUTRAL' && _confWindow) || (direction === 'NEUTRAL' && confidence >= _thr && confidence <= 0.65)) {
-        const _gate = 0.18;
+      if (direction === 'NEUTRAL' && ((confidence >= 0.22 && confidence <= 0.65) || _confWindow)) {
+        const _gate = 0.14;
+        const _boostBase = 0.10;
+        const _boostVar = 0.18;
         if (_microScore >= _gate) {
           direction = 'BULL';
-          confidence = Math.min(0.95, confidence + 0.06 + Math.min(0.10, _microScore * 0.20) + Math.max(0, _dImb) * 0.05);
+          confidence = Math.min(0.95, confidence + _boostBase + Math.min(0.12, _microScore * _boostVar) + Math.max(0, _dImb) * 0.05);
         } else if (_microScore <= -_gate) {
           direction = 'BEAR';
-          confidence = Math.min(0.95, confidence + 0.06 + Math.min(0.10, Math.abs(_microScore) * 0.20) + Math.max(0, -_dImb) * 0.05);
+          confidence = Math.min(0.95, confidence + _boostBase + Math.min(0.12, Math.abs(_microScore) * _boostVar) + Math.max(0, -_dImb) * 0.05);
         }
       } else if (direction === 'BULL' && _microScore < -0.30) {
         // Contradiction damping (do not flip aggressively)
