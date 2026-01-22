@@ -1,4 +1,4 @@
-# 🔮 XRP ORACULUM — AI ENGINE PRO
+# 🔮 XRP ORACULUM · AI ENGINE PRO ·
 
 <img width="600" height="900" alt="image" src="https://github.com/user-attachments/assets/f6c66d03-40dd-4da7-a961-dcb148a84af0" />
 
