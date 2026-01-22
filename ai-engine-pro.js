@@ -1332,7 +1332,11 @@ const _boostVar = _allowLowConf ? 0.12 : 0.18;
     const marketState = this.getCurrentMarketState();
     const ensemble = this.generateEnsemblePrediction(marketState);
     
-    const proPrediction = {
+    
+    // STEP 7: Explainability (WHY)
+    const _why = this._buildWhy(ensemble, marketState);
+    this._renderWhy(_why);
+const proPrediction = {
       id: 'pro_' + baseId,
       baseId: baseId,
       timestamp: Date.now(),
@@ -1827,6 +1831,10 @@ const marketState = this.getCurrentMarketState();
       threshold: (_dynMinConf * 100).toFixed(0) + '%',
       passes: ensemble.confidence >= _dynMinConf
     });
+    // STEP 7: Explainability (WHY)
+    const _why = this._buildWhy(ensemble, marketState);
+    this._renderWhy(_why);
+
     
     // SIEMPRE registrar predicción si hay datos, aunque sea baja confianza
     // Solo skip si la confianza es extremadamente baja (<15%)
@@ -2528,6 +2536,151 @@ getCurrentMarketState() {
     console.log('[AI-PRO] Features extracted:', Object.keys(vector).length);
     return vector;
   }
+  // ============================================
+  // 🧠 STEP 7 — EXPLAINABILITY ("WHY")
+  // ============================================
+  _buildWhy(ensemble, marketState) {
+    try {
+      const dir = (ensemble && ensemble.direction) ? ensemble.direction : 'NEUTRAL';
+      const regime = (ensemble && ensemble.regime) ? ensemble.regime : (this.detectMarketRegime ? this.detectMarketRegime(marketState) : 'ranging');
+      const votes = ensemble && ensemble.votes ? ensemble.votes : { BULL: 0, BEAR: 0, NEUTRAL: 0 };
+
+      const regimeLabel = {
+        'trending_up': 'Trending up',
+        'trending_down': 'Trending down',
+        'ranging': 'Ranging',
+        'volatile': 'Volatile'
+      }[regime] || regime;
+
+      // Model contributions (support vs conflict)
+      const mp = (ensemble && ensemble.modelPredictions) ? ensemble.modelPredictions : {};
+      const modelMeta = this.models || {};
+      const entries = Object.keys(modelMeta).map(k => {
+        const p = mp[k] || { direction: 'NEUTRAL', confidence: 0.33 };
+        const w = (modelMeta[k]?.weight ?? 1) * (modelMeta[k]?.accuracy ?? 1);
+        const score = w * (p.confidence ?? 0.33) * (p.direction === dir ? 1 : 0.6);
+        return { key: k, dir: p.direction, conf: p.confidence ?? 0.33, weight: w, score };
+      });
+
+      const supporters = entries.filter(e => e.dir === dir).sort((a,b)=>b.score-a.score);
+      const dissenters = entries.filter(e => e.dir !== dir && e.dir !== 'NEUTRAL').sort((a,b)=>b.score-a.score);
+
+      // Friendly labels
+      const label = {
+        momentum: 'Momentum',
+        trend: 'Trend',
+        volume: 'Volume',
+        structure: 'Structure',
+        patterns: 'Patterns',
+        mtf: 'MTF'
+      };
+
+      // Build factor bullets (simple, human)
+      const factors = [];
+      factors.push(`Regime: ${regimeLabel}`);
+
+      // Core narrative based on dir
+      const topSup = supporters.slice(0, 2).map(e => `${label[e.key]||e.key} (${(e.conf*100).toFixed(0)}%)`);
+      const topDis = dissenters.slice(0, 2).map(e => `${label[e.key]||e.key}→${e.dir} (${(e.conf*100).toFixed(0)}%)`);
+
+      // Heuristics for "why" text
+      const sMomentum = mp.momentum?.confidence ?? null;
+      const sStructure = mp.structure?.confidence ?? null;
+      const sVolume = mp.volume?.confidence ?? null;
+      const sTrend = mp.trend?.confidence ?? null;
+      const sMtf = mp.mtf?.confidence ?? null;
+
+      const weak = [];
+      if (sMomentum !== null && sMomentum < 0.45) weak.push('momentum');
+      if (sVolume !== null && sVolume < 0.45) weak.push('volume');
+
+      const strong = [];
+      if (sStructure !== null && sStructure >= 0.55) strong.push('structure');
+      if (sMtf !== null && sMtf >= 0.55) strong.push('mtf');
+      if (sTrend !== null && sTrend >= 0.55) strong.push('trend');
+
+      let summary = '';
+      if (dir === 'NEUTRAL') {
+        if (regime === 'ranging') {
+          summary = 'NEUTRAL porque el mercado está lateral (ranging) y no hay consenso direccional suficiente.';
+        } else if (regime === 'volatile') {
+          summary = 'NEUTRAL porque la volatilidad es alta y el motor prioriza protección (señales mixtas).';
+        } else {
+          summary = 'NEUTRAL porque la evidencia direccional es insuficiente o contradictoria.';
+        }
+        if (strong.length && weak.length) {
+          summary += ` Estructura/MTF sugieren orden, pero ${weak.join(' y ')} no acompaña.`;
+        }
+      } else {
+        // directional
+        const d = dir === 'BULL' ? 'BULL' : 'BEAR';
+        if (regime === 'ranging') {
+          summary = `${d} pero con cautela: el régimen es lateral; se requiere confirmación sostenida.`;
+        } else if (regime === 'volatile') {
+          summary = `${d} con gestión de riesgo: volatilidad elevada.`;
+        } else {
+          summary = `${d} porque los modelos principales coinciden y el régimen acompaña.`;
+        }
+        if (topSup.length) summary += ` Claves: ${topSup.join(' + ')}.`;
+        if (topDis.length) summary += ` Contrapesos: ${topDis.join(', ')}.`;
+      }
+
+      // Add quantitative context
+      const vBull = (votes.BULL*100).toFixed(0);
+      const vBear = (votes.BEAR*100).toFixed(0);
+      const vNeu  = (votes.NEUTRAL*100).toFixed(0);
+      factors.push(`Votes: BULL ${vBull}% | BEAR ${vBear}% | NEUTRAL ${vNeu}%`);
+
+      if (topSup.length) factors.push(`Top supporters: ${topSup.join(', ')}`);
+      if (topDis.length) factors.push(`Top dissent: ${topDis.join(', ')}`);
+
+      // Market context (optional)
+      const ind = marketState?.indicators || {};
+      const rsi = ind.rsi?.value;
+      const adx = ind.adx?.value;
+      if (typeof adx === 'number') factors.push(`ADX: ${adx.toFixed(1)}`);
+      if (typeof rsi === 'number') factors.push(`RSI: ${rsi.toFixed(1)}`);
+
+      return { summary, factors, dir, regime, ts: Date.now() };
+    } catch (e) {
+      return { summary: 'WHY: (no disponible)', factors: [], ts: Date.now() };
+    }
+  },
+
+  _renderWhy(whyObj) {
+    try {
+      if (!whyObj) return;
+      // Store for external consumers
+      this.lastWhy = whyObj;
+      if (!window.state) window.state = {};
+      window.state.aiWhy = whyObj;
+
+      // Console (always)
+      if (whyObj.summary) console.log('[AI-PRO][WHY]', whyObj.summary);
+
+      // UI (best-effort, non-breaking)
+      const box = document.getElementById('aiPredictionBox');
+      if (!box) return;
+
+      let el = document.getElementById('aiWhy');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'aiWhy';
+        el.style.marginTop = '8px';
+        el.style.fontSize = '10px';
+        el.style.lineHeight = '1.25';
+        el.style.color = 'var(--text-dim)';
+        el.style.opacity = '0.95';
+        box.appendChild(el);
+      }
+
+      el.textContent = `WHY: ${whyObj.summary || ''}`.replace(/^WHY:\s*WHY:\s*/,'WHY: ');
+      if (Array.isArray(whyObj.factors) && whyObj.factors.length) {
+        el.title = whyObj.factors.join('\n');
+      }
+    } catch (_) { /* no-op */ }
+  },
+
 };
 
 // ============================================
@@ -2544,7 +2697,7 @@ if (document.readyState === 'loading') {
 // Export for global access
 window.AIEnginePro = AIEnginePro;
 
-console.log('[AI-PRO] AI Engine PRO v1.6.9 loaded (always-active mode)');
+console.log('[AI-PRO] AI Engine PRO v1.6.9 loaded (WHY enabled) (always-active mode)');
 
 
 // --- Safety shim (non-invasive) ---
