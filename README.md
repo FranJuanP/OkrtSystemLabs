@@ -2,6 +2,10 @@
 
 <img width="600" height="900" alt="image" src="https://github.com/user-attachments/assets/f6c66d03-40dd-4da7-a961-dcb148a84af0" />
 
+## 🔴 Demo en vivo
+
+Accede a la herramienta directamente desde aquí:  
+👉 https://franjuanp.github.io/OkrtSystemLabs/
 
 **XRP ORACULUM** es una plataforma avanzada de análisis y predicción de mercado desarrollada por **OkrtSystem Labs**, diseñada para operar en tiempo real sobre criptomercados con un enfoque profesional, estable y explicable.
 
