@@ -58,7 +58,20 @@ const AIEnginePro = {
     minValidationsToLearn: 6,
     // Auto-prediction tuning: keep the engine real-time + stable
     // (avoid hours-long pending queues and a large number of long timers).
-    autoMaxHorizon: 15,          // validate auto-predictions up to 15m
+    autoMaxHorizon: 15,          
+
+    // --- STEP3: Confidence calibration (safe, lightweight) ---
+    calibration: {
+      enabled: true,            // master switch
+      applyToThreshold: false,  // keep decision thresholds on raw confidence (safer). Set true to use calibrated confidence for gating.
+      minSamples: 30,           // do not calibrate until we have enough outcomes
+      updateEvery: 10,          // refit temperature every N new outcomes per horizon
+      maxSamples: 200,          // rolling buffer size per horizon
+      tMin: 0.50,
+      tMax: 3.00,
+      tSteps: 26                // grid search steps between tMin..tMax
+    },
+// validate auto-predictions up to 15m
     minValidationsToLearnAuto: 4, // store learning after short horizons (2/5/10/15)
     maxPending: 25,              // guardrail for pending queue size
     sessionAware: true,
@@ -193,6 +206,12 @@ const AIEnginePro = {
     scoreboard: {
       overall: { n: 0, win: 0, brier: 0, confAvg: 0 },
       byHorizon: {}
+    },
+    // STEP3: Calibration state (temperature scaling per horizon)
+    calibration: {
+      byHorizon: {},
+      // reliability bins: 10 bins [0-0.1),...,[0.9-1.0]
+      bins: {}
     }
   },
 
@@ -289,7 +308,117 @@ const AIEnginePro = {
   _ensureScoreboard() {
     if (!this.performance) this.performance = {};
     if (!this.performance.scoreboard) {
-      this.performance.scoreboard = { overall: { n: 0, win: 0, brier: 0, confAvg: 0 }, byHorizon: {} };
+      this.performance.scoreboard = { overall: { n: 0, win: 0, brier: 0, confAvg: 0 },
+
+  // ============================================
+  // 🎛️ STEP3: CONFIDENCE CALIBRATION (Temperature scaling)
+  // ============================================
+  _ensureCalibration() {
+    if (!this.performance) this.performance = {};
+    if (!this.performance.calibration) this.performance.calibration = { byHorizon: {}, bins: {} };
+    if (!this.performance.calibration.byHorizon) this.performance.calibration.byHorizon = {};
+    if (!this.performance.calibration.bins) this.performance.calibration.bins = {};
+    for (const h of (this.config?.horizons || [15])) {
+      if (!this.performance.calibration.byHorizon[h]) {
+        this.performance.calibration.byHorizon[h] = { T: 1.0, n: 0, newSinceFit: 0, samples: [] };
+      }
+      if (!this.performance.calibration.bins[h]) {
+        this.performance.calibration.bins[h] = Array.from({length: 10}, () => ({ n: 0, win: 0, confSum: 0 }));
+      }
+    }
+  },
+
+  _logit(p) {
+    const eps = 1e-6;
+    const x = Math.min(1 - eps, Math.max(eps, Number(p)));
+    return Math.log(x / (1 - x));
+  },
+
+  _sigmoid(z) {
+    // numerically stable sigmoid
+    if (z >= 0) {
+      const ez = Math.exp(-z);
+      return 1 / (1 + ez);
+    } else {
+      const ez = Math.exp(z);
+      return ez / (1 + ez);
+    }
+  },
+
+  _calibrateProb(pRaw, horizon) {
+    const cfg = this.config?.calibration || {};
+    if (!cfg.enabled) return pRaw;
+    this._ensureCalibration();
+    const h = Number(horizon);
+    const cal = this.performance.calibration.byHorizon[h];
+    if (!cal || !Number.isFinite(cal.T) || cal.T <= 0) return pRaw;
+    if (cal.n < (cfg.minSamples || 30)) return pRaw;
+    const z = this._logit(pRaw) / cal.T;
+    return this._sigmoid(z);
+  },
+
+  _fitTemperature(samples, cfg) {
+    // samples: array of {p,y}, with p in [0,1] and y in {0,1}
+    const tMin = cfg.tMin ?? 0.5;
+    const tMax = cfg.tMax ?? 3.0;
+    const steps = Math.max(6, cfg.tSteps ?? 26);
+    const eps = 1e-6;
+
+    let bestT = 1.0;
+    let bestNLL = Infinity;
+
+    for (let i = 0; i < steps; i++) {
+      const T = tMin + (tMax - tMin) * (i / (steps - 1));
+      let nll = 0;
+      for (const s of samples) {
+        const p = Math.min(1 - eps, Math.max(eps, Number(s.p)));
+        const y = s.y ? 1 : 0;
+        const pCal = this._sigmoid(this._logit(p) / T);
+        nll += -(y * Math.log(pCal) + (1 - y) * Math.log(1 - pCal));
+      }
+      if (nll < bestNLL) { bestNLL = nll; bestT = T; }
+    }
+    return { T: bestT, nll: bestNLL };
+  },
+
+  _updateCalibrationWithOutcome(horizon, pRaw, y) {
+    const cfg = this.config?.calibration || {};
+    if (!cfg.enabled) return;
+
+    this._ensureCalibration();
+    const h = Number(horizon);
+    const cal = this.performance.calibration.byHorizon[h];
+    if (!cal) return;
+
+    const p = Number.isFinite(pRaw) ? Math.max(0, Math.min(1, pRaw)) : 0.5;
+    const yy = y ? 1 : 0;
+
+    // rolling samples
+    cal.samples.push({ p, y: yy });
+    if (cal.samples.length > (cfg.maxSamples || 200)) cal.samples.shift();
+    cal.n += 1;
+    cal.newSinceFit = (cal.newSinceFit || 0) + 1;
+
+    // bins for reliability snapshot
+    const bi = Math.min(9, Math.max(0, Math.floor(p * 10)));
+    const bin = this.performance.calibration.bins[h][bi];
+    bin.n += 1;
+    bin.win += yy;
+    bin.confSum += p;
+
+    if (cal.samples.length >= (cfg.minSamples || 30) && cal.newSinceFit >= (cfg.updateEvery || 10)) {
+      const fit = this._fitTemperature(cal.samples, cfg);
+      const prev = cal.T;
+      cal.T = fit.T;
+      cal.newSinceFit = 0;
+
+      // Light log (no spam)
+      try {
+        console.log(`[AI-PRO][CAL] Horizon ${h}m: T=${prev.toFixed(2)}→${cal.T.toFixed(2)} | n=${cal.samples.length}`);
+      } catch(e){}
+    }
+  },
+ byHorizon: {} };
     }
     if (!this.performance.scoreboard.overall) {
       this.performance.scoreboard.overall = { n: 0, win: 0, brier: 0, confAvg: 0 };
@@ -442,9 +571,22 @@ const AIEnginePro = {
     // Garantizar mínimo de confianza para que pase el threshold
     confidence = Math.max(0.20, Math.min(0.95, confidence));
     
+
+    // STEP3: confidence calibration (display-only by default)
+    const _hForCal = Number(this.config?.autoMaxHorizon || 15);
+    const _confRaw = Number.isFinite(confidence) ? confidence : 0.5;
+    const _confCal = this._calibrateProb(_confRaw, _hForCal);
+
+    // expose both; keep raw for thresholds unless configured otherwise
+    const _applyCal = !!(this.config?.calibration?.applyToThreshold);
+    const _confFinal = _applyCal ? _confCal : _confRaw;
+    confidence = _confFinal;
+
     return {
       direction,
       confidence,
+      confidenceRaw: _confRaw,
+      confidenceCal: _confCal,
       votes,
       modelPredictions,
       regime,
@@ -1293,7 +1435,8 @@ const AIEnginePro = {
       const sb = this.performance.scoreboard;
 
       const y = pred?.outcome?.success ? 1 : 0;
-      const p0 = Number(pred?.ensemble?.confidence);
+      // STEP3: use raw confidence for scoring (do not depend on calibrated display)
+      const p0 = Number((pred?.ensemble?.confidenceRaw ?? pred?.ensemble?.confidence));
       const p = Number.isFinite(p0) ? Math.max(0, Math.min(1, p0)) : 0.5;
       const brier = (p - y) * (p - y);
 
@@ -1310,6 +1453,9 @@ const AIEnginePro = {
       sb.byHorizon[h].win += y;
       sb.byHorizon[h].brier += brier;
       sb.byHorizon[h].confAvg += p;
+
+      // STEP3: update calibration buffers
+      try { this._updateCalibrationWithOutcome(h, p, y); } catch(e) {}
 
       // Keep numbers bounded (avoid unbounded growth if running for days)
       const cap = 5000;
