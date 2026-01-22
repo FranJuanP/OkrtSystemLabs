@@ -669,6 +669,51 @@ const _boostVar = _allowLowConf ? 0.12 : 0.18;
       // Never break core engine
     }
 
+    // ============================================
+    // STEP 6 — Regime-aware control (directional resolution without UI changes)
+    // Goal: reduce excessive NEUTRAL in actionable conditions while preserving accuracy.
+    // - Trending regimes: prefer directional bias when ensemble is indecisive.
+    // - Ranging regime: allow a soft vote-tiebreak when confidence is already above threshold.
+    // ============================================
+    try {
+      const _reg = regime || 'ranging';
+
+      // Dynamic minimum confidence (used by callers; also used here as a guard)
+      // Keep conservative in ranging; allow slightly more activity in trending.
+      const _dynMin = (_reg === 'trending_up' || _reg === 'trending_down') ? 0.25
+                    : (_reg === 'volatile') ? 0.35
+                    : 0.30;
+
+      // 6A) Regime bias: if market is trending but ensemble says NEUTRAL, align with regime.
+      if (direction === 'NEUTRAL' && confidence >= _dynMin) {
+        if (_reg === 'trending_up') {
+          direction = 'BULL';
+          confidence = Math.min(0.95, confidence + 0.03);
+        } else if (_reg === 'trending_down') {
+          direction = 'BEAR';
+          confidence = Math.min(0.95, confidence + 0.03);
+        }
+      }
+
+      // 6B) Vote-imbalance tiebreak (only if already confident enough and not volatile).
+      // This prevents "stuck NEUTRAL" when models have a mild directional majority.
+      if (direction === 'NEUTRAL' && confidence >= _dynMin && _reg !== 'volatile') {
+        const _bullV = Number(votes?.bull || 0);
+        const _bearV = Number(votes?.bear || 0);
+        const _dV = _bullV - _bearV;
+
+        // Require at least a 1-vote edge and avoid flipping when edge is tiny and confidence is low.
+        if (Math.abs(_dV) >= 1 && confidence >= 0.35) {
+          direction = _dV > 0 ? 'BULL' : 'BEAR';
+          confidence = Math.min(0.95, confidence + 0.02);
+        }
+      }
+    } catch (e) {
+      // Never break core engine
+    }
+
+
+
     return {
       direction,
       confidence,
@@ -1025,6 +1070,14 @@ const _boostVar = _allowLowConf ? 0.12 : 0.18;
       'volatile': 0.90
     };
     return multipliers[regime] || 1.0;
+  },
+
+
+  getDynamicMinConfidence(regime) {
+    const r = regime || 'ranging';
+    if (r === 'trending_up' || r === 'trending_down') return 0.25;
+    if (r === 'volatile') return 0.35;
+    return 0.30;
   },
 
   // ============================================
@@ -1766,11 +1819,13 @@ const marketState = this.getCurrentMarketState();
     
     const ensemble = this.generateEnsemblePrediction(marketState);
     
+    const _dynMinConf = this.getDynamicMinConfidence(ensemble.regime);
+
     console.log('[AI-PRO] Ensemble result:', {
       direction: ensemble.direction,
       confidence: (ensemble.confidence * 100).toFixed(1) + '%',
-      threshold: (this.config.minConfidence * 100) + '%',
-      passes: ensemble.confidence >= this.config.minConfidence
+      threshold: (_dynMinConf * 100).toFixed(0) + '%',
+      passes: ensemble.confidence >= _dynMinConf
     });
     
     // SIEMPRE registrar predicción si hay datos, aunque sea baja confianza
