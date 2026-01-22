@@ -6022,11 +6022,18 @@ window.state = state;
       }
 
 ws.onmessage = (event) => {
-        const msg = JSON.parse
+        let msg;
+        try { msg = JSON.parse(event.data); } catch (e) { return; }
         try { state.feedHealth.lastBinanceMsg = Date.now(); } catch (_) {}
-(event.data);
-        const data = msg.data;
-        const stream = msg.stream;
+        const data = msg.data || msg;
+        const stream = String(
+          msg.stream ||
+          data.stream ||
+          msg.channel || data.channel ||
+          msg.event || data.event ||
+          msg.type || data.type ||
+          ''
+        );
         try {
           const nowTs = Date.now();
           if (stream && stream.includes('depth')) state.feedHealth.lastDepth = nowTs;
@@ -6034,7 +6041,7 @@ ws.onmessage = (event) => {
           if (stream && stream.includes('kline')) state.feedHealth.lastKline = nowTs;
         } catch (_) {}
 
-        if (stream.includes('kline') && candleSeries) {
+        if (stream && stream.includes('kline') && candleSeries) {
           const k = data.k;
           const candle = {
             time: k.t / 1000,
@@ -6055,7 +6062,7 @@ ws.onmessage = (event) => {
             updateTrendLines();
           }
         }
-        if (stream.includes('ticker')) {
+        if (stream && stream.includes('ticker')) {
           const price = parseFloat(data.c);
           const change = parseFloat(data.P);
           const volume = parseFloat(data.q);
@@ -6072,10 +6079,10 @@ ws.onmessage = (event) => {
             runPredictionEngine(price);
           }
         }
-        if (stream.includes('depth')) {
+        if (stream && stream.includes('depth')) {
           scheduleOrderBookRender(data.bids, data.asks);
         }
-        if (stream.includes('aggtrade') || stream.includes('aggTrade')) {
+        if (stream && (stream.includes('aggtrade') || stream.includes('aggTrade'))) {
           const qty = parseFloat(data.q);
           const price = parseFloat(data.p);
           const isBuy = !data.m;
