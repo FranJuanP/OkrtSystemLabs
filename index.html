@@ -8700,4 +8700,101 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
 })();
 </script>
 
+
+<script>
+
+/* ================================
+ * 🧯 LongRunGuard v1.0 (stability)
+ * Prevents slow UI freeze after hours by pruning unbounded DOM lists
+ * and reducing work while tab is hidden.
+ * ================================ */
+const LongRunGuard = (() => {
+  const cfg = {
+    pruneEveryMs: 60_000,
+    maxNodes: {
+      alertsContainer: 250,
+      signalHistoryList: 250,
+      alertHistory: 250,
+      btTradeLog: 400,
+      customAlertsList: 200
+    },
+    hiddenMinIntervalMs: 2_000,   // minimum spacing for heavy timers when tab is hidden
+  };
+
+  const state = {
+    lastHiddenRun: new Map(),
+  };
+
+  function pruneListById(id, max) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Support containers that use children or list items
+    const kids = el.children;
+    if (!kids || kids.length <= max) return;
+    const excess = kids.length - max;
+    // Remove oldest first
+    for (let i = 0; i < excess; i++) {
+      if (el.firstElementChild) el.removeChild(el.firstElementChild);
+      else break;
+    }
+  }
+
+  function pruneAll() {
+    try {
+      for (const [id, max] of Object.entries(cfg.maxNodes)) {
+        pruneListById(id, max);
+      }
+    } catch (e) {
+      console.warn('[LongRunGuard] prune error:', e && e.message ? e.message : e);
+    }
+  }
+
+  // Patch FreezeGuard.safeInterval so heavy loops do less work when tab is hidden.
+  function patchFreezeGuard() {
+    if (!window.FreezeGuard || FreezeGuard.__longRunPatched) return;
+    const original = FreezeGuard.safeInterval.bind(FreezeGuard);
+
+    FreezeGuard.safeInterval = function(fn, delay, name = 'unnamed') {
+      // Wrap the original fn with visibility-aware throttling for heavy jobs
+      const wrapped = () => {
+        try {
+          if (document.hidden) {
+            const now = Date.now();
+            const last = state.lastHiddenRun.get(name) || 0;
+            // Throttle only if the interval is relatively frequent
+            if (delay < cfg.hiddenMinIntervalMs && (now - last) < cfg.hiddenMinIntervalMs) return;
+            state.lastHiddenRun.set(name, now);
+          }
+          return fn();
+        } catch (e) {
+          // Let FreezeGuard's own protection log it
+          throw e;
+        }
+      };
+      return original(wrapped, delay, name);
+    };
+
+    FreezeGuard.__longRunPatched = true;
+  }
+
+  function start() {
+    patchFreezeGuard();
+    // Periodic pruning
+    setInterval(pruneAll, cfg.pruneEveryMs);
+
+    // Also prune on visibility changes (common source of backlog)
+    document.addEventListener('visibilitychange', () => {
+      // On return to visible, prune immediately
+      if (!document.hidden) pruneAll();
+    });
+
+    console.log('[LongRunGuard] Enabled (prune DOM lists + hidden throttle)');
+  }
+
+  return { start, pruneAll };
+})();
+
+</script>
+
+<script>try{LongRunGuard.start();}catch(e){console.warn('[LongRunGuard] start failed:', e&&e.message?e.message:e);}</script>
 </body></html>
