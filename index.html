@@ -9071,6 +9071,10 @@ const LongRunGuard = (() => {
 })();
 </script>
 
-<script src="memory-optimizer-patch.js"></script>
+<script nonce="okrt-oraculum-nonce-2026">
+(function(){if(window.__MO__)return;window.__MO__=1;var s=window.state,c=60000;function clean(){if(!s)return;if(s.candles&&s.candles.length>150)s.candles.splice(0,s.candles.length-150);if(s.priceHistory&&s.priceHistory.length>100)s.priceHistory.splice(0,s.priceHistory.length-100);if(s.rsiHistory&&s.rsiHistory.length>100)s.rsiHistory.splice(0,s.rsiHistory.length-100);if(s.predictions&&s.predictions.length>50)s.predictions.splice(0,s.predictions.length-50);var a=document.getElementById("alertsContainer");if(a)while(a.children.length>25)a.lastChild.remove();var w=document.getElementById("whaleList");if(w)while(w.children.length>15)w.lastChild.remove();try{var ai=window.AIEnginePro||window.AIEngine;if(ai&&ai.predictions){if(ai.predictions.completed&&ai.predictions.completed.length>100)ai.predictions.completed=ai.predictions.completed.slice(-100);if(ai.predictions.pending&&ai.predictions.pending.length>30)ai.predictions.pending=ai.predictions.pending.slice(-30);}if(ai&&ai.patterns&&ai.patterns.length>500)ai.patterns=ai.patterns.slice(-500);}catch(e){}console.log("[MemOpt] Cleaned | candles:",s.candles?.length,"|alerts:",a?.children.length)}setInterval(clean,c);document.addEventListener("visibilitychange",function(){if(document.hidden)clean()});window.MemoryOptimizer={clean:clean,stats:function(){return{candles:s?.candles?.length||0,alerts:document.getElementById("alertsContainer")?.children.length||0}}};console.log("[MemOpt] ✅ ACTIVO");clean()})();
+</script>
+</body>
+</html>
 
-</body></html>
+
