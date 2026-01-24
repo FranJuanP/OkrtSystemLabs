@@ -8491,212 +8491,12 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(__okrtEnsureAnonAuth__, 200));
 })();
 </script>
-<script src="ai-engine-pro.js?v=1.2.2"></script>
-<!-- ========================= -->
-<!-- MARKET FEED MANAGER (Worker-based + Backpressure) -->
-<!-- Phase 2: Move WS + candle aggregation off the main thread to reduce UI freezes -->
-<!-- ========================= -->
-<script nonce="okrt-oraculum-nonce-2026">
-(function(){
-  'use strict';
-
-  // If the repo still ships a MarketFeedManager, do not override it.
-  if (typeof window.MarketFeedManager !== 'undefined') return;
-
-  // ---------- Worker source (Blob) ----------
-  const WORKER_SRC = `
-  'use strict';
-  let ws = null;
-  let symbol = 'XRPUSDT';
-  let timeframe = '1m';
-  let lastCloseTime = 0;
-  let reconnectAttempt = 0;
-  let stopped = false;
-
-  function post(type, payload){ self.postMessage(Object.assign({type}, payload||{})); }
-
-  function backoffMs(){
-    // 0.5s, 1s, 2s ... capped
-    const ms = Math.min(30000, 500 * Math.pow(2, reconnectAttempt));
-    return ms;
-  }
-
-  function closeWS(){
-    try{ if (ws) ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null; }catch(e){}
-    try{ if (ws && (ws.readyState === 0 || ws.readyState === 1)) ws.close(); }catch(e){}
-    ws = null;
-  }
-
-  function connectBinanceKline(){
-    if (stopped) return;
-    closeWS();
-    const stream = (symbol || 'XRPUSDT').toLowerCase() + '@kline_' + (timeframe || '1m');
-    const url = 'wss://stream.binance.com:9443/ws/' + stream;
-
-    try{
-      ws = new WebSocket(url);
-    }catch(e){
-      post('status', {level:'warn', msg:'WS ctor failed', err: String(e && e.message || e)});
-      scheduleReconnect();
-      return;
-    }
-
-    ws.onopen = () => {
-      reconnectAttempt = 0;
-      post('status', {level:'info', msg:'[FEED][WS] Binance connected', url});
-    };
-
-    ws.onmessage = (ev) => {
-      try{
-        const data = JSON.parse(ev.data);
-        if (!data || !data.k) return;
-        const k = data.k;
-
-        // We only emit on CLOSED candles to reduce message volume
-        if (k.x !== true) return;
-
-        // Guard: emit each closeTime once
-        if (k.T && k.T === lastCloseTime) return;
-        lastCloseTime = k.T || lastCloseTime;
-
-        const candle = {
-          source: 'binance',
-          symbol: symbol,
-          interval: k.i,
-          startTime: k.t,
-          closeTime: k.T,
-          open: Number(k.o),
-          high: Number(k.h),
-          low: Number(k.l),
-          close: Number(k.c),
-          volume: Number(k.v),
-          trades: Number(k.n)
-        };
-
-        post('candle', {candle});
-      }catch(e){
-        // swallow parsing errors, report occasionally
-        post('status', {level:'warn', msg:'[FEED][WS] message parse error', err: String(e && e.message || e)});
-      }
-    };
-
-    ws.onerror = () => {
-      // Some browsers do not provide detail; reconnect in onclose
-    };
-
-    ws.onclose = (ev) => {
-      if (stopped) return;
-      post('status', {level:'warn', msg:'[FEED][WS] Binance closed', code: ev && ev.code, reason: ev && ev.reason});
-      scheduleReconnect();
-    };
-  }
-
-  function scheduleReconnect(){
-    if (stopped) return;
-    reconnectAttempt = Math.min(reconnectAttempt + 1, 10);
-    const wait = backoffMs();
-    post('status', {level:'info', msg:'[FEED] Reconnecting in ' + wait + 'ms', attempt: reconnectAttempt});
-    setTimeout(() => connectBinanceKline(), wait);
-  }
-
-  function stop(){
-    stopped = true;
-    closeWS();
-  }
-
-  self.onmessage = (e) => {
-    const msg = e && e.data ? e.data : {};
-    if (msg.type === 'start'){
-      stopped = false;
-      symbol = msg.symbol || symbol;
-      timeframe = msg.timeframe || timeframe;
-      lastCloseTime = 0;
-      reconnectAttempt = 0;
-      connectBinanceKline();
-    } else if (msg.type === 'stop'){
-      stop();
-    } else if (msg.type === 'set'){
-      symbol = msg.symbol || symbol;
-      timeframe = msg.timeframe || timeframe;
-      if (!stopped) connectBinanceKline();
-    }
-  };
-
-  // Safety: if main thread disappears, stop.
-  self.addEventListener('error', () => {});
-  `;
-
-  function createWorker(){
-    const blob = new Blob([WORKER_SRC], {type:'application/javascript'});
-    const url = URL.createObjectURL(blob);
-    const w = new Worker(url);
-    // Release the blob URL after worker starts
-    setTimeout(() => { try{ URL.revokeObjectURL(url); }catch(e){} }, 5000);
-    return w;
-  }
-
-  // ---------- Main-thread façade ----------
-  function MarketFeedManager(symbol, onCandle){
-    this.symbol = symbol || 'XRPUSDT';
-    this.onCandle = (typeof onCandle === 'function') ? onCandle : function(){};
-    this.worker = null;
-    this.isRunning = false;
-    this._lastCandleTs = 0;
-    this._dropped = 0;
-  }
-
-  MarketFeedManager.prototype.start = function(){
-    if (this.isRunning) return;
-    this.isRunning = true;
-    this.worker = createWorker();
-
-    this.worker.onmessage = (ev) => {
-      const msg = ev && ev.data ? ev.data : {};
-      if (msg.type === 'candle' && msg.candle){
-        // Backpressure: if the UI is blocked and messages pile up, drop older candles.
-        const ct = Number(msg.candle.closeTime || 0);
-        if (ct && ct <= this._lastCandleTs) return;
-        this._lastCandleTs = ct || this._lastCandleTs;
-
-        try{ this.onCandle(msg.candle); }catch(e){}
-      } else if (msg.type === 'status'){
-        // keep console noise low
-        if (msg.level === 'warn') console.warn(msg.msg, msg.err || '', msg.code || '', msg.reason || '');
-        else if (msg.level === 'info') console.log(msg.msg);
-      }
-    };
-
-    this.worker.onerror = (e) => {
-      console.warn('[FEED] Worker error', e && (e.message || e));
-    };
-
-    this.worker.postMessage({type:'start', symbol: this.symbol, timeframe: '1m'});
-  };
-
-  MarketFeedManager.prototype.stop = function(){
-    this.isRunning = false;
-    try{ if (this.worker) this.worker.postMessage({type:'stop'}); }catch(e){}
-    try{ if (this.worker) this.worker.terminate(); }catch(e){}
-    this.worker = null;
-  };
-
-  MarketFeedManager.prototype.setSymbol = function(symbol){
-    this.symbol = symbol || this.symbol;
-    try{ if (this.worker) this.worker.postMessage({type:'set', symbol: this.symbol}); }catch(e){}
-  };
-
-  window.MarketFeedManager = MarketFeedManager;
-
-  // Ensure cleanup on navigation
-  window.addEventListener('beforeunload', function(){
-    try{ if (window.__okrtFeedMgr__ && typeof window.__okrtFeedMgr__.stop === 'function') window.__okrtFeedMgr__.stop(); }catch(e){}
-  });
-})();
-</script>
- 
+<script src="ai-engine-pro.js?v=1.2.2"></script> 
 <!-- ========================= -->
 <!-- MARKET FEED MANAGER (Multi-feed + Failover) -->
 <!-- ========================= -->
+<script src="market-feed-manager.js"></script>
+
 <script nonce="okrt-oraculum-nonce-2026">
 (function(){
     if(typeof MarketFeedManager === 'undefined'){
@@ -8997,4 +8797,278 @@ const LongRunGuard = (() => {
 </script>
 
 <script>try{LongRunGuard.start();}catch(e){console.warn('[LongRunGuard] start failed:', e&&e.message?e.message:e);}</script>
+
+<script nonce="okrt-oraculum-nonce-2026">
+/* ============================================================
+   ORACULUM LONG-RUN GUARD v2 (PHASE 3)
+   هدف: evitar growth indefinido en Main heap + prevenir freezes
+   - Hard caps en estructuras de datos (best-effort)
+   - Control de listeners Firestore si existen
+   - Recycle suave del motor si heap se dispara o uptime alto
+   ============================================================ */
+(function(){
+  'use strict';
+  const TAG = '[LONGRUN-GUARD]';
+  const now = () => Date.now();
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+  // ====== Config (ajustable) ======
+  const CFG = {
+    tickMs: 30_000,                 // cada 30s
+    hardTickMs: 120_000,            // limpieza dura cada 2 min
+    heapSoftMB: 260,                // actuar suave si supera
+    heapHardMB: 340,                // actuar duro si supera
+    maxAlerts: 250,
+    maxSignals: 250,
+    maxWhales: 250,
+    maxOrderBookRows: 300,
+    maxCandlesPerTf: 600,           // ~10h de velas 1m
+    maxPredictionsCompleted: 400,
+    maxPredictionsPending: 25,
+    maxPatterns: 250,
+    maxLogs: 400,
+    maxWhyTextLen: 500,
+    recycleEveryMin: 120            // recycle suave cada 2h
+  };
+
+  // ====== helpers ======
+  function mb(bytes){ return bytes / (1024*1024); }
+
+  function capArray(arr, max){
+    if (!Array.isArray(arr)) return false;
+    if (arr.length <= max) return false;
+    arr.splice(0, arr.length - max);
+    return true;
+  }
+
+  function capString(s, maxLen){
+    if (typeof s !== 'string') return false;
+    if (s.length <= maxLen) return false;
+    return s.slice(-maxLen);
+  }
+
+  function capMap(m, max){
+    if (!m || typeof m.size !== 'number' || typeof m.keys !== 'function') return false;
+    if (m.size <= max) return false;
+    // borrar claves antiguas en orden de inserción (Map)
+    if (m instanceof Map) {
+      const extra = m.size - max;
+      let i = 0;
+      for (const k of m.keys()) {
+        m.delete(k);
+        if (++i >= extra) break;
+      }
+      return true;
+    }
+    // Set: eliminar valores antiguos
+    if (m instanceof Set) {
+      const extra = m.size - max;
+      let i = 0;
+      for (const v of m.values()) {
+        m.delete(v);
+        if (++i >= extra) break;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function tryCapByKey(obj, key, max){
+    try {
+      if (!obj) return false;
+      const v = obj[key];
+      if (Array.isArray(v)) return capArray(v, max);
+      if (v instanceof Map || v instanceof Set) return capMap(v, max);
+      return false;
+    } catch(_) { return false; }
+  }
+
+  function walkAndCap(obj, depth){
+    if (!obj || depth <= 0) return;
+    const keys = Object.keys(obj);
+    for (const k of keys) {
+      let v;
+      try { v = obj[k]; } catch(_) { continue; }
+
+      // Hard caps por nombre (best-effort)
+      const lk = String(k).toLowerCase();
+      if (Array.isArray(v)) {
+        if (lk.includes('alert')) capArray(v, CFG.maxAlerts);
+        else if (lk.includes('signal')) capArray(v, CFG.maxSignals);
+        else if (lk.includes('whale')) capArray(v, CFG.maxWhales);
+        else if (lk.includes('order') || lk.includes('book')) capArray(v, CFG.maxOrderBookRows);
+        else if (lk.includes('candle') || lk.includes('kline')) capArray(v, CFG.maxCandlesPerTf);
+        else if (lk.includes('pending')) capArray(v, CFG.maxPredictionsPending);
+        else if (lk.includes('completed') || lk.includes('history') || lk.includes('pred')) capArray(v, CFG.maxPredictionsCompleted);
+        else if (lk.includes('pattern')) capArray(v, CFG.maxPatterns);
+        else if (lk.includes('log')) capArray(v, CFG.maxLogs);
+      } else if (v instanceof Map || v instanceof Set) {
+        if (lk.includes('pattern')) capMap(v, CFG.maxPatterns);
+        else if (lk.includes('pred') || lk.includes('history')) capMap(v, CFG.maxPredictionsCompleted);
+        else if (lk.includes('log')) capMap(v, CFG.maxLogs);
+      } else if (typeof v === 'string') {
+        if (lk.includes('why')) obj[k] = capString(v, CFG.maxWhyTextLen);
+      } else if (typeof v === 'object' && v) {
+        // evita ciclos
+        if (v === window || v === document) continue;
+        walkAndCap(v, depth - 1);
+      }
+    }
+  }
+
+  function capDomLists(){
+    // Alerts / signals / whales / orderbook (si existen)
+    const selectors = [
+      ['#alertsList', CFG.maxAlerts],
+      ['#signalsList', CFG.maxSignals],
+      ['#whalesList', CFG.maxWhales],
+      ['#orderBook', CFG.maxOrderBookRows],
+      ['.alerts-list', CFG.maxAlerts],
+      ['.signals-list', CFG.maxSignals],
+      ['.whales-list', CFG.maxWhales],
+      ['.orderbook', CFG.maxOrderBookRows],
+    ];
+    for (const [sel, max] of selectors) {
+      const el = document.querySelector(sel);
+      if (!el) continue;
+      const kids = el.children;
+      if (!kids || kids.length <= max) continue;
+      const extra = kids.length - max;
+      for (let i=0; i<extra; i++){
+        if (el.firstElementChild) el.removeChild(el.firstElementChild);
+      }
+    }
+  }
+
+  // Firestore: algunos builds dejan listeners abiertos y crecen en heap.
+  // Si existe un unsubscribe guardado, lo usamos. Si no, solo reducimos frecuencia de "save".
+  function tameFirestore(){
+    const A = window.AIEnginePro || window.AIEngine || null;
+    if (!A) return;
+
+    // Si el motor expone unsubscribe de snapshot, úsalo (best-effort)
+    const unsubKeys = ['unsub','unsubscribe','_unsub','_unsubscribe','unsubState','unsubEngine'];
+    for (const k of unsubKeys){
+      const fn = A[k];
+      if (typeof fn === 'function') {
+        try { fn.call(A); console.warn(TAG, 'Firestore snapshot unsubscribed via', k); } catch(_){}
+      }
+    }
+
+    // Reducir writes: si hay saveState muy frecuente, lo rate-limit
+    if (typeof A.saveState === 'function' && !A.__saveState_patched) {
+      A.__saveState_patched = true;
+      const orig = A.saveState.bind(A);
+      let last = 0;
+      A.saveState = async function(...args){
+        const t = now();
+        // no más de 1 write cada 60s (salvo llamadas manuales)
+        if (!this.__forceSave && (t - last) < 60_000) return;
+        last = t;
+        return orig(...args);
+      };
+      console.warn(TAG, 'Patched AIEngine saveState rate-limit (>=60s).');
+    }
+  }
+
+  // Recycle suave del motor: limpia grandes buffers, reengancha timers si hiciera falta.
+  function softRecycle(reason){
+    const A = window.AIEnginePro || window.AIEngine || null;
+    console.warn(TAG, 'Soft recycle triggered:', reason);
+
+    try { capDomLists(); } catch(_){}
+
+    if (A && typeof A === 'object') {
+      // Limpia arrays típicos
+      const keys = Object.keys(A);
+      for (const k of keys){
+        try {
+          const lk = k.toLowerCase();
+          if (lk.includes('completed') || lk.includes('history')) tryCapByKey(A, k, CFG.maxPredictionsCompleted);
+          if (lk.includes('pending')) tryCapByKey(A, k, CFG.maxPredictionsPending);
+          if (lk.includes('pattern')) tryCapByKey(A, k, CFG.maxPatterns);
+          if (lk.includes('log')) tryCapByKey(A, k, CFG.maxLogs);
+        } catch(_){}
+      }
+      // Estado interno si existe
+      try { if (A.state && typeof A.state === 'object') walkAndCap(A.state, 3); } catch(_){}
+      try { walkAndCap(A, 2); } catch(_){}
+    }
+
+    // compacta localStorage (si alguien mete logs ahí)
+    try {
+      // best-effort: si hay claves con arrays serializados grandes, no tocar por defecto
+      // pero sí evitamos crecimiento accidental del key "oraculum_console_buffer"
+      const k = 'oraculum_console_buffer';
+      const v = localStorage.getItem(k);
+      if (v && v.length > 200_000) localStorage.setItem(k, v.slice(-50_000));
+    } catch(_){}
+
+    tameFirestore();
+  }
+
+  function getHeapMB(){
+    try {
+      if (performance && performance.memory && performance.memory.usedJSHeapSize) {
+        return mb(performance.memory.usedJSHeapSize);
+      }
+    } catch(_){}
+    return null;
+  }
+
+  // ====== main loop ======
+  const startedAt = now();
+  let lastHard = 0;
+
+  function tick(){
+    try { capDomLists(); } catch(_){}
+    // cap estructuras conocidas
+    try {
+      const roots = [window.AIEnginePro, window.AIEngine, window.state, window.__STATE__, window.MarketFeedManager];
+      for (const r of roots) walkAndCap(r, 2);
+    } catch(_){}
+
+    const heap = getHeapMB();
+    if (heap != null) {
+      // actuación suave
+      if (heap > CFG.heapSoftMB) softRecycle('heap_soft ' + heap.toFixed(1) + 'MB');
+      // actuación dura cada hardTick
+      const t = now();
+      if (heap > CFG.heapHardMB && (t - lastHard) > CFG.hardTickMs) {
+        lastHard = t;
+        softRecycle('heap_hard ' + heap.toFixed(1) + 'MB');
+      }
+    }
+
+    // recycle por uptime (mantenimiento preventivo)
+    const upMin = (now() - startedAt) / 60000;
+    if (upMin >= CFG.recycleEveryMin) {
+      // solo una vez
+      CFG.recycleEveryMin = 1e9;
+      softRecycle('uptime_recycle ' + upMin.toFixed(0) + 'min');
+    }
+  }
+
+  // Evita duplicados si se reinserta el script
+  if (window.__OKRT_LONGRUN_GUARD__) return;
+  window.__OKRT_LONGRUN_GUARD__ = true;
+
+  // Background: limpieza extra
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      try { softRecycle('background'); } catch(_){}
+    }
+  }, {passive:true});
+
+  // Arranque diferido (deja que cargue todo)
+  setTimeout(() => {
+    tameFirestore();
+    tick();
+    setInterval(tick, CFG.tickMs);
+    console.log(TAG, 'enabled. softMB=', CFG.heapSoftMB, 'hardMB=', CFG.heapHardMB);
+  }, 3000);
+
+})();
+</script>
+
 </body></html>
