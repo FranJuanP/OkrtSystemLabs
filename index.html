@@ -2529,16 +2529,12 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       state.rsiHistory = [];
       state.obvHistory = [];
       
-      // Reconectar WebSocket con nuevo timeframe (single-connect)
-      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-      if (ws) {
-        wsIntentionalClose = true;
-        try { ws.close(); } catch(e) {}
-        ws = null;
-      }
+      // Reconectar WebSocket con nuevo timeframe
+      if (ws) ws.close();
       fetchHistoricalData();
       connectAPI();
-addAlert(`Timeframe changed to ${tf}`, 'info');
+      
+      addAlert(`Timeframe changed to ${tf}`, 'info');
     }
     // --- EXPORT DATA TO CSV ---
     function exportData() {
@@ -5817,20 +5813,10 @@ addAlert(`Timeframe changed to ${tf}`, 'info');
     // WEBSOCKET
     // ============================================
     let ws;
-    // WS lifecycle guards (prevents duplicate reconnect storms)
-    let wsReconnectTimer = null;
-    let wsIntentionalClose = false;
-
     function getWsUrl() {
       return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@100ms/xrpusdt@ticker/xrpusdt@aggTrade`;
     }
     function connectAPI() {
-      // Prevent duplicate WS instances
-      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        return;
-      }
-
       ui.statusText.innerText = 'CONNECTING...';
       ui.statusPill.className = 'status-pill';
       
@@ -5916,9 +5902,7 @@ addAlert(`Timeframe changed to ${tf}`, 'info');
       ws.onclose = () => {
         ui.statusText.innerText = 'RECONNECTING...';
         ui.statusPill.classList.remove('status-live');
-                if (wsIntentionalClose) { wsIntentionalClose = false; return; }
-        if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
-        wsReconnectTimer = setTimeout(() => { wsReconnectTimer = null; connectAPI(); }, 3000);
+        setTimeout(connectAPI, 3000);
       };
     }
     function updateOrderBook(bids, asks) {
@@ -6398,10 +6382,6 @@ addAlert(`Timeframe changed to ${tf}`, 'info');
       customAlerts: [],
       mtfData: {}
     };
-    // Prevent overlapping MTF refreshes
-    let mtfRunId = 0;
-    let mtfInFlight = false;
-
     // Toggle tools panel
     function toggleToolsPanel() {
       const overlay = document.getElementById('toolsOverlay');
@@ -6490,85 +6470,60 @@ addAlert(`Timeframe changed to ${tf}`, 'info');
       if (trend === 'UP') bullScore++;
       else if (trend === 'DOWN') bearScore++;
       if (bullScore >= 3) signal = 'BULLISH';
-      else if (bearScore >= 3) signal = 'Basync function updateMultiTimeframe() {
-      // Avoid piling up work if the user toggles panels/options repeatedly
-      const runId = ++mtfRunId;
-      if (mtfInFlight) {
-        // latest-wins: let the current run finish; a newer runId will supersede it
-      }
-      mtfInFlight = true;
-
+      else if (bearScore >= 3) signal = 'BEARISH';
+      return { price: currentPrice, rsi, macd: macdLine, trend, signal };
+    }
+    async function updateMultiTimeframe() {
       const timeframes = ['1m', '5m', '15m', '1h', '4h'];
       let bullish = 0, bearish = 0, neutral = 0;
-
-      try {
-        // Fetch in parallel to reduce wall time
-        const candleSets = await Promise.all(timeframes.map(tf => fetchTimeframeData(tf).catch(() => null)));
-
-        for (let idx = 0; idx < timeframes.length; idx++) {
-          if (runId !== mtfRunId) return; // superseded by a newer request
-
-          const tf = timeframes[idx];
-          let candles = candleSets[idx];
-          if (!candles || !Array.isArray(candles) || candles.length < 30) continue;
-
-          // Hard cap to prevent heavy indicator loops from blocking UI
-          if (candles.length > 250) candles = candles.slice(-250);
-
-          // Yield to UI between timeframes (prevents "freeze" on interaction)
-          await new Promise(r => setTimeout(r, 0));
-
-          const indicators = calculateTFIndicators(candles);
-          if (!indicators) continue;
-
+      for (const tf of timeframes) {
+        const candles = await fetchTimeframeData(tf);
+        const indicators = calculateTFIndicators(candles);
+        
+        if (indicators) {
           toolsState.mtfData[tf] = indicators;
-
-          // Update card (DOM writes are light, but still guard existence)
-          const priceEl = document.getElementById(`mtf-price-${tf}`);
-          if (priceEl) priceEl.textContent = '$' + indicators.price.toFixed(4);
-
+          
+          // Update card
+          const card = document.querySelector(`.mtf-card[data-tf="${tf}"]`);
+          document.getElementById(`mtf-price-${tf}`).textContent = '$' + indicators.price.toFixed(4);
+          
           const signalEl = document.getElementById(`mtf-signal-${tf}`);
-          if (signalEl) {
-            signalEl.textContent = indicators.signal;
-            signalEl.className = 'mtf-signal ' + indicators.signal.toLowerCase();
-          }
-
+          signalEl.textContent = indicators.signal;
+          signalEl.className = 'mtf-signal ' + indicators.signal.toLowerCase();
+          
           const rsiEl = document.getElementById(`mtf-rsi-${tf}`);
-          if (rsiEl) {
-            rsiEl.textContent = indicators.rsi.toFixed(1);
-            rsiEl.className = 'mtf-rsi ' + (indicators.rsi < 30 ? 'oversold' : indicators.rsi > 70 ? 'overbought' : 'neutral');
-          }
-
-          const macdEl = document.getElementById(`mtf-macd-${tf}`);
-          if (macdEl) macdEl.textContent = indicators.macd > 0 ? '▲' : indicators.macd < 0 ? '▼' : '■';
-
-          const trendEl = document.getElementById(`mtf-trend-${tf}`);
-          if (trendEl) trendEl.textContent = indicators.trend;
-
+          rsiEl.textContent = indicators.rsi.toFixed(1);
+          rsiEl.className = 'mtf-rsi ' + (indicators.rsi < 30 ? 'oversold' : indicators.rsi > 70 ? 'overbought' : 'neutral');
+          
+          document.getElementById(`mtf-macd-${tf}`).textContent = indicators.macd > 0 ? '' : indicators.macd < 0 ? '' : '';
+          document.getElementById(`mtf-trend-${tf}`).textContent = indicators.trend;
+          // Update card border
+          card.className = 'mtf-card ' + (indicators.signal === 'BULLISH' ? 'bullish' : indicators.signal === 'BEARISH' ? 'bearish' : '');
           // Count signals
           if (indicators.signal === 'BULLISH') bullish++;
           else if (indicators.signal === 'BEARISH') bearish++;
           else neutral++;
         }
-
-        // Summary verdict (if elements exist)
-        const verdict = document.getElementById('mtf-verdict');
-        if (verdict) {
-          if (bullish >= 3) {
-            verdict.textContent = ' BULLISH BIAS';
-            verdict.style.color = 'var(--accent-green)';
-          } else if (bearish >= 3) {
-            verdict.textContent = ' BEARISH BIAS';
-            verdict.style.color = 'var(--accent-red)';
-          } else {
-            verdict.textContent = ' MIXED SIGNALS';
-            verdict.style.color = 'var(--accent-orange)';
-          }
-        }
-      } finally {
-        if (runId === mtfRunId) mtfInFlight = false;
       }
-    }ntent = ' MIXED SIGNALS';
+      // Update consensus
+      document.getElementById('mtf-bullish-count').textContent = bullish;
+      document.getElementById('mtf-neutral-count').textContent = neutral;
+      document.getElementById('mtf-bearish-count').textContent = bearish;
+      const verdict = document.getElementById('mtf-verdict');
+      if (bullish >= 4) {
+        verdict.textContent = ' STRONG BULLISH';
+        verdict.style.color = 'var(--accent-green)';
+      } else if (bearish >= 4) {
+        verdict.textContent = ' STRONG BEARISH';
+        verdict.style.color = 'var(--accent-red)';
+      } else if (bullish > bearish) {
+        verdict.textContent = ' BULLISH BIAS';
+        verdict.style.color = 'var(--accent-green)';
+      } else if (bearish > bullish) {
+        verdict.textContent = ' BEARISH BIAS';
+        verdict.style.color = 'var(--accent-red)';
+      } else {
+        verdict.textContent = ' MIXED SIGNALS';
         verdict.style.color = 'var(--accent-orange)';
       }
     }
@@ -8744,477 +8699,5 @@ addAlert(`Timeframe changed to ${tf}`, 'info');
   setTimeout(updateAIEnginePanel, 3000);
 })();
 </script>
-
-
-<script>
-
-/* ================================
- * 🧯 LongRunGuard v1.0 (stability)
- * Prevents slow UI freeze after hours by pruning unbounded DOM lists
- * and reducing work while tab is hidden.
- * ================================ */
-const LongRunGuard = (() => {
-  const cfg = {
-    pruneEveryMs: 60_000,
-    maxNodes: {
-      alertsContainer: 250,
-      signalHistoryList: 250,
-      alertHistory: 250,
-      btTradeLog: 400,
-      customAlertsList: 200
-    },
-    hiddenMinIntervalMs: 2_000,   // minimum spacing for heavy timers when tab is hidden
-  };
-
-  const state = {
-    lastHiddenRun: new Map(),
-  };
-
-  function pruneListById(id, max) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    // Support containers that use children or list items
-    const kids = el.children;
-    if (!kids || kids.length <= max) return;
-    const excess = kids.length - max;
-    // Remove oldest first
-    for (let i = 0; i < excess; i++) {
-      if (el.firstElementChild) el.removeChild(el.firstElementChild);
-      else break;
-    }
-  }
-
-  function pruneAll() {
-    try {
-      for (const [id, max] of Object.entries(cfg.maxNodes)) {
-        pruneListById(id, max);
-      }
-    } catch (e) {
-      console.warn('[LongRunGuard] prune error:', e && e.message ? e.message : e);
-    }
-  }
-
-  // Patch FreezeGuard.safeInterval so heavy loops do less work when tab is hidden.
-  function patchFreezeGuard() {
-    if (!window.FreezeGuard || FreezeGuard.__longRunPatched) return;
-    const original = FreezeGuard.safeInterval.bind(FreezeGuard);
-
-    FreezeGuard.safeInterval = function(fn, delay, name = 'unnamed') {
-      // Wrap the original fn with visibility-aware throttling for heavy jobs
-      const wrapped = () => {
-        try {
-          if (document.hidden) {
-            const now = Date.now();
-            const last = state.lastHiddenRun.get(name) || 0;
-            // Throttle only if the interval is relatively frequent
-            if (delay < cfg.hiddenMinIntervalMs && (now - last) < cfg.hiddenMinIntervalMs) return;
-            state.lastHiddenRun.set(name, now);
-          }
-          return fn();
-        } catch (e) {
-          // Let FreezeGuard's own protection log it
-          throw e;
-        }
-      };
-      return original(wrapped, delay, name);
-    };
-
-    FreezeGuard.__longRunPatched = true;
-  }
-
-  function start() {
-    patchFreezeGuard();
-    // Periodic pruning
-    setInterval(pruneAll, cfg.pruneEveryMs);
-
-    // Also prune on visibility changes (common source of backlog)
-    document.addEventListener('visibilitychange', () => {
-      // On return to visible, prune immediately
-      if (!document.hidden) pruneAll();
-    });
-
-    console.log('[LongRunGuard] Enabled (prune DOM lists + hidden throttle)');
-  }
-
-  return { start, pruneAll };
-})();
-
-</script>
-
-<script>try{LongRunGuard.start();}catch(e){console.warn('[LongRunGuard] start failed:', e&&e.message?e.message:e);}</script>
-
-<script nonce="okrt-oraculum-nonce-2026">
-/* ============================================================
-   ORACULUM LONG-RUN GUARD v2 (PHASE 3)
-   هدف: evitar growth indefinido en Main heap + prevenir freezes
-   - Hard caps en estructuras de datos (best-effort)
-   - Control de listeners Firestore si existen
-   - Recycle suave del motor si heap se dispara o uptime alto
-   ============================================================ */
-(function(){
-  'use strict';
-  const TAG = '[LONGRUN-GUARD]';
-  const now = () => Date.now();
-  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-
-  // ====== Config (ajustable) ======
-  const CFG = {
-    tickMs: 30_000,                 // cada 30s
-    hardTickMs: 120_000,            // limpieza dura cada 2 min
-    heapSoftMB: 260,                // actuar suave si supera
-    heapHardMB: 340,                // actuar duro si supera
-    maxAlerts: 250,
-    maxSignals: 250,
-    maxWhales: 250,
-    maxOrderBookRows: 300,
-    maxCandlesPerTf: 600,           // ~10h de velas 1m
-    maxPredictionsCompleted: 400,
-    maxPredictionsPending: 25,
-    maxPatterns: 250,
-    maxLogs: 400,
-    maxWhyTextLen: 500,
-    recycleEveryMin: 120            // recycle suave cada 2h
-  };
-
-  // ====== helpers ======
-  function mb(bytes){ return bytes / (1024*1024); }
-
-  function capArray(arr, max){
-    if (!Array.isArray(arr)) return false;
-    if (arr.length <= max) return false;
-    arr.splice(0, arr.length - max);
-    return true;
-  }
-
-  function capString(s, maxLen){
-    if (typeof s !== 'string') return false;
-    if (s.length <= maxLen) return false;
-    return s.slice(-maxLen);
-  }
-
-  function capMap(m, max){
-    if (!m || typeof m.size !== 'number' || typeof m.keys !== 'function') return false;
-    if (m.size <= max) return false;
-    // borrar claves antiguas en orden de inserción (Map)
-    if (m instanceof Map) {
-      const extra = m.size - max;
-      let i = 0;
-      for (const k of m.keys()) {
-        m.delete(k);
-        if (++i >= extra) break;
-      }
-      return true;
-    }
-    // Set: eliminar valores antiguos
-    if (m instanceof Set) {
-      const extra = m.size - max;
-      let i = 0;
-      for (const v of m.values()) {
-        m.delete(v);
-        if (++i >= extra) break;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  function tryCapByKey(obj, key, max){
-    try {
-      if (!obj) return false;
-      const v = obj[key];
-      if (Array.isArray(v)) return capArray(v, max);
-      if (v instanceof Map || v instanceof Set) return capMap(v, max);
-      return false;
-    } catch(_) { return false; }
-  }
-
-  function walkAndCap(obj, depth){
-    if (!obj || depth <= 0) return;
-    const keys = Object.keys(obj);
-    for (const k of keys) {
-      let v;
-      try { v = obj[k]; } catch(_) { continue; }
-
-      // Hard caps por nombre (best-effort)
-      const lk = String(k).toLowerCase();
-      if (Array.isArray(v)) {
-        if (lk.includes('alert')) capArray(v, CFG.maxAlerts);
-        else if (lk.includes('signal')) capArray(v, CFG.maxSignals);
-        else if (lk.includes('whale')) capArray(v, CFG.maxWhales);
-        else if (lk.includes('order') || lk.includes('book')) capArray(v, CFG.maxOrderBookRows);
-        else if (lk.includes('candle') || lk.includes('kline')) capArray(v, CFG.maxCandlesPerTf);
-        else if (lk.includes('pending')) capArray(v, CFG.maxPredictionsPending);
-        else if (lk.includes('completed') || lk.includes('history') || lk.includes('pred')) capArray(v, CFG.maxPredictionsCompleted);
-        else if (lk.includes('pattern')) capArray(v, CFG.maxPatterns);
-        else if (lk.includes('log')) capArray(v, CFG.maxLogs);
-      } else if (v instanceof Map || v instanceof Set) {
-        if (lk.includes('pattern')) capMap(v, CFG.maxPatterns);
-        else if (lk.includes('pred') || lk.includes('history')) capMap(v, CFG.maxPredictionsCompleted);
-        else if (lk.includes('log')) capMap(v, CFG.maxLogs);
-      } else if (typeof v === 'string') {
-        if (lk.includes('why')) obj[k] = capString(v, CFG.maxWhyTextLen);
-      } else if (typeof v === 'object' && v) {
-        // evita ciclos
-        if (v === window || v === document) continue;
-        walkAndCap(v, depth - 1);
-      }
-    }
-  }
-
-  function capDomLists(){
-    // Alerts / signals / whales / orderbook (si existen)
-    const selectors = [
-      ['#alertsList', CFG.maxAlerts],
-      ['#signalsList', CFG.maxSignals],
-      ['#whalesList', CFG.maxWhales],
-      ['#orderBook', CFG.maxOrderBookRows],
-      ['.alerts-list', CFG.maxAlerts],
-      ['.signals-list', CFG.maxSignals],
-      ['.whales-list', CFG.maxWhales],
-      ['.orderbook', CFG.maxOrderBookRows],
-    ];
-    for (const [sel, max] of selectors) {
-      const el = document.querySelector(sel);
-      if (!el) continue;
-      const kids = el.children;
-      if (!kids || kids.length <= max) continue;
-      const extra = kids.length - max;
-      for (let i=0; i<extra; i++){
-        if (el.firstElementChild) el.removeChild(el.firstElementChild);
-      }
-    }
-  }
-
-  // Firestore: algunos builds dejan listeners abiertos y crecen en heap.
-  // Si existe un unsubscribe guardado, lo usamos. Si no, solo reducimos frecuencia de "save".
-  function tameFirestore(){
-    const A = window.AIEnginePro || window.AIEngine || null;
-    if (!A) return;
-
-    // Si el motor expone unsubscribe de snapshot, úsalo (best-effort)
-    const unsubKeys = ['unsub','unsubscribe','_unsub','_unsubscribe','unsubState','unsubEngine'];
-    for (const k of unsubKeys){
-      const fn = A[k];
-      if (typeof fn === 'function') {
-        try { fn.call(A); console.warn(TAG, 'Firestore snapshot unsubscribed via', k); } catch(_){}
-      }
-    }
-
-    // Reducir writes: si hay saveState muy frecuente, lo rate-limit
-    if (typeof A.saveState === 'function' && !A.__saveState_patched) {
-      A.__saveState_patched = true;
-      const orig = A.saveState.bind(A);
-      let last = 0;
-      A.saveState = async function(...args){
-        const t = now();
-        // no más de 1 write cada 60s (salvo llamadas manuales)
-        if (!this.__forceSave && (t - last) < 60_000) return;
-        last = t;
-        return orig(...args);
-      };
-      console.warn(TAG, 'Patched AIEngine saveState rate-limit (>=60s).');
-    }
-  }
-
-  // Recycle suave del motor: limpia grandes buffers, reengancha timers si hiciera falta.
-  function softRecycle(reason){
-    const A = window.AIEnginePro || window.AIEngine || null;
-    console.warn(TAG, 'Soft recycle triggered:', reason);
-
-    try { capDomLists(); } catch(_){}
-
-    if (A && typeof A === 'object') {
-      // Limpia arrays típicos
-      const keys = Object.keys(A);
-      for (const k of keys){
-        try {
-          const lk = k.toLowerCase();
-          if (lk.includes('completed') || lk.includes('history')) tryCapByKey(A, k, CFG.maxPredictionsCompleted);
-          if (lk.includes('pending')) tryCapByKey(A, k, CFG.maxPredictionsPending);
-          if (lk.includes('pattern')) tryCapByKey(A, k, CFG.maxPatterns);
-          if (lk.includes('log')) tryCapByKey(A, k, CFG.maxLogs);
-        } catch(_){}
-      }
-      // Estado interno si existe
-      try { if (A.state && typeof A.state === 'object') walkAndCap(A.state, 3); } catch(_){}
-      try { walkAndCap(A, 2); } catch(_){}
-    }
-
-    // compacta localStorage (si alguien mete logs ahí)
-    try {
-      // best-effort: si hay claves con arrays serializados grandes, no tocar por defecto
-      // pero sí evitamos crecimiento accidental del key "oraculum_console_buffer"
-      const k = 'oraculum_console_buffer';
-      const v = localStorage.getItem(k);
-      if (v && v.length > 200_000) localStorage.setItem(k, v.slice(-50_000));
-    } catch(_){}
-
-    tameFirestore();
-  }
-
-  function getHeapMB(){
-    try {
-      if (performance && performance.memory && performance.memory.usedJSHeapSize) {
-        return mb(performance.memory.usedJSHeapSize);
-      }
-    } catch(_){}
-    return null;
-  }
-
-  // ====== main loop ======
-  const startedAt = now();
-  let lastHard = 0;
-
-  function tick(){
-    try { capDomLists(); } catch(_){}
-    // cap estructuras conocidas
-    try {
-      const roots = [window.AIEnginePro, window.AIEngine, window.state, window.__STATE__, window.MarketFeedManager];
-      for (const r of roots) walkAndCap(r, 2);
-    } catch(_){}
-
-    const heap = getHeapMB();
-    if (heap != null) {
-      // actuación suave
-      if (heap > CFG.heapSoftMB) softRecycle('heap_soft ' + heap.toFixed(1) + 'MB');
-      // actuación dura cada hardTick
-      const t = now();
-      if (heap > CFG.heapHardMB && (t - lastHard) > CFG.hardTickMs) {
-        lastHard = t;
-        softRecycle('heap_hard ' + heap.toFixed(1) + 'MB');
-      }
-    }
-
-    // recycle por uptime (mantenimiento preventivo)
-    const upMin = (now() - startedAt) / 60000;
-    if (upMin >= CFG.recycleEveryMin) {
-      // solo una vez
-      CFG.recycleEveryMin = 1e9;
-      softRecycle('uptime_recycle ' + upMin.toFixed(0) + 'min');
-    }
-  }
-
-  // Evita duplicados si se reinserta el script
-  if (window.__OKRT_LONGRUN_GUARD__) return;
-  window.__OKRT_LONGRUN_GUARD__ = true;
-
-  // Background: limpieza extra
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      try { softRecycle('background'); } catch(_){}
-    }
-  }, {passive:true});
-
-  // Arranque diferido (deja que cargue todo)
-  setTimeout(() => {
-    tameFirestore();
-    tick();
-    setInterval(tick, CFG.tickMs);
-    console.log(TAG, 'enabled. softMB=', CFG.heapSoftMB, 'hardMB=', CFG.heapHardMB);
-  }, 3000);
-
-})();
-</script>
-
-
-
-<!-- ConsoleGuard injected -->
-<script>
-/* ============================================
-   ConsoleGuard v1.0 (Long-run stability)
-   - Prevent DevTools console from retaining unbounded logs.
-   - Rate-limits repetitive logs while preserving errors.
-   ============================================ */
-(function(){
-  const CFG = {
-    maxPerMinute: 120,          // hard cap for log/info/warn combined
-    maxDuplicates: 30,          // same message repetitions per minute
-    summaryEveryMs: 60000,      // emit summary once per minute if dropped
-    dropAfterTotal: 15000,      // after this many logs, switch to summary-only
-    keepErrors: true
-  };
-
-  const orig = {
-    log: console.log.bind(console),
-    info: console.info.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console)
-  };
-
-  let minuteWindowStart = Date.now();
-  let minuteCount = 0;
-  let totalCount = 0;
-  let dropped = 0;
-  let dupMap = new Map();
-  let lastSummary = 0;
-
-  function rotateMinute(){
-    const now = Date.now();
-    if (now - minuteWindowStart >= 60000){
-      minuteWindowStart = now;
-      minuteCount = 0;
-      dupMap.clear();
-    }
-  }
-
-  function emitSummary(force){
-    const now = Date.now();
-    if (!force && (now - lastSummary) < CFG.summaryEveryMs) return;
-    lastSummary = now;
-    if (dropped > 0){
-      orig.warn(`[ConsoleGuard] logs suppressed: ${dropped} (rate/duplicate/total limits).`);
-      dropped = 0;
-    }
-  }
-
-  function wrap(level){
-    return function(...args){
-      try{
-        rotateMinute();
-        totalCount++;
-        const isError = level === 'error';
-        if (isError && CFG.keepErrors){
-          return orig.error(...args);
-        }
-
-        // Build a lightweight key (avoid heavy JSON stringify)
-        let key = '';
-        if (args && args.length){
-          const a0 = args[0];
-          key = typeof a0 === 'string' ? a0 : (a0 && a0.message) ? a0.message : Object.prototype.toString.call(a0);
-        }
-        const prev = dupMap.get(key) || 0;
-        if (prev >= CFG.maxDuplicates){
-          dropped++; emitSummary(false); return;
-        }
-        dupMap.set(key, prev + 1);
-
-        if (totalCount > CFG.dropAfterTotal){
-          dropped++; emitSummary(false); return;
-        }
-        if (minuteCount >= CFG.maxPerMinute){
-          dropped++; emitSummary(false); return;
-        }
-        minuteCount++;
-
-        orig[level](...args);
-      } catch(e){
-        // Never break the app because of logging guard
-        try{ orig.error('[ConsoleGuard] internal error', e); }catch(_){}
-      }
-    }
-  }
-
-  console.log = wrap('log');
-  console.info = wrap('info');
-  console.warn = wrap('warn');
-  // Keep console.error as-is (wrapped above in wrap but keepErrors route)
-  console.error = wrap('error');
-
-  // Expose a manual flush (optional)
-  window.__ConsoleGuardFlush = function(){ emitSummary(true); };
-})();
-</script>
-<!-- /ConsoleGuard injected -->
 
 </body></html>
