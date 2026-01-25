@@ -2523,9 +2523,21 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     }
     // --- TIMEFRAME CHANGE ---
     function changeTimeframe(tf) {
+      // Protección contra clics rápidos
+      if (_timeframeChanging) {
+        console.log('[Timeframe] Cambio en progreso, ignorando clic');
+        return;
+      }
+      _timeframeChanging = true;
+      
       console.log('[Timeframe] Cambiando a', tf, '- limpiando gráficos...');
       
-      // 1. LIMPIAR SERIES DEL GRÁFICO ANTES de cambiar datos
+      // 1. CERRAR WEBSOCKET PRIMERO para evitar datos mezclados
+      wsIntentionalClose = true;
+      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+      try { if (ws) ws.close(); } catch (e) {}
+      
+      // 2. LIMPIAR SERIES DEL GRÁFICO
       try {
         if (candleSeries) candleSeries.setData([]);
         if (ema9Series) ema9Series.setData([]);
@@ -2547,7 +2559,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         console.warn('[Timeframe] Error limpiando gráficos:', e.message);
       }
       
-      // 2. Limpiar state
+      // 3. Limpiar state
       state.currentTimeframe = tf;
       state.candles = [];
       state.priceHistory = [];
@@ -2556,21 +2568,24 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       state.predictions = [];
       state.predictionHistory = [];
       
-      // 3. Limpiar AILearning pendientes
+      // 4. Limpiar AILearning pendientes
       try {
         if (window.AILearning && window.AILearning.pendingPredictions) {
           window.AILearning.pendingPredictions = [];
         }
       } catch(e) {}
       
-      // 4. Reconectar WebSocket con nuevo timeframe
-      wsIntentionalClose = true;
-      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-      try { if (ws) ws.close(); } catch (e) {}
-      fetchHistoricalData();
-      connectAPI();
+      // 5. Resetear throttle timers
+      _lastPredictionRun = 0;
+      _lastOrderBookUpdate = 0;
       
-      addAlert(`Timeframe changed to ${tf}`, 'info');
+      // 6. Reconectar con delay para asegurar limpieza completa
+      setTimeout(() => {
+        fetchHistoricalData();
+        connectAPI();
+        _timeframeChanging = false;  // Desbloquear después de reconectar
+        addAlert(`Timeframe changed to ${tf}`, 'info');
+      }, 300);
     }
     // --- EXPORT DATA TO CSV ---
     function exportData() {
@@ -5828,7 +5843,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         
         if (state.candles.length > 0) {
           state.currentPrice = state.candles[state.candles.length - 1].close;
-          runPredictionEngine(state.currentPrice);
+          throttledRunPrediction(state.currentPrice);  // OPTIMIZADO: usar throttle
         }
         
         // Ajustar zoom inicial - mostrar ltimas 50 velas para mejor visibilidad
@@ -5850,8 +5865,9 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     // ============================================
     let _lastPredictionRun = 0;
     let _lastOrderBookUpdate = 0;
-    const PREDICTION_THROTTLE_MS = 3000;  // runPredictionEngine max cada 3s
-    const ORDERBOOK_THROTTLE_MS = 500;    // updateOrderBook max cada 500ms
+    let _timeframeChanging = false;  // Protección contra clics rápidos en timeframe
+    const PREDICTION_THROTTLE_MS = 2500;  // runPredictionEngine máximo cada 2.5s
+    const ORDERBOOK_THROTTLE_MS = 400;    // updateOrderBook máximo cada 400ms
     
     function throttledRunPrediction(price) {
       const now = Date.now();
@@ -5911,7 +5927,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           if (k.x) {
             state.candles.push(candle);
             if (state.candles.length > CONFIG.HISTORY_SIZE) state.candles.shift();
-            runPredictionEngine(candle.close);
+            throttledRunPrediction(candle.close);  // OPTIMIZADO: usar throttle
             // Actualizar EMAs y lneas de tendencia cuando se cierra una vela
             updateEMAs();
             updateTrendLines();
@@ -7585,7 +7601,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       originalAddAlert(msg, type);
     };
     // Update session stats every second
-    setInterval(updateSessionStats, 5000); // Optimizado: 1s -> 5s
+    setInterval(updateSessionStats, 15000); // OPTIMIZADO: 5s -> 15s para reducir carga CPU
     // ============================================
     // 6. STRATEGY BUILDER
     // ============================================
@@ -8762,7 +8778,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     } catch (e) { console.warn('[UI] AI Panel error:', e); }
   }
   
-  setInterval(updateAIEnginePanel, 3000);
+  setInterval(updateAIEnginePanel, 10000);  // OPTIMIZADO: 3s -> 10s para reducir carga CPU
   setTimeout(updateAIEnginePanel, 3000);
 })();
 </script>
