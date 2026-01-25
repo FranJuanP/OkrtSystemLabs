@@ -2522,6 +2522,11 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       }
     }
     // --- TIMEFRAME CHANGE ---
+    // Variables de throttle declaradas aquí para scope correcto
+    let _timeframeChanging = false;
+    let _lastPredictionRun = 0;
+    let _lastOrderBookUpdate = 0;
+    
     function changeTimeframe(tf) {
       // Protección contra clics rápidos
       if (_timeframeChanging) {
@@ -5863,9 +5868,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     // ============================================
     // THROTTLE PARA OPTIMIZACIÓN DE RENDIMIENTO
     // ============================================
-    let _lastPredictionRun = 0;
-    let _lastOrderBookUpdate = 0;
-    let _timeframeChanging = false;  // Protección contra clics rápidos en timeframe
+    // Variables _lastPredictionRun, _lastOrderBookUpdate, _timeframeChanging 
+    // declaradas arriba (antes de changeTimeframe) para scope correcto
     const PREDICTION_THROTTLE_MS = 2500;  // runPredictionEngine máximo cada 2.5s
     const ORDERBOOK_THROTTLE_MS = 400;    // updateOrderBook máximo cada 400ms
     
