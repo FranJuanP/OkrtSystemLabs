@@ -2522,75 +2522,21 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       }
     }
     // --- TIMEFRAME CHANGE ---
-    // Variables de throttle declaradas aquí para scope correcto
-    let _timeframeChanging = false;
-    let _lastPredictionRun = 0;
-    let _lastOrderBookUpdate = 0;
-    
     function changeTimeframe(tf) {
-      // Protección contra clics rápidos
-      if (_timeframeChanging) {
-        console.log('[Timeframe] Cambio en progreso, ignorando clic');
-        return;
-      }
-      _timeframeChanging = true;
-      
-      console.log('[Timeframe] Cambiando a', tf, '- limpiando gráficos...');
-      
-      // 1. CERRAR WEBSOCKET PRIMERO para evitar datos mezclados
-      wsIntentionalClose = true;
-      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-      try { if (ws) ws.close(); } catch (e) {}
-      
-      // 2. LIMPIAR SERIES DEL GRÁFICO
-      try {
-        if (candleSeries) candleSeries.setData([]);
-        if (ema9Series) ema9Series.setData([]);
-        if (ema21Series) ema21Series.setData([]);
-        if (trendLineUp) trendLineUp.setData([]);
-        if (trendLineDown) trendLineDown.setData([]);
-        // Limpiar líneas S/R
-        if (supportLines && supportLines.length) {
-          supportLines.forEach(s => { try { s.setData([]); } catch(e){} });
-        }
-        if (resistanceLines && resistanceLines.length) {
-          resistanceLines.forEach(r => { try { r.setData([]); } catch(e){} });
-        }
-        // Limpiar Fibonacci
-        if (fiboLines && fiboLines.length) {
-          fiboLines.forEach(f => { try { f.setData([]); } catch(e){} });
-        }
-      } catch (e) {
-        console.warn('[Timeframe] Error limpiando gráficos:', e.message);
-      }
-      
-      // 3. Limpiar state
       state.currentTimeframe = tf;
       state.candles = [];
       state.priceHistory = [];
       state.rsiHistory = [];
       state.obvHistory = [];
-      state.predictions = [];
-      state.predictionHistory = [];
       
-      // 4. Limpiar AILearning pendientes
-      try {
-        if (window.AILearning && window.AILearning.pendingPredictions) {
-          window.AILearning.pendingPredictions = [];
-        }
-      } catch(e) {}
+      // Reconectar WebSocket con nuevo timeframe (evita doble reconnect)
+      wsIntentionalClose = true;
+      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+      try { if (ws) ws.close(); } catch (e) {}
+      fetchHistoricalData();
+      connectAPI();
       
-      // 5. Resetear throttle timers
-      _lastPredictionRun = 0;
-      _lastOrderBookUpdate = 0;
-      
-      // 6. Reconectar con delay para asegurar limpieza completa
-      setTimeout(() => {
-        fetchHistoricalData();
-        connectAPI();
-        _timeframeChanging = false;  // Desbloquear después de reconectar
-        addAlert(`Timeframe changed to ${tf}`, 'info');
-      }, 300);
+      addAlert(`Timeframe changed to ${tf}`, 'info');
     }
     // --- EXPORT DATA TO CSV ---
     function exportData() {
@@ -5848,7 +5794,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         
         if (state.candles.length > 0) {
           state.currentPrice = state.candles[state.candles.length - 1].close;
-          throttledRunPrediction(state.currentPrice);  // OPTIMIZADO: usar throttle
+          runPredictionEngine(state.currentPrice);
         }
         
         // Ajustar zoom inicial - mostrar ltimas 50 velas para mejor visibilidad
@@ -5866,10 +5812,17 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       }
     }
     // ============================================
+    // WEBSOCKET
+    // ============================================
+    let ws;
+    let wsIntentionalClose = false;
+    let wsReconnectTimer = null;
+    
+    // ============================================
     // THROTTLE PARA OPTIMIZACIÓN DE RENDIMIENTO
     // ============================================
-    // Variables _lastPredictionRun, _lastOrderBookUpdate, _timeframeChanging 
-    // declaradas arriba (antes de changeTimeframe) para scope correcto
+    let _lastPredictionRun = 0;
+    let _lastOrderBookUpdate = 0;
     const PREDICTION_THROTTLE_MS = 2500;  // runPredictionEngine máximo cada 2.5s
     const ORDERBOOK_THROTTLE_MS = 400;    // updateOrderBook máximo cada 400ms
     
@@ -5888,13 +5841,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         updateOrderBook(bids, asks);
       }
     }
+    // ============================================
     
-    // ============================================
-    // WEBSOCKET
-    // ============================================
-    let ws;
-    let wsIntentionalClose = false;
-    let wsReconnectTimer = null;
     function getWsUrl() {
       return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@100ms/xrpusdt@ticker/xrpusdt@aggTrade`;
     }
@@ -5951,7 +5899,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           ui.volume.innerText = (volume / 1000000).toFixed(2) + 'M';
           
           if (state.candles.length > 0) {
-            throttledRunPrediction(price);  // OPTIMIZADO: Throttle para evitar saturación
+            throttledRunPrediction(price);  // OPTIMIZADO: usar throttle
           }
         }
         if (stream.includes('depth')) {
@@ -5963,7 +5911,7 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
           }
           
           state.lastOrderBook = { bids: data.bids, asks: data.asks };
-          throttledUpdateOrderBook(data.bids, data.asks);  // OPTIMIZADO: Throttle para evitar saturación
+          throttledUpdateOrderBook(data.bids, data.asks);  // OPTIMIZADO: usar throttle
         }
         if (stream.includes('aggtrade') || stream.includes('aggTrade')) {
           const qty = parseFloat(data.q);
