@@ -2528,20 +2528,14 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       state.priceHistory = [];
       state.rsiHistory = [];
       state.obvHistory = [];
-
-      // Reconectar WebSocket con nuevo timeframe (evitar doble reconnect por cierre intencional)
+      
+      // Reconectar WebSocket con nuevo timeframe (evita doble reconnect)
       wsIntentionalClose = true;
       if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-      if (ws) {
-        try { ws.onclose = null; } catch (e) {}
-        try { ws.close(); } catch (e) {}
-        ws = null;
-      }
-
+      try { if (ws) ws.close(); } catch (e) {}
       fetchHistoricalData();
       connectAPI();
-      wsIntentionalClose = false;
-
+      
       addAlert(`Timeframe changed to ${tf}`, 'info');
     }
     // --- EXPORT DATA TO CSV ---
@@ -5827,12 +5821,15 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@100ms/xrpusdt@ticker/xrpusdt@aggTrade`;
     }
     function connectAPI() {
+      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
       ui.statusText.innerText = 'CONNECTING...';
       ui.statusPill.className = 'status-pill';
       
       const wsUrl = getWsUrl();
       ws = new WebSocket(wsUrl);
       ws.onopen = () => {
+        wsIntentionalClose = false;
+        if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
         ui.statusText.innerText = 'LIVE';
         ui.statusPill.classList.add('status-live');
         addAlert('System connected to Binance streams', 'info');
