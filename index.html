@@ -8506,12 +8506,29 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
 
     const SYMBOL = 'XRPUSDT';
 
-    const onCandle = function(candle){
-        // Enlaza con tu AI Engine PRO sin tocar su lógica
-        if(window.AIEnginePro && typeof window.AIEnginePro.onMarketData === 'function'){
-            window.AIEnginePro.onMarketData(candle);
-        }
+    const onCandle = (function(){
+    // Batching para evitar saturar el main thread si el feed emite muy rápido.
+    // No cambia la lógica del motor: solo agrupa y envía el último candle disponible.
+    let pending = false;
+    let lastCandle = null;
+    const flush = () => {
+        pending = false;
+        const c = lastCandle;
+        lastCandle = null;
+        try{
+            if(window.AIEnginePro && typeof window.AIEnginePro.onMarketData === 'function'){
+                window.AIEnginePro.onMarketData(c);
+            }
+        }catch(e){ /* silent */ }
     };
+    return function(candle){
+        lastCandle = candle;
+        if(pending) return;
+        pending = true;
+        // 250ms: suficiente para suavizar picos sin perder "estado actual"
+        setTimeout(flush, 250);
+    };
+})();
 
     document.addEventListener('DOMContentLoaded', function(){
         try {
@@ -8695,8 +8712,10 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     } catch (e) { console.warn('[UI] AI Panel error:', e); }
   }
   
-  setInterval(updateAIEnginePanel, 3000);
-  setTimeout(updateAIEnginePanel, 3000);
+  if(!window.__OKRT_AI_PANEL_TIMER__){
+    window.__OKRT_AI_PANEL_TIMER__ = setInterval(updateAIEnginePanel, 3000);
+    setTimeout(updateAIEnginePanel, 3000);
+}
 })();
 </script>
 
