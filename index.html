@@ -2528,12 +2528,20 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
       state.priceHistory = [];
       state.rsiHistory = [];
       state.obvHistory = [];
-      
-      // Reconectar WebSocket con nuevo timeframe
-      if (ws) ws.close();
+
+      // Reconectar WebSocket con nuevo timeframe (evitar doble reconnect por cierre intencional)
+      wsIntentionalClose = true;
+      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+      if (ws) {
+        try { ws.onclose = null; } catch (e) {}
+        try { ws.close(); } catch (e) {}
+        ws = null;
+      }
+
       fetchHistoricalData();
       connectAPI();
-      
+      wsIntentionalClose = false;
+
       addAlert(`Timeframe changed to ${tf}`, 'info');
     }
     // --- EXPORT DATA TO CSV ---
@@ -5813,6 +5821,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     // WEBSOCKET
     // ============================================
     let ws;
+    let wsIntentionalClose = false;
+    let wsReconnectTimer = null;
     function getWsUrl() {
       return `wss://stream.binance.com:9443/stream?streams=xrpusdt@kline_${state.currentTimeframe}/xrpusdt@depth20@100ms/xrpusdt@ticker/xrpusdt@aggTrade`;
     }
@@ -5900,9 +5910,11 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
         ui.statusPill.classList.add('status-err');
       };
       ws.onclose = () => {
+        if (wsIntentionalClose) return;
         ui.statusText.innerText = 'RECONNECTING...';
         ui.statusPill.classList.remove('status-live');
-        setTimeout(connectAPI, 3000);
+        if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = setTimeout(connectAPI, 3000);
       };
     }
     function updateOrderBook(bids, asks) {
@@ -8506,29 +8518,12 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
 
     const SYMBOL = 'XRPUSDT';
 
-    const onCandle = (function(){
-    // Batching para evitar saturar el main thread si el feed emite muy rápido.
-    // No cambia la lógica del motor: solo agrupa y envía el último candle disponible.
-    let pending = false;
-    let lastCandle = null;
-    const flush = () => {
-        pending = false;
-        const c = lastCandle;
-        lastCandle = null;
-        try{
-            if(window.AIEnginePro && typeof window.AIEnginePro.onMarketData === 'function'){
-                window.AIEnginePro.onMarketData(c);
-            }
-        }catch(e){ /* silent */ }
+    const onCandle = function(candle){
+        // Enlaza con tu AI Engine PRO sin tocar su lógica
+        if(window.AIEnginePro && typeof window.AIEnginePro.onMarketData === 'function'){
+            window.AIEnginePro.onMarketData(candle);
+        }
     };
-    return function(candle){
-        lastCandle = candle;
-        if(pending) return;
-        pending = true;
-        // 250ms: suficiente para suavizar picos sin perder "estado actual"
-        setTimeout(flush, 250);
-    };
-})();
 
     document.addEventListener('DOMContentLoaded', function(){
         try {
@@ -8712,10 +8707,8 @@ function a0_0x34a4(){const _0x48c529=['\x6e\x63\x34\x57','\x44\x67\x76\x6e\x44\x
     } catch (e) { console.warn('[UI] AI Panel error:', e); }
   }
   
-  if(!window.__OKRT_AI_PANEL_TIMER__){
-    window.__OKRT_AI_PANEL_TIMER__ = setInterval(updateAIEnginePanel, 3000);
-    setTimeout(updateAIEnginePanel, 3000);
-}
+  setInterval(updateAIEnginePanel, 3000);
+  setTimeout(updateAIEnginePanel, 3000);
 })();
 </script>
 
