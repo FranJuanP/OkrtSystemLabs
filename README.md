@@ -5,7 +5,9 @@
 ## 🔴 Demo live (experimental)
 
 Accede a la demo en tiempo real de **XRP ORACULUM — AI ENGINE PRO**:  
-👉 https://franjuanp.github.io/OkrtSystemLabs/
+👉 PROCESO DE ACTUALIZACION EN CURSO .... 
+
+(https://franjuanp.github.io/OkrtSystemLabs/)
 
 > ⚠️ **Demo experimental**  
 > Esta versión se ejecuta en tiempo real con datos de mercado reales y está sujeta a cambios, ajustes dinámicos y fases de aprendizaje.
