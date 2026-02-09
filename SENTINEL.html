@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Murcia Incidencias — Cómo funciona (OkrtSystem Labs)</title>
+  <meta name="description" content="Artículo: Murcia Incidencias / Murcia Sentinel — cómo funciona, mecánica y arquitectura ligera basada en HTML + JSON." />
+  <style>
+    :root{
+      --bg:#070b16;
+      --panel:#0e1630;
+      --text:#e8eefc;
+      --muted:#9bb0cc;
+      --accent:#35f28b;
+      --line:rgba(255,255,255,.08);
+      --shadow: 0 18px 40px rgba(0,0,0,.45);
+      --radius:16px;
+      --max: 920px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 20% 10%, rgba(53,242,139,.12), transparent 55%),
+                  radial-gradient(900px 500px at 90% 20%, rgba(110,231,255,.10), transparent 55%),
+                  linear-gradient(180deg,#060913 0%, #070b16 100%);
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
+      line-height:1.55;
+    }
+    a{color:inherit}
+    .wrap{max-width:var(--max); margin:0 auto; padding:28px 18px 44px;}
+    header{
+      background: rgba(14,22,48,.72);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      padding:20px 20px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .kicker{
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:12px;
+      color:rgba(232,238,252,.9);
+    }
+    .dot{width:10px;height:10px;border-radius:50%; background:var(--accent); box-shadow:0 0 18px rgba(53,242,139,.55);}
+    h1{margin:10px 0 0; font-size:30px; line-height:1.12;}
+    .sub{margin:10px 0 0; color:var(--muted); font-size:15px;}
+    .meta{
+      margin-top:14px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .pill{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      padding:4px 10px;
+      border-radius:999px;
+    }
+    main{
+      margin-top:16px;
+      background: rgba(14,22,48,.55);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .content{padding:18px 20px 10px;}
+    h2{
+      margin:18px 0 8px;
+      font-size:18px;
+      letter-spacing:.02em;
+    }
+    p{margin:10px 0;}
+    ul{margin:10px 0 10px 18px; padding:0;}
+    li{margin:6px 0; color:rgba(232,238,252,.94);}
+    blockquote{
+      margin:14px 0;
+      padding:12px 14px;
+      border-left:3px solid var(--accent);
+      background: rgba(255,255,255,.03);
+      color:rgba(232,238,252,.92);
+      border-radius: 10px;
+    }
+    .hr{height:1px; background:var(--line); margin:16px 0;}
+    .footer{
+      padding:14px 20px 18px;
+      border-top:1px solid var(--line);
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      color:rgba(232,238,252,.55);
+      font-size:12px;
+    }
+    .tags{color:rgba(232,238,252,.7)}
+    .cta{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:8px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color:rgba(232,238,252,.92);
+      text-decoration:none;
+      white-space:nowrap;
+    }
+    .cta:hover{border-color:rgba(53,242,139,.45); box-shadow:0 0 0 3px rgba(53,242,139,.12);}
+    .imgwrap{
+      border-top:1px solid var(--line);
+      background: rgba(0,0,0,.25);
+      padding:14px 20px;
+    }
+    .imgnote{margin:0; color:rgba(232,238,252,.6); font-size:12px;}
+    @media (max-width:520px){
+      h1{font-size:24px}
+      header, .content{padding-left:16px;padding-right:16px}
+      .footer{padding-left:16px;padding-right:16px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="kicker"><span class="dot"></span>OkrtSystem Labs • Monitorización</div>
+      <h1>🛰️ Murcia Incidencias: un monitor en tiempo (casi) real para entender qué pasa en la Región</h1>
+      <p class="sub">
+        En un mundo donde la información llega fragmentada (tweets sueltos, titulares, comunicados dispersos…), una de las cosas que más echaba de menos era una visión
+        clara, unificada y rápida de las incidencias relevantes en mi región.
+      </p>
+      <div class="meta">
+        <span class="pill">Proyecto: Murcia Sentinel</span>
+        <span class="pill">Arquitectura ligera: HTML + JSON</span>
+        <span class="pill">Enfoque: Situational Awareness</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="content">
+        <p>
+          Así nació <strong>Murcia Incidencias</strong>: una herramienta ligera, enfocada a visualización y vigilancia,
+          que centraliza señales públicas (emergencias, seguridad, administración y medios) y las convierte en un <strong>panel único</strong>.
+        </p>
+
+        <h2>¿Qué hace exactamente?</h2>
+        <p>La idea es simple: <strong>ver lo importante de un vistazo</strong>, sin tener que saltar entre múltiples fuentes.</p>
+        <p>El panel muestra:</p>
+        <ul>
+          <li><strong>Listado de incidencias</strong> (con severidad, categoría, ubicación aproximada, fuente y timestamp).</li>
+          <li><strong>KPIs en barra superior</strong> (incidencias activas, última actualización y número de fuentes).</li>
+          <li><strong>Fuentes oficiales y de referencia</strong> accesibles desde el propio panel.</li>
+          <li>Una interfaz diseñada para que <strong>todo sea visible sin hacer scroll</strong> (modo pantalla/monitor).</li>
+        </ul>
+
+        <div class="hr"></div>
+
+        <h2>Mecánica de funcionamiento (cómo se mueve por dentro)</h2>
+
+        <h2>1) Fuentes de datos</h2>
+        <p>La herramienta se alimenta de un conjunto de fuentes públicas de interés, organizadas por bloques:</p>
+
+        <ul>
+          <li><strong>Emergencias</strong>: 112 Región de Murcia, CEIS (incendios)</li>
+          <li><strong>Fuerzas de seguridad</strong>: Policía Local / Policía Nacional / Guardia Civil / UDEV (según disponibilidad pública)</li>
+          <li><strong>Administración</strong>: CARM, Ayuntamientos (Murcia, Cartagena, Lorca…)</li>
+          <li><strong>Medios</strong>: prensa y medios regionales como soporte contextual</li>
+          <li><strong>Redes oficiales</strong>: cuentas verificadas/operativas (112, Policía, Guardia Civil, etc.)</li>
+        </ul>
+
+        <blockquote>
+          Importante: el objetivo es <strong>vigilancia informativa</strong> y <strong>centralización</strong>, no sustituir canales oficiales ni emitir alertas operativas.
+        </blockquote>
+
+        <h2>2) Normalización (convertir señales en “incidencias”)</h2>
+        <p>Cada señal se transforma a un formato común para poder compararla y presentarla bien:</p>
+        <ul>
+          <li><code>severity</code> (alta / media / baja)</li>
+          <li><code>category</code> (tráfico, incendio, rescate, seguridad, meteo…)</li>
+          <li><code>title</code> y <code>description</code></li>
+          <li><code>location</code> (nombre y coordenadas si aplica)</li>
+          <li><code>source</code> (nombre, tipo y URL)</li>
+          <li><code>ts</code> (timestamp)</li>
+          <li><code>status</code> (activa/resuelta)</li>
+          <li><code>confidence</code> (nivel de confianza estimado según origen)</li>
+        </ul>
+        <p>
+          Esto permite que, aunque la información venga de formatos distintos, el panel siempre muestre
+          <strong>lo mismo, igual de ordenado</strong>.
+        </p>
+
+        <h2>3) Publicación eficiente (HTML + JSON)</h2>
+        <p>Para que sea rápido y fácil de desplegar, la app está pensada para funcionar de forma muy ligera:</p>
+        <ul>
+          <li><strong>Frontend</strong>: HTML/CSS/JS estático</li>
+          <li><strong>Datos</strong>: JSON (<code>incidents.json</code>, <code>stats.json</code>, <code>sources.json</code>)</li>
+          <li><strong>Actualización</strong>: refresco periódico (polling) y cache para carga instantánea</li>
+        </ul>
+
+        <p>Este enfoque tiene ventajas claras:</p>
+        <ul>
+          <li>Carga súper rápida (ideal para móvil/monitor).</li>
+          <li>Publicación sencilla (por ejemplo en GitHub Pages o cualquier servidor).</li>
+          <li>Menos complejidad operativa si el objetivo es “monitor informativo”.</li>
+        </ul>
+
+        <h2>¿Por qué “sin scroll”?</h2>
+        <p>
+          Porque cuando lo usas como monitor, pantalla secundaria o en una ventana fija, el scroll te rompe el flujo.
+          El diseño está pensado para que:
+        </p>
+        <ul>
+          <li>Los <strong>KPIs estén arriba</strong> (siempre visibles).</li>
+          <li>La lista se mantenga clara y legible.</li>
+          <li>La herramienta sea “glanceable”: <strong>miras y entiendes</strong>.</li>
+        </ul>
+
+        <h2>Roadmap (lo siguiente que puede venir)</h2>
+        <p>Sin prometer humo, hay evoluciones naturales:</p>
+        <ul>
+          <li>Automatización de actualización de JSON (pipeline programado).</li>
+          <li>Detección de duplicados y “consolidación” de eventos.</li>
+          <li>Filtros por municipio/categoría/severidad.</li>
+          <li>Histórico y tendencias (picos por franja horaria).</li>
+          <li>Modo “alerta” (umbral + notificación) para usos controlados.</li>
+        </ul>
+
+        <h2>Cierre</h2>
+        <p>
+          Murcia Incidencias es un ejemplo de algo que me encanta construir: <strong>herramientas útiles, claras y funcionales</strong>,
+          que convierten ruido informativo en una visión operativa.
+        </p>
+        <p>
+          Si te interesa que comparta el enfoque técnico (arquitectura, normalización, despliegue, etc.) o si quieres aportar fuentes públicas adicionales,
+          encantado de leer comentarios.
+        </p>
+      </div>
+
+      <div class="imgwrap">
+        <p class="imgnote">
+          Sugerencia: para LinkedIn, inserta aquí una captura o un MP4 corto en el post. Este HTML es ideal para GitHub Pages/portfolio.
+        </p>
+      </div>
+
+      <div class="footer">
+        <div>© OkrtSystem Labs • Murcia Sentinel</div>
+        <div class="tags">#ciberseguridad #osint #situationalawareness #monitoring #murcia #software #opensource #data</div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
