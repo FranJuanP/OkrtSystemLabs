@@ -2,7 +2,7 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║        S.I.R.E.N.A.  WINDOWS EDITION  v1.2.0                ║
+║        S.I.R.E.N.A.  WINDOWS EDITION  v1.2.0                 ║
 ║      WiFi · BLE · Bluetooth Scanner & Pentesting Toolkit     ║
 ║           OkrtSystem Labs — Tactical Mod Phase 2.5 HVT       ║
 ╚══════════════════════════════════════════════════════════════╝
