@@ -222,9 +222,11 @@ nav::after {
 
 .hero-desc {
   font-size:18px; color:var(--white-60); line-height:1.8;
-  max-width:500px; margin-bottom:52px;
+  width:min(100%, 760px); max-width:760px; margin-bottom:52px;
+  text-wrap:balance;
   opacity:0; animation:fadeUp 0.8s 0.9s forwards;
 }
+.hero-desc-line { display:block; max-width:58ch; text-wrap:balance; }
 
 .cta-row {
   display:flex; gap:16px; flex-wrap:wrap;
@@ -593,7 +595,10 @@ section { position:relative; z-index:2; }
   font-family:'Orbitron', monospace; font-size:9px;
   letter-spacing:3px; color:var(--white-30);
   white-space:nowrap; padding-top:4px;
+  flex:0 0 132px; min-width:132px;
+  text-align:left;
 }
+.a-card > div:last-child { flex:1 1 auto; min-width:0; }
 .a-title {
   font-family:'Orbitron', monospace; font-size:13px;
   font-weight:700; letter-spacing:1px;
@@ -792,7 +797,7 @@ img { max-width: 100%; height: auto; }
 
   .attack-grid { grid-template-columns: 1fr; }
   .a-card { padding: 24px 18px; gap: 14px; cursor: pointer; }
-  .a-badge { white-space: normal; }
+  .a-badge { white-space: normal; flex:0 0 110px; min-width:110px; }
 
   .stack-grid { grid-template-columns: repeat(2, 1fr); }
   .stack-item { padding: 22px 12px; cursor: pointer; }
@@ -855,6 +860,418 @@ img { max-width: 100%; height: auto; }
   .reveal { opacity: 1; transform: none; }
 }
 
+/* ── PROFESSIONAL LAYOUT TUNING (DESKTOP / PUBLICATION) ── */
+@media (min-width: 993px) {
+  /* 01 · Capacidades: 2 columnas para densidad visual más equilibrada */
+  .caps-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 2px;
+    align-items: stretch;
+  }
+  .cap-card {
+    padding: 34px 28px;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+  }
+  .cap-desc {
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+  .cap-pills { margin-top: auto; }
+  /* Si el número de cards es impar, la última se centra ocupando ambas columnas */
+  .caps-grid > .cap-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 1px);
+    justify-self: center;
+  }
+
+  /* 04 · Vectores de ataque: mantener 2 columnas y eliminar hueco visual final */
+  .attack-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    align-items: stretch;
+  }
+  .a-card {
+    min-height: 148px;
+    padding: 30px 26px;
+    gap: 18px;
+  }
+  .a-title { line-height: 1.25; }
+  .a-desc { line-height: 1.55; }
+  .attack-grid > .a-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 1px);
+    justify-self: center;
+  }
+
+  /* Stack / Release: pasar a 2 columnas y tratar la ampliación release como bloque ancho */
+  .stack-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    align-items: stretch;
+  }
+  .stack-item {
+    text-align: left;
+    min-height: 126px;
+    padding: 26px 22px;
+    display: grid;
+    align-content: center;
+  }
+  .stack-icon { font-size: 24px; margin-bottom: 10px; }
+  .stack-name { letter-spacing: 2px; line-height: 1.35; }
+
+  /* Bloque heredado de publicación dentro del stack-grid */
+  .stack-grid > div:not(.stack-item) {
+    grid-column: 1 / -1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: 22px;
+    min-height: 0;
+  }
+  .stack-grid > div:not(.stack-item) > div[style*="grid-template-columns"] {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 10px !important;
+  }
+  .stack-grid > div:not(.stack-item) > div[style*="grid-template-columns"] > div {
+    min-height: 0 !important;
+  }
+}
+
+/* Ajuste intermedio para portátiles anchos: evitar 3 columnas comprimidas en capacidades */
+@media (min-width: 993px) and (max-width: 1240px) {
+  .section-wrap { padding-left: 28px; padding-right: 28px; }
+  .cap-card { min-height: 300px; }
+  .a-card { min-height: 158px; }
+}
+
+
+
+/* ── ULTRA PRO TYPOGRAPHY / MICRO-SPACING TUNING (NO DESIGN CHANGE) ── */
+:root {
+  --text-soft: rgba(230,242,255,0.72);
+  --text-mid: rgba(240,248,255,0.84);
+}
+
+/* Mejor legibilidad general en capturas y desktop */
+.section-title,
+.hero-title,
+.a-title,
+.cap-title,
+.stack-name,
+.metric .m-val {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.hero-eyebrow {
+  opacity: .95;
+  letter-spacing: 3.2px;
+  line-height: 1.45;
+}
+.hero-desc {
+  color: var(--text-mid);
+  line-height: 1.65;
+  max-width: 66ch;
+}
+.hero-acronym {
+  color: var(--text-soft);
+  line-height: 1.62;
+}
+
+.section-kicker,
+.section-mini,
+.a-kicker,
+.cap-kicker,
+.m-lbl {
+  letter-spacing: 2.2px;
+  opacity: .95;
+}
+
+.cap-title,
+.a-title,
+.stack-name {
+  line-height: 1.24;
+  letter-spacing: .6px;
+  margin-bottom: 2px;
+}
+
+.cap-desc,
+.a-desc,
+.stack-desc,
+.metric .m-sub,
+.metric .m-note {
+  color: var(--text-soft);
+  line-height: 1.62;
+}
+
+.cap-pills, .a-tags { gap: 7px; }
+.pill, .tag {
+  letter-spacing: 1.25px;
+  line-height: 1;
+  padding-top: 7px;
+  padding-bottom: 6px;
+}
+
+/* Equilibrio visual de cards en grids grandes */
+.cap-card,
+.a-card,
+.stack-item {
+  backdrop-filter: saturate(115%);
+}
+.cap-card > *:last-child,
+.a-card > *:last-child,
+.stack-item > *:last-child { margin-bottom: 0; }
+
+/* Títulos de sección con mejor respiración */
+.section-head {
+  margin-bottom: 34px;
+}
+.section-title {
+  line-height: 0.98;
+  letter-spacing: .8px;
+}
+.section-sub {
+  color: var(--text-soft);
+  line-height: 1.6;
+  max-width: 78ch;
+}
+
+/* Bloque release heredado: compactar texto y mejorar balance */
+.stack-grid > div:not(.stack-item) {
+  line-height: 1.55;
+}
+
+
+/* ── FINAL POLISH: REMOVE SIDE PANELS ON CENTERED ODD CARDS ── */
+@media (min-width: 993px) {
+  /* Hacer transparente el fondo del grid para que en filas con card centrada se vea el fondo general */
+  .caps-grid,
+  .attack-grid { background: transparent !important; }
+
+  /* Mantener separación visual profesional entre cards sin paneles laterales */
+  .caps-grid > .cap-card,
+  .attack-grid > .a-card {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+}
+.stack-grid > div:not(.stack-item) h3,
+.stack-grid > div:not(.stack-item) h4,
+.stack-grid > div:not(.stack-item) strong {
+  letter-spacing: .4px;
+}
+
+/* Ajuste fino desktop para sensación premium */
+@media (min-width: 1200px) {
+  .cap-card { padding: 36px 30px; }
+  .a-card { padding: 32px 28px; }
+  .stack-item { padding: 28px 24px; }
+  .cap-desc { font-size: 14px; }
+  .a-desc { font-size: 14px; }
+}
+
+/* Ajuste fino en 2 columnas tablet/portátil */
+@media (min-width: 993px) and (max-width: 1199px) {
+  .cap-desc, .a-desc { font-size: 13.5px; }
+  .pill, .tag { font-size: 9px; }
+}
+
+/* Móvil: mantener limpieza sin tocar estructura */
+@media (max-width: 768px) {
+  .section-head { margin-bottom: 24px; }
+  .hero-desc, .section-sub { line-height: 1.55; }
+  .cap-title, .a-title, .stack-name { letter-spacing: .3px; }
+}
+
+
+/* ── STACK LIST PRO ALIGNMENT (ICON + TEXT + DESC) ── */
+.stack-item {
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+  text-align:left;
+  min-height:128px;
+}
+.stack-icon {
+  flex:0 0 34px;
+  width:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0;
+  line-height:1;
+}
+.stack-body {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.stack-name { margin:0 0 4px 0; }
+.stack-ver { display:block; margin-bottom:8px; }
+.stack-desc {
+  font-size:12px;
+  line-height:1.5;
+  color:var(--text-soft);
+  max-width:34ch;
+}
+@media (max-width: 992px) {
+  .stack-item {
+    min-height:0;
+    padding:22px 18px;
+    gap:12px;
+    align-items:flex-start;
+  }
+  .stack-icon { flex-basis:28px; width:28px; font-size:20px; }
+  .stack-ver { margin-bottom:6px; }
+  .stack-desc { font-size:11px; line-height:1.45; max-width:none; }
+}
+
+
+
+/* ── STACK PREMIUM BALANCE + READABILITY BOOST (NO DESIGN CHANGE) ── */
+.stack-grid { align-items: stretch; }
+.stack-item {
+  min-height: 148px;
+  padding: 28px 22px;
+}
+.stack-icon {
+  flex-basis: 40px;
+  width: 40px;
+  font-size: 26px;
+  margin-top: 2px;
+}
+.stack-body {
+  justify-content: flex-start;
+  gap: 0;
+}
+.stack-name {
+  font-size: 13px;
+  letter-spacing: 2.2px;
+  line-height: 1.2;
+  color: var(--text-mid);
+}
+.stack-ver {
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  color: rgba(240,248,255,0.62);
+  margin-bottom: 8px;
+}
+.stack-desc {
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 44ch;
+  color: var(--text-soft);
+}
+
+@media (min-width: 1200px) {
+  .stack-item {
+    min-height: 154px;
+    padding: 30px 24px;
+  }
+  .stack-icon { font-size: 27px; }
+  .stack-name { font-size: 13.5px; }
+  .stack-desc { font-size: 13.5px; max-width: 46ch; }
+}
+
+@media (min-width: 993px) and (max-width: 1199px) {
+  .stack-item { min-height: 144px; }
+  .stack-name { font-size: 12.5px; }
+  .stack-desc { font-size: 12.5px; max-width: none; }
+}
+
+@media (max-width: 992px) {
+  .stack-item {
+    min-height: 0;
+    padding: 22px 16px;
+    gap: 12px;
+  }
+  .stack-icon {
+    flex-basis: 30px;
+    width: 30px;
+    font-size: 22px;
+    margin-top: 1px;
+  }
+  .stack-name {
+    font-size: 11.5px;
+    letter-spacing: 1.6px;
+  }
+  .stack-ver {
+    font-size: 9.5px;
+    letter-spacing: 1.4px;
+    margin-bottom: 6px;
+  }
+  .stack-desc {
+    font-size: 11.5px;
+    line-height: 1.45;
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .stack-item { padding: 18px 14px; }
+  .stack-name { font-size: 11px; }
+  .stack-ver { font-size: 9px; }
+  .stack-desc { font-size: 11px; }
+}
+
+
+/* === FINAL PRO MICRO-TUNING: stack title width consistency + Gemini->Ollama alignment-safe === */
+.stack-item{
+  align-items:flex-start;
+}
+.stack-body{
+  display:block;
+}
+.stack-name{
+  display:block;
+  min-height: 1.9em; /* homogeneiza arranque visual de títulos largos/cortos */
+  max-width: 17ch;
+  line-height: 1.18;
+}
+.stack-ver{
+  display:block;
+  min-height: 1.35em;
+}
+.stack-desc{
+  max-width: 48ch;
+}
+@media (max-width: 1024px){
+  .stack-name{ min-height: 0; max-width: none; }
+  .stack-ver{ min-height: 0; }
+  .stack-desc{ max-width: none; }
+}
+
+
+/* Hero acronym readability refinement (publication polish) */
+.hero-acronym {
+  font-size: clamp(15px, 1.05vw, 18px) !important;
+  line-height: 1.9 !important;
+  letter-spacing: 1.6px !important;
+  max-width: 34ch;
+  padding-left: 26px !important;
+}
+.hero-acronym-line {
+  display: block;
+  white-space: normal;
+}
+@media (max-width: 900px) {
+  .hero-acronym {
+    font-size: 13px !important;
+    line-height: 1.75 !important;
+    letter-spacing: 1.35px !important;
+    max-width: 100%;
+    padding-left: 16px !important;
+  }
+}
+@media (max-width: 560px) {
+  .hero-acronym {
+    font-size: 12px !important;
+    line-height: 1.65 !important;
+    letter-spacing: 1.15px !important;
+  }
+}
+
+.hero-desc-line{display:inline-block;}
 </style>
 </head>
 <body>
@@ -879,6 +1296,7 @@ img { max-width: 100%; height: auto; }
   <ul class="nav-links">
     <li><a href="#capacidades">Capacidades</a></li>
     <li><a href="#agente">AI Agent</a></li>
+    <li><a href="#copiloto">Copiloto</a></li>
     <li><a href="#vectores">Vectores</a></li>
     <li><a href="#stack">Stack</a></li>
   </ul>
@@ -893,12 +1311,13 @@ img { max-width: 100%; height: auto; }
         <span class="letter">S</span><span class="letter">.</span><span class="letter">I</span><span class="letter">.</span><span class="letter">R</span><span class="letter">.</span><span class="letter">E</span><span class="letter">.</span><span class="letter">N</span><span class="letter">.</span><span class="letter">A</span><span class="letter">.</span>
       </h1>
       <div class="hero-acronym">
-        <span><span class="hl">S</span>istema de <span class="hl">I</span>nteligencia</span><br>
-        <span>y <span class="hl">R</span>econocimiento de <span class="hl">E</span>spectro</span><br>
-        <span>para <span class="hl">N</span>etworks <span class="hl">A</span>irborne</span>
+        <span class="hero-acronym-line"><span class="hl">S</span>istema de <span class="hl">I</span>nteligencia</span>
+        <span class="hero-acronym-line">y <span class="hl">R</span>econocimiento de <span class="hl">E</span>spectro</span>
+        <span class="hero-acronym-line">para <span class="hl">N</span>etworks <span class="hl">A</span>irborne</span>
       </div>
       <p class="hero-desc">
-        Plataforma avanzada de auditoría de redes inalámbricas con agente AI autónomo. Reconocimiento, análisis y explotación controlada de redes WiFi y dispositivos BLE.
+        <span class="hero-desc-line">Plataforma de auditoría inalámbrica con IA autónoma local. Tres agentes, 26 herramientas, metodología de 10 fases.</span><br>
+        <span class="hero-desc-line">Ahora con backend Ollama — sin API keys, sin límites, sin internet.</span>
       </p>
       <div class="cta-row">
         <a href="#capacidades" class="btn btn-primary">▶&nbsp; EXPLORAR</a>
@@ -923,11 +1342,11 @@ img { max-width: 100%; height: auto; }
 <!-- METRICS -->
 <div class="metrics-strip">
   <div class="metrics-inner">
-    <div class="metric reveal"><span class="m-val">8.6K</span><span class="m-lbl">Líneas Código</span></div>
+    <div class="metric reveal"><span class="m-val">8.6K+</span><span class="m-lbl">Líneas Código</span></div>
     <div class="metric reveal"><span class="m-val">13</span><span class="m-lbl">Workers Activos</span></div>
-    <div class="metric reveal"><span class="m-val">10</span><span class="m-lbl">Tools AI Agent</span></div>
-    <div class="metric reveal"><span class="m-val">9</span><span class="m-lbl">Modos BLE Attack</span></div>
-    <div class="metric reveal"><span class="m-val">30</span><span class="m-lbl">Turnos Gemini</span></div>
+    <div class="metric reveal"><span class="m-val">10+</span><span class="m-lbl">Tools AI Agent</span></div>
+    <div class="metric reveal"><span class="m-val">HVT</span><span class="m-lbl">Panel Priorización</span></div>
+    <div class="metric reveal"><span class="m-val">4</span><span class="m-lbl">Estados Objetivo</span></div>
   </div>
 </div>
 
@@ -983,8 +1402,50 @@ img { max-width: 100%; height: auto; }
         <span class="cap-num">CAP · 006</span>
         <div class="cap-icon-wrap"><span class="cap-icon">🤖</span></div>
         <div class="cap-title">AGENTE AI AUTÓNOMO</div>
-        <p class="cap-desc">Agente Gemini 2.5 Flash con function calling. Planifica y ejecuta assessments completos de forma autónoma: 6 fases, hasta 30 turnos, reporte ejecutivo automático.</p>
-        <div class="cap-pills"><span class="pill">Gemini 2.5</span><span class="pill">Function Calling</span><span class="pill">Auto</span></div>
+        <p class="cap-desc">Agente Ollama local con function calling/agent loop configurable. Planifica y ejecuta assessments completos de forma autónoma: 6 fases, hasta 30 turnos, reporte ejecutivo automático.</p>
+        <div class="cap-pills"><span class="pill">Ollama</span><span class="pill">Function Calling</span><span class="pill">Auto</span></div>
+      </div>
+
+
+      <div class="cap-card acc-cyan reveal">
+        <span class="cap-num">CAP · 007</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🧭</span></div>
+        <div class="cap-title">COPILOTO TÁCTICO REACTIVO</div>
+        <p class="cap-desc">Motor de reglas local que procesa hallazgos de los workers en tiempo real y genera alertas tácticas con confianza, severidad, razón trazable y recomendación operativa sin ejecutar acciones automáticas.</p>
+        <div class="cap-pills"><span class="pill">Rules Engine</span><span class="pill">Tactical Alerts</span><span class="pill">No Auto-Action</span></div>
+      </div>
+
+      <div class="cap-card acc-pink reveal">
+        <span class="cap-num">CAP · 008</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🎯</span></div>
+        <div class="cap-title">HIGH VALUE TARGETS (HVT)</div>
+        <p class="cap-desc">Panel dedicado de objetivos priorizados con scoring multicriterio, razones explicables y estados NEW / WATCH / APPROVED / DISMISSED para controlar el workflow de evaluación avanzada asistida.</p>
+        <div class="cap-pills"><span class="pill">HVT Queue</span><span class="pill">Status Workflow</span><span class="pill">Traceable Score</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <span class="cap-num">CAP · 009</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">⏱️</span></div>
+        <div class="cap-title">CORRELACIÓN TEMPORAL</div>
+        <p class="cap-desc">Detección de persistencia (&gt;30s), reapariciones de objetivos, cambios de canal y variaciones de visibilidad/SSID para priorización más fina en escenarios dinámicos WiFi/BLE.</p>
+        <div class="cap-pills"><span class="pill">Persistencia</span><span class="pill">Reaparición</span><span class="pill">Channel Changes</span></div>
+      </div>
+
+    
+      <div class="cap-card acc-cyan reveal">
+        <span class="cap-num">CAP · 010</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🌐</span></div>
+        <div class="cap-title">INTERCEPCIÓN DE RED</div>
+        <p class="cap-desc">Análisis de tráfico y validación de controles en laboratorio: ARP poisoning, DNS hijacking, inspección TLS/SSL y correlación de eventos para priorizar hallazgos.</p>
+        <div class="cap-pills"><span class="pill">ARP</span><span class="pill">DNS</span><span class="pill">TLS/SSL</span><span class="pill">Traffic</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <span class="cap-num">CAP · 011</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🦙</span></div>
+        <div class="cap-title">BACKEND IA LOCAL (OLLAMA)</div>
+        <p class="cap-desc">Compatibilidad de publicación/documentación con backend local sin API keys para laboratorio: modelos Llama/Qwen/Mistral y configuración por variables de entorno.</p>
+        <div class="cap-pills"><span class="pill">Ollama</span><span class="pill">Local AI</span><span class="pill">No API Keys</span><span class="pill">Env Vars</span></div>
       </div>
 
     </div>
@@ -998,29 +1459,37 @@ img { max-width: 100%; height: auto; }
       <div style="padding:80px;">
         <div class="agent-inner">
           <div>
-            <span class="s-tag">// 02 · AI AGENT — GEMINI 2.5 FLASH</span>
-            <h2 class="s-title">Inteligencia<br>Autónoma</h2>
+            <span class="s-tag">// 02 · AI AGENT + COPILOTO — OLLAMA (LOCAL LLM)</span>
+            <h2 class="s-title">Inteligencia<br>Autónoma + Táctica</h2>
             <div class="s-rule"></div>
             <div class="phases">
               <div class="phase">
+                <span class="phase-n">F·00</span>
+                <div><div class="phase-name">RECONOCIMIENTO DE ENTORNO</div><div class="phase-desc">Consulta a la base local para correlacionar el objetivo con inventario e historial de sesiones previas antes de decidir pruebas.</div></div>
+              </div>
+              <div class="phase">
                 <span class="phase-n">F·01</span>
-                <div><div class="phase-name">INVENTARIO PASIVO</div><div class="phase-desc">Análisis de SSID, BSSID, protocolo de seguridad, canal, fabricante OUI y nivel de señal RSSI sin emitir ningún paquete.</div></div>
+                <div><div class="phase-name">INVENTARIO Y ANÁLISIS PASIVO</div><div class="phase-desc">Análisis de SSID/BSSID, seguridad, canal, OUI/fabricante y RSSI. El copiloto empieza scoring HVT y razones trazables.</div></div>
               </div>
               <div class="phase">
                 <span class="phase-n">F·02</span>
-                <div><div class="phase-name">RECONOCIMIENTO ACTIVO</div><div class="phase-desc">Probe Sniffer para identificar dispositivos cliente asociados al AP objetivo y construir mapa de superficie.</div></div>
+                <div><div class="phase-name">RECONOCIMIENTO ACTIVO</div><div class="phase-desc">Probe Sniffer para identificar clientes asociados y enriquecer el contexto de superficie sin automatizar decisiones ofensivas.</div></div>
               </div>
               <div class="phase">
                 <span class="phase-n">F·03</span>
-                <div><div class="phase-name">VERIFICACIÓN DE RESILIENCIA</div><div class="phase-desc">Deauth, auth flood y BLE advertising para verificar implementación de controles de seguridad (PMF/802.11w).</div></div>
+                <div><div class="phase-name">VERIFICACIÓN DE RESILIENCIA</div><div class="phase-desc">Deauth, auth flood y BLE advertising para validar controles (PMF/802.11w) bajo workflow de autorización explícita.</div></div>
               </div>
               <div class="phase">
                 <span class="phase-n">F·04</span>
-                <div><div class="phase-name">ANÁLISIS DE AUTENTICACIÓN</div><div class="phase-desc">Captura de handshake WPA2, Evil Twin y Karma para evaluar vectores de acceso a credenciales.</div></div>
+                <div><div class="phase-name">ANÁLISIS DE AUTENTICACIÓN</div><div class="phase-desc">WPA capture + análisis de handshake (.cap/.pcap), Evil Twin y Karma según vector y resultados confirmados.</div></div>
               </div>
               <div class="phase">
                 <span class="phase-n">F·05</span>
-                <div><div class="phase-name">INFORME EJECUTIVO</div><div class="phase-desc">Reporte automático clasificado en CRITICAL / HIGH / MEDIUM / LOW / INFO con recomendaciones accionables y evidencia técnica.</div></div>
+                <div><div class="phase-name">PRUEBAS AVANZADAS ASISTIDAS</div><div class="phase-desc">Cola de evaluación ampliada asistida (sin payload automático) habilitada únicamente para objetivos HVT aprobados por operador.</div></div>
+              </div>
+              <div class="phase">
+                <span class="phase-n">F·06</span>
+                <div><div class="phase-name">INFORME EJECUTIVO</div><div class="phase-desc">Reporte con hallazgos, evidencias, severidad y recomendaciones; más registro de alertas tácticas e historial de decisiones HVT.</div></div>
               </div>
             </div>
           </div>
@@ -1030,17 +1499,18 @@ img { max-width: 100%; height: auto; }
               <span class="t-title">SIRENA · AI AGENT LOG</span>
             </div>
             <div class="t-body">
-              <div class="t-line c-dim">[23:57:30] [INFO] Agente Gemini iniciado.</div>
-              <div class="t-line c-dim">[23:57:30] [SYS] Turno 1/30 — gemini-2.5-flash</div>
-              <div class="t-line c-act">[23:57:31] [ACTION] ▶ run_probe_sniffer(dur=15)</div>
-              <div class="t-line c-sys">[23:57:32] [RESULT] 15s. Sin Probe Requests.</div>
-              <div class="t-line c-act">[23:57:33] [ACTION] ▶ run_deauth(bssid=78:96:82:DA)</div>
-              <div class="t-line c-ok"> [23:57:46] [OK] Deauth 10s. Frames enviados. ✓</div>
-              <div class="t-line c-act">[23:57:48] [ACTION] ▶ run_wpa_capture(dur=45)</div>
-              <div class="t-line c-err">[23:58:36] [WARN] Sin frames EAPOL en 45s.</div>
-              <div class="t-line c-sys">[23:58:40] [RESULT] [MEDIUM] Vuln. Deauth confirmada</div>
-              <div class="t-line c-ok"> [23:58:42] [OK] ✓ Assessment — Riesgo: MEDIUM</div>
-              <div class="t-line c-cyn">[23:59:43] Informe: sirena_report.txt <span class="cursor"></span></div>
+              <div class="t-line c-dim">[23:57:30] [INFO] Agente Ollama iniciado.</div>
+              <div class="t-line c-dim">[23:57:30] [SYS] Fase 0/6 — query_scan_db(limit=20)</div>
+              <div class="t-line c-sys">[23:57:31] [TACTICAL] HVT WATCH · SSID oculto→visible · conf 84%</div>
+              <div class="t-line c-act">[23:57:33] [ACTION] ▶ run_probe_sniffer(dur=15)</div>
+              <div class="t-line c-sys">[23:57:48] [TACTICAL] Persistencia &gt;30s · Reaparición detectada</div>
+              <div class="t-line c-cyn">[23:57:49] [PROMPT] ¿Autorizar evaluación avanzada asistida?</div>
+              <div class="t-line c-ok"> [23:57:50] [HVT] APPROVED · score=82 · workflow operador</div>
+              <div class="t-line c-act">[23:57:52] [ACTION] ▶ run_wpa_capture(dur=45)</div>
+              <div class="t-line c-sys">[23:58:39] [RESULT] analyze_handshake_file(.cap) → PMKID no detectado</div>
+              <div class="t-line c-sys">[23:58:41] [RESULT] [MEDIUM] Deauth confirmada · PMF ausente</div>
+              <div class="t-line c-ok"> [23:58:49] [OK] ✓ Assessment — Riesgo: MEDIUM · HVT trail guardado</div>
+              <div class="t-line c-cyn">[23:59:12] tactical_alerts_20260221.csv · sirena_report.txt <span class="cursor"></span></div>
             </div>
           </div>
         </div>
@@ -1049,10 +1519,63 @@ img { max-width: 100%; height: auto; }
   </div>
 </section>
 
+
+<!-- COPILOTO TÁCTICO -->
+<section id="copiloto">
+  <div class="section-wrap">
+    <span class="s-tag reveal">// 03 · COPILOTO TÁCTICO REACTIVO</span>
+    <h2 class="s-title reveal">Priorización HVT<br>y Workflow de Aprobación</h2>
+    <div class="s-rule reveal"></div>
+    <div class="attack-grid">
+
+      <div class="a-card accent-cyan reveal">
+        <div class="a-badge">CORE · 01</div>
+        <div><div class="a-title">EVENT BUS + RULES ENGINE</div><div class="a-desc">Inyección de hallazgos de workers WiFi/BLE (networks_found, devices_found) en un motor de reglas local que emite alertas tácticas con severidad, confianza y recomendación contextual.</div></div>
+      </div>
+
+      <div class="a-card accent-pink reveal">
+        <div class="a-badge">CORE · 02</div>
+        <div><div class="a-title">HIGH VALUE TARGETS PANEL</div><div class="a-desc">Cola visual de objetivos priorizados con score explicable, ordenación por criticidad/última observación y panel de detalle con razones, métricas y playbook de laboratorio.</div></div>
+      </div>
+
+      <div class="a-card reveal">
+        <div class="a-badge">SCORING · 03</div>
+        <div><div class="a-title">SCORING MULTICRITERIO</div><div class="a-desc">Puntuación trazable basada en RSSI, seguridad, persistencia, vendor sensible, visibilidad de SSID, reapariciones y cambios de canal. Optimizado para priorizar observación útil antes de ejecutar pruebas.</div></div>
+      </div>
+
+      <div class="a-card accent-cyan reveal">
+        <div class="a-badge">TIME · 04</div>
+        <div><div class="a-title">CORRELACIÓN TEMPORAL</div><div class="a-desc">Registro de first_seen / last_seen, persistencia &gt;30s y reapariciones tras ausencia para distinguir señales efímeras de objetivos estables de interés.</div></div>
+      </div>
+
+      <div class="a-card accent-pink reveal">
+        <div class="a-badge">WORKFLOW · 05</div>
+        <div><div class="a-title">APROBACIÓN EXPLÍCITA DESDE UI</div><div class="a-desc">Botón de “Autorizar evaluación avanzada” y estados NEW / WATCH / APPROVED / DISMISSED. El sistema registra la decisión del operador y mantiene la trazabilidad del proceso.</div></div>
+      </div>
+
+      <div class="a-card reveal">
+        <div class="a-badge">OPS · 06</div>
+        <div><div class="a-title">PLAYBOOKS GUIADOS DE LABORATORIO</div><div class="a-desc">Checklist contextual por objetivo (WiFi/BLE) para documentar evidencia, validar alcance, mantener observación pasiva y preparar evaluación ampliada asistida sin automatización ofensiva.</div></div>
+      </div>
+
+      <div class="a-card accent-cyan reveal">
+        <div class="a-badge">FEED · 07</div>
+        <div><div class="a-title">TACTICAL ALERTS + EXPORT</div><div class="a-desc">Feed de alertas tácticas con histórico reciente, contador de sesión y exportación CSV/JSON para auditoría posterior, reporting y análisis de sesiones.</div></div>
+      </div>
+
+      <div class="a-card accent-pink reveal">
+        <div class="a-badge">UX · 08</div>
+        <div><div class="a-title">BANNERS PROACTIVOS DEL COPILOTO</div><div class="a-desc">Mensajes en barra de estado para HVT detectados (“¿Autorizar evaluación avanzada asistida?”) con severidad y confianza, sin disparar acciones por sí mismos.</div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- VECTORES DE ATAQUE -->
 <section id="vectores">
   <div class="section-wrap">
-    <span class="s-tag reveal">// 03 · VECTORES DE ATAQUE</span>
+    <span class="s-tag reveal">// 04 · VECTORES DE ATAQUE</span>
     <h2 class="s-title reveal">Suite Red Team</h2>
     <div class="s-rule reveal"></div>
     <div class="attack-grid">
@@ -1082,6 +1605,12 @@ img { max-width: 100%; height: auto; }
         <div><div class="a-title">BLE MULTI-VECTOR ATTACK</div><div class="a-desc">9 modos: PS_ADV_BLAST, MULTI_ADV_BLAST (60+ publishers), ADV_CLONE_FLOOD, CONNECTION_FLOOD, NOTIFY_FLOOD, GATT_WRITE_FLOOD, SCAN_REQ_FLOOD.</div></div>
       </div>
 
+    
+      <div class="a-card reveal">
+        <div class="a-badge">OPSEC · 05</div>
+        <div><div class="a-title">OPSEC ENGINE ADAPTATIVO</div><div class="a-desc">Perfiles operativos (LOW / MED / HIGH / PARA), jitter, rotación de MAC y limpieza de artefactos orientados a laboratorio controlado y trazabilidad del operador.</div></div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -1089,18 +1618,48 @@ img { max-width: 100%; height: auto; }
 <!-- STACK -->
 <section id="stack">
   <div class="section-wrap">
-    <span class="s-tag reveal">// 04 · STACK TECNOLÓGICO</span>
+    <span class="s-tag reveal">// 05 · STACK TECNOLÓGICO</span>
     <h2 class="s-title reveal">Construido sobre<br>Tecnología Avanzada</h2>
     <div class="s-rule reveal"></div>
     <div class="stack-grid reveal">
-      <div class="stack-item"><span class="stack-icon">🐍</span><span class="stack-name">Python</span><span class="stack-ver">3.11+</span></div>
-      <div class="stack-item"><span class="stack-icon">⚡</span><span class="stack-name">PyQt6</span><span class="stack-ver">6.7</span></div>
-      <div class="stack-item"><span class="stack-icon">📡</span><span class="stack-name">Scapy</span><span class="stack-ver">2.5</span></div>
-      <div class="stack-item"><span class="stack-icon">🔵</span><span class="stack-name">Bleak BLE</span><span class="stack-ver">0.22</span></div>
-      <div class="stack-item"><span class="stack-icon">🧠</span><span class="stack-name">Gemini</span><span class="stack-ver">2.5 Flash</span></div>
-      <div class="stack-item"><span class="stack-icon">🗄️</span><span class="stack-name">SQLite</span><span class="stack-ver">WiGLE</span></div>
-      <div class="stack-item"><span class="stack-icon">🔒</span><span class="stack-name">Npcap</span><span class="stack-ver">WinPcap</span></div>
-      <div class="stack-item"><span class="stack-icon">🌐</span><span class="stack-name">WiGLE API</span><span class="stack-ver">v2</span></div>
+      <div class="stack-item"><span class="stack-icon">🐍</span><div class="stack-body"><span class="stack-name">Python</span><span class="stack-ver">3.11+</span><div class="stack-desc">Runtime principal de la aplicación, workers de captura, correlación y lógica táctica local.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">⚡</span><div class="stack-body"><span class="stack-name">PyQt6</span><span class="stack-ver">6.7</span><div class="stack-desc">Interfaz gráfica de escritorio con paneles tácticos, HVT workflow y control de sesiones.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">📡</span><div class="stack-body"><span class="stack-name">Scapy</span><span class="stack-ver">2.5</span><div class="stack-desc">Captura y análisis de tramas 802.11 para reconocimiento, validación y telemetría de laboratorio.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🔵</span><div class="stack-body"><span class="stack-name">Bleak BLE</span><span class="stack-ver">0.22</span><div class="stack-desc">Enumeración BLE y gestión de descubrimiento de dispositivos para análisis multi-vector.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🧠</span><div class="stack-body"><span class="stack-name">Ollama</span><span class="stack-ver">Local LLM</span><div class="stack-desc">Copiloto IA local para evaluación contextual, scoring explicable y sugerencias asistidas en laboratorio.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🗄️</span><div class="stack-body"><span class="stack-name">SQLite</span><span class="stack-ver">Local DB</span><div class="stack-desc">Persistencia de sesiones, alerts feed, historial táctico y trazabilidad de observaciones/HVT.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🔒</span><div class="stack-body"><span class="stack-name">Npcap</span><span class="stack-ver">WinPcap</span><div class="stack-desc">Driver de captura en Windows para sniffing y operaciones de red en entornos autorizados.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🌐</span><div class="stack-body"><span class="stack-name">WiGLE API</span><span class="stack-ver">v2</span><div class="stack-desc">Contexto geográfico y enriquecimiento OSINT de redes detectadas para priorización contextual.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🧭</span><div class="stack-body"><span class="stack-name">Rules Engine</span><span class="stack-ver">Local</span><div class="stack-desc">Motor de reglas que procesa hallazgos de workers y genera alertas tácticas con severidad/confianza.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🎯</span><div class="stack-body"><span class="stack-name">HVT Workflow</span><span class="stack-ver">UI States</span><div class="stack-desc">Estados NEW/WATCH/APPROVED/DISMISSED con aprobación explícita y motivos trazables.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">📤</span><div class="stack-body"><span class="stack-name">Export Feed</span><span class="stack-ver">CSV/JSON</span><div class="stack-desc">Exportación de alertas e histórico de sesiones para auditoría, reporting y análisis posterior.</div></div></div>
+      <div class="stack-item"><span class="stack-icon">🧪</span><div class="stack-body"><span class="stack-name">Playbooks</span><span class="stack-ver">Lab Guided</span><div class="stack-desc">Checklists guiados por objetivo WiFi/BLE para documentar evidencia y validación asistida.</div></div></div>
+
+    <div class="reveal" style="margin-top:26px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);padding:18px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:.22em;color:var(--cyan);margin-bottom:14px;">// OKRTSYSTEM LABS 2025 · Diseñando ventaja tecnológica</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">
+        <div style="border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02);padding:14px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.85rem;margin-bottom:8px;">Ollama (Backend local opcional)</div>
+          <div style="color:var(--white-60);font-size:.9rem;line-height:1.5;">Compatibilidad de publicación con IA local sin dependencias externas ni API keys. Modelos referenciados: <strong>Llama 3.x</strong>, <strong>Qwen 2.5</strong> y <strong>Mistral</strong>, configurables por variables de entorno.</div>
+        </div>
+        <div style="border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02);padding:14px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.85rem;margin-bottom:8px;">Metodología táctica (10 fases)</div>
+          <div style="color:var(--white-60);font-size:.9rem;line-height:1.5;">Reconocimiento, fingerprinting, enumeración, análisis, priorización, validación asistida, ejecución controlada en laboratorio, correlación, evidencias y reporte técnico.</div>
+        </div>
+        <div style="border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02);padding:14px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.85rem;margin-bottom:8px;">Operación / Setup</div>
+          <div style="color:var(--white-60);font-size:.9rem;line-height:1.5;">Preflight centralizado, matriz de capacidades (pywifi/netsh, bleak/winrt, Npcap/admin) y degradación elegante para mejorar portabilidad y diagnóstico en Windows.</div>
+        </div>
+        <div style="border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02);padding:14px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.85rem;margin-bottom:8px;">Indicadores de publicación</div>
+          <div style="color:var(--white-60);font-size:.9rem;line-height:1.5;"><strong style="color:var(--cyan);">0 API Keys</strong> cuando se usa backend local · <strong style="color:var(--cyan);">Cuota diaria ∞</strong> (sin consumo cloud) · enfoque orientado a laboratorio y pruebas autorizadas.</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;color:var(--white-60);font-size:.85rem;line-height:1.5;">
+        <span style="color:var(--pink);font-family:'Share Tech Mono',monospace;">AVISO LEGAL</span> · S.I.R.E.N.A. es una herramienta de auditoría de seguridad inalámbrica destinada únicamente a profesionales de ciberseguridad con autorización expresa sobre los sistemas bajo análisis. El uso no autorizado de sus capacidades puede constituir un delito en la mayoría de jurisdicciones. OkrtSystem Labs no se responsabiliza del uso indebido de esta herramienta. Asegúrese siempre de disponer de autorización escrita antes de iniciar cualquier evaluación..
+      </div>
+    </div>
+
     </div>
   </div>
 </section>
