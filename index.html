@@ -1532,6 +1532,42 @@ img { max-width: 100%; height: auto; }
 }
 
 .hero-desc-line{display:inline-block;}
+
+
+/* ── ENHANCEMENTS (quirúrgico, no altera layout) ── */
+.nav-links a.is-active {
+  color: var(--white);
+  text-shadow: 0 0 10px rgba(255,255,255,.35), 0 0 24px rgba(0,229,255,.18);
+}
+.nav-links a.nav-kali-cta {
+  position: relative;
+}
+.nav-links a.nav-kali-cta::after {
+  content: 'NEW';
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid rgba(0,229,255,.35);
+  border-radius: 999px;
+  font-size: 9px;
+  letter-spacing: .18em;
+  line-height: 1.7;
+  color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0,229,255,.15);
+  vertical-align: middle;
+}
+.m-val.metric-fallback {
+  opacity: .92;
+  filter: saturate(.85);
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  #cursor, #cursor-dot { display:none !important; }
+  body { cursor:auto; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+  .nav-links a.nav-kali-cta::after { animation: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -1619,6 +1655,7 @@ img { max-width: 100%; height: auto; }
     <li><a href="#copiloto">Copiloto</a></li>
     <li><a href="#vectores">Vectores</a></li>
     <li><a href="#stack">Stack</a></li>
+    <li><a href="#kali-expansion">Kali Expansion</a></li>
   </ul>
 </nav>
 
@@ -1662,8 +1699,8 @@ img { max-width: 100%; height: auto; }
 <!-- METRICS -->
 <div class="metrics-strip">
   <div class="metrics-inner">
-    <div class="metric reveal"><span class="m-val">10.7K+</span><span class="m-lbl">Líneas Código</span></div>
-    <div class="metric reveal"><span class="m-val">9</span><span class="m-lbl">Módulos Activos</span></div>
+    <div class="metric reveal"><span class="m-val">21.9K+</span><span class="m-lbl">Líneas Código</span></div>
+    <div class="metric reveal"><span class="m-val">20</span><span class="m-lbl">Módulos Activos</span></div>
     <div class="metric reveal"><span class="m-val">10+</span><span class="m-lbl">Tools AI Agent</span></div>
     <div class="metric reveal"><span class="m-val">HVT</span><span class="m-lbl">Panel Priorización</span></div>
     <div class="metric reveal"><span class="m-val">v1.2</span><span class="m-lbl">Tactical Mod Phase 2.5</span></div>
@@ -1984,6 +2021,104 @@ img { max-width: 100%; height: auto; }
   </div>
 </section>
 
+
+
+<!-- KALI EXPANSION -->
+<section id="kali-expansion">
+  <div class="section-wrap">
+    <span class="s-tag reveal">// 06 · NUEVAS CAPACIDADES · KALI / LINUX</span>
+    <h2 class="s-title reveal">Backend Operativo Linux<br>y Flujo End‑to‑End</h2>
+    <div class="s-rule reveal"></div>
+
+    <div class="reveal" style="margin-bottom:22px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);padding:16px 18px;">
+      <div style="font-family:'Orbitron',sans-serif;font-size:.9rem;letter-spacing:.08em;margin-bottom:8px;">Kali Expansion Pack · Integración sin romper la interfaz actual</div>
+      <div style="color:var(--white-70);font-size:.95rem;line-height:1.6;">Se añaden módulos Linux/Kali orientados a operación real en laboratorio autorizado: capa de abstracción de plataforma, escaneo WiFi multi-backend, workers de ataque nativos Linux, Evil Twin con <code>hostapd + dnsmasq</code>, OPSEC Linux, cracking/reporting, stack BLE, parche de dispatch del agente y motor autónomo con orquestación por fases.</div>
+    </div>
+
+    <div class="caps-grid">
+      <div class="cap-card reveal">
+        <span class="cap-num">KALI · 001</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🧩</span></div>
+        <div class="cap-title">PLATFORM ABSTRACTION LAYER (PAL)</div>
+        <p class="cap-desc">Capa de abstracción que detecta el sistema y enruta operaciones al backend correcto. Permite mantener API compatible entre Windows y Linux/Kali y facilita sustituciones <em>drop-in</em> de workers sin reescribir la UI.</p>
+        <div class="cap-pills"><span class="pill">Cross-Platform</span><span class="pill">PAL</span><span class="pill">Drop-in</span></div>
+      </div>
+
+      <div class="cap-card acc-cyan reveal">
+        <span class="cap-num">KALI · 002</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">📡</span></div>
+        <div class="cap-title">ESCANEO WIFI MULTI-BACKEND (LINUX)</div>
+        <p class="cap-desc">Escaneo WiFi con backends escalonados: <code>iw dev scan</code> (rápido), <code>airodump-ng</code> en monitor mode real (incluye clientes/handshakes) y <code>iwlist</code> como fallback legacy. Mantiene señales PyQt6 compatibles con el escáner original.</p>
+        <div class="cap-pills"><span class="pill">iw</span><span class="pill">airodump-ng</span><span class="pill">iwlist</span><span class="pill">Monitor Mode</span></div>
+      </div>
+
+      <div class="cap-card acc-pink reveal">
+        <span class="cap-num">KALI · 003</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">⚔️</span></div>
+        <div class="cap-title">ATTACK WORKERS NATIVOS LINUX</div>
+        <p class="cap-desc">Workers Linux para deauth, auth flood, captura WPA handshake, Karma, beacon flood, probe sniffer y PMKID con backend prioritario <code>aircrack-ng/hcxdumptool</code> y fallback Scapy en monitor mode real.</p>
+        <div class="cap-pills"><span class="pill">aireplay-ng</span><span class="pill">hcxdumptool</span><span class="pill">Scapy</span><span class="pill">PMKID</span></div>
+      </div>
+
+      <div class="cap-card acc-pink reveal">
+        <span class="cap-num">KALI · 004</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🛰️</span></div>
+        <div class="cap-title">EVIL TWIN REAL EN LINUX</div>
+        <p class="cap-desc">Implementación de Evil Twin basada en <code>hostapd</code> + <code>dnsmasq</code> con portal cautivo, DHCP/DNS, redirección y limpieza garantizada de procesos/reglas al finalizar. Diseñado para operación de laboratorio con trazabilidad.</p>
+        <div class="cap-pills"><span class="pill">hostapd</span><span class="pill">dnsmasq</span><span class="pill">Captive Portal</span><span class="pill">iptables</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <span class="cap-num">KALI · 005</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🛡️</span></div>
+        <div class="cap-title">OPSEC ENGINE LINUX</div>
+        <p class="cap-desc">Motor OPSEC para Linux con perfiles de timing, jitter por herramienta/fase, rotación/restauración MAC, limpieza segura de artefactos, <code>rfkill</code> y control de NetworkManager para reducir fricción operativa en sesiones controladas.</p>
+        <div class="cap-pills"><span class="pill">macchanger</span><span class="pill">shred</span><span class="pill">rfkill</span><span class="pill">Timing Profiles</span></div>
+      </div>
+
+      <div class="cap-card acc-cyan reveal">
+        <span class="cap-num">KALI · 006</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🔓</span></div>
+        <div class="cap-title">CRACKING &amp; REPORTING</div>
+        <p class="cap-desc">Pipeline de cracking/reporting: detección de formato (<code>.cap / .hc22000 / .pcapng</code>), conversión con <code>hcxpcapngtool</code>, uso de <code>hashcat</code>/<code>aircrack-ng</code> y generación de reportes PDF/Markdown/JSON con scoring CVSS 3.1 automático.</p>
+        <div class="cap-pills"><span class="pill">hashcat</span><span class="pill">aircrack-ng</span><span class="pill">CVSS 3.1</span><span class="pill">PDF/MD/JSON</span></div>
+      </div>
+
+      <div class="cap-card acc-cyan reveal">
+        <span class="cap-num">KALI · 007</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🔵</span></div>
+        <div class="cap-title">BLE STACK LINUX</div>
+        <p class="cap-desc">Stack BLE Linux con <code>bleak</code> (scan/GATT) y workers específicos para Linux (BlueZ + HCI raw) manteniendo la compatibilidad de señales y contratos de la UI original de S.I.R.E.N.A.</p>
+        <div class="cap-pills"><span class="pill">BlueZ</span><span class="pill">bleak</span><span class="pill">HCI Raw</span><span class="pill">GATT</span></div>
+      </div>
+
+      <div class="cap-card acc-pink reveal">
+        <span class="cap-num">KALI · 008</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🤖</span></div>
+        <div class="cap-title">AGENT DISPATCH LINUX (PATCH)</div>
+        <p class="cap-desc">Parche del despachador del agente para enrutar herramientas a implementaciones Linux reales (channel scan, PMKID, cracking, análisis de handshake, etc.) preservando la lógica de turnos y el backend LLM local.</p>
+        <div class="cap-pills"><span class="pill">Tool Dispatch</span><span class="pill">Linux Workers</span><span class="pill">Ollama/Gemini CLI</span></div>
+      </div>
+
+      <div class="cap-card acc-cyan reveal">
+        <span class="cap-num">KALI · 009</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🧠</span></div>
+        <div class="cap-title">AUTONOMOUS ENGINE (6 FASES)</div>
+        <p class="cap-desc">Motor autónomo WiFi/BLE con selección de objetivo, orquestación por fases, decisión híbrida, OPSEC adaptativo, BLE paralelo y reporter final. Integración preparada para ejecución end‑to‑end en laboratorio autorizado.</p>
+        <div class="cap-pills"><span class="pill">Phase Orchestrator</span><span class="pill">Target Selector</span><span class="pill">Autonomous Reporter</span></div>
+      </div>
+
+      <div class="cap-card reveal">
+        <span class="cap-num">KALI · 010</span>
+        <div class="cap-icon-wrap"><span class="cap-icon">🧪</span></div>
+        <div class="cap-title">LAUNCHER, HARDENING Y TEST SUITE</div>
+        <p class="cap-desc">Launcher cross-platform con bootstrap, batería de tests unitarios/integración y verificaciones de hardening para validar dependencias, entorno y estabilidad antes de ejecutar sesiones reales de laboratorio.</p>
+        <div class="cap-pills"><span class="pill">Bootstrap</span><span class="pill">Unit/Integration Tests</span><span class="pill">Hardening Checks</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-inner">
@@ -2128,20 +2263,66 @@ const ro = new IntersectionObserver(entries => {
 }, {threshold:.12});
 document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
 
-// ── COUNTER ANIMATION ──
+// ── COUNTER ANIMATION (mixed-safe: nums, prefijos y versiones) ──
 document.querySelectorAll('.m-val').forEach(el => {
-  const target = parseFloat(el.textContent);
-  const suffix = el.textContent.replace(/[\d.]/g,'');
-  const isFloat = el.textContent.includes('.');
-  let start=null;
+  const raw = (el.textContent || '').trim();
+  if(!raw) return;
+  if(/nan/i.test(raw)) { el.textContent = '--'; return; } // blindaje visual anti-NaN
+
+  // 1) Versiones tipo v1.2 / V2.5
+  const vMatch = raw.match(/^([vV])(\d+)(?:\.(\d+))?$/);
+  if(vMatch){
+    const prefix = vMatch[1];
+    const major = parseInt(vMatch[2],10);
+    const minorStr = vMatch[3] ?? null;
+    const minor = minorStr !== null ? parseInt(minorStr,10) : null;
+    if(!Number.isFinite(major) || (minorStr !== null && !Number.isFinite(minor))) return;
+
+    let start = null;
+    const dur = 1400;
+    const anim = ts => {
+      if(!start) start = ts;
+      const p = Math.min((ts-start)/dur,1);
+      const ease = 1 - Math.pow(1-p,4);
+      const curMajor = Math.max(0, Math.floor(major * ease));
+      let txt = prefix + curMajor;
+      if(minor !== null){
+        const curMinor = Math.max(0, Math.floor(minor * ease));
+        txt += '.' + curMinor;
+      }
+      el.textContent = txt;
+      if(p < 1) requestAnimationFrame(anim);
+      else el.textContent = raw;
+    };
+    const io = new IntersectionObserver(([e])=>{ if(e.isIntersecting){ requestAnimationFrame(anim); io.disconnect(); } });
+    io.observe(el);
+    return;
+  }
+
+  // 2) Números con prefijo/sufijo (ej: 21.9K+, HVT 12, 10+)
+  const match = raw.match(/^([^\d-]*?)(\d+(?:\.\d+)?)(.*)$/);
+  if(!match) return; // métricas 100% textuales (ej: HVT) quedan estáticas
+
+  const lead = match[1] || '';
+  const numToken = match[2];
+  const tail = match[3] || '';
+  const target = parseFloat(numToken);
+  if(!Number.isFinite(target)) return;
+
+  const isFloat = numToken.includes('.');
+  let start = null;
+
   const anim = ts => {
-    if(!start) start=ts;
+    if(!start) start = ts;
     const p = Math.min((ts-start)/1500,1);
     const ease = 1-Math.pow(1-p,4);
     const val = target*ease;
-    el.textContent = (isFloat ? val.toFixed(1) : Math.floor(val)) + suffix;
-    if(p<1) requestAnimationFrame(anim);
+    const rendered = isFloat ? val.toFixed(numToken.split('.')[1].length) : String(Math.floor(val));
+    el.textContent = lead + rendered + tail;
+    if(p < 1) requestAnimationFrame(anim);
+    else el.textContent = raw;
   };
+
   const io = new IntersectionObserver(([e])=>{
     if(e.isIntersecting){ requestAnimationFrame(anim); io.disconnect(); }
   });
@@ -2160,6 +2341,83 @@ if (!window.matchMedia('(hover: none), (pointer: coarse)').matches) {
   document.body.appendChild(glow);
   document.addEventListener('mousemove',e=>{glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px';});
 }
+
+
+// ── ENHANCEMENTS · UX/robustez (sin alterar diseño) ──
+(function(){
+  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 1) Badge/realce del CTA de Kali en menú superior (si existe)
+  const navLinks = Array.from(document.querySelectorAll('.nav-links a'));
+  const kaliLink = navLinks.find(a => (a.getAttribute('href')||'').trim() === '#kali-expansion');
+  if (kaliLink) kaliLink.classList.add('nav-kali-cta');
+
+  // 2) Resaltado automático de sección activa en nav (scrollspy suave)
+  const sectionIds = navLinks
+    .map(a => (a.getAttribute('href')||'').trim())
+    .filter(h => h.startsWith('#') && h.length > 1);
+  const sections = sectionIds
+    .map(id => document.querySelector(id))
+    .filter(Boolean);
+
+  const syncActiveNav = () => {
+    const nav = document.querySelector('nav');
+    const navH = nav ? nav.getBoundingClientRect().height : 0;
+    const y = window.scrollY + navH + 24;
+    let currentId = null;
+    for (const s of sections) {
+      const top = s.offsetTop;
+      const bottom = top + Math.max(s.offsetHeight, 1);
+      if (y >= top && y < bottom) currentId = '#' + s.id;
+    }
+    navLinks.forEach(a => a.classList.toggle('is-active', (a.getAttribute('href')||'').trim() === currentId));
+  };
+  syncActiveNav();
+  window.addEventListener('scroll', syncActiveNav, { passive: true });
+  window.addEventListener('resize', syncActiveNav);
+
+  // 3) Corrección de hash con navbar fija (deep-links no quedan tapados)
+  const offsetToHash = () => {
+    if (!location.hash) return;
+    const target = document.querySelector(location.hash);
+    if (!target) return;
+    const nav = document.querySelector('nav');
+    const navH = nav ? nav.getBoundingClientRect().height : 0;
+    const top = target.getBoundingClientRect().top + window.scrollY - navH - 12;
+    window.scrollTo({ top: Math.max(0, top), behavior: prefersReduced ? 'auto' : 'smooth' });
+  };
+  window.addEventListener('hashchange', offsetToHash);
+  if (location.hash) setTimeout(offsetToHash, 60);
+
+  // 4) Blindaje extra anti-NaN / strings inválidos en métricas (post-render)
+  document.querySelectorAll('.m-val').forEach(el => {
+    const raw = (el.textContent || '').trim();
+    if (!raw) {
+      el.textContent = '--';
+      el.classList.add('metric-fallback');
+      return;
+    }
+    if (/\bNaN\b/i.test(raw) || /^nan/i.test(raw)) {
+      const label = ((el.closest('.metric') || el.parentElement || {}).textContent || '').toUpperCase();
+      let fallback = '--';
+      if (label.includes('HVT')) fallback = 'HVT';
+      if (label.includes('TACTICAL') || label.includes('PHASE')) fallback = 'v1.2';
+      el.textContent = fallback;
+      el.classList.add('metric-fallback');
+    }
+  });
+
+  // 5) Pausa visual ligera en background cuando la pestaña está oculta (ahorro CPU)
+  const bgCanvas = document.getElementById('bg-canvas');
+  if (bgCanvas) {
+    const toggleCanvas = () => {
+      bgCanvas.style.opacity = document.hidden ? '0.35' : '1';
+    };
+    document.addEventListener('visibilitychange', toggleCanvas);
+    toggleCanvas();
+  }
+})();
+
 </script>
 </body>
 </html>
