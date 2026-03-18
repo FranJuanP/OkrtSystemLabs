@@ -18,7 +18,7 @@
 
 </div>
 
-## ¿Qué es AETHER?  (Probar https://aethersystem.netlify.app/ )
+## ¿Qué es AETHER?  ( https://franjuanp.github.io/OkrtSystemLabs/ )
 
 AETHER es un sistema de inteligencia de riesgos globales que corre **completamente en local**, sin servidor, sin base de datos, sin dependencias de backend. Un único archivo HTML de 448KB que contiene:
 
