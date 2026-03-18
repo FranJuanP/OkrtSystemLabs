@@ -113,11 +113,11 @@ Introduce shocks manuales en cualquier categoría y observa cómo se propagan:
 ### Sin IA (modo solo datos)
 ```bash
 # Opción 1: abrir directamente en el navegador
-open AETHER_v1.html
+open AETHER.html
 
 # Opción 2: servir con Python (recomendado)
 python -m http.server 8080
-# → http://localhost:8080/AETHER_v1.html
+# → http://localhost:8080/AETHER.html
 ```
 
 ### Con IA (Ollama/Mistral)
@@ -149,7 +149,7 @@ ollama pull mistral
 ## Arquitectura técnica
 
 ```
-AETHER_v1.html (448KB)
+AETHER.html (448KB)
 │
 ├── DATA{}              — 202 países × 16 categorías × 4 indicadores
 ├── ISO_MAP{}           — ~220 códigos ISO numéricos → alpha3
@@ -201,38 +201,6 @@ Los scores base están calibrados con datos de:
 
 `World Bank` · `Freedom House` · `Fragile States Index (FSI)` · `SIPRI` · `GHS Index (NTI)` · `UN HDI` · `FAO` · `WHO` · `IMF WEO` · `IIF` · `ACLED` · `NOAA` · `IPCC` · `Transparency International` · `V-Dem` · `Our World in Data`
 
-> Los datos son de referencia (~2022-2023) y no se actualizan automáticamente. Para datos en tiempo real, usa el botón **DATOS LIVE** (World Bank API).
-
----
-
-## Roadmap
-
-- [ ] Gráficas históricas de tendencia por categoría (5 años)
-- [ ] Comparador de dos países simultáneos
-- [ ] Alertas programadas por umbral de score
-- [ ] Integración con [ARCHON](https://github.com/okrtsystemlabs/archon) como herramienta nativa
-- [ ] Versión PyQt6 de escritorio
-- [ ] Exportar escenarios de shock como JSON
-- [ ] Modo offline completo (mapa embebido)
-
----
-
-## Ecosistema OkrtSystem Labs
-
-AETHER forma parte de un ecosistema de herramientas de inteligencia local:
-
-| Herramienta | Descripción |
-|-------------|-------------|
-| **AETHER** | Inteligencia de riesgos globales *(este repositorio)* |
-| **PULSE** | Monitor de criptomonedas con IA predictiva |
-| **HEIMDALL** | Sistema WiFi de detección de presencia |
-| **SENTINEL** | Auditoría de redes inalámbricas |
-| **ARCHON** | Orquestador de herramientas con Ollama |
-| **SIRENA** | Auditoría de seguridad wireless autónoma |
-
----
-
-## Licencia
 
 MIT License — © 2025 OkrtSystem Labs
 
