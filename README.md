@@ -1,161 +1,250 @@
-# HEIMDALL Sense WiFi
+<div align="center">
 
-**Wireless presence detection through RSSI signal analysis**  
-**OkrtSystem Labs**
+# ◈ AETHER
+### Global Intelligence System
 
----
+**by [OkrtSystem Labs](https://github.com/okrtsystemlabs)**
 
-## Overview
+[![Version](https://img.shields.io/badge/version-1.0-00FFC8?style=flat-square&labelColor=0D1B2E)](.)
+[![Countries](https://img.shields.io/badge/countries-202-FF8C00?style=flat-square&labelColor=0D1B2E)](.)
+[![Categories](https://img.shields.io/badge/risk_categories-16-FF3355?style=flat-square&labelColor=0D1B2E)](.)
+[![Size](https://img.shields.io/badge/size-448KB-A259FF?style=flat-square&labelColor=0D1B2E)](.)
+[![No Server](https://img.shields.io/badge/backend-none-00FF88?style=flat-square&labelColor=0D1B2E)](.)
+[![AI](https://img.shields.io/badge/AI-Ollama%20%2F%20Mistral-FFD700?style=flat-square&labelColor=0D1B2E)](.)
 
-**HEIMDALL Sense WiFi** is a professional module focused on **presence and movement detection through wireless signal behavior**, without using cameras as the primary sensing element.
-
-The system analyses **RSSI fluctuations** captured from nearby WiFi environments, builds temporal windows, applies calibration, and infers activity states such as **presence**, **motion**, and **adjacent-zone/through-wall activity**.
-
-It is designed as a **specialized sensing component** that can operate as part of a broader HEIMDALL ecosystem, feeding telemetry, events, and status outputs to higher-level orchestration or visualization layers.
-
----
-
-## What the tool does
-
-HEIMDALL Sense WiFi continuously observes the surrounding wireless environment and transforms raw signal variation into interpretable operational signals.
-
-In practical terms, the module can:
-
-- detect **presence** from RSSI variance patterns
-- estimate **movement intensity** over time
-- maintain rolling buffers for signal stability analysis
-- perform **baseline calibration** to adapt thresholds to the environment
-- identify **through-wall / adjacent-zone activity** by correlating multiple BSSIDs
-- prioritize trusted or known SSIDs inside the analysis logic
-- generate **events, timelines, alerts, and webhook-compatible outputs**
-- expose data to a wider platform through an embeddable UI panel and bridge layer
+*Motor de inteligencia predictiva de riesgos globales. 202 países. 16 categorías. Cascada temporal. Monte Carlo. Todo en un único archivo HTML.*
 
 ---
 
-## Core capabilities
+</div>
 
-### 1. Presence sensing without camera-centric dependency
-The module is built around the idea of **presence without visual capture**, using wireless telemetry as the observation layer.
+## ¿Qué es AETHER?
 
-### 2. Continuous RSSI analysis
-The system samples nearby WiFi signal levels on a recurring interval and stores them in rolling buffers to evaluate behavior over time instead of relying on isolated snapshots.
+AETHER es un sistema de inteligencia de riesgos globales que corre **completamente en local**, sin servidor, sin base de datos, sin dependencias de backend. Un único archivo HTML de 448KB que contiene:
 
-### 3. Environmental calibration
-A dedicated calibration phase learns the baseline behavior of the local RF environment, allowing the engine to apply more realistic thresholds and reduce false positives.
-
-### 4. Motion inference
-Motion is inferred through changes in signal variance and temporal instability patterns across observed BSSIDs.
-
-### 5. Through-wall / adjacent-zone detection
-When enough signal evidence is available, the module correlates multiple wireless traces to detect activity compatible with movement in nearby or separated zones.
-
-### 6. Operator-oriented interface
-The project includes an embeddable panel with status, graphs, labels, timeline/event logging, and operational indicators aligned with the visual language of the HEIMDALL environment.
-
-### 7. Integration-ready output
-The architecture supports structured outputs and webhook-style integration so the sensing layer can be consumed by other modules, dashboards, or automation workflows.
+- Datos de riesgo de **202 países** en **16 categorías**
+- Un **motor de propagación en cascada** con simulación Monte Carlo (400 iteraciones)
+- Un **Shock Simulator** para explorar escenarios hipotéticos en tiempo real
+- Integración con **Ollama/Mistral** para predicciones e informes generados por IA local
+- Visualizaciones interactivas con **D3.js** — mapa mundial, red de correlaciones, gráficas temporales
 
 ---
 
-## High-level workflow
+## Capturas
 
-```text
-WiFi environment scan
-        ↓
-RSSI capture per BSSID
-        ↓
-Rolling buffer + temporal windowing
-        ↓
-Calibration / baseline learning
-        ↓
-Variance and correlation analysis
-        ↓
-Presence / motion / through-wall inference
-        ↓
-Timeline, alerts, status, bridge output
+| Mapa Mundial | Motor de Cascada | Shock Simulator |
+|:---:|:---:|:---:|
+| Coropletas de riesgo en 7 niveles | Proyección temporal + MC | Escenarios hipotéticos |
+
+---
+
+## Características principales
+
+### 🌍 Cobertura global
+202 países con scoring en 16 dimensiones de riesgo, calibrados con datos reales de World Bank, Freedom House, Fragile States Index, SIPRI, GHS Index y otros organismos internacionales.
+
+### 🧮 Algoritmo multicapa
+```
+Score final = Base histórico
+            + Ajuste por velocidad de cambio (tendencia actual)
+            + Boost por correlación cruzada entre categorías
+            + Propagación en cascada temporal
+```
+
+### ⚡ Motor de Propagación en Cascada
+- **Matriz de propagación temporal** — cada par de categorías tiene `{strength, lag (semanas), decay}`
+- **Cascade Simulator** — simula semana a semana cómo un shock viaja por la red de 16 nodos
+- **Monte Carlo (400 sim)** — perturba parámetros con ruido gaussiano → bandas de confianza p10/p50/p90
+- **Resilience Index** — capacidad de amortiguación sistémica de cada país
+- **Inflection Detector** — detecta aceleración del deterioro (segunda derivada)
+
+### ⚡ Shock Simulator
+Introduce shocks manuales en cualquier categoría y observa cómo se propagan:
+- 8 escenarios predefinidos: *Recesión global, Pandemia, Guerra regional, Colapso climático...*
+- 16 sliders de ajuste manual (−50 a +50 por categoría)
+- Gráfica comparativa baseline vs con shock
+- Tabla de impacto en cascada por categoría al final del horizonte
+
+### 🗺️ Mapa mundial D3.js
+- Coropletas en 7 niveles: `#00CC66 → #44DD88 → #FFD700 → #FF8C00 → #FF4422 → #FF0033`
+- Pulso animado en países críticos (score ≥ 75)
+- Tooltip con score global + top 4 categorías
+- Click para cargar cualquier país en el dashboard
+- Filtrable por categoría
+
+### 🤖 IA local con Ollama/Mistral
+- **Predicción estructurada** — diagnóstico, amenazas con probabilidades, señales de alerta, proyección a 6/12/24 meses
+- **Escenarios predictivos** — Optimista / Base / Pesimista con probabilidades
+- **Chat libre** — conversación contextual con la región activa como contexto
+- Sin APIs externas, sin costes, sin límites de uso
+
+---
+
+## Las 16 Categorías de Riesgo
+
+| # | Categoría | Descripción |
+|---|-----------|-------------|
+| 1 | 💰 **Económico** | PIB, inflación, desempleo, deuda |
+| 2 | 🌐 **Geopolítico** | Conflictos, alianzas, tensiones regionales |
+| 3 | 🏥 **Sanitario** | Esperanza de vida, cobertura, mortalidad |
+| 4 | 🌡️ **Climático** | Temperatura, eventos extremos, estrés hídrico |
+| 5 | 👥 **Cohesión Social** | Desigualdad, polarización, libertades |
+| 6 | 💻 **Tecnológico** | Ciberataques, brecha digital, innovación |
+| 7 | 🌽 **Seg. Alimentaria** | Autosuficiencia, importaciones, hambre |
+| 8 | 🧠 **Salud Mental** | Depresión, suicidio, recursos disponibles |
+| 9 | ⚡ **Energético** | Dependencia, mix renovable, reservas |
+| 10 | 📊 **Demográfico** | Natalidad, envejecimiento, migración |
+| 11 | 🏙️ **Urbano/Infra.** | Vivienda, transporte, saneamiento |
+| 12 | 🔬 **Ciencia/I+D** | Inversión, talento, patentes |
+| 13 | ⚖️ **Justicia/DDHH** | Estado de derecho, corrupción, libertades |
+| 14 | 💳 **Financiero** | Reservas, deuda, estabilidad monetaria |
+| 15 | 🌊 **Océanos/Marina** | Biodiversidad, acidificación, pesca |
+| 16 | 🦠 **Bioseguridad** | Preparación pandémica, vigilancia, GHS Index |
+
+---
+
+## Instalación y uso
+
+### Requisitos
+- Navegador moderno (Chrome, Firefox, Edge)
+- Conexión a internet (solo para cargar el mapa D3.js desde CDN)
+- [Ollama](https://ollama.ai) con Mistral instalado (para funciones de IA)
+
+### Sin IA (modo solo datos)
+```bash
+# Opción 1: abrir directamente en el navegador
+open AETHER_v1.html
+
+# Opción 2: servir con Python (recomendado)
+python -m http.server 8080
+# → http://localhost:8080/AETHER_v1.html
+```
+
+### Con IA (Ollama/Mistral)
+```powershell
+# Windows PowerShell — necesario para CORS
+taskkill /F /IM ollama.exe
+$env:OLLAMA_ORIGINS="*"
+ollama serve
+
+# En otra terminal
+cd C:\ruta\a\AETHER
+python -m http.server 8080
+```
+
+```bash
+# Linux / macOS
+OLLAMA_ORIGINS="*" ollama serve &
+cd /ruta/a/AETHER
+python3 -m http.server 8080
+```
+
+Asegúrate de tener el modelo Mistral:
+```bash
+ollama pull mistral
 ```
 
 ---
 
-## Technical profile
+## Arquitectura técnica
 
-- **Language:** Python
-- **Interface layer:** PyQt6
-- **Signal model:** RSSI-based temporal analysis
-- **Data handling:** rolling buffers, event logs, local persistence support
-- **Operational model:** embeddable sensing module for HEIMDALL
-- **Output options:** UI telemetry, event timeline, status endpoint, webhook-style bridge
-- **Platform orientation:** Windows WiFi environments with standard adapters
+```
+AETHER_v1.html (448KB)
+│
+├── DATA{}              — 202 países × 16 categorías × 4 indicadores
+├── ISO_MAP{}           — ~220 códigos ISO numéricos → alpha3
+├── VELOCITY{}          — vectores de tendencia por país/categoría
+├── CORR_MATRIX[][]     — matriz de correlación 16×16
+├── PROP_MATRIX{}       — matriz de propagación {strength, lag, decay}
+│
+├── Motor base          — enhancedScore() con correlación cruzada
+├── Motor cascada       — simulateCascade() con propagación temporal
+├── Monte Carlo         — runMonteCarlo() 400 sim, Box-Muller
+├── Resiliencia         — computeResilienceIndex()
+├── Inflexión           — detectInflections() segunda derivada
+├── Shock Simulator     — runShockCascade() con overrides manuales
+│
+├── D3.js               — mapa mundial TopoJSON + red de correlaciones
+├── Chart.js Canvas     — gráficas de proyección temporal
+└── Ollama API          — http://localhost:11434/api/chat
+```
 
----
-
-## Design philosophy
-
-HEIMDALL Sense WiFi is not positioned as a generic consumer gadget. It is conceived as a **professional sensing and telemetry module**, with emphasis on:
-
-- signal-driven inference
-- operator visibility
-- modular integration
-- calibration-aware detection
-- controlled-environment deployment
-
-The project follows the broader **OkrtSystem Labs** design language: dark tactical interface, high-contrast telemetry cues, and a disciplined separation between sensing, visualization, and orchestration.
-
----
-
-## Potential use cases
-
-- smart-space activity awareness
-- non-visual occupancy estimation
-- local telemetry enrichment for security environments
-- lab experimentation with RF-based sensing
-- research and prototyping around WiFi motion inference
-- integration into larger defensive, monitoring, or automation platforms
+### Stack
+- **Visualización**: D3.js v7, TopoJSON, Canvas API
+- **IA**: Ollama REST API (Mistral 7B local)
+- **Datos externos**: World Bank API (datos live opcionales)
+- **Sin frameworks**: Vanilla JS, CSS custom properties
+- **Sin build**: archivo único, sin npm, sin bundler
 
 ---
 
-## Repository contents
+## Módulos visuales
 
-This repository is intended to present the **concept, positioning, and interface vision** of the module.
-
-Depending on the publication strategy, it may include:
-
-- presentation HTML
-- visual assets
-- screenshots
-- architectural descriptions
-- documentation
-
----
-
-## Visual identity
-
-HEIMDALL Sense WiFi adopts a visual style inspired by **futuristic tactical telemetry**, combining:
-
-- luminous architectural wireframes
-- circular wireless propagation cues
-- holographic human presence markers
-- dark UI surfaces with cyan/white energy lines
-- green activity signatures for detected entities
-
-This visual language is designed to communicate **precision, technical maturity, and operational awareness**.
+| Módulo | Descripción |
+|--------|-------------|
+| **Mapa mundial** | D3 Natural Earth, 202 países coloreados, click interactivo |
+| **16 Gauges** | Semicírculos SVG animados por categoría |
+| **Termómetro live** | Top 8 categorías con actualización cada 30s |
+| **Red de correlaciones** | D3 force-directed, 16 nodos arrastrables |
+| **Proyección temporal** | Canvas con bandas Monte Carlo p10/p50/p90 |
+| **Árbol de cascada** | Shocks activos con lag y magnitud |
+| **Semáforo de aceleración** | 16 categorías ordenadas por urgencia |
+| **Shock Simulator** | Sliders + gráfica baseline vs shock |
+| **Ranking mundial** | Filtrable por región, categoría, Top N, orden |
+| **Señales de alerta** | 64 fuentes oficiales ponderadas por score |
 
 ---
 
-## Operational note
+## Fuentes de datos
 
-This project is presented as a **professional and research-oriented module**. Deployment, testing, and evaluation should always be carried out in **authorized environments**, with appropriate governance, permissions, and technical validation.
+Los scores base están calibrados con datos de:
 
----
+`World Bank` · `Freedom House` · `Fragile States Index (FSI)` · `SIPRI` · `GHS Index (NTI)` · `UN HDI` · `FAO` · `WHO` · `IMF WEO` · `IIF` · `ACLED` · `NOAA` · `IPCC` · `Transparency International` · `V-Dem` · `Our World in Data`
 
-## Brand
-
-**OkrtSystem Labs**  
-Advanced concepts, tools, and interfaces for next-generation cyber and sensing environments.
+> Los datos son de referencia (~2022-2023) y no se actualizan automáticamente. Para datos en tiempo real, usa el botón **DATOS LIVE** (World Bank API).
 
 ---
 
-## Contact / publication note
+## Roadmap
 
-This README can be used as the front-page description for GitHub together with a presentation HTML, screenshots, and branded visual assets.
+- [ ] Gráficas históricas de tendencia por categoría (5 años)
+- [ ] Comparador de dos países simultáneos
+- [ ] Alertas programadas por umbral de score
+- [ ] Integración con [ARCHON](https://github.com/okrtsystemlabs/archon) como herramienta nativa
+- [ ] Versión PyQt6 de escritorio
+- [ ] Exportar escenarios de shock como JSON
+- [ ] Modo offline completo (mapa embebido)
 
+---
+
+## Ecosistema OkrtSystem Labs
+
+AETHER forma parte de un ecosistema de herramientas de inteligencia local:
+
+| Herramienta | Descripción |
+|-------------|-------------|
+| **AETHER** | Inteligencia de riesgos globales *(este repositorio)* |
+| **PULSE** | Monitor de criptomonedas con IA predictiva |
+| **HEIMDALL** | Sistema WiFi de detección de presencia |
+| **SENTINEL** | Auditoría de redes inalámbricas |
+| **ARCHON** | Orquestador de herramientas con Ollama |
+| **SIRENA** | Auditoría de seguridad wireless autónoma |
+
+---
+
+## Licencia
+
+MIT License — © 2025 OkrtSystem Labs
+
+---
+
+<div align="center">
+
+**AETHER** es una herramienta de investigación e inteligencia estratégica.  
+Los datos son de referencia y no deben usarse como única fuente para decisiones críticas.
+
+---
+
+*Construido con 🌐 por OkrtSystem Labs*
+
+</div>
