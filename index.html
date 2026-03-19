@@ -4476,156 +4476,6 @@ function initNetworkGraph(){
 let mapCatMode='global';
 let mapSvg=null;
 
-// Módulo aislado del mapa: encapsula estado, helpers y API pública
-const AetherMapEngine=(function(){
-  const state={
-    mapSvg:null,
-    arcGroup:null,
-    arcAnimTick:0,
-    countries:null,
-    zoom:null,
-    resizeObserver:null,
-    lastSize:{w:0,h:0}
-  };
-
-  const normCode=(code)=>String(code||'').trim().toUpperCase();
-
-  function getAliases(code){
-    code=normCode(code);
-    return Array.isArray(COUNTRY_ALIAS?.[code])?COUNTRY_ALIAS[code].map(normCode):[];
-  }
-
-  function getMembers(code){
-    code=normCode(code);
-    return Array.isArray(REGIONAL_MEMBERS?.[code])?REGIONAL_MEMBERS[code].map(normCode):[];
-  }
-
-  function getResolvedCodes(code){
-    code=normCode(code);
-    const out=new Set();
-    if(!code||code==='WLD') return out;
-    out.add(code);
-    getAliases(code).forEach(v=>out.add(v));
-    getMembers(code).forEach(v=>out.add(v));
-    return out;
-  }
-
-  function arcTouchesSelection(fromCode,toCode,activeCodes){
-    return activeCodes.has(normCode(fromCode))||activeCodes.has(normCode(toCode));
-  }
-
-  function normalizeArcKey(conn){
-    const [fromCode,toCode,type,,label]=conn||[];
-    const ends=[normCode(fromCode),normCode(toCode)].sort().join('~');
-    return `${type||''}|${ends}|${label||''}`;
-  }
-
-  function dedupeConnections(list){
-    const seen=new Set();
-    return (list||[]).filter(conn=>{
-      const k=normalizeArcKey(conn);
-      if(seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-  }
-
-  function getFeatureCentroid(code,countries){
-    code=normCode(code);
-    if(!countries?.features||typeof d3==='undefined') return null;
-    const feat=countries.features.find(f=>{
-      const k=ISO_MAP[String(f.id).padStart(3,'0')];
-      return k===code;
-    });
-    if(!feat) return null;
-    try{
-      const c=d3.geoCentroid(feat);
-      return Array.isArray(c)&&isFinite(c[0])&&isFinite(c[1])?c:null;
-    }catch(_){ return null; }
-  }
-
-  function getCountryCentroid(code,countries){
-    code=normCode(code);
-    return COUNTRY_CENTROIDS?.[code] || getFeatureCentroid(code,countries||state.countries) || null;
-  }
-
-  function validateData(){
-    const issues={missingCentroids:[], danglingAliases:[], invalidConnections:[], duplicateConnections:[]};
-    const defined=new Set([
-      ...Object.keys(DATA||{}),
-      ...Object.keys(COUNTRY_CENTROIDS||{}),
-      ...Object.keys(COUNTRY_ALIAS||{}),
-      ...Object.keys(REGIONAL_MEMBERS||{})
-    ].map(normCode));
-
-    const dupSeen=new Set();
-    (GLOBE_CONNECTIONS||[]).forEach(conn=>{
-      const [from,to]=conn;
-      const nf=normCode(from), nt=normCode(to);
-      const key=normalizeArcKey(conn);
-      if(dupSeen.has(key)) issues.duplicateConnections.push(key);
-      dupSeen.add(key);
-      if(!getCountryCentroid(nf)) issues.missingCentroids.push(nf);
-      if(!getCountryCentroid(nt)) issues.missingCentroids.push(nt);
-      if(!defined.has(nf) && nf!=='WLD') issues.invalidConnections.push(nf);
-      if(!defined.has(nt) && nt!=='WLD') issues.invalidConnections.push(nt);
-    });
-
-    Object.entries(COUNTRY_ALIAS||{}).forEach(([k,arr])=>{
-      arr.forEach(alias=>{
-        if(!defined.has(normCode(alias))) issues.danglingAliases.push(`${k}->${alias}`);
-      });
-    });
-
-    issues.missingCentroids=[...new Set(issues.missingCentroids)];
-    issues.invalidConnections=[...new Set(issues.invalidConnections)];
-    issues.danglingAliases=[...new Set(issues.danglingAliases)];
-    issues.duplicateConnections=[...new Set(issues.duplicateConnections)];
-    state.validation=issues;
-    return issues;
-  }
-
-  function resize(){
-    const wrap=document.getElementById('world-map-wrap');
-    if(!wrap) return;
-    const w=wrap.clientWidth||0, h=wrap.clientHeight||0;
-    if(!w||!h) return;
-    if(state.lastSize.w===w && state.lastSize.h===h) return;
-    state.lastSize={w,h};
-    if(typeof initWorldMap==='function'){
-      wrap.querySelectorAll('svg').forEach(n=>n.remove());
-      initWorldMap();
-      if(typeof window._drawGlobeArcs==='function' && (typeof arcsVisible==='undefined' || arcsVisible)) setTimeout(window._drawGlobeArcs,120);
-    }
-  }
-
-  function attachResizeObserver(){
-    const wrap=document.getElementById('world-map-wrap');
-    if(!wrap || typeof ResizeObserver==='undefined') return;
-    if(state.resizeObserver){ try{ state.resizeObserver.disconnect(); }catch(_){} }
-    let rafId=0;
-    state.resizeObserver=new ResizeObserver(()=>{
-      cancelAnimationFrame(rafId);
-      rafId=requestAnimationFrame(resize);
-    });
-    state.resizeObserver.observe(wrap);
-  }
-
-  return {
-    state, normCode, getAliases, getMembers, getResolvedCodes, arcTouchesSelection, normalizeArcKey, dedupeConnections,
-    getFeatureCentroid, getCountryCentroid, validateData, resize, attachResizeObserver,
-    setMapSvg(v){ state.mapSvg=v; mapSvg=v; },
-    getMapSvg(){ return state.mapSvg||mapSvg; },
-    setArcGroup(v){ state.arcGroup=v; arcGroup=v; },
-    getArcGroup(){ return state.arcGroup||arcGroup; },
-    setCountries(v){ state.countries=v; },
-    getCountries(){ return state.countries; },
-    setZoom(v){ state.zoom=v; },
-    focusCountry(code){ if(typeof window._zoomToCountryByCode==='function') window._zoomToCountryByCode(code); }
-  };
-})();
-window.AetherMapEngine=AetherMapEngine;
-
 function setMapCat(el,cat){
   mapCatMode=cat;
   document.querySelectorAll('#map-cat-btns .hbtn').forEach(b=>b.classList.remove('active'));
@@ -4794,13 +4644,19 @@ const REGIONAL_MEMBERS = Object.freeze(Object.keys(COUNTRY_ALIAS).reduce((acc, c
 }, {}));
 
 function getRelatedArcCodes(code){
-  return AetherMapEngine.getResolvedCodes(code);
+  const out = new Set();
+  if(!code || code==='WLD') return out;
+  out.add(code);
+  (COUNTRY_ALIAS[code] || []).forEach(alias => out.add(alias));
+  (REGIONAL_MEMBERS[code] || []).forEach(member => out.add(member));
+  return out;
 }
 function arcTouchesSelection(fromCode, toCode, activeCodes){
-  return AetherMapEngine.arcTouchesSelection(fromCode, toCode, activeCodes);
+  return activeCodes.has(fromCode) || activeCodes.has(toCode);
 }
-function normalizeArcKey(conn){
-  return AetherMapEngine.normalizeArcKey(conn);
+function normalizeArcKey([fromCode, toCode, type, intensity, label]){
+  const ends = [fromCode, toCode].sort().join('~');
+  return `${type}|${ends}|${label || ''}`;
 }
 
 // Conexiones directas añadidas para que países clave no queden “mudos”
@@ -4847,16 +4703,13 @@ function initWorldMap(){
   const wrap=document.getElementById('world-map-wrap');
   if(!wrap||typeof d3==='undefined'||typeof topojson==='undefined') return;
 
-  wrap.querySelectorAll('svg').forEach(n=>n.remove());
   const W=wrap.clientWidth||900, H=wrap.clientHeight||440;
-  AetherMapEngine.state.lastSize={w:W,h:H};
 
   const svg=d3.select('#world-map-wrap').append('svg')
     .attr('viewBox',`0 0 ${W} ${H}`)
     .attr('preserveAspectRatio','xMidYMid meet')
     .style('cursor','default');
   mapSvg=svg;
-  AetherMapEngine.setMapSvg(svg);
 
   // Defs: filtro glow para arcos
   const defs=svg.append('defs');
@@ -4890,7 +4743,6 @@ function initWorldMap(){
 
   Promise.resolve(__WORLD_TOPO__).then(world=>{
     const countries=topojson.feature(world,world.objects.countries);
-    AetherMapEngine.setCountries(countries);
 
     // Fallback de centroides: si falta alguno, se calcula desde la geometría real del mapa
     countries.features.forEach(feature=>{
@@ -4963,7 +4815,6 @@ function initWorldMap(){
 
     // arcGroup encima de los países, DENTRO del grupo zoomable
     arcGroup=mapG.append('g').attr('id','globe-arcs');
-    AetherMapEngine.setArcGroup(arcGroup);
 
     // ── D3 ZOOM BEHAVIOR ──────────────────────────────────────────────────
     const zoom = d3.zoom()
@@ -4989,7 +4840,6 @@ function initWorldMap(){
         if(resetBtn) resetBtn.style.display = k>1.05?'block':'none';
       });
 
-    AetherMapEngine.setZoom(zoom);
     svg.call(zoom);
 
     // ── FUNCIÓN: zoom a un país concreto ──────────────────────────────────
@@ -5097,7 +4947,13 @@ function initWorldMap(){
       });
 
       // Deduplicado quirúrgico para evitar arcos repetidos por alias o cargas sucesivas
-      toRender = AetherMapEngine.dedupeConnections(toRender);
+      const seenArcs = new Set();
+      toRender = toRender.filter(conn=>{
+        const k = normalizeArcKey(conn);
+        if(seenArcs.has(k)) return false;
+        seenArcs.add(k);
+        return true;
+      });
 
       // Ordenar: menos grave primero → más grave dibujado encima
       toRender.sort((a,b)=>(SEVERITY[a[2]]||0)-(SEVERITY[b[2]]||0));
@@ -5120,9 +4976,8 @@ function initWorldMap(){
       toRender.forEach((conn, i)=>{
         const [fromCode,toCode,type,intensity,label] = conn;
         const info   = CONFLICT_INFO[`${fromCode}-${toCode}`] || CONFLICT_INFO[`${toCode}-${fromCode}`] || {};
-        const countriesRef = AetherMapEngine.getCountries();
-        const fromLL = AetherMapEngine.getCountryCentroid(fromCode, countriesRef);
-        const toLL   = AetherMapEngine.getCountryCentroid(toCode, countriesRef);
+        const fromLL = COUNTRY_CENTROIDS[fromCode];
+        const toLL   = COUNTRY_CENTROIDS[toCode];
         if(!fromLL||!toLL) return;
 
         const p1 = proj(fromLL);
@@ -5307,17 +5162,6 @@ function initWorldMap(){
     }
 
     window._drawGlobeArcs=drawGlobeArcs;
-    window.AetherMap={
-      init:initWorldMap,
-      redrawArcs:drawGlobeArcs,
-      resize:AetherMapEngine.resize,
-      focusCountry:(code)=>AetherMapEngine.focusCountry(code),
-      updateColors:updateMapColors,
-      validate:AetherMapEngine.validateData,
-      getState:()=>AetherMapEngine.state
-    };
-    AetherMapEngine.validateData();
-    AetherMapEngine.attachResizeObserver();
 
   }).catch(e=>{
     console.error('Map error:',e);
