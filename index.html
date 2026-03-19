@@ -752,7 +752,7 @@ select option{background:#0B1420}
 .ld-msg{font-size:11px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:2px}
 
 /* ── V5 ADDITIONS ── */
-#world-map-wrap{width:100%;height:440px;position:relative;background:radial-gradient(ellipse at center,#050E1A 0%,#020608 100%);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#world-map-wrap{width:100%;height:560px;min-height:560px;position:relative;background:radial-gradient(ellipse at center,#050E1A 0%,#020608 100%);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
 #world-map-wrap svg{width:100%;height:100%}
 .map-tooltip{position:absolute;background:rgba(11,20,32,.95);border:1px solid var(--cyan);border-radius:6px;padding:8px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;pointer-events:none;z-index:10;display:none}
 .map-legend{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
@@ -781,7 +781,7 @@ select option{background:#0B1420}
   .card{border:1px solid #ccc!important;background:#f9f9f9!important;break-inside:avoid}
   .gauge-num{color:#000!important}
   header{background:#1a1a2e!important}
-  #world-map-wrap{height:300px}
+  #world-map-wrap{height:340px;min-height:340px}
 }
 
 /* ── V6 MODULES ── */
@@ -836,6 +836,10 @@ select option{background:#0B1420}
 #page-aether .btn, #page-aether button,
 #page-aether select, #page-aether a,
 #page-aether input[type="range"] { cursor: pointer; }
+@media (max-width: 1200px){#world-map-wrap{height:520px;min-height:520px}}
+@media (max-width: 900px){#world-map-wrap{height:460px;min-height:460px}}
+@media (max-width: 640px){#world-map-wrap{height:380px;min-height:380px}}
+
 #page-aether .map-country { cursor: crosshair; }
 #page-aether canvas { cursor: grab; }
 #page-aether canvas:active { cursor: grabbing; }
@@ -4472,6 +4476,156 @@ function initNetworkGraph(){
 let mapCatMode='global';
 let mapSvg=null;
 
+// Módulo aislado del mapa: encapsula estado, helpers y API pública
+const AetherMapEngine=(function(){
+  const state={
+    mapSvg:null,
+    arcGroup:null,
+    arcAnimTick:0,
+    countries:null,
+    zoom:null,
+    resizeObserver:null,
+    lastSize:{w:0,h:0}
+  };
+
+  const normCode=(code)=>String(code||'').trim().toUpperCase();
+
+  function getAliases(code){
+    code=normCode(code);
+    return Array.isArray(COUNTRY_ALIAS?.[code])?COUNTRY_ALIAS[code].map(normCode):[];
+  }
+
+  function getMembers(code){
+    code=normCode(code);
+    return Array.isArray(REGIONAL_MEMBERS?.[code])?REGIONAL_MEMBERS[code].map(normCode):[];
+  }
+
+  function getResolvedCodes(code){
+    code=normCode(code);
+    const out=new Set();
+    if(!code||code==='WLD') return out;
+    out.add(code);
+    getAliases(code).forEach(v=>out.add(v));
+    getMembers(code).forEach(v=>out.add(v));
+    return out;
+  }
+
+  function arcTouchesSelection(fromCode,toCode,activeCodes){
+    return activeCodes.has(normCode(fromCode))||activeCodes.has(normCode(toCode));
+  }
+
+  function normalizeArcKey(conn){
+    const [fromCode,toCode,type,,label]=conn||[];
+    const ends=[normCode(fromCode),normCode(toCode)].sort().join('~');
+    return `${type||''}|${ends}|${label||''}`;
+  }
+
+  function dedupeConnections(list){
+    const seen=new Set();
+    return (list||[]).filter(conn=>{
+      const k=normalizeArcKey(conn);
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  function getFeatureCentroid(code,countries){
+    code=normCode(code);
+    if(!countries?.features||typeof d3==='undefined') return null;
+    const feat=countries.features.find(f=>{
+      const k=ISO_MAP[String(f.id).padStart(3,'0')];
+      return k===code;
+    });
+    if(!feat) return null;
+    try{
+      const c=d3.geoCentroid(feat);
+      return Array.isArray(c)&&isFinite(c[0])&&isFinite(c[1])?c:null;
+    }catch(_){ return null; }
+  }
+
+  function getCountryCentroid(code,countries){
+    code=normCode(code);
+    return COUNTRY_CENTROIDS?.[code] || getFeatureCentroid(code,countries||state.countries) || null;
+  }
+
+  function validateData(){
+    const issues={missingCentroids:[], danglingAliases:[], invalidConnections:[], duplicateConnections:[]};
+    const defined=new Set([
+      ...Object.keys(DATA||{}),
+      ...Object.keys(COUNTRY_CENTROIDS||{}),
+      ...Object.keys(COUNTRY_ALIAS||{}),
+      ...Object.keys(REGIONAL_MEMBERS||{})
+    ].map(normCode));
+
+    const dupSeen=new Set();
+    (GLOBE_CONNECTIONS||[]).forEach(conn=>{
+      const [from,to]=conn;
+      const nf=normCode(from), nt=normCode(to);
+      const key=normalizeArcKey(conn);
+      if(dupSeen.has(key)) issues.duplicateConnections.push(key);
+      dupSeen.add(key);
+      if(!getCountryCentroid(nf)) issues.missingCentroids.push(nf);
+      if(!getCountryCentroid(nt)) issues.missingCentroids.push(nt);
+      if(!defined.has(nf) && nf!=='WLD') issues.invalidConnections.push(nf);
+      if(!defined.has(nt) && nt!=='WLD') issues.invalidConnections.push(nt);
+    });
+
+    Object.entries(COUNTRY_ALIAS||{}).forEach(([k,arr])=>{
+      arr.forEach(alias=>{
+        if(!defined.has(normCode(alias))) issues.danglingAliases.push(`${k}->${alias}`);
+      });
+    });
+
+    issues.missingCentroids=[...new Set(issues.missingCentroids)];
+    issues.invalidConnections=[...new Set(issues.invalidConnections)];
+    issues.danglingAliases=[...new Set(issues.danglingAliases)];
+    issues.duplicateConnections=[...new Set(issues.duplicateConnections)];
+    state.validation=issues;
+    return issues;
+  }
+
+  function resize(){
+    const wrap=document.getElementById('world-map-wrap');
+    if(!wrap) return;
+    const w=wrap.clientWidth||0, h=wrap.clientHeight||0;
+    if(!w||!h) return;
+    if(state.lastSize.w===w && state.lastSize.h===h) return;
+    state.lastSize={w,h};
+    if(typeof initWorldMap==='function'){
+      wrap.querySelectorAll('svg').forEach(n=>n.remove());
+      initWorldMap();
+      if(typeof window._drawGlobeArcs==='function' && (typeof arcsVisible==='undefined' || arcsVisible)) setTimeout(window._drawGlobeArcs,120);
+    }
+  }
+
+  function attachResizeObserver(){
+    const wrap=document.getElementById('world-map-wrap');
+    if(!wrap || typeof ResizeObserver==='undefined') return;
+    if(state.resizeObserver){ try{ state.resizeObserver.disconnect(); }catch(_){} }
+    let rafId=0;
+    state.resizeObserver=new ResizeObserver(()=>{
+      cancelAnimationFrame(rafId);
+      rafId=requestAnimationFrame(resize);
+    });
+    state.resizeObserver.observe(wrap);
+  }
+
+  return {
+    state, normCode, getAliases, getMembers, getResolvedCodes, arcTouchesSelection, normalizeArcKey, dedupeConnections,
+    getFeatureCentroid, getCountryCentroid, validateData, resize, attachResizeObserver,
+    setMapSvg(v){ state.mapSvg=v; mapSvg=v; },
+    getMapSvg(){ return state.mapSvg||mapSvg; },
+    setArcGroup(v){ state.arcGroup=v; arcGroup=v; },
+    getArcGroup(){ return state.arcGroup||arcGroup; },
+    setCountries(v){ state.countries=v; },
+    getCountries(){ return state.countries; },
+    setZoom(v){ state.zoom=v; },
+    focusCountry(code){ if(typeof window._zoomToCountryByCode==='function') window._zoomToCountryByCode(code); }
+  };
+})();
+window.AetherMapEngine=AetherMapEngine;
+
 function setMapCat(el,cat){
   mapCatMode=cat;
   document.querySelectorAll('#map-cat-btns .hbtn').forEach(b=>b.classList.remove('active'));
@@ -4607,22 +4761,81 @@ const GLOBE_CONNECTIONS = [
   ['CHN','RUS','INFLUENCE', 0.8, 'ALIANZA ESTRATÉGICA'],
 ];
 
-// Centroides adicionales para conexiones
-COUNTRY_CENTROIDS['AFR'] = [20, 3];
-COUNTRY_CENTROIDS['TWN'] = [120.9, 23.5];
-COUNTRY_CENTROIDS['PSE'] = [34.5, 31.4];
-COUNTRY_CENTROIDS['XKX'] = [20.9, 42.7];
-COUNTRY_CENTROIDS['PRK'] = [127.5, 40.3];
-COUNTRY_CENTROIDS['PHL'] = [122, 12.8];
-COUNTRY_CENTROIDS['ARM'] = [45, 40.1];
-COUNTRY_CENTROIDS['SRB'] = [21, 44];
-COUNTRY_CENTROIDS['COL'] = [-74, 4.5];
-COUNTRY_CENTROIDS['VEN'] = [-66, 8];
-COUNTRY_CENTROIDS['MLI'] = [-2, 17];
-COUNTRY_CENTROIDS['BFA'] = [-1.5, 12.5];
-COUNTRY_CENTROIDS['RWA'] = [29.9, -1.9];
-COUNTRY_CENTROIDS['GRC'] = [22, 39];
-COUNTRY_CENTROIDS['SSD'] = [31.3, 7];
+// Centroides adicionales para conexiones y fallback quirúrgico
+Object.assign(COUNTRY_CENTROIDS, {
+  AFR: [20, 3],     TWN: [120.9, 23.5], PSE: [34.5, 31.4], XKX: [20.9, 42.7],
+  PRK: [127.5, 40.3], PHL: [122, 12.8], ARM: [45, 40.1],  SRB: [21, 44],
+  COL: [-74, 4.5],  VEN: [-66, 8],      MLI: [-2, 17],    BFA: [-1.5, 12.5],
+  RWA: [29.9, -1.9], GRC: [22, 39],     SSD: [31.3, 7],   DEU: [10, 51],
+  FRA: [2, 46],     GBR: [-2, 54],      ITA: [12.5, 42.8], KOR: [127.8, 36.3],
+  AUS: [134, -25],  ARG: [-64, -34],    NZL: [172, -41],  PRT: [-8, 39.5],
+  NLD: [5.3, 52.1], BEL: [4.5, 50.8],   CHE: [8.2, 46.8], AUT: [14.2, 47.6],
+  CZE: [15.3, 49.8], ROU: [24.9, 45.8], DZA: [2.6, 28.1], MAR: [-6.0, 31.8],
+  TUN: [9.6, 34.1], KEN: [37.9, 0.4],   ARE: [54.3, 24.3]
+});
+
+// Alias regionales: al seleccionar un país, hereda también la capa regional.
+const COUNTRY_ALIAS = Object.freeze({
+  ESP:['EUU'], PRT:['EUU'], FRA:['EUU'], DEU:['EUU'], ITA:['EUU'], GBR:['EUU'],
+  IRL:['EUU'], NLD:['EUU'], BEL:['EUU'], LUX:['EUU'], CHE:['EUU'], AUT:['EUU'],
+  POL:['EUU'], CZE:['EUU'], SVK:['EUU'], HUN:['EUU'], ROU:['EUU'], BGR:['EUU'],
+  HRV:['EUU'], SVN:['EUU'], GRC:['EUU'], CYP:['EUU'], MLT:['EUU'], DNK:['EUU'],
+  SWE:['EUU'], NOR:['EUU'], FIN:['EUU'], EST:['EUU'], LVA:['EUU'], LTU:['EUU'],
+  ZAF:['AFR'], NGA:['AFR'], EGY:['AFR'], SDN:['AFR'], SSD:['AFR'], SOM:['AFR'],
+  COD:['AFR'], ETH:['AFR'], RWA:['AFR'], MLI:['AFR'], BFA:['AFR'], DZA:['AFR'],
+  MAR:['AFR'], TUN:['AFR'], KEN:['AFR']
+});
+
+const REGIONAL_MEMBERS = Object.freeze(Object.keys(COUNTRY_ALIAS).reduce((acc, code) => {
+  (COUNTRY_ALIAS[code] || []).forEach(alias => {
+    (acc[alias] ||= []).push(code);
+  });
+  return acc;
+}, {}));
+
+function getRelatedArcCodes(code){
+  return AetherMapEngine.getResolvedCodes(code);
+}
+function arcTouchesSelection(fromCode, toCode, activeCodes){
+  return AetherMapEngine.arcTouchesSelection(fromCode, toCode, activeCodes);
+}
+function normalizeArcKey(conn){
+  return AetherMapEngine.normalizeArcKey(conn);
+}
+
+// Conexiones directas añadidas para que países clave no queden “mudos”
+GLOBE_CONNECTIONS.push(
+  ['ESP','RUS','SANCTION',0.66,'POSTURA UE'],
+  ['ESP','MAR','TENSION',0.50,'FLANCO SUR'],
+  ['ESP','DZA','ENERGY' in ARC_TYPES ? 'ENERGY' : 'INFLUENCE',0.58,'GAS/ENERGÍA'],
+  ['FRA','RUS','SANCTION',0.72,'POSTURA UE'],
+  ['FRA','MLI','CRISIS',0.62,'SAHEL'],
+  ['FRA','NGA','INFLUENCE',0.48,'ÁFRICA OCC.'],
+  ['GBR','RUS','SANCTION',0.74,'POSTURA UK'],
+  ['GBR','IRN','SANCTION',0.60,'PRESIÓN'],
+  ['GBR','UKR','PROXY',0.68,'APOYO'],
+  ['DEU','RUS','SANCTION',0.78,'ENERGÍA/UE'],
+  ['DEU','UKR','PROXY',0.64,'APOYO'],
+  ['DEU','CHN','TENSION',0.56,'INDUSTRIA/TECH'],
+  ['ITA','LBN','CRISIS',0.48,'MEDITERRÁNEO'],
+  ['ITA','DZA','INFLUENCE',0.58,'ENERGÍA'],
+  ['ITA','RUS','SANCTION',0.61,'POSTURA UE'],
+  ['KOR','JPN','TENSION',0.52,'DISPUTA HIST.'],
+  ['KOR','USA','INFLUENCE',0.82,'ALIANZA'],
+  ['KOR','CHN','TENSION',0.56,'CADENAS TECH'],
+  ['AUS','CHN','TENSION',0.68,'INDO-PACÍFICO'],
+  ['AUS','USA','INFLUENCE',0.80,'AUKUS'],
+  ['AUS','IDN','INFLUENCE',0.46,'VECINDAD'],
+  ['ARG','BRA','INFLUENCE',0.44,'MERCOSUR'],
+  ['ARG','USA','TENSION',0.36,'FINANZAS'],
+  ['ARG','CHN','INFLUENCE',0.54,'SWAP/INFRA'],
+  ['ZAF','RUS','INFLUENCE',0.46,'BRICS'],
+  ['NGA','RUS','INFLUENCE',0.42,'SEGURIDAD'],
+  ['EGY','ISR','CRISIS',0.55,'GAZA/RAFAH'],
+  ['EGY','ETH','CRISIS',0.66,'NILO'],
+  ['MAR','DZA','TENSION',0.64,'MAGREB'],
+  ['KEN','SOM','CRISIS',0.58,'AL-SHABAAB']
+);
 
 // ── Estado de los arcos
 // Estado de los arcos
@@ -4634,13 +4847,16 @@ function initWorldMap(){
   const wrap=document.getElementById('world-map-wrap');
   if(!wrap||typeof d3==='undefined'||typeof topojson==='undefined') return;
 
+  wrap.querySelectorAll('svg').forEach(n=>n.remove());
   const W=wrap.clientWidth||900, H=wrap.clientHeight||440;
+  AetherMapEngine.state.lastSize={w:W,h:H};
 
   const svg=d3.select('#world-map-wrap').append('svg')
     .attr('viewBox',`0 0 ${W} ${H}`)
     .attr('preserveAspectRatio','xMidYMid meet')
     .style('cursor','default');
   mapSvg=svg;
+  AetherMapEngine.setMapSvg(svg);
 
   // Defs: filtro glow para arcos
   const defs=svg.append('defs');
@@ -4661,9 +4877,8 @@ function initWorldMap(){
     .style('fill','#060D18');
 
   // Proyección Natural Earth — mapa plano
-  const proj=d3.geoNaturalEarth1()
-    .scale(W/6.2)
-    .translate([W/2, H/2]);
+  const proj=d3.geoNaturalEarth1();
+  proj.fitExtent([[18,24],[W-18,H-24]], {type:'Sphere'});
   const path=d3.geoPath().projection(proj);
   const tip=document.getElementById('map-tip');
 
@@ -4675,6 +4890,19 @@ function initWorldMap(){
 
   Promise.resolve(__WORLD_TOPO__).then(world=>{
     const countries=topojson.feature(world,world.objects.countries);
+    AetherMapEngine.setCountries(countries);
+
+    // Fallback de centroides: si falta alguno, se calcula desde la geometría real del mapa
+    countries.features.forEach(feature=>{
+      const code = ISO_MAP[String(feature.id).padStart(3,'0')];
+      if(!code || COUNTRY_CENTROIDS[code]) return;
+      try{
+        const c = d3.geoCentroid(feature);
+        if(Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])){
+          COUNTRY_CENTROIDS[code] = [Number(c[0].toFixed(2)), Number(c[1].toFixed(2))];
+        }
+      }catch(_){}
+    });
 
     // Grupo zoomable — TODO el contenido del mapa va aquí dentro
     // D3 zoom aplica transform a este grupo, los arcos se recalculan
@@ -4723,8 +4951,9 @@ function initWorldMap(){
       .on('mouseleave',()=>{ tip.style.display='none'; })
       .on('click',function(event,d){
         const key=ISO_MAP[String(d.id).padStart(3,'0')];
-        if(key&&DATA[key]){
-          document.getElementById('region-sel').value=key;
+        const targetKey = (key && DATA[key]) ? key : ((COUNTRY_ALIAS[key] || []).find(alias => DATA[alias]) || null);
+        if(targetKey){
+          document.getElementById('region-sel').value=targetKey;
           loadRegion();
           // Zoom al país clicado
           zoomToCountry(d, path, W, H);
@@ -4734,6 +4963,7 @@ function initWorldMap(){
 
     // arcGroup encima de los países, DENTRO del grupo zoomable
     arcGroup=mapG.append('g').attr('id','globe-arcs');
+    AetherMapEngine.setArcGroup(arcGroup);
 
     // ── D3 ZOOM BEHAVIOR ──────────────────────────────────────────────────
     const zoom = d3.zoom()
@@ -4759,6 +4989,7 @@ function initWorldMap(){
         if(resetBtn) resetBtn.style.display = k>1.05?'block':'none';
       });
 
+    AetherMapEngine.setZoom(zoom);
     svg.call(zoom);
 
     // ── FUNCIÓN: zoom a un país concreto ──────────────────────────────────
@@ -4848,21 +5079,25 @@ function initWorldMap(){
       const arcDefs = mapSvg.select('defs').append('g').attr('id','arc-defs');
 
       const activeCode = document.getElementById('region-sel')?.value||'WLD';
-      const hasActive  = activeCode && activeCode!=='WLD' && COUNTRY_CENTROIDS[activeCode];
+      const activeCodes = getRelatedArcCodes(activeCode);
+      const hasActive  = activeCode && activeCode!=='WLD' && activeCodes.size > 0;
 
       // Filtro activo por tipo (de la leyenda interactiva)
       const typeFilter = window.arcTypeFilter || null;
 
-      // Filtrado: activo → solo sus arcos | sin selección → según severidad y filtro
+      // Filtrado: activo → país + alias/región | sin selección → según severidad y filtro
       const SEVERITY = {INFLUENCE:0,SANCTION:1,TENSION:2,PROXY:3,NUKE:4,CRISIS:5,WAR:6};
       const ALWAYS_SHOW = new Set(['WAR','CRISIS','NUKE','PROXY']);
 
       let toRender = GLOBE_CONNECTIONS.filter(([from,to,type,intensity])=>{
         if(typeFilter && type !== typeFilter) return false;
-        if(hasActive) return from===activeCode || to===activeCode;
+        if(hasActive) return arcTouchesSelection(from, to, activeCodes);
         if(typeFilter) return true; // con filtro activo mostrar todos de ese tipo
         return ALWAYS_SHOW.has(type) || intensity >= 0.82;
       });
+
+      // Deduplicado quirúrgico para evitar arcos repetidos por alias o cargas sucesivas
+      toRender = AetherMapEngine.dedupeConnections(toRender);
 
       // Ordenar: menos grave primero → más grave dibujado encima
       toRender.sort((a,b)=>(SEVERITY[a[2]]||0)-(SEVERITY[b[2]]||0));
@@ -4885,8 +5120,9 @@ function initWorldMap(){
       toRender.forEach((conn, i)=>{
         const [fromCode,toCode,type,intensity,label] = conn;
         const info   = CONFLICT_INFO[`${fromCode}-${toCode}`] || CONFLICT_INFO[`${toCode}-${fromCode}`] || {};
-        const fromLL = COUNTRY_CENTROIDS[fromCode];
-        const toLL   = COUNTRY_CENTROIDS[toCode];
+        const countriesRef = AetherMapEngine.getCountries();
+        const fromLL = AetherMapEngine.getCountryCentroid(fromCode, countriesRef);
+        const toLL   = AetherMapEngine.getCountryCentroid(toCode, countriesRef);
         if(!fromLL||!toLL) return;
 
         const p1 = proj(fromLL);
@@ -4898,7 +5134,7 @@ function initWorldMap(){
         if(dist<6) return;
 
         const cfg = ARC_TYPES[type]||ARC_TYPES.TENSION;
-        const isActive = fromCode===activeCode || toCode===activeCode;
+        const isActive = hasActive ? arcTouchesSelection(fromCode, toCode, activeCodes) : false;
 
         // Opacidad por contexto
         const baseAlpha = hasActive
@@ -5071,6 +5307,17 @@ function initWorldMap(){
     }
 
     window._drawGlobeArcs=drawGlobeArcs;
+    window.AetherMap={
+      init:initWorldMap,
+      redrawArcs:drawGlobeArcs,
+      resize:AetherMapEngine.resize,
+      focusCountry:(code)=>AetherMapEngine.focusCountry(code),
+      updateColors:updateMapColors,
+      validate:AetherMapEngine.validateData,
+      getState:()=>AetherMapEngine.state
+    };
+    AetherMapEngine.validateData();
+    AetherMapEngine.attachResizeObserver();
 
   }).catch(e=>{
     console.error('Map error:',e);
