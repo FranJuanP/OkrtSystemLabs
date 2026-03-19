@@ -2094,7 +2094,7 @@ document.querySelectorAll('.layer,.feat-card,.eco-card,.cat-item').forEach((el,i
         </div>
       </div>
       <div class="chat-input-row">
-        <textarea id="chat-input" placeholder="Escribe tu pregunta..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+        <textarea id="chat-input" maxlength="500" placeholder="Escribe tu pregunta..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
         <button class="btn" onclick="sendChat()" style="padding:8px 14px;white-space:nowrap">ENVIAR ↗</button>
       </div>
     </div>
@@ -2167,7 +2167,17 @@ setTimeout(nextStep,300);
 // ──────────────────────────────────────────
 // OLLAMA CHECK
 // ──────────────────────────────────────────
-function getOllamaURL(){return document.getElementById('ollama-url').value.trim().replace(/\/+$/,'');}
+function getOllamaURL(){
+  const raw=(document.getElementById('ollama-url')?.value||'').trim().replace(/\/+$/,'');
+  if(!raw) return 'http://localhost:11434';
+  try{
+    const u=new URL(raw), h=u.hostname;
+    const ok=h==='localhost'||h==='127.0.0.1'||h==='::1'
+      ||/^192\.168\./.test(h)||/^10\./.test(h)
+      ||/^172\.(1[6-9]|2\d|3[01])\./.test(h);
+    return ok?raw:'http://localhost:11434';
+  }catch(e){return 'http://localhost:11434';}
+}
 function getModel(){return document.getElementById('model-sel').value;}
 async function checkOllama(){
   const st=document.getElementById('api-status');
@@ -4699,8 +4709,16 @@ function initWorldMap(){
         tip.style.display='block';
         tip.style.left=(event.clientX-rect.left+14)+'px';
         tip.style.top=(event.clientY-rect.top-34)+'px';
-        tip.innerHTML=`<span style="color:var(--cyan)">${name}</span><br>
-          ${s!==null?`Riesgo: <strong style="color:${scoreToColor(s)}">${s}/100</strong>`:'Sin datos'}`;
+        tip.innerHTML='';
+          const _tn=document.createElement('span');
+          _tn.style.color='var(--cyan)'; _tn.textContent=name; tip.appendChild(_tn);
+          tip.appendChild(document.createElement('br'));
+          if(s!==null){
+            const _ts=document.createElement('strong');
+            _ts.style.color=scoreToColor(s); _ts.textContent=s+'/100';
+            tip.appendChild(document.createTextNode('Riesgo: '));
+            tip.appendChild(_ts);
+          } else { tip.appendChild(document.createTextNode('Sin datos')); }
       })
       .on('mouseleave',()=>{ tip.style.display='none'; })
       .on('click',function(event,d){
@@ -5389,7 +5407,9 @@ function showScenario(type,el){
 // ── CHAT LIBRE ──
 let chatHistory=[];
 
+let _chatBusy=false;
 async function sendChat(){
+  if(_chatBusy) return;
   const input=document.getElementById('chat-input');
   const msg=input.value.trim();
   if(!msg) return;
@@ -5421,7 +5441,7 @@ Región actual: ${d.name} | Score global: ${gScore}/100 | Top riesgos: ${top5}
 Responde en español, de forma concisa y técnica. Máximo 120 palabras.`;
 
   chatHistory.push({role:'user',content:msg});
-
+  _chatBusy=true;
   try{
     const res=await fetch(getOllamaURL()+'/api/chat',{
       method:'POST',headers:{'Content-Type':'application/json'},
@@ -5433,11 +5453,14 @@ Responde en español, de forma concisa y técnica. Máximo 120 palabras.`;
     const data=await res.json();
     const reply=data.message?.content||'Sin respuesta.';
     chatHistory.push({role:'assistant',content:reply});
-    thinkDiv.innerHTML=`<strong style="color:var(--green);font-size:10px">AETHER</strong><br>${reply.replace(/\n/g,'<br/>')}`;
+    const _r1=reply.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const _r2=_r1.replace(/\n/g,'<br>');
+    thinkDiv.innerHTML=`<strong style="color:var(--green);font-size:10px">AETHER</strong><br>${_r2}`;
   }catch(e){
     thinkDiv.className='chat-msg chat-bot warn';
     thinkDiv.textContent='Error: '+e.message;
   }
+  _chatBusy=false;
   msgs.scrollTop=msgs.scrollHeight;
 }
 
