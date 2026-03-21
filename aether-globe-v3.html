@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AETHER — Global Intelligence Globe</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000508; }
+  body { font-family:'Space Mono',monospace; color:#F0EDE8; cursor:crosshair; }
+  #gl-canvas  { display:block; width:100vw; height:100vh; }
+  #lbl-canvas { position:fixed; inset:0; pointer-events:none; z-index:5; }
+
+  #loading {
+    position:fixed; inset:0; z-index:200; background:#000508;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px;
+    transition:opacity .8s ease;
+  }
+  #loading.fade { opacity:0; pointer-events:none; }
+  .ld-title { font-family:'Bebas Neue',sans-serif; font-size:66px; letter-spacing:.12em; color:#00FFC8; text-shadow:0 0 50px rgba(0,255,200,.65); }
+  .ld-sub { font-size:8.5px; letter-spacing:.4em; color:rgba(0,255,200,.3); }
+  .ld-bar { width:280px; height:1px; background:rgba(0,255,200,.1); overflow:hidden; }
+  .ld-fill { height:100%; background:#00FFC8; width:0%; transition:width .35s ease; box-shadow:0 0 10px #00FFC8; }
+  .ld-msg { font-size:8px; letter-spacing:.25em; color:rgba(0,255,200,.28); height:14px; }
+
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+  #hud::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.022) 3px,rgba(0,0,0,.022) 4px); }
+  .corner { position:absolute; width:44px; height:44px; }
+  .corner.tl { top:18px; left:18px;  border-top:1px solid rgba(0,255,200,.45); border-left:1px solid rgba(0,255,200,.45); }
+  .corner.tr { top:18px; right:18px; border-top:1px solid rgba(0,255,200,.45); border-right:1px solid rgba(0,255,200,.45); }
+  .corner.bl { bottom:18px; left:18px;  border-bottom:1px solid rgba(0,255,200,.45); border-left:1px solid rgba(0,255,200,.45); }
+  .corner.br { bottom:18px; right:18px; border-bottom:1px solid rgba(0,255,200,.45); border-right:1px solid rgba(0,255,200,.45); }
+
+  #hdr { position:absolute; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:flex-start; padding:26px 42px; }
+  .brand { font-family:'Bebas Neue',sans-serif; font-size:52px; letter-spacing:.08em; line-height:1; color:#00FFC8; text-shadow:0 0 50px rgba(0,255,200,.7),0 0 100px rgba(0,255,200,.2); }
+  .brand-sub { font-size:8px; letter-spacing:.4em; color:rgba(0,255,200,.32); margin-top:3px; }
+  .hdr-r { display:flex; flex-direction:column; align-items:flex-end; gap:9px; }
+  .live-b { display:flex; align-items:center; gap:8px; font-size:8px; letter-spacing:.3em; color:rgba(0,255,200,.5); }
+  .live-d { width:6px; height:6px; border-radius:50%; background:#00FFC8; box-shadow:0 0 8px #00FFC8; animation:lp 1.8s ease-in-out infinite; }
+  #clock { font-size:10px; letter-spacing:.2em; color:rgba(255,255,255,.16); }
+
+  #stats { position:absolute; bottom:34px; left:50%; transform:translateX(-50%); display:flex; gap:2px; }
+  .sb { padding:13px 26px; text-align:center; background:rgba(0,5,8,.72); border:1px solid rgba(255,255,255,.05); backdrop-filter:blur(16px); min-width:96px; transition:border-color .3s; }
+  .sb:hover { border-color:rgba(0,255,200,.2); }
+  .sv { font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:.05em; line-height:1; }
+  .sv.c { color:#FF4060; text-shadow:0 0 24px rgba(255,64,96,.6); }
+  .sv.h { color:#FF8030; text-shadow:0 0 24px rgba(255,128,48,.6); }
+  .sv.m { color:#FFB020; text-shadow:0 0 24px rgba(255,176,32,.6); }
+  .sv.l { color:#00FFC8; text-shadow:0 0 24px rgba(0,255,200,.6); }
+  .sl { font-size:7.5px; letter-spacing:.3em; color:rgba(255,255,255,.2); margin-top:3px; }
+
+  #leg { position:absolute; left:40px; bottom:34px; display:flex; flex-direction:column; gap:7px; }
+  .lt { font-size:7.5px; letter-spacing:.35em; color:rgba(255,255,255,.14); margin-bottom:5px; }
+  .li { display:flex; align-items:center; gap:10px; }
+  .ld2 { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .ll { font-size:8.5px; letter-spacing:.15em; color:rgba(255,255,255,.28); }
+  #hint { position:absolute; right:40px; bottom:34px; text-align:right; font-size:8px; letter-spacing:.22em; color:rgba(255,255,255,.12); line-height:2; }
+
+  #panel {
+    position:absolute; right:40px; top:50%;
+    transform:translateY(-50%) translateX(calc(100% + 56px));
+    width:300px; background:rgba(0,4,12,.92);
+    border:1px solid rgba(0,255,200,.12); border-left:2px solid #00FFC8;
+    backdrop-filter:blur(28px); padding:28px;
+    transition:transform .52s cubic-bezier(.16,1,.3,1);
+    pointer-events:all; overflow:hidden; max-height:80vh; overflow-y:auto;
+  }
+  #panel.open { transform:translateY(-50%) translateX(0); }
+  #panel::after { content:''; position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,255,200,.35),transparent); animation:panelScan 3s ease-in-out infinite; pointer-events:none; }
+  @keyframes panelScan { 0%{top:-2px;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:calc(100% + 2px);opacity:0} }
+
+  .pm { font-size:7.5px; letter-spacing:.4em; color:rgba(0,255,200,.45); margin-bottom:12px; }
+  .pn { font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:.05em; line-height:1; color:#FFFFFF; margin-bottom:9px; }
+  .pb { font-size:8px; letter-spacing:.25em; padding:2px 9px; display:inline-block; margin-bottom:14px; border-radius:1px; }
+  .bc { color:#FF4060; background:rgba(255,64,96,.07); border:1px solid rgba(255,64,96,.3); }
+  .bh { color:#FF8030; background:rgba(255,128,48,.07); border:1px solid rgba(255,128,48,.3); }
+  .bm { color:#FFB020; background:rgba(255,176,32,.07); border:1px solid rgba(255,176,32,.3); }
+  .bl2{ color:#00FFC8; background:rgba(0,255,200,.04); border:1px solid rgba(0,255,200,.22); }
+  .pc { font-family:'Space Mono',monospace; font-size:8px; letter-spacing:.2em; color:rgba(0,255,200,.55); margin-bottom:10px; }
+  .ps { font-family:'Inter',sans-serif; font-style:normal; font-size:13.5px; font-weight:400; line-height:1.75; color:rgba(255,255,255,.88); }
+  .pdv { height:1px; background:rgba(0,255,200,.07); margin:14px 0; }
+  .pco { font-family:'Space Mono',monospace; font-size:8.5px; color:rgba(255,255,255,.3); letter-spacing:.1em; margin-bottom:14px; }
+  .arc-label { font-size:8px; letter-spacing:.3em; color:rgba(0,255,200,.3); margin-bottom:8px; margin-top:2px; }
+  .arc-row { padding:11px 14px; border:1px solid rgba(255,255,255,.05); background:rgba(0,0,0,.3); cursor:pointer; transition:all .25s; margin-bottom:6px; }
+  .arc-row:hover { border-color:rgba(0,255,200,.2); background:rgba(0,255,200,.03); }
+  .arc-row.active { border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.04); }
+  .arc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+  .arc-name { font-size:9.5px; letter-spacing:.18em; color:#F0EDE8; }
+  .arc-type { font-size:8px; letter-spacing:.15em; padding:1px 7px; border-radius:1px; }
+  .arc-sig { font-family:'Inter',sans-serif; font-style:normal; font-size:12.5px; font-weight:400; line-height:1.65; color:rgba(255,255,255,.72); display:none; margin-top:6px; }
+  .arc-row.active .arc-sig { display:block; }
+  .arc-type.t-c { color:#FF4060; border:1px solid rgba(255,64,96,.3); }
+  .arc-type.t-h { color:#FF8030; border:1px solid rgba(255,128,48,.3); }
+  .arc-type.t-m { color:#FFB020; border:1px solid rgba(255,176,32,.3); }
+  .pcl { position:absolute; top:13px; right:13px; font-size:7.5px; letter-spacing:.2em; color:rgba(0,255,200,.22); cursor:pointer; padding:4px 7px; border:1px solid transparent; transition:all .2s; }
+  .pcl:hover { color:#00FFC8; border-color:rgba(0,255,200,.22); }
+
+  @keyframes lp { 0%,100%{opacity:1;box-shadow:0 0 8px #00FFC8} 50%{opacity:.25;box-shadow:0 0 2px #00FFC8} }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="ld-title">AETHER</div>
+  <div class="ld-sub">Global Intelligence · Initializing</div>
+  <div class="ld-bar"><div class="ld-fill" id="ldFill"></div></div>
+  <div class="ld-msg" id="ldMsg">Cargando datos cartográficos...</div>
+</div>
+
+<canvas id="gl-canvas"></canvas>
+<canvas id="lbl-canvas"></canvas>
+
+<div id="hud">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+  <div id="hdr">
+    <div>
+      <div class="brand">AETHER</div>
+      <div class="brand-sub">Global Intelligence · Live Signal Monitor</div>
+    </div>
+    <div class="hdr-r">
+      <div class="live-b"><div class="live-d"></div><span id="countLabel">SEÑAL ACTIVA — 195 PAÍSES · 16 CATEGORÍAS</span></div>
+      <div id="clock">--:--:-- UTC</div>
+    </div>
+  </div>
+  <div id="stats">
+    <div class="sb"><div class="sv c" id="sc">—</div><div class="sl">CRÍTICO</div></div>
+    <div class="sb"><div class="sv h" id="sh">—</div><div class="sl">ALTO</div></div>
+    <div class="sb"><div class="sv m" id="sm">—</div><div class="sl">MEDIO</div></div>
+    <div class="sb"><div class="sv l" id="sl2">—</div><div class="sl">BAJO</div></div>
+  </div>
+  <div id="leg">
+    <div class="lt">// NIVEL DE RIESGO</div>
+    <div class="li"><div class="ld2" style="background:#FF4060;box-shadow:0 0 6px #FF4060"></div><span class="ll">CRÍTICO</span></div>
+    <div class="li"><div class="ld2" style="background:#FF8030;box-shadow:0 0 6px #FF8030"></div><span class="ll">ALTO</span></div>
+    <div class="li"><div class="ld2" style="background:#FFB020;box-shadow:0 0 6px #FFB020"></div><span class="ll">MEDIO</span></div>
+    <div class="li"><div class="ld2" style="background:#00FFC8;box-shadow:0 0 6px #00FFC8"></div><span class="ll">BAJO</span></div>
+  </div>
+  <div id="hint">ARRASTRAR · Rotar<br>SCROLL · Zoom<br>CLICK · Activar nodo</div>
+  <div id="panel">
+    <div class="pcl" id="pClose">✕ ESC</div>
+    <div class="pm">// AETHER · ANÁLISIS REGIONAL</div>
+    <div class="pn" id="pName">—</div>
+    <div class="pb" id="pBadge">—</div>
+    <div class="pc" id="pCat">—</div>
+    <div class="ps" id="pSig">—</div>
+    <div class="pdv"></div>
+    <div class="pco" id="pCoords">—</div>
+    <div id="arcSection" style="display:none">
+      <div class="arc-label">// TENSIONES ACTIVAS DETECTADAS</div>
+      <div id="arcList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  AETHER · GLOBAL INTELLIGENCE GLOBE v4
+//  195 Countries — OkrtSystem Labs
+// ═══════════════════════════════════════════════════════════════
+
+const COUNTRIES = [
+  // ── EUROPA ──
+  { name:"Alemania",          lat:51.16, lng:10.45,   risk:"MEDIUM",   cat:"ENERGÍA INDUSTRIAL",  signal:"Reconfiguración de dependencia energética impactando cadena de suministro industrial. Recesión técnica activa." },
+  { name:"Francia",           lat:46.22, lng:2.21,    risk:"LOW",      cat:"TENSIÓN SOCIAL",      signal:"Ciclos de activación social predecibles. Reforma pensiones cataliza episodios periódicos. Monitor preventivo activo." },
+  { name:"Reino Unido",       lat:55.37, lng:-3.43,   risk:"LOW",      cat:"POLÍTICA",            signal:"Fragmentación post-Brexit en fase de estabilización. NHS bajo presión estructural. Sin catalizador inmediato." },
+  { name:"Italia",            lat:41.87, lng:12.56,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Deuda pública al 144% PIB. Prima de riesgo sensible a ciclos políticos. Coalición de gobierno frágil." },
+  { name:"España",            lat:40.41, lng:-3.70,   risk:"LOW",      cat:"POLÍTICA",            signal:"Gobierno de coalición bajo presión. Desempleo juvenil persistente. Tensión territorial Cataluña latente." },
+  { name:"Ucrania",           lat:48.37, lng:31.16,   risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"Línea de frente activa con desplazamientos diarios. Infraestructura energética bajo ataque sistemático." },
+  { name:"Rusia",             lat:61.52, lng:105.31,  risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"Economía de guerra activa. Aislamiento diplomático parcial. Amenaza nuclear como herramienta de disuasión táctica." },
+  { name:"Polonia",           lat:51.91, lng:19.14,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Flanco OTAN reforzado. Mayor presupuesto de defensa de la Alianza en % PIB. Corredor de suministro activo a Ucrania." },
+  { name:"Países Bajos",      lat:52.13, lng:5.29,    risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub logístico europeo con indicadores estables. Tensión por restricciones agrícolas en agenda política interna." },
+  { name:"Bélgica",           lat:50.50, lng:4.46,    risk:"LOW",      cat:"INSTITUCIONAL",       signal:"Dificultades de formación de gobierno crónicas. Sede OTAN y UE con dinámica de seguridad activa." },
+  { name:"Suecia",            lat:60.12, lng:18.64,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Ingreso reciente en OTAN reposiciona la seguridad regional báltica. Transición estratégica en curso." },
+  { name:"Noruega",           lat:60.47, lng:8.46,    risk:"LOW",      cat:"ENERGÍA",             signal:"Proveedor clave de gas para Europa post-Rusia. Fondo soberano en máximos históricos. Estabilidad sostenida." },
+  { name:"Finlandia",         lat:61.92, lng:25.74,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Frontera OTAN-Rusia de 1.340 km. Capacidades de defensa reforzadas. Sin incidentes activos registrados." },
+  { name:"Dinamarca",         lat:56.26, lng:9.50,    risk:"LOW",      cat:"ECONOMÍA",            signal:"Economía de alta competitividad. Participación activa en defensa OTAN. Indicadores estables." },
+  { name:"Suiza",             lat:46.81, lng:8.22,    risk:"LOW",      cat:"FINANZAS",            signal:"Centro financiero global bajo presión post-Credit Suisse. Neutralidad mantenida. Reservas sólidas." },
+  { name:"Austria",           lat:47.51, lng:14.55,   risk:"LOW",      cat:"POLÍTICA",            signal:"Ascenso de partidos de derecha en escenario político. Dependencia energética rusa en proceso de reducción." },
+  { name:"Portugal",          lat:39.39, lng:-8.22,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Crecimiento sostenido. Déficit bajo control. Riesgo climático costero creciente. Estabilidad política mantenida." },
+  { name:"Grecia",            lat:39.07, lng:21.82,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Deuda pública elevada en proceso de consolidación. Tensión migratoria en frontera. Diferendo marítimo con Turquía activo." },
+  { name:"Turquía",           lat:38.96, lng:35.24,   risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Pivote estratégico entre OTAN y Rusia. Inflación estructural descontrolada. Frontera sur en tensión migratoria." },
+  { name:"Rumanía",           lat:45.94, lng:24.96,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Flanco OTAN en Mar Negro. Acoge infraestructura aliada. Corrupción institucional en proceso de reforma." },
+  { name:"República Checa",   lat:49.81, lng:15.47,   risk:"LOW",      cat:"POLÍTICA",            signal:"Economía industrial integrada en cadena de suministro EU. Tensiones internas sobre migración y fondos europeos." },
+  { name:"Hungría",           lat:47.16, lng:19.50,   risk:"MEDIUM",   cat:"INSTITUCIONAL",       signal:"Tensiones con UE por estado de derecho. Posición ambigua sobre Rusia-Ucrania. Bloqueo de fondos europeos activo." },
+  { name:"Serbia",            lat:44.01, lng:21.00,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Candidata UE con relaciones activas con Rusia y China. Tensión con Kosovo sin resolución formal." },
+  { name:"Bielorrusia",       lat:53.70, lng:27.95,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen de Lukashenko dependiente de Moscú. Represión interna sistémica. Base logística para operaciones rusas." },
+  { name:"Moldavia",          lat:47.41, lng:28.36,   risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Transnistria como enclave ruso activo. Presión energética instrumentalizada por Moscú. Candidata UE en proceso." },
+  { name:"Bosnia-Herzegovina",lat:43.91, lng:17.67,   risk:"MEDIUM",   cat:"FRAGMENTACIÓN",       signal:"Entidades sin integración funcional. Narrativas secesionistas activas en Republika Srpska. Sin escalada inmediata." },
+  { name:"Albania",           lat:41.15, lng:20.17,   risk:"LOW",      cat:"POLÍTICA",            signal:"Candidata OTAN y UE con reformas en curso. Crimen organizado y corrupción como obstáculos estructurales." },
+  { name:"Bulgaria",          lat:42.73, lng:25.48,   risk:"LOW",      cat:"POLÍTICA",            signal:"Inestabilidad política con múltiples elecciones recientes. Proceso anticorrupción activo. Economía estable." },
+  { name:"Eslovaquia",        lat:48.66, lng:19.69,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Gobierno con posición crítica hacia apoyo a Ucrania. Tensión con aliados OTAN. Economía vinculada a cadena EU." },
+  { name:"Croacia",           lat:45.10, lng:15.20,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Miembro reciente de zona euro. Turismo como motor. Estabilidad política mantenida con tensiones regionales residuales." },
+  { name:"Eslovenia",         lat:46.15, lng:14.99,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Economía pequeña de alto rendimiento. Estabilidad política consolidada. Integración europea completa." },
+  { name:"Lituania",          lat:55.16, lng:23.88,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Flanco OTAN activo. Posición firme sobre Rusia. Corredor Suwalki como punto de atención estratégica regional." },
+  { name:"Letonia",           lat:56.87, lng:24.60,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Refuerzo de defensa en flanco OTAN báltico. Población rusófona como vector de desinformación potencial." },
+  { name:"Estonia",           lat:58.59, lng:25.01,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Mayor gasto de defensa per cápita de OTAN. Ciberdefensa líder global. Frontera con Rusia bajo vigilancia activa." },
+  { name:"Kosovo",            lat:42.60, lng:20.90,   risk:"MEDIUM",   cat:"TENSIÓN TERRITORIAL", signal:"Reconocimiento internacional incompleto. Tensión étnica Norte Kosovo activa. Serbia rechaza soberanía. Sin escalada crítica." },
+  { name:"Macedonia del Norte",lat:41.60, lng:21.74,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Miembro OTAN desde 2020. Candidata UE. Disputa histórica con Bulgaria como obstáculo de integración." },
+  { name:"Montenegro",        lat:42.70, lng:19.37,   risk:"LOW",      cat:"POLÍTICA",            signal:"Miembro OTAN con gobierno inestable. Influencia rusa y serbia activa. Proceso anticorrupción en curso." },
+  { name:"Irlanda",           lat:53.41, lng:-8.24,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub tech europeo con sólida inversión extranjera. Presión inmobiliaria y migratoria como tensiones internas." },
+  { name:"Luxemburgo",        lat:49.81, lng:6.12,    risk:"LOW",      cat:"FINANZAS",            signal:"Centro financiero europeo estable. Mayor PIB per cápita UE. Sin vectores de riesgo activos significativos." },
+
+  // ── EUROPA DEL ESTE / CAUCASO ──
+  { name:"Ucrania",           lat:48.37, lng:31.16,   risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"Línea de frente activa con desplazamientos diarios. Infraestructura energética bajo ataque sistemático." },
+  { name:"Armenia",           lat:40.06, lng:45.03,   risk:"HIGH",     cat:"CONFLICTO TERRITORIAL",signal:"Pérdida de Nagorno-Karabaj. Presión azerbaiyana en frontera. Alejamiento de Rusia como garante de seguridad." },
+  { name:"Azerbaiyán",        lat:40.14, lng:47.57,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Control total sobre Karabaj tras ofensiva 2023. Régimen autoritario con ingresos petroleros. Ambiciones territoriales." },
+  { name:"Georgia",           lat:42.31, lng:43.35,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"20% del territorio bajo control ruso (Osetia, Abjasia). Gobierno de orientación dual UE-Rusia bajo presión social." },
+
+  // ── ORIENTE MEDIO ──
+  { name:"Israel",            lat:31.04, lng:34.85,   risk:"CRITICAL", cat:"CONFLICTO ACTIVO",    signal:"Operaciones militares Gaza y Líbano simultáneas. Intercambio directo con Irán. Aislamiento diplomático creciente." },
+  { name:"Irán",              lat:32.42, lng:53.68,   risk:"HIGH",     cat:"NUCLEAR / PROXIES",   signal:"Enriquecimiento de uranio al 83.7%. Red de proxies activada en 5 países. Capacidad de represalia asimétrica confirmada." },
+  { name:"Arabia Saudí",      lat:23.88, lng:45.07,   risk:"MEDIUM",   cat:"ENERGÍA / OPEC",      signal:"Ajuste OPEC+ con señales anticipadas al mercado. Normalización con Israel suspendida. Acercamiento a China activo." },
+  { name:"Turquía",           lat:38.96, lng:35.24,   risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Pivote estratégico entre bloques. Inflación estructural. Zona de control en norte de Siria mantenida." },
+  { name:"Iraq",              lat:33.22, lng:43.68,   risk:"HIGH",     cat:"ESTABILIDAD ESTATAL", signal:"Gobierno débil. Milicias pro-iraníes con control territorial efectivo. Ataques a bases US-coalición frecuentes." },
+  { name:"Siria",             lat:34.80, lng:38.99,   risk:"HIGH",     cat:"FRAGMENTACIÓN",       signal:"Tres actores con control territorial sin integración. Reconstrucción bloqueada. Refugiados como vector de presión regional." },
+  { name:"Yemen",             lat:15.55, lng:48.51,   risk:"CRITICAL", cat:"CONFLICTO / HUMANIT.", signal:"Houthis controlan costa Red Sea. Ataques a navegación comercial con impacto en comercio global. Crisis humanitaria." },
+  { name:"Líbano",            lat:33.85, lng:35.86,   risk:"HIGH",     cat:"COLAPSO ESTATAL",     signal:"Estado fallido funcional. Hezbollah con capacidad militar superior al ejército. Bombardeos israelíes activos." },
+  { name:"Jordania",          lat:30.58, lng:36.23,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Presión migratoria palestina e iraquí extrema. Economía dependiente de ayuda exterior. Estabilidad política frágil." },
+  { name:"Palestina",         lat:31.90, lng:35.20,   risk:"CRITICAL", cat:"CONFLICTO ACTIVO",    signal:"Gaza bajo operación militar israelí. Colapso humanitario documentado. West Bank con violencia de colonos creciente." },
+  { name:"Kuwait",            lat:29.31, lng:47.48,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Estabilidad rentista basada en petróleo. Sin conflictos activos. Dependencia de seguridad US en la región." },
+  { name:"Qatar",             lat:25.35, lng:51.18,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub GNL global. Mediador regional activo. Relaciones duales con Irán y OTAN. Indicadores económicos sólidos." },
+  { name:"Emiratos Árabes",   lat:23.42, lng:53.84,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Centro financiero y logístico global. Normalización con Israel (Acuerdos Abraham). Ambiciones regionales activas." },
+  { name:"Omán",              lat:21.51, lng:55.92,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Papel mediador regional reconocido. Transición post-Sultán consolidada. Diversificación económica en curso." },
+  { name:"Bahréin",           lat:26.00, lng:50.55,   risk:"MEDIUM",   cat:"ESTABILIDAD INTERNA", signal:"Minoría chií reprimida. Base naval US Quinta Flota. Tensión sectaria latente instrumentalizada por Irán." },
+
+  // ── ASIA CENTRAL ──
+  { name:"Kazajistán",        lat:48.01, lng:66.92,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Distanciamiento cauto de Rusia post-Ucrania. Recursos naturales como vector de influencia china. Reformas limitadas." },
+  { name:"Uzbekistán",        lat:41.37, lng:64.58,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Transición post-Karimov en curso. Reformas económicas activas. Dependencia de remesas de Rusia bajo presión." },
+  { name:"Turkmenistán",      lat:38.97, lng:59.56,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen hermético con recursos de gas masivos. Datos opados. Dependencia económica de China creciente." },
+  { name:"Tayikistán",        lat:38.86, lng:71.27,   risk:"HIGH",     cat:"ESTABILIDAD",         signal:"País más pobre ex-URSS. Tensión fronteriza con Kirguistán. Reclutamiento extremista activo. Base rusa presente." },
+  { name:"Kirguistán",        lat:41.20, lng:74.76,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Inestabilidad política recurrente. Frontera con Tayikistán disputada. Dependencia de remesas rusas crítica." },
+  { name:"Afganistán",        lat:33.93, lng:67.71,   risk:"CRITICAL", cat:"COLAPSO ESTATAL",     signal:"Taliban consolida control total. Crisis humanitaria extrema. 40M personas en inseguridad alimentaria. Retiro total de ayuda." },
+
+  // ── ASIA DEL SUR ──
+  { name:"India",             lat:20.59, lng:78.96,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Hub emergente de capital y manufactura. Tensión fronteriza con China y Pakistán. Potencia regional en ascenso." },
+  { name:"Pakistán",          lat:30.37, lng:69.34,   risk:"HIGH",     cat:"ESTABILIDAD ESTATAL", signal:"Crisis institucional profunda. Militares como árbitro fáctico. Economía al límite. Tensión activa con Afganistán." },
+  { name:"Bangladesh",        lat:23.68, lng:90.35,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Cambio de gobierno tras protestas masivas 2024. Vulnerabilidad climática crítica. Sector textil como ancla económica." },
+  { name:"Nepal",             lat:28.39, lng:84.12,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Inestabilidad política crónica. Dependencia de India y China como competencia geopolítica activa." },
+  { name:"Sri Lanka",         lat:7.87,  lng:80.77,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Post-default en proceso de recuperación. Acuerdo FMI activo. Tensión étnica Tamil residual. Indicadores mejorando." },
+  { name:"Bután",             lat:27.51, lng:90.43,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Monarquía constitucional estable. Disputa fronteriza con China en proceso de negociación. Modelo único de desarrollo." },
+  { name:"Maldivas",          lat:3.20,  lng:73.22,   risk:"LOW",      cat:"CLIMA",               signal:"Existencia amenazada por subida del nivel del mar. Nuevo gobierno pro-China aleja a India. Turismo como ancla." },
+
+  // ── ASIA DEL ESTE ──
+  { name:"China",             lat:35.86, lng:104.19,  risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Movimientos de flota en Mar del Sur. Presión sobre Taiwán sostenida. Desacoplamiento económico con Occidente en curso." },
+  { name:"Japón",             lat:36.20, lng:138.25,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Rearme histórico activo. Amenaza balística de RPDC persistente. Disputas marítimas con China frecuentes." },
+  { name:"Corea del Sur",     lat:35.90, lng:127.77,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Amenaza nuclear RPDC como presión permanente. Coordinación trilateral reforzada. Crisis política interna en 2024." },
+  { name:"Corea del Norte",   lat:40.33, lng:127.51,  risk:"CRITICAL", cat:"NUCLEAR / BALÍSTICO", signal:"Arsenal nuclear en expansión. Test de misiles frecuentes. Tropas desplegadas en Rusia. Sin canal diplomático." },
+  { name:"Mongolia",          lat:46.86, lng:103.84,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Enclavada entre Rusia y China. Dependencia de ambas potencias. Recursos mineros como vector de autonomía." },
+  { name:"Taiwán",            lat:23.69, lng:120.96,  risk:"HIGH",     cat:"TENSIÓN GEOPOLÍTICA", signal:"Punto de fricción China-EEUU más crítico del Indo-Pacífico. Incursiones militares chinas frecuentes en zona ADIZ." },
+
+  // ── SUDESTE ASIÁTICO ──
+  { name:"Vietnam",           lat:14.05, lng:108.27,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Disputa Mar del Sur con China activa. Crecimiento económico robusto. Beneficiario de deslocalización de China." },
+  { name:"Tailandia",         lat:15.87, lng:100.99,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Inestabilidad política recurrente. Poder militar influyente. Economía de turismo en recuperación post-COVID." },
+  { name:"Myanmar",           lat:21.91, lng:95.95,   risk:"HIGH",     cat:"CONFLICTO CIVIL",     signal:"Junta militar vs resistencia armada. 2M de desplazados internos. Tráfico de personas en zonas de control escasa." },
+  { name:"Filipinas",         lat:12.87, lng:121.77,  risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Disputas Mar del Sur con China escalando. Alianza reforzada con EEUU. Elecciones con tensión interna." },
+  { name:"Indonesia",         lat:-0.78, lng:113.92,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub manufacturero en expansión. Capital asiático en reubicación activa. Mayor democracia islámica estable." },
+  { name:"Malasia",           lat:4.21,  lng:101.97,  risk:"LOW",      cat:"POLÍTICA",            signal:"Coalición gubernamental compleja. Economía diversificada. Disputas Mar del Sur con China gestionadas diplomáticamente." },
+  { name:"Singapur",          lat:1.35,  lng:103.82,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub financiero y logístico de Asia estable. Transición de liderazgo política consolidada. Indicadores excelentes." },
+  { name:"Camboya",           lat:12.56, lng:104.99,  risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Régimen Hun Sen consolidado en su hijo. Influencia china dominante. Democracia formal sin competencia real." },
+  { name:"Laos",              lat:17.96, lng:102.49,  risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Trampa de deuda china. Infraestructura en concesión. Economía bajo presión severa. Emigración de jóvenes acelerada." },
+  { name:"Brunéi",            lat:4.53,  lng:114.72,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Sultanato rentista basado en hidrocarburos. Sin conflictos activos. Reservas en declive a largo plazo." },
+  { name:"Timor-Leste",       lat:-8.87, lng:125.72,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Joven democracia en consolidación. Dependencia del petróleo de Timor Sea. Instituciones en proceso de maduración." },
+
+  // ── OCEANÍA ──
+  { name:"Australia",         lat:-25.27,lng:133.77,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Tensiones con China gestionadas diplomáticamente. AUKUS activo. Liderazgo regional del Indo-Pacífico." },
+  { name:"Nueva Zelanda",     lat:-40.90,lng:172.68,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada. Preocupaciones por influencia china en región. Relaciones Five Eyes activas." },
+  { name:"Papua Nueva Guinea",lat:-6.31, lng:143.95,  risk:"MEDIUM",   cat:"ESTABILIDAD INTERNA", signal:"Violencia tribal persistente. Recursos naturales con tensión por reparto. Disputa de influencia EEUU-China-Australia." },
+  { name:"Fiyi",              lat:-17.71,lng:178.06,  risk:"LOW",      cat:"POLÍTICA",            signal:"Post-golpe de estado en proceso de normalización democrática. Vulnerabilidad climática creciente." },
+  { name:"Islas Salomón",     lat:-9.64, lng:160.15,  risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Acuerdo de seguridad con China generó alarma regional. EEUU y Australia respondieron con presencia reforzada." },
+  { name:"Vanuatu",           lat:-15.37,lng:166.96,  risk:"LOW",      cat:"CLIMA",               signal:"Alta vulnerabilidad a ciclones. Dependencia de ayuda exterior. Cambio climático como amenaza existencial." },
+
+  // ── ASIA DEL SUR: Pacifico ──
+  { name:"Samoa",             lat:-13.76,lng:-172.10, risk:"LOW",      cat:"CLIMA",               signal:"Vulnerabilidad climática crítica. Economía pequeña dependiente de remesas y turismo. Sin conflictos activos." },
+  { name:"Tonga",             lat:-21.17,lng:-175.20, risk:"LOW",      cat:"CLIMA",               signal:"Erupciones volcánicas y tsunamis como riesgo natural. Vulnerabilidad climática. Estabilidad política aceptable." },
+
+  // ── AFRICA DEL NORTE ──
+  { name:"Marruecos",         lat:31.79, lng:-7.09,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Disputa Sahara Occidental con Argelia. Tensión migratoria con Europa instrumentalizada. Normalización Israel activa." },
+  { name:"Argelia",           lat:28.03, lng:1.65,    risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Régimen sin apertura política real. Ingresos de gas redirigidos para estabilidad social. Relación tensa con Marruecos." },
+  { name:"Túnez",             lat:33.88, lng:9.53,    risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Retroceso democrático bajo Said. Economía en crisis. Punto de salida migratorio del Sahel hacia Europa." },
+  { name:"Libia",             lat:26.33, lng:17.22,   risk:"HIGH",     cat:"FRAGMENTACIÓN",       signal:"Dos gobiernos paralelos sin reunificación. Milicias tribales con control territorial. Flujo migratorio incontrolado." },
+  { name:"Egipto",            lat:26.82, lng:30.80,   risk:"MEDIUM",   cat:"ESTABILIDAD ESTATAL", signal:"Deuda externa en niveles críticos. FMI como soporte. Crisis Gaza impacta en turismo y Canal de Suez." },
+  { name:"Sudán",             lat:12.86, lng:30.21,   risk:"CRITICAL", cat:"CONFLICTO CIVIL",     signal:"Guerra civil entre SAF y RSF. Mayor crisis de desplazamiento global. 25M personas sin acceso a alimentos." },
+  { name:"Sudán del Sur",     lat:6.87,  lng:31.30,   risk:"CRITICAL", cat:"CONFLICTO / HUMANIT.",signal:"Estado fallido recurrente. Violencia étnica. Dependencia total de petróleo. Crisis humanitaria crónica permanente." },
+
+  // ── AFRICA OCCIDENTAL ──
+  { name:"Nigeria",           lat:9.08,  lng:8.67,    risk:"HIGH",     cat:"SEGURIDAD REGIONAL",  signal:"Boko Haram / ISWAP activos en noreste. Secesionismo Biafra residual. Inflación crítica. Presidente Tinubu bajo presión." },
+  { name:"Ghana",             lat:7.94,  lng:-1.02,   risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Default técnico 2022. Reestructuración deuda en curso. Referente democrático regional bajo presión fiscal." },
+  { name:"Senegal",           lat:14.49, lng:-14.45,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Transición política 2024 con tensión. Nuevos recursos de petróleo y gas como factor de cambio estructural." },
+  { name:"Mali",              lat:17.57, lng:-3.99,   risk:"CRITICAL", cat:"CONFLICTO / YIHADISMO",signal:"Junta militar. Expulsión de Francia y MINUSMA. Wagner activo. Yihadismo en expansión hacia sur. Sin perspectiva de estabilidad." },
+  { name:"Burkina Faso",      lat:12.36, lng:-1.56,   risk:"CRITICAL", cat:"CONFLICTO / YIHADISMO",signal:"Junta golpista. Wagner presente. Pérdida de 40% del territorio al control estatal. Crisis humanitaria acelerada." },
+  { name:"Níger",             lat:17.61, lng:8.08,    risk:"CRITICAL", cat:"CONFLICTO / GOLPE",   signal:"Golpe militar 2023. Expulsión de tropas francesas y US. Wagner desplegado. Corredor yihadista Sahel confirmado." },
+  { name:"Mauritania",        lat:21.00, lng:-10.94,  risk:"HIGH",     cat:"SEGURIDAD",           signal:"Frontera con Mali como zona de infiltración yihadista. Estabilidad relativa mantenida con esfuerzo militar." },
+  { name:"Guinea",            lat:11.00, lng:-10.94,  risk:"HIGH",     cat:"GOLPE MILITAR",       signal:"Junta militar post-golpe 2021. Recursos de bauxita bajo control. Sin transición democrática visible." },
+  { name:"Guinea-Bisáu",      lat:11.80, lng:-15.18,  risk:"HIGH",     cat:"ESTABILIDAD ESTATAL", signal:"Estado frágil con historial de golpes. Narcotráfico como economía paralela dominante. Instituciones débiles." },
+  { name:"Sierra Leona",      lat:8.46,  lng:-11.78,  risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Post-conflicto con instituciones frágiles. Intento de golpe reciente. Economía en recuperación lenta." },
+  { name:"Liberia",           lat:6.43,  lng:-9.43,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Post-guerra en proceso de reconstrucción institucional. Corrupción estructural. Dependencia de ayuda exterior." },
+  { name:"Costa de Marfil",   lat:7.54,  lng:-5.54,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Mayor economía de África Occidental relativa. Tensión post-electoral latente. Cacao como ancla económica." },
+  { name:"Togo",              lat:8.61,  lng:0.82,    risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Familia Gnassingbé en el poder décadas. Represión moderada. Corredor yihadista norteño en vigilancia." },
+  { name:"Benín",             lat:9.30,  lng:2.31,    risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Infiltración yihadista desde norte de Mali y Burkina aumentando. Turismo como sector emergente bajo amenaza." },
+  { name:"Cabo Verde",        lat:16.00, lng:-24.01,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia insular estable. Sin conflictos. Economía de turismo en crecimiento. Referente de gobernanza regional." },
+  { name:"Gambia",            lat:13.44, lng:-15.31,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Post-Jammeh en transición democrática. Instituciones débiles. Economía pequeña dependiente de turismo y remesas." },
+
+  // ── AFRICA CENTRAL ──
+  { name:"RDC",               lat:-4.03, lng:21.75,   risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"M23/Rwanda activos en este. 6M de desplazados. Recursos mineros financian múltiples actores armados. Sin resolución." },
+  { name:"República Centroafricana",lat:6.61,lng:20.93,risk:"CRITICAL",cat:"CONFLICTO / WAGNER",  signal:"Wagner controla rutas de diamantes y oro. Gobierno simbólico. Violencia civil estructural sin perspectiva de paz." },
+  { name:"Camerún",           lat:3.85,  lng:11.50,   risk:"HIGH",     cat:"CONFLICTO INTERNO",   signal:"Guerra Ambazonia anglófona activa. Boko Haram norte activo. Longevo régimen Biya sin sucesión visible." },
+  { name:"Chad",              lat:15.45, lng:18.73,   risk:"HIGH",     cat:"ESTABILIDAD",         signal:"Post-golpe 2021. Transición dirigida por hijo de Déby. Corredor de conflictos Sahel-Lago Chad. Refugiados sudaneses." },
+  { name:"Congo-Brazzaville", lat:-0.22, lng:15.82,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Sassou-Nguesso desde 1979. Petróleo agotándose. Sin oposición real. Tensión con RDC en río Congo." },
+  { name:"Gabón",             lat:-0.80, lng:11.60,   risk:"MEDIUM",   cat:"GOLPE MILITAR",       signal:"Golpe 2023 pone fin a familia Bongo. Junta en proceso de transición. Recursos petrolíferos como factor clave." },
+  { name:"Guinea Ecuatorial", lat:1.65,  lng:10.27,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Obiang entre los más longevos del mundo. Petróleo en declive. Sin apertura política ni civil." },
+  { name:"Burundi",           lat:-3.37, lng:29.91,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen represivo post-2015. Crisis humanitaria. Tensión con Rwanda. Sin mecanismos de rendición de cuentas." },
+  { name:"Ruanda",            lat:-1.94, lng:29.87,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Apoyo acusado a M23 en RDC. Crecimiento económico sólido bajo Kagame. Modelo de gobernanza cuestionado." },
+
+  // ── AFRICA ORIENTAL ──
+  { name:"Etiopía",           lat:9.14,  lng:40.48,   risk:"HIGH",     cat:"CONFLICTO / HUMANIT.",signal:"Tigray post-acuerdo frágil. Conflicto Amhara-Oromia activo. 20M personas en necesidad humanitaria." },
+  { name:"Somalia",           lat:5.15,  lng:46.19,   risk:"CRITICAL", cat:"ESTADO FALLIDO",      signal:"Al-Shabaab controla vastas áreas rurales. Gobierno central simbólico. Piratería marítima emergiendo de nuevo." },
+  { name:"Kenia",             lat:-0.02, lng:37.90,   risk:"MEDIUM",   cat:"POLÍTICA / ECONOMÍA", signal:"Protestas masivas 2024. Deuda elevada. Al-Shabaab cruzando frontera norte. Hub regional de estabilidad bajo presión." },
+  { name:"Tanzania",          lat:-6.37, lng:34.88,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Gobierno de partido único reforzado. Tensión con oposición. Zanzibar como vector de inestabilidad residual." },
+  { name:"Uganda",            lat:1.37,  lng:32.29,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Museveni entorpece sucesión. Leyes anti-LGBT extremas con impacto diplomático. LRA residual activa." },
+  { name:"Eritrea",           lat:15.17, lng:39.78,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen más hermético de Africa. Servicio militar indefinido. Apoyo a Tigray en conflicto etíope. Sin prensa libre." },
+  { name:"Yibuti",            lat:11.82, lng:42.59,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Bases militares de EEUU, Francia, China y Japón simultáneas. Corredor marítimo crítico en crisis Yemen-Mar Rojo." },
+  { name:"Mozambique",        lat:-18.66,lng:35.53,   risk:"HIGH",     cat:"CONFLICTO YIHADISTA", signal:"ISIS-Mozambique activo en Cabo Delgado. Gas natural como recurso en disputa. Inversión internacional frenada." },
+  { name:"Madagascar",        lat:-18.77,lng:46.87,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Inestabilidad política recurrente. Crisis humanitaria sur por sequía. Recursos naturales explotados sin beneficio local." },
+  { name:"Comoras",           lat:-11.87,lng:43.87,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Golpes de estado frecuentes históricamente. Régimen Azali sin alternancia. Vulnerabilidad climática." },
+
+  // ── AFRICA AUSTRAL ──
+  { name:"Sudáfrica",         lat:-30.55,lng:22.93,   risk:"MEDIUM",   cat:"POLÍTICA / ECONOMÍA", signal:"Coalición de unidad nacional inestable. Apagones eléctricos estructurales. Crimen organizado e inequidad extrema." },
+  { name:"Zimbabwe",          lat:-19.01,lng:29.15,   risk:"HIGH",     cat:"ECONOMÍA",            signal:"Hiperinflación recurrente. Régimen post-Mugabe sin apertura real. Economía informal dominante." },
+  { name:"Zambia",            lat:-13.13,lng:27.84,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Default 2020 en proceso de reestructuración. Cobre como ancla. Nuevo gobierno pro-reforma bajo presión." },
+  { name:"Angola",            lat:-11.20,lng:17.87,   risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Dependencia del petróleo en declive. Deuda china significativa. Reformas económicas en curso bajo MPLA." },
+  { name:"Namibia",           lat:-22.95,lng:18.49,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia funcional estable. Yacimientos de petróleo offshore como nuevo factor económico." },
+  { name:"Botsuana",          lat:-22.32,lng:24.68,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada. Diamantes como motor económico con diversificación en curso. Referente de gobernanza." },
+  { name:"Malaui",            lat:-13.25,lng:34.30,   risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Uno de los países más pobres del mundo. Crisis de divisas. Dependencia de tabaco. Cambio climático crítico." },
+  { name:"Tanzania",          lat:-6.37, lng:34.88,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Apertura democrática limitada. Hub turístico estable. Crecimiento económico sostenido sin apertura política." },
+  { name:"Eswatini",          lat:-26.52,lng:31.46,   risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Última monarquía absoluta de Africa. Protestas prodemocráticas reprimidas. Sin perspectiva de cambio político." },
+  { name:"Lesoto",            lat:-29.61,lng:28.23,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Dependencia total de Sudáfrica. Inestabilidad política recurrente. Agua como único recurso exportable." },
+
+  // ── AMERICAS DEL NORTE ──
+  { name:"EE.UU.",            lat:37.09, lng:-95.71,  risk:"MEDIUM",   cat:"POLÍTICA INTERNA",    signal:"Polarización política histórica. Deuda federal en máximos. Inflación controlada pero presiones estructurales activas." },
+  { name:"Canadá",            lat:56.13, lng:-106.35, risk:"LOW",      cat:"POLÍTICA",            signal:"Tensión comercial con EEUU bajo Trump. Crisis vivienda crítica. Economía resiliente con vulnerabilidades sectoriales." },
+  { name:"México",            lat:23.63, lng:-102.55, risk:"MEDIUM",   cat:"SEGURIDAD INTERNA",   signal:"Cartelización de seguridad pública acelerada. Presión US sobre migración y fentanilo. Reforma judicial cuestionada." },
+
+  // ── CARIBE ──
+  { name:"Cuba",              lat:21.52, lng:-77.78,  risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Crisis económica severa. Apagones masivos. Migración histórica. Régimen sin apertura. Sanciones US mantenidas." },
+  { name:"Haití",             lat:18.97, lng:-72.28,  risk:"CRITICAL", cat:"ESTADO FALLIDO",      signal:"Bandas controlan 85% de Puerto Príncipe. Sin gobierno funcional. Crisis humanitaria extrema. Misión Kenia desplegada." },
+  { name:"República Dominicana",lat:18.73,lng:-70.16, risk:"LOW",      cat:"ECONOMÍA",            signal:"Economía en crecimiento sostenido. Destino turístico clave. Tensión migratoria con Haití permanente." },
+  { name:"Jamaica",           lat:18.10, lng:-77.29,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Alta tasa de homicidios. Crimen organizado vinculado a EEUU. Economía de turismo resiliente." },
+  { name:"Trinidad y Tobago", lat:10.69, lng:-61.22,  risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Economía de hidrocarburos en declive. Crimen organizado creciente. Influencia venezolana en migración." },
+
+  // ── CENTROAMÉRICA ──
+  { name:"Guatemala",         lat:15.78, lng:-90.23,  risk:"HIGH",     cat:"SEGURIDAD",           signal:"Crimen organizado estructural. Nuevo gobierno Arévalo bajo presión del sistema. Migración masiva hacia EEUU." },
+  { name:"Honduras",          lat:15.19, lng:-86.24,  risk:"HIGH",     cat:"SEGURIDAD",           signal:"Pandillas con control territorial urbano. Economía frágil. Presidenta Xiomara Castro bajo presión institucional." },
+  { name:"El Salvador",       lat:13.79, lng:-88.89,  risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Bukele con plenos poderes. Bitcoin como experimento. Derechos civiles comprometidos. Modelo replicado con atención." },
+  { name:"Nicaragua",         lat:12.86, lng:-85.20,  risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Ortega-Murillo consolidado. Oposición en el exilio. Relación con Rusia y China como alineamiento estratégico." },
+  { name:"Costa Rica",        lat:9.74,  lng:-83.75,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada sin ejército. Hub tech regional. Deuda pública en proceso de consolidación fiscal." },
+  { name:"Panamá",            lat:8.99,  lng:-79.52,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Canal como activo estratégico. Nuevo gobierno. Tensión migratoria Darién. Economía de servicios financieros activa." },
+  { name:"Belice",            lat:17.19, lng:-88.49,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Crimen organizado transfronterizo. Disputa territorial con Guatemala latente. Economía pequeña y vulnerable." },
+
+  // ── AMERICA DEL SUR ──
+  { name:"Colombia",          lat:4.57,  lng:-74.29,  risk:"HIGH",     cat:"CONFLICTO INTERNO",   signal:"Guerrillas residuales activas. Tráfico de drogas estructural. Paz total de Petro bajo presión. Migración venezolana." },
+  { name:"Venezuela",         lat:6.42,  lng:-66.58,  risk:"HIGH",     cat:"HUMANITARIA",         signal:"8M de emigrantes en éxodo sostenido. Economía petrolera en mínimos. Régimen Maduro sin perspectiva de cambio." },
+  { name:"Ecuador",           lat:-1.83, lng:-78.18,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Narco-violencia escalando históricamente. 2 presidentes asesinados/renunciados. Militarización de seguridad pública." },
+  { name:"Perú",              lat:-9.19, lng:-75.01,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Inestabilidad presidencial crónica. Conflictos mineros. Congreso paralizado. Economía macro estable pese al ruido." },
+  { name:"Bolivia",           lat:-16.29,lng:-63.58,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Tensión Arce vs Morales fracturando MAS. Recursos de litio como foco geopolítico. Intento de golpe en 2024." },
+  { name:"Brasil",            lat:-14.23,lng:-51.92,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Polarización Lula-Bolsonaro persistente. Deuda creciente. Amazonia como vector diplomático. Economía en crecimiento." },
+  { name:"Argentina",         lat:-38.41,lng:-63.61,  risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Experimento Milei de ajuste extremo activo. Inflación en descenso desde máximos. Acuerdo FMI en negociación." },
+  { name:"Chile",             lat:-35.67,lng:-71.54,  risk:"LOW",      cat:"POLÍTICA",            signal:"Proceso constitucional fallido dos veces. Economía sólida. Litio como activo estratégico. Crimen organizado creciente." },
+  { name:"Uruguay",           lat:-32.52,lng:-55.76,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada y referente regional. Economía de servicios diversificada. Cambio político ordenado." },
+  { name:"Paraguay",          lat:-23.44,lng:-58.44,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Colorado Party hegemónico. Reconocimiento de Taiwán como vector político. Economía agropecuaria dependiente." },
+  { name:"Guyana",            lat:4.86,  lng:-58.93,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Boom petrolero Exxon convierte a Guyana en mayor PIB per cápita en crecimiento. Tensión con Venezuela por Essequibo." },
+  { name:"Surinam",           lat:3.92,  lng:-56.02,  risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Post-default con nuevo petróleo offshore como esperanza. Crimen organizado narco activo. Instituciones débiles." },
+  { name:"Belize",            lat:17.19, lng:-88.49,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Crimen organizado transfronterizo. Economía pequeña dependiente de turismo y remesas." },
+];
+
+// ── Deduplicar por nombre
+const seen = new Set();
+const COUNTRIES_DEDUP = COUNTRIES.filter(c => {
+  if(seen.has(c.name)) return false;
+  seen.add(c.name); return true;
+});
+
+// ── TENSION ARCS
+const TENSION_ARCS = [
+  { a:"Rusia",          b:"Ucrania",           type:"CRITICAL", col:0xFF4060, cssType:"t-c", label:"CONFLICTO ARMADO ACTIVO",     signal:"Línea de contacto activa >1.000 km. Flujos de armamento OTAN continuos. Amenaza nuclear táctica como disuasión." },
+  { a:"China",          b:"EE.UU.",            type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"RIVALIDAD ESTRATÉGICA",       signal:"Competencia tecnológica, naval y de influencia. Taiwán como detonador latente. Desacoplamiento económico parcial." },
+  { a:"Irán",           b:"Israel",            type:"CRITICAL", col:0xFF4060, cssType:"t-c", label:"CONFRONTACIÓN DIRECTA",       signal:"Ataques directos cruzando umbral histórico. Proxies en Yemen, Líbano, Iraq. Escalada simétrica: abierta." },
+  { a:"Corea del Norte",b:"Japón",             type:"CRITICAL", col:0xFF4060, cssType:"t-c", label:"AMENAZA BALÍSTICA",          signal:"Misiles sobre espacio aéreo japonés en frecuencia histórica. Coordinación trilateral EE.UU.–Japón–Corea Sur." },
+  { a:"Turquía",        b:"Siria",             type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"TENSIÓN FRONTERIZA",         signal:"Turquía mantiene zonas de control en norte sirio. Operaciones contra posiciones kurdas. Conflicto congelado." },
+  { a:"Pakistán",       b:"India",             type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"DISPUTA TERRITORIAL NUCLEAR", signal:"Kashmir como fractura permanente. Incidentes en LoC mensuales. Sin mecanismo de desescalada activo." },
+  { a:"China",          b:"Taiwán",            type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"TENSIÓN DE REUNIFICACIÓN",   signal:"Incursiones ADIZ diarias. Ejercicios de bloqueo simulados. EEUU mantiene ambigüedad estratégica." },
+  { a:"China",          b:"Japón",             type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"DISPUTAS MARÍTIMAS",         signal:"Senkaku / Diaoyu como epicentro. Incursiones navales recurrentes. Riesgo de incidente no intencional." },
+  { a:"Irán",           b:"Arabia Saudí",      type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"RIVALIDAD REGIONAL",        signal:"Acercamiento frágil. Proxies en Yemen activos. Competencia Iraq y Líbano sostenida." },
+  { a:"Rusia",          b:"Alemania",          type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"RUPTURA ENERGÉTICA",        signal:"Desconexión gas ruso. Industria pesada alemana reseteando. Relación bilateral en mínimo histórico." },
+  { a:"EE.UU.",         b:"Venezuela",         type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"PRESIÓN GEOPOLÍTICA",       signal:"Ciclos de sanción sin cambio de régimen. Migración como instrumento. Petróleo como variable encubierta." },
+  { a:"Israel",         b:"Palestina",         type:"CRITICAL", col:0xFF4060, cssType:"t-c", label:"CONFLICTO ACTIVO GAZA",      signal:"Operación militar activa. Colapso humanitario Gaza documentado. West Bank con violencia creciente." },
+  { a:"India",          b:"China",             type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"TENSIÓN FRONTERIZA HIMALAYA",signal:"LAC como línea de fricción. Incidentes Galwan tipo sin resolución. Desacoplamiento económico iniciado." },
+  { a:"RDC",            b:"Ruanda",            type:"CRITICAL", col:0xFF4060, cssType:"t-c", label:"CONFLICTO PROXY ESTE-DRC",  signal:"Ruanda acusada de apoyar M23. 6M desplazados en este de RDC. Recursos mineros financian violencia." },
+  { a:"Etiopía",        b:"Somalia",           type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"TENSIÓN REGIONAL CUERNO",   signal:"Acuerdo Somalilandia-Etiopía desestabiliza relaciones. Al-Shabaab como actor compartido de amenaza." },
+  { a:"Azerbaiyán",     b:"Armenia",           type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"POST-KARABAJ INESTABLE",    signal:"Karabaj tomado por fuerza 2023. 120.000 armenios expulsados. Frontera sin demarcación. Tensión residual." },
+  { a:"Colombia",       b:"Venezuela",         type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"TENSIÓN FRONTERIZA",        signal:"Guerrillas colombianas operan en Venezuela. Migración masiva venezolana desestabilizadora. Relaciones complejas." },
+  { a:"Marruecos",      b:"Argelia",           type:"HIGH",     col:0xFF8030, cssType:"t-h", label:"RIVALIDAD REGIONAL",        signal:"Frontera cerrada desde 1994. Sahara Occidental como núcleo del conflicto. Competencia por influencia Sahel." },
+];
+
+const RISK_HEX = { CRITICAL:'#FF4060', HIGH:'#FF8030', MEDIUM:'#FFB020', LOW:'#00FFC8' };
+const RISK_INT = { CRITICAL:0xFF4060, HIGH:0xFF8030, MEDIUM:0xFFB020, LOW:0x00FFC8 };
+const BADGE_CLS= { CRITICAL:'bc', HIGH:'bh', MEDIUM:'bm', LOW:'bl2' };
+
+// ── PROGRESS ──
+function prog(p, m) {
+  document.getElementById('ldFill').style.width = p + '%';
+  document.getElementById('ldMsg').textContent  = m;
+}
+
+// ── UPDATE STATS ──
+function updateStats() {
+  const cnt = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0 };
+  COUNTRIES_DEDUP.forEach(c => cnt[c.risk]++);
+  document.getElementById('sc').textContent = cnt.CRITICAL;
+  document.getElementById('sh').textContent = cnt.HIGH;
+  document.getElementById('sm').textContent = cnt.MEDIUM;
+  document.getElementById('sl2').textContent = cnt.LOW;
+  document.getElementById('countLabel').textContent =
+    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} PAÍSES · 16 CATEGORÍAS`;
+}
+
+// ── RENDERER ──
+const glCanvas  = document.getElementById('gl-canvas');
+const lblCanvas = document.getElementById('lbl-canvas');
+const W = innerWidth, H = innerHeight;
+const renderer  = new THREE.WebGLRenderer({ canvas:glCanvas, antialias:true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2.5));
+renderer.setClearColor(0x000508, 1);
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, W/H, 0.1, 200);
+camera.position.set(0, 0, 2.9);
+const lctx   = lblCanvas.getContext('2d');
+lblCanvas.width = W; lblCanvas.height = H;
+
+const globeGroup = new THREE.Group();
+scene.add(globeGroup);
+
+// ── SHADERS ──
+const VERT = `
+  varying vec2 vUv; varying vec3 vNormal,vWorldPos,vViewDir;
+  void main(){
+    vUv=uv; vec4 wp=modelMatrix*vec4(position,1.);
+    vWorldPos=wp.xyz; vNormal=normalize(normalMatrix*normal);
+    vViewDir=normalize(cameraPosition-wp.xyz);
+    gl_Position=projectionMatrix*viewMatrix*wp;
+  }`;
+
+const FRAG = `
+  uniform sampler2D uTex; uniform float uTime;
+  varying vec2 vUv; varying vec3 vNormal,vWorldPos,vViewDir;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  void main(){
+    vec4 tc=texture2D(uTex,vUv);
+    float fr=pow(1.-clamp(dot(vNormal,vViewDir),0.,1.),3.2);
+    float gf=max(step(.94,fract(vUv.y*72.)),step(.94,fract(vUv.x*144.)))*.22;
+    float gc=max(step(.88,fract(vUv.y*12.)),step(.88,fract(vUv.x*24.)))*.35;
+    float eq=(1.-smoothstep(0.,.006,abs(vUv.y-.5)))*.45;
+    float sw=fract(uTime*.055);
+    float scan=(1.-smoothstep(0.,.005,abs(vUv.y-sw)))*.7;
+    float bands=pow(sin(vUv.y*120.+uTime*2.2)*.5+.5,12.)*.09;
+    float shim=pow(sin(vUv.x*260.-uTime*1.8)*.5+.5,18.)*.05;
+    vec3 lD=normalize(vec3(2.5,3.,2.));
+    float spec=pow(max(dot(reflect(-lD,vNormal),vViewDir),0.),40.)*.22;
+    float lat=abs((vUv.y-.5)*2.);
+    float aurora=smoothstep(.72,1.,lat)*(sin(uTime*.9+vUv.x*18.+1.)*.5+.5)*.5;
+    float gt=floor(uTime*8.); float glitch=step(.993,fract(sin(gt*43.7)*9271.5));
+    float gl=(1.-smoothstep(0.,.006,abs(vUv.y-fract(sin(gt*127.31)*43758.5))))*glitch*.12;
+    float noise=hash(vUv*200.+uTime*.1)*.012;
+    vec3 cyan=vec3(0.,1.,.78),blue=vec3(0.,.6,1.);
+    vec3 col=tc.rgb+cyan*gf+cyan*gc+cyan*eq+cyan*scan+cyan*bands+cyan*shim+vec3(1.)*spec+blue*aurora+cyan*gl+cyan*noise;
+    col+=cyan*fr*.7;
+    gl_FragColor=vec4(col,mix(.9,1.,fr*.08));
+  }`;
+
+const ATMOS_V = `varying vec3 vNormal,vWorldPos;
+  void main(){vNormal=normalize(normalMatrix*normal);vWorldPos=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+const ATMOS_F = `uniform vec3 uColor;uniform float uPow,uOpacity,uTime;
+  varying vec3 vNormal,vWorldPos;
+  void main(){vec3 vd=normalize(cameraPosition-vWorldPos);float fr=pow(1.-clamp(dot(vNormal,vd),0.,1.),uPow);
+  float f=1.+sin(uTime*3.1+vWorldPos.y*8.)*.04;gl_FragColor=vec4(uColor,fr*uOpacity*f);}`;
+
+function makeAtmos(r, pw, op, col) {
+  const m = new THREE.ShaderMaterial({
+    uniforms:{uColor:{value:new THREE.Color(col)},uPow:{value:pw},uOpacity:{value:op},uTime:{value:0}},
+    vertexShader:ATMOS_V, fragmentShader:ATMOS_F,
+    transparent:true, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false
+  });
+  return new THREE.Mesh(new THREE.SphereGeometry(r,64,64), m);
+}
+
+// ── WORLD TEXTURE ──
+async function buildTex(world) {
+  const TW=4096, TH=2048;
+  const tc = document.createElement('canvas'); tc.width=TW; tc.height=TH;
+  const ctx = tc.getContext('2d');
+  const og = ctx.createLinearGradient(0,0,0,TH);
+  og.addColorStop(0,'#001C28'); og.addColorStop(.5,'#001418'); og.addColorStop(1,'#000C12');
+  ctx.fillStyle=og; ctx.fillRect(0,0,TW,TH);
+  for(let i=0;i<12000;i++){
+    ctx.fillStyle=`rgba(0,180,160,${Math.random()*.022})`;
+    ctx.fillRect(Math.random()*TW,Math.random()*TH,1,1);
+  }
+  const proj = d3.geoEquirectangular().scale(TW/(2*Math.PI)).translate([TW/2,TH/2]);
+  const path = d3.geoPath(proj, ctx);
+  const g10 = d3.geoGraticule().step([10,10])();
+  ctx.beginPath(); path(g10); ctx.strokeStyle='rgba(0,255,200,.05)'; ctx.lineWidth=.7; ctx.stroke();
+  const g30 = d3.geoGraticule().step([30,30])();
+  ctx.beginPath(); path(g30); ctx.strokeStyle='rgba(0,255,200,.11)'; ctx.lineWidth=1.1; ctx.stroke();
+  const countries = topojson.feature(world, world.objects.countries);
+  ctx.shadowColor='rgba(0,255,200,.28)'; ctx.shadowBlur=18;
+  ctx.fillStyle='rgba(0,85,80,.72)';
+  countries.features.forEach(f=>{ctx.beginPath();path(f);ctx.fill();});
+  ctx.shadowBlur=0;
+  const lg=ctx.createLinearGradient(0,0,0,TH);
+  lg.addColorStop(0,'rgba(0,100,95,.5)'); lg.addColorStop(.5,'rgba(0,92,88,.46)'); lg.addColorStop(1,'rgba(0,80,78,.44)');
+  ctx.fillStyle=lg;
+  countries.features.forEach(f=>{ctx.beginPath();path(f);ctx.fill();});
+  const borders=topojson.mesh(world,world.objects.countries,(a,b)=>a!==b);
+  ctx.beginPath();path(borders);ctx.strokeStyle='rgba(0,255,200,.35)';ctx.lineWidth=1.4;ctx.stroke();
+  const land=topojson.merge(world,world.objects.countries.geometries);
+  ctx.beginPath();path(land);ctx.strokeStyle='rgba(0,255,200,.52)';ctx.lineWidth=1.8;ctx.stroke();
+  ctx.beginPath();path({type:'LineString',coordinates:[[-180,0],[180,0]]});
+  ctx.strokeStyle='rgba(0,255,200,.28)';ctx.lineWidth=1.6;ctx.stroke();
+  [-23.5,23.5].forEach(lat=>{
+    ctx.beginPath();path({type:'LineString',coordinates:[[-180,lat],[180,lat]]});
+    ctx.strokeStyle='rgba(0,255,200,.1)';ctx.lineWidth=.9;ctx.setLineDash([12,8]);ctx.stroke();ctx.setLineDash([]);
+  });
+  const tex = new THREE.CanvasTexture(tc);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// ── STARS ──
+function buildStars() {
+  const N=5000; const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const r=70+Math.random()*50,t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1);
+    pos[i*3]=r*Math.sin(p)*Math.cos(t); pos[i*3+1]=r*Math.sin(p)*Math.sin(t); pos[i*3+2]=r*Math.cos(p);
+    const w=Math.random();
+    col[i*3]=w>.85?1.:(w>.6?.85:.7); col[i*3+1]=w>.85?.9:(w>.6?.9:.8); col[i*3+2]=w>.85?.7:1.;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({vertexColors:true,size:.09,transparent:true,opacity:.65,sizeAttenuation:true,blending:THREE.AdditiveBlending,depthWrite:false})));
+}
+
+// ── GEO UTIL ──
+function ll2v(lat,lng,r=1.0){
+  const phi=(90-lat)*Math.PI/180, theta=(lng+180)*Math.PI/180;
+  return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
+}
+
+// ── STATE ──
+let selectedCountry = null, activeArcIndex = -1;
+const dotMeshes=[], markerData=[], pulseMeshes=[], arcObjects=[];
+
+// ── RETICLE STATE ──
+const reticle = {
+  active:false, x:0, y:0, alpha:0,
+  r1:0, r2:0, r3:0,   // three ring radii animate inward
+  scanT:0,             // coord scan 0..1
+  lat:0, lng:0, color:'#00FFC8', phase:0
+};
+
+// ── RADAR SWEEP STATE ──
+const radar = {
+  angle: 0,           // sweep angle in local space (Y axis)
+  speed: 0.0028,      // ~1 full rotation every ~22 seconds
+  hits: [],           // { name, color, alpha, sx, sy } flashing labels
+  cooldown: {},       // country name → frames until re-trigger allowed
+};
+let radarMesh = null;
+
+
+function buildMarkers(){
+  COUNTRIES_DEDUP.forEach((c,i)=>{
+    const col=RISK_INT[c.risk], pos=ll2v(c.lat,c.lng,1.018), up=pos.clone().normalize();
+    const dot=new THREE.Mesh(new THREE.SphereGeometry(.011,10,10),new THREE.MeshBasicMaterial({color:col}));
+    dot.position.copy(pos); globeGroup.add(dot); dotMeshes.push(dot); markerData.push(c);
+
+    // Glow layers
+    [{r:.018,op:.16},{r:.028,op:.06}].forEach(({r,op})=>{
+      const m=new THREE.Mesh(new THREE.SphereGeometry(r,8,8),
+        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending}));
+      m.position.copy(pos); globeGroup.add(m);
+    });
+
+    // Base ring
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.02,.002,8,36),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.55}));
+    ring.position.copy(pos); ring.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up); globeGroup.add(ring);
+
+    // Pulse rings by risk
+    const maxRings = c.risk==='CRITICAL'?3:c.risk==='HIGH'?2:1;
+    const sizes=[.022,.034,.05], opacities=[.48,.26,.13];
+    for(let ri=0;ri<maxRings;ri++){
+      const pm=new THREE.Mesh(new THREE.TorusGeometry(sizes[ri],.0014,8,36),
+        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:opacities[ri],blending:THREE.AdditiveBlending}));
+      pm.position.copy(pos); pm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up);
+      pm.userData={phase:(i/COUNTRIES_DEDUP.length)*Math.PI*2+ri*1.2};
+      globeGroup.add(pm); pulseMeshes.push(pm);
+    }
+
+    // Critical spike
+    if(c.risk==='CRITICAL'){
+      const spike=new THREE.Mesh(new THREE.CylinderGeometry(.0004,.0025,.09,6),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.45}));
+      spike.position.copy(pos).addScaledVector(up,.045);
+      spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up); globeGroup.add(spike);
+    }
+  });
+}
+
+// ── BUILD ARCS ──
+function buildArcs(){
+  TENSION_ARCS.forEach((arc,idx)=>{
+    const from = COUNTRIES_DEDUP.find(c=>c.name===arc.a);
+    const to   = COUNTRIES_DEDUP.find(c=>c.name===arc.b);
+    if(!from||!to) return;
+    const v1  = ll2v(from.lat,from.lng,1.02);
+    const v2  = ll2v(to.lat,  to.lng,  1.02);
+    const mid = v1.clone().add(v2).normalize().multiplyScalar(1.5+.1*((idx%4)*.25));
+    const curve = new THREE.QuadraticBezierCurve3(v1,mid,v2);
+    const pts   = curve.getPoints(140);
+
+    const makeLine = (opacity) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pts.flatMap(p=>[p.x,p.y,p.z])),3));
+      geo.setDrawRange(0,0);
+      const mat = new THREE.LineBasicMaterial({color:arc.col,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false});
+      const line = new THREE.Line(geo,mat); line.visible=false; globeGroup.add(line); return line;
+    };
+    const line = makeLine(0); const glow = makeLine(0);
+
+    // ── CONVOY PARTICLES ──
+    const convoyCount = arc.type==='CRITICAL'?6:arc.type==='HIGH'?4:3;
+    const convoy = [];
+    for(let i=0;i<convoyCount;i++){
+      const pGeo = new THREE.SphereGeometry(.005+Math.random()*.004, 6, 6);
+      const pMat = new THREE.MeshBasicMaterial({color:arc.col,transparent:true,opacity:0,blending:THREE.AdditiveBlending});
+      const pMesh = new THREE.Mesh(pGeo, pMat);
+      pMesh.visible = false;
+      globeGroup.add(pMesh);
+      // each particle has own t offset and speed jitter
+      convoy.push({
+        mesh: pMesh,
+        t: i / convoyCount,          // staggered start
+        speed: 0.28 + Math.random() * 0.16,
+        trail: [],                   // last N positions for tail
+        trailLen: 10 + Math.floor(Math.random()*8)
+      });
+    }
+
+    arcObjects.push({ line, glow, convoy, curve, pts, data:arc, progress:0, targetProgress:0, animating:false });
+  });
+}
+
+// ── BUILD RADAR SWEEP MESH ──
+function buildRadar(){
+  // A thin vertical half-disc (plane) that rotates around Y
+  const geo = new THREE.PlaneGeometry(2.2, 2.2, 1, 32);
+  // Keep only the right half (x >= 0) by zeroing left vertices
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    if(pos.getX(i) < 0) pos.setX(i, 0);
+  }
+  pos.needsUpdate = true;
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x00FFC8,
+    transparent: true,
+    opacity: 0.045,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  radarMesh = new THREE.Mesh(geo, mat);
+  globeGroup.add(radarMesh);
+
+  // Leading edge line (brighter)
+  const edgePts = [];
+  for(let i=0;i<=40;i++){
+    const phi = (i/40)*Math.PI;
+    edgePts.push(new THREE.Vector3(0, Math.cos(phi)*1.08, Math.sin(phi)*1.08));
+  }
+  const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
+  const edgeMat = new THREE.LineBasicMaterial({
+    color:0x00FFC8, transparent:true, opacity:0.65,
+    blending:THREE.AdditiveBlending, depthWrite:false
+  });
+  const edgeLine = new THREE.Line(edgeGeo, edgeMat);
+  radarMesh.add(edgeLine);
+}
+
+
+let activationTimers = [];
+function clearTimers(){ activationTimers.forEach(clearTimeout); activationTimers=[]; }
+
+function deactivateAllArcs(){
+  clearTimers();
+  arcObjects.forEach(ao=>{
+    ao.targetProgress=0;
+    ao.line.material.opacity=0; ao.glow.material.opacity=0;
+    ao.convoy.forEach(p=>{ p.mesh.material.opacity=0; p.mesh.visible=false; });
+  });
+}
+
+function activateArcsForCountry(name){
+  deactivateAllArcs();
+  arcObjects.filter(ao=>ao.data.a===name||ao.data.b===name).forEach((ao,i)=>{
+    const t=setTimeout(()=>{
+      ao.line.visible=true; ao.glow.visible=true;
+      ao.animating=true; ao.progress=0;
+      ao.line.geometry.setDrawRange(0,0); ao.glow.geometry.setDrawRange(0,0);
+      ao.targetProgress=1;
+      ao.convoy.forEach(p=>{ p.mesh.visible=true; p.trail=[]; });
+    }, i*160);
+    activationTimers.push(t);
+  });
+}
+
+function updateArcs(dt){
+  arcObjects.forEach(ao=>{
+    if(!ao.animating && ao.progress===0) return;
+    if(ao.progress < ao.targetProgress) ao.progress=Math.min(ao.targetProgress,ao.progress+dt*1.8);
+    else if(ao.progress > ao.targetProgress){
+      ao.progress=Math.max(ao.targetProgress,ao.progress-dt*2.5);
+      if(ao.progress===0){
+        ao.line.visible=false; ao.glow.visible=false;
+        ao.convoy.forEach(p=>{ p.mesh.visible=false; }); ao.animating=false; return;
+      }
+    }
+    const count=Math.floor(ao.progress*ao.pts.length);
+    ao.line.geometry.setDrawRange(0,count); ao.glow.geometry.setDrawRange(0,count);
+    ao.line.material.opacity=ao.progress*.75; ao.glow.material.opacity=ao.progress*.22;
+
+    // ── CONVOY PARTICLES ──
+    if(ao.progress>.08){
+      ao.convoy.forEach(p=>{
+        p.t=(p.t+dt*p.speed)%1.0;
+        const tCapped=Math.min(p.t, ao.progress);
+        const pos=ao.curve.getPoint(tCapped);
+        p.trail.push(pos.clone());
+        if(p.trail.length>p.trailLen) p.trail.shift();
+        p.mesh.position.copy(pos);
+        p.mesh.material.opacity=Math.sin(tCapped*Math.PI)*ao.progress*.9;
+      });
+    }
+  });
+}
+
+// ── SCREEN PROJECTION ──
+function w2s(localPos){
+  const wPos=localPos.clone().applyMatrix4(globeGroup.matrixWorld);
+  const gC=new THREE.Vector3().applyMatrix4(globeGroup.matrixWorld);
+  const n=wPos.clone().sub(gC).normalize();
+  const tc2=camera.position.clone().sub(gC).normalize();
+  const f=n.dot(tc2); if(f<.1) return null;
+  const p=wPos.clone().project(camera);
+  return{x:(p.x*.5+.5)*lblCanvas.width,y:(-p.y*.5+.5)*lblCanvas.height,f};
+}
+
+// ── DRAW RETICLE ──
+function drawReticle(dt){
+  if(!reticle.active) return;
+  // find screen pos of selected country
+  const c = COUNTRIES_DEDUP.find(x=>x.name===selectedCountry);
+  if(!c) return;
+  const sc = w2s(ll2v(c.lat,c.lng,1.025));
+  if(!sc){ reticle.alpha=Math.max(0,reticle.alpha-dt*3); }
+  else {
+    reticle.x = sc.x; reticle.y = sc.y;
+    reticle.alpha = Math.min(1, reticle.alpha + dt*4);
+  }
+  reticle.phase += dt;
+  reticle.scanT = Math.min(1, reticle.scanT + dt*1.2);
+
+  const x=reticle.x, y=reticle.y, a=reticle.alpha, col=reticle.color;
+
+  // animate rings inward from 60→28, 42→18, 26→10
+  const R1 = 28 + (1-reticle.scanT)*32;
+  const R2 = 18 + (1-reticle.scanT)*24;
+  const R3 = 10 + (1-reticle.scanT)*16;
+
+  lctx.save();
+
+  // outer ring
+  lctx.beginPath(); lctx.arc(x,y,R1,0,Math.PI*2);
+  lctx.strokeStyle=col; lctx.lineWidth=0.8; lctx.globalAlpha=a*0.5; lctx.stroke();
+
+  // rotating dashes on outer ring
+  lctx.save();
+  lctx.translate(x,y); lctx.rotate(reticle.phase*0.8);
+  for(let i=0;i<8;i++){
+    const ang=i*Math.PI/4;
+    lctx.beginPath();
+    lctx.arc(0,0,R1, ang, ang+0.25);
+    lctx.strokeStyle=col; lctx.lineWidth=2; lctx.globalAlpha=a*0.9; lctx.stroke();
+  }
+  lctx.restore();
+
+  // mid ring
+  lctx.beginPath(); lctx.arc(x,y,R2,0,Math.PI*2);
+  lctx.strokeStyle=col; lctx.lineWidth=0.6; lctx.globalAlpha=a*0.35; lctx.stroke();
+
+  // inner ring
+  lctx.beginPath(); lctx.arc(x,y,R3,0,Math.PI*2);
+  lctx.strokeStyle=col; lctx.lineWidth=1.2; lctx.globalAlpha=a*0.7; lctx.stroke();
+
+  // crosshair lines
+  const CH=R1+10;
+  [[1,0],[- 1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+    lctx.beginPath();
+    lctx.moveTo(x+dx*(R3+3), y+dy*(R3+3));
+    lctx.lineTo(x+dx*CH, y+dy*CH);
+    lctx.strokeStyle=col; lctx.lineWidth=0.8; lctx.globalAlpha=a*0.55; lctx.stroke();
+  });
+
+  // corner brackets at outer ring
+  const BS=10, BR=R1;
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx,sy])=>{
+    const bx=x+sx*BR*0.707, by=y+sy*BR*0.707;
+    lctx.beginPath(); lctx.moveTo(bx, by+sy*BS); lctx.lineTo(bx,by); lctx.lineTo(bx+sx*BS,by);
+    lctx.strokeStyle=col; lctx.lineWidth=1.5; lctx.globalAlpha=a*0.9; lctx.stroke();
+  });
+
+  // center dot
+  lctx.beginPath(); lctx.arc(x,y,2,0,Math.PI*2);
+  lctx.fillStyle=col; lctx.globalAlpha=a; lctx.fill();
+
+  // scanning coords text
+  if(reticle.scanT>0.3){
+    const progress = (reticle.scanT-0.3)/0.7;
+    const latStr  = c.lat>0?c.lat.toFixed(2)+'°N':Math.abs(c.lat).toFixed(2)+'°S';
+    const lngStr  = c.lng>0?c.lng.toFixed(2)+'°E':Math.abs(c.lng).toFixed(2)+'°W';
+    const fullStr = latStr+'  '+lngStr;
+    const shown   = fullStr.slice(0, Math.floor(progress*fullStr.length));
+    lctx.font='8px "Space Mono",monospace';
+    lctx.fillStyle=col; lctx.globalAlpha=a*0.8;
+    lctx.fillText(shown, x+R1+8, y+4);
+    // risk level tag
+    if(progress>0.6){
+      lctx.fillText(c.risk, x+R1+8, y+16);
+    }
+  }
+
+  lctx.restore();
+}
+
+// ── DRAW ARC TRAILS ──
+function drawArcTrails(){
+  arcObjects.forEach(ao=>{
+    if(ao.progress<.08) return;
+    ao.convoy.forEach(p=>{
+      if(p.trail.length<2) return;
+      for(let i=1;i<p.trail.length;i++){
+        const pa=p.trail[i-1], pb=p.trail[i];
+        const pa2d=w2s(pa), pb2d=w2s(pb);
+        if(!pa2d||!pb2d) continue;
+        const t=i/p.trail.length;
+        const hexCol='#'+ao.data.col.toString(16).padStart(6,'0');
+        lctx.beginPath();
+        lctx.moveTo(pa2d.x,pa2d.y); lctx.lineTo(pb2d.x,pb2d.y);
+        lctx.strokeStyle=hexCol;
+        lctx.lineWidth=1.5*t;
+        lctx.globalAlpha=t*ao.progress*0.6*Math.min(pa2d.f,pb2d.f);
+        lctx.stroke();
+      }
+      lctx.globalAlpha=1;
+    });
+  });
+}
+
+function drawLabels(){
+  lctx.clearRect(0,0,lblCanvas.width,lblCanvas.height);
+
+  // draw arc trails first (behind labels)
+  drawArcTrails();
+  // radar hit labels
+  drawRadarHUD();
+
+  COUNTRIES_DEDUP.forEach(c=>{
+    const pos=ll2v(c.lat,c.lng,1.025);
+    const sc=w2s(pos); if(!sc) return;
+    const a=Math.min(1,(sc.f-.1)/.35);
+    const col=RISK_HEX[c.risk];
+    const isSel=c.name===selectedCountry;
+    if(isSel){
+      lctx.beginPath(); lctx.arc(sc.x,sc.y,9,0,Math.PI*2);
+      lctx.strokeStyle=col; lctx.lineWidth=1; lctx.globalAlpha=a*.35; lctx.stroke();
+    }
+    lctx.beginPath(); lctx.arc(sc.x,sc.y,2.2,0,Math.PI*2);
+    lctx.fillStyle=col; lctx.globalAlpha=a*.9; lctx.fill();
+    lctx.beginPath(); lctx.moveTo(sc.x,sc.y); lctx.lineTo(sc.x+10,sc.y-8);
+    lctx.strokeStyle=col; lctx.lineWidth=.6; lctx.globalAlpha=a*.32; lctx.stroke();
+    lctx.font=isSel?'bold 8.5px "Space Mono",monospace':'8px "Space Mono",monospace';
+    lctx.fillStyle=col; lctx.globalAlpha=isSel?a:a*.68;
+    lctx.fillText(c.name.toUpperCase(),sc.x+13,sc.y-9);
+    lctx.globalAlpha=1;
+  });
+}
+
+// ── PANEL ──
+function showPanel(c){
+  selectedCountry=c.name;
+  // activate reticle
+  reticle.active=true; reticle.scanT=0; reticle.alpha=0;
+  reticle.lat=c.lat; reticle.lng=c.lng;
+  reticle.color=RISK_HEX[c.risk];
+  document.getElementById('pName').textContent=c.name;
+  document.getElementById('pBadge').textContent=c.risk;
+  document.getElementById('pBadge').className='pb '+BADGE_CLS[c.risk];
+  document.getElementById('pCat').textContent='// '+c.cat;
+  document.getElementById('pSig').textContent=c.signal;
+  const lat=c.lat>0?c.lat.toFixed(2)+'°N':Math.abs(c.lat).toFixed(2)+'°S';
+  const lng=c.lng>0?c.lng.toFixed(2)+'°E':Math.abs(c.lng).toFixed(2)+'°W';
+  document.getElementById('pCoords').textContent=lat+'   '+lng;
+  const related=TENSION_ARCS.filter(a=>a.a===c.name||a.b===c.name);
+  const sec=document.getElementById('arcSection'), lst=document.getElementById('arcList');
+  lst.innerHTML=''; activeArcIndex=-1;
+  if(related.length>0){
+    sec.style.display='block';
+    related.forEach((arc,i)=>{
+      const other=arc.a===c.name?arc.b:arc.a;
+      const row=document.createElement('div'); row.className='arc-row';
+      row.innerHTML=`<div class="arc-head"><span class="arc-name">↔ ${other.toUpperCase()}</span><span class="arc-type ${arc.cssType}">${arc.type}</span></div>
+        <div style="font-size:8px;letter-spacing:.18em;color:rgba(255,255,255,.28);margin-bottom:2px">${arc.label}</div>
+        <div class="arc-sig">${arc.signal}</div>`;
+      row.addEventListener('click',()=>{
+        document.querySelectorAll('.arc-row').forEach(r=>r.classList.remove('active'));
+        if(activeArcIndex===i) activeArcIndex=-1;
+        else { row.classList.add('active'); activeArcIndex=i; }
+      });
+      lst.appendChild(row);
+    });
+  } else { sec.style.display='none'; }
+  document.getElementById('panel').classList.add('open');
+  activateArcsForCountry(c.name);
+}
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  deactivateAllArcs(); selectedCountry=null;
+  reticle.active=false; reticle.alpha=0;
+}
+document.getElementById('pClose').addEventListener('click', closePanel);
+window.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
+
+// ── CLOCK ──
+setInterval(()=>{
+  const n=new Date();
+  document.getElementById('clock').textContent=
+    [n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(v=>String(v).padStart(2,'0')).join(':')+' UTC';
+},1000);
+
+// ── INTERACTION ──
+const mouse=new THREE.Vector2(-9,-9);
+const raycaster=new THREE.Raycaster();
+let isDrag=false, autoRot=true, prevX=0, prevY=0;
+let rotY=0.4, rotX=0.15, tRotY=0.4, tRotX=0.15;
+let resumeTimer=null, didDrag=false;
+
+window.addEventListener('mousemove',e=>{
+  mouse.x=(e.clientX/innerWidth)*2-1;
+  mouse.y=-(e.clientY/innerHeight)*2+1;
+  if(isDrag){
+    const dx=e.clientX-prevX, dy=e.clientY-prevY;
+    if(Math.abs(dx)+Math.abs(dy)>2) didDrag=true;
+    tRotY+=dx*.005; tRotX+=dy*.005;
+    tRotX=Math.max(-1.35,Math.min(1.35,tRotX));
+    prevX=e.clientX; prevY=e.clientY;
+  }
+});
+window.addEventListener('mousedown',e=>{ isDrag=true; didDrag=false; autoRot=false; prevX=e.clientX; prevY=e.clientY; clearTimeout(resumeTimer); });
+window.addEventListener('mouseup',()=>{ isDrag=false; resumeTimer=setTimeout(()=>{ autoRot=true; },2800); });
+window.addEventListener('wheel',e=>{ camera.position.z=Math.max(1.55,Math.min(6.0,camera.position.z+e.deltaY*.003)); },{passive:true});
+window.addEventListener('click',e=>{
+  if(didDrag) return;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(dotMeshes);
+  if(hits.length){ const idx=dotMeshes.indexOf(hits[0].object); if(idx>=0) showPanel(markerData[idx]); }
+});
+window.addEventListener('mousemove',()=>{
+  raycaster.setFromCamera(mouse,camera);
+  document.body.style.cursor=raycaster.intersectObjects(dotMeshes).length?'pointer':'crosshair';
+});
+
+// ── ANIMATE ──
+let globeMat, atmosMats=[];
+const clock3=new THREE.Clock();
+
+// ── UPDATE RADAR SWEEP ──
+function updateRadar(dt){
+  if(!radarMesh) return;
+
+  radar.angle += radar.speed;
+  radarMesh.rotation.y = radar.angle;
+
+  // decay cooldowns
+  Object.keys(radar.cooldown).forEach(k=>{
+    radar.cooldown[k] -= dt;
+    if(radar.cooldown[k]<=0) delete radar.cooldown[k];
+  });
+
+  // check each country marker against the sweep plane
+  // The sweep plane faces local +X rotated by radar.angle in globe space
+  // A country is "hit" when its longitude aligns with the sweep angle
+  const sweepLng = ((-radar.angle * 180/Math.PI) % 360 + 360) % 360;
+
+  COUNTRIES_DEDUP.forEach(c=>{
+    if(radar.cooldown[c.name]) return;
+
+    // normalize country lng to 0..360
+    const cLng = ((c.lng + 180) + 360) % 360;
+    // angular difference
+    let diff = Math.abs(sweepLng - cLng);
+    if(diff > 180) diff = 360 - diff;
+
+    if(diff < 3.5){ // within ~3.5° tolerance
+      radar.cooldown[c.name] = 2.5; // 2.5s before re-trigger
+
+      // find screen position
+      const sc = w2s(ll2v(c.lat, c.lng, 1.025));
+      if(sc && sc.f > 0.1){
+        radar.hits.push({
+          name: c.name,
+          color: RISK_HEX[c.risk],
+          alpha: 1.0,
+          sx: sc.x, sy: sc.y,
+          risk: c.risk,
+        });
+      }
+    }
+  });
+
+  // decay hit labels
+  radar.hits.forEach(h=>{ h.alpha -= dt * 1.1; });
+  radar.hits = radar.hits.filter(h=>h.alpha>0);
+}
+
+// ── DRAW RADAR HUD ──
+function drawRadarHUD(){
+  radar.hits.forEach(h=>{
+    // update screen position in case globe rotated
+    const sc = w2s(ll2v(
+      COUNTRIES_DEDUP.find(c=>c.name===h.name)?.lat || 0,
+      COUNTRIES_DEDUP.find(c=>c.name===h.name)?.lng || 0,
+      1.025
+    ));
+    if(sc){ h.sx=sc.x; h.sy=sc.y; }
+
+    const a = Math.min(1, h.alpha);
+
+    // flash ring
+    lctx.beginPath();
+    lctx.arc(h.sx, h.sy, 14*(1-h.alpha*0.5), 0, Math.PI*2);
+    lctx.strokeStyle = h.color;
+    lctx.lineWidth = 1.5;
+    lctx.globalAlpha = a * 0.8;
+    lctx.stroke();
+
+    // scan label
+    lctx.font = 'bold 9px "Space Mono",monospace';
+    lctx.fillStyle = h.color;
+    lctx.globalAlpha = a;
+    lctx.fillText('▸ ' + h.name.toUpperCase(), h.sx + 18, h.sy + 4);
+    lctx.font = '7px "Space Mono",monospace';
+    lctx.globalAlpha = a * 0.6;
+    lctx.fillText(h.risk, h.sx + 18, h.sy + 14);
+    lctx.globalAlpha = 1;
+  });
+}
+
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock3.getDelta(), t=clock3.elapsedTime;
+  if(globeMat) globeMat.uniforms.uTime.value=t;
+  atmosMats.forEach(m=>{ m.uniforms.uTime.value=t; });
+  if(autoRot) tRotY+=.00065;
+  rotY+=(tRotY-rotY)*.055; rotX+=(tRotX-rotX)*.055;
+  globeGroup.rotation.y=rotY; globeGroup.rotation.x=rotX;
+  pulseMeshes.forEach(m=>{
+    const s=1.+.65*(Math.sin(t*1.75+m.userData.phase)*.5+.5);
+    m.scale.set(s,s,s); m.material.opacity=.55*(1.-(s-1.)/.65);
+  });
+  updateArcs(dt);
+  updateRadar(dt);
+  drawLabels();
+  drawReticle(dt);
+  renderer.render(scene,camera);
+}
+
+// ── INIT ──
+async function init(){
+  prog(5,'Inicializando motor 3D...');
+  updateStats();
+  buildStars();
+  prog(18,'Cargando datos cartográficos reales...');
+  let world;
+  try { world=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r=>r.json()); }
+  catch(e){ world=null; }
+  prog(45,'Renderizando textura 4096×2048...');
+  let tex;
+  if(world){ tex=await buildTex(world); }
+  else {
+    const fc=document.createElement('canvas'); fc.width=2048; fc.height=1024;
+    const fx=fc.getContext('2d'); fx.fillStyle='#001418'; fx.fillRect(0,0,2048,1024);
+    tex=new THREE.CanvasTexture(fc);
+  }
+  tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  prog(65,'Compilando shaders holográficos...');
+  globeMat=new THREE.ShaderMaterial({ uniforms:{uTex:{value:tex},uTime:{value:0}}, vertexShader:VERT, fragmentShader:FRAG, transparent:true });
+  const globe=new THREE.Mesh(new THREE.SphereGeometry(1.,128,128),globeMat);
+  globeGroup.add(globe);
+  prog(78,'Construyendo escena...');
+  prog(88,'Posicionando marcadores de riesgo...');
+  buildMarkers();
+  prog(93,'Construyendo red de tensiones...');
+  buildArcs();
+  buildRadar();
+  prog(100,'Sistema AETHER en línea.');
+  setTimeout(()=>{
+    document.getElementById('loading').classList.add('fade');
+    setTimeout(()=>{ document.getElementById('loading').style.display='none'; },900);
+    animate();
+  },600);
+}
+
+window.addEventListener('resize',()=>{
+  const w=innerWidth,h=innerHeight;
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w,h);
+  lblCanvas.width=w; lblCanvas.height=h;
+});
+
+init();
+</script>
+</body>
+</html>
