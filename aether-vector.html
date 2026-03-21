@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AETHER VECTOR — Financial Flow Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000508;--panel:rgba(4,10,18,.96);--border:rgba(0,255,200,.1);
+  --cyan:#00FFC8;--red:#FF4060;--amber:#FFB020;--orange:#FF8030;--blue:#60BFFF;--purple:#A060FF;
+  --text:rgba(255,255,255,.88);--muted:rgba(255,255,255,.38);--dim:rgba(255,255,255,.16);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
+body{font-family:'Space Mono',monospace;cursor:crosshair}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.018) 3px,rgba(0,0,0,.018) 4px)}
+
+.corner{position:fixed;width:40px;height:40px;z-index:50;pointer-events:none}
+.corner.tl{top:16px;left:16px;border-top:1px solid rgba(0,255,200,.4);border-left:1px solid rgba(0,255,200,.4)}
+.corner.tr{top:16px;right:16px;border-top:1px solid rgba(0,255,200,.4);border-right:1px solid rgba(0,255,200,.4)}
+.corner.bl{bottom:16px;left:16px;border-bottom:1px solid rgba(0,255,200,.4);border-left:1px solid rgba(0,255,200,.4)}
+.corner.br{bottom:16px;right:16px;border-bottom:1px solid rgba(0,255,200,.4);border-right:1px solid rgba(0,255,200,.4)}
+
+#app{position:relative;z-index:2;display:grid;grid-template-rows:72px 1fr 56px;height:100vh}
+
+/* header */
+#header{display:flex;align-items:center;justify-content:space-between;padding:0 40px;
+  border-bottom:1px solid var(--border);background:rgba(0,5,10,.8);backdrop-filter:blur(12px)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.1em;color:var(--cyan);
+  text-shadow:0 0 30px rgba(0,255,200,.5)}
+.logo-sub{font-size:8px;letter-spacing:.4em;color:rgba(0,255,200,.3);margin-top:2px}
+.hdr-right{display:flex;align-items:center;gap:24px}
+.hdr-stat{text-align:right}
+.hdr-stat .val{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.05em;color:var(--cyan)}
+.hdr-stat .lbl{font-size:7.5px;letter-spacing:.3em;color:var(--dim)}
+#clock{font-size:10px;letter-spacing:.18em;color:var(--dim)}
+
+/* main */
+#main{display:grid;grid-template-columns:260px 1fr 300px;overflow:hidden}
+
+/* left controls */
+#controls{border-right:1px solid var(--border);padding:20px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.ctrl-section{}
+.ctrl-title{font-size:7.5px;letter-spacing:.4em;color:rgba(0,255,200,.3);margin-bottom:10px}
+.flow-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;
+  border:1px solid transparent;transition:all .2s;font-size:9px;letter-spacing:.15em;
+  color:var(--muted);background:transparent;width:100%;text-align:left}
+.flow-btn:hover{background:rgba(0,255,200,.04);border-color:rgba(0,255,200,.15);color:var(--text)}
+.flow-btn.active{background:rgba(0,255,200,.07);border-color:rgba(0,255,200,.3);color:var(--cyan)}
+.flow-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.flow-vol{margin-left:auto;font-size:8px;color:var(--dim)}
+
+.region-filter{display:flex;flex-wrap:wrap;gap:4px}
+.reg-btn{font-size:8px;letter-spacing:.1em;padding:4px 9px;border:1px solid rgba(255,255,255,.08);
+  color:var(--dim);background:transparent;cursor:pointer;transition:all .2s}
+.reg-btn:hover,.reg-btn.active{border-color:rgba(0,255,200,.3);color:var(--cyan);background:rgba(0,255,200,.05)}
+
+.threshold-wrap{display:flex;flex-direction:column;gap:6px}
+.threshold-label{display:flex;justify-content:space-between;font-size:8px;letter-spacing:.15em;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--cyan);height:3px;cursor:pointer}
+
+.top-flows{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.top-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,.04);font-size:9px}
+.top-row .pair{color:var(--muted);letter-spacing:.08em}
+.top-row .top-val{color:var(--text);font-weight:700}
+.top-row .top-type{font-size:7px;letter-spacing:.15em;padding:1px 5px;border-radius:1px}
+
+/* center: sankey */
+#chart-wrap{position:relative;overflow:hidden;background:#000810}
+#sankey-svg{width:100%;height:100%}
+.node-rect{cursor:pointer;transition:opacity .2s}
+.node-rect:hover{opacity:.85}
+.node-label{font-family:'Space Mono',monospace;font-size:10px;fill:rgba(255,255,255,.75);pointer-events:none}
+.node-label-val{font-family:'Space Mono',monospace;font-size:8px;fill:rgba(255,255,255,.35);pointer-events:none}
+.link-path{transition:opacity .2s;cursor:pointer}
+.link-path:hover{opacity:.75!important}
+.flow-particle{pointer-events:none}
+
+#tooltip{position:absolute;background:rgba(0,4,12,.95);border:1px solid rgba(0,255,200,.25);
+  border-left:2px solid var(--cyan);padding:14px 16px;font-size:11px;pointer-events:none;
+  opacity:0;transition:opacity .15s;z-index:20;max-width:240px;backdrop-filter:blur(12px)}
+.tt-title{font-weight:700;color:#fff;margin-bottom:6px;font-family:'Inter',sans-serif;font-size:13px}
+.tt-row{display:flex;justify-content:space-between;gap:20px;color:var(--muted);margin-bottom:3px;font-size:10px}
+.tt-val{color:var(--cyan);font-weight:700}
+
+/* right: detail */
+#detail-panel{border-left:1px solid var(--border);padding:22px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+#detail-panel::-webkit-scrollbar{width:2px}
+#detail-panel::-webkit-scrollbar-thumb{background:rgba(0,255,200,.15)}
+.dp-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:14px;opacity:.28;text-align:center}
+.dp-placeholder .dp-icon{font-size:32px;margin-bottom:4px}
+.dp-placeholder p{font-size:8px;letter-spacing:.3em;color:var(--cyan)}
+.dp-meta{font-size:7.5px;letter-spacing:.35em;color:rgba(0,255,200,.3);margin-bottom:12px}
+.dp-title{font-family:'Inter',sans-serif;font-size:15px;font-weight:500;color:#fff;line-height:1.4;margin-bottom:12px}
+.dp-amount{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:.05em;line-height:1;
+  color:var(--cyan);text-shadow:0 0 30px rgba(0,255,200,.4);margin-bottom:4px}
+.dp-amount-lbl{font-size:7.5px;letter-spacing:.3em;color:var(--dim);margin-bottom:18px}
+.dp-divider{height:1px;background:rgba(0,255,200,.07);margin:14px 0}
+.dp-label{font-size:7.5px;letter-spacing:.3em;color:rgba(0,255,200,.32);margin-bottom:8px}
+.dp-text{font-family:'Inter',sans-serif;font-size:12.5px;color:rgba(255,255,255,.65);line-height:1.7;margin-bottom:12px}
+.dp-bars{display:flex;flex-direction:column;gap:8px}
+.dp-bar-row{display:flex;flex-direction:column;gap:3px}
+.dp-bar-label{display:flex;justify-content:space-between;font-size:8px;letter-spacing:.12em;color:var(--muted)}
+.dp-bar-track{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.dp-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
+
+/* legend */
+#legend-bar{border-top:1px solid var(--border);display:flex;align-items:center;gap:0;
+  background:rgba(0,5,10,.9);overflow:hidden;padding:0 24px}
+.leg-item{display:flex;align-items:center;gap:8px;padding:0 18px;border-right:1px solid var(--border);height:100%}
+.leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.leg-text{font-size:8px;letter-spacing:.18em;color:var(--dim)}
+.leg-sep{flex:1}
+.leg-total{font-size:8px;letter-spacing:.2em;color:rgba(0,255,200,.4);padding-left:18px}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:rgba(0,255,200,.15)}
+</style>
+</head>
+<body>
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+
+<div id="app">
+  <div id="header">
+    <div>
+      <div class="logo">AETHER <span style="color:rgba(255,255,255,.25);font-size:28px">·</span> VECTOR</div>
+      <div class="logo-sub">Global Financial Flow Intelligence · World Bank Data</div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-stat"><div class="val" id="total-flow">$—</div><div class="lbl">FLUJO TOTAL VISIBLE</div></div>
+      <div class="hdr-stat"><div class="val" id="node-count">—</div><div class="lbl">NODOS ACTIVOS</div></div>
+      <div id="clock">--:--:-- UTC</div>
+    </div>
+  </div>
+
+  <div id="main">
+    <!-- LEFT -->
+    <div id="controls">
+      <div class="ctrl-section">
+        <div class="ctrl-title">// TIPO DE FLUJO</div>
+        <button class="flow-btn active" data-flow="all" onclick="setFlow(this,'all')">
+          <div class="flow-dot" style="background:linear-gradient(135deg,#00FFC8,#60BFFF)"></div>
+          <span>TODOS LOS FLUJOS</span>
+          <span class="flow-vol" id="vol-all">—</span>
+        </button>
+        <button class="flow-btn" data-flow="debt" onclick="setFlow(this,'debt')">
+          <div class="flow-dot" style="background:#FF4060"></div>
+          <span>DEUDA SOBERANA</span>
+          <span class="flow-vol" id="vol-debt">—</span>
+        </button>
+        <button class="flow-btn" data-flow="trade" onclick="setFlow(this,'trade')">
+          <div class="flow-dot" style="background:#FFB020"></div>
+          <span>COMERCIO EXTERIOR</span>
+          <span class="flow-vol" id="vol-trade">—</span>
+        </button>
+        <button class="flow-btn" data-flow="fdi" onclick="setFlow(this,'fdi')">
+          <div class="flow-dot" style="background:#00FFC8"></div>
+          <span>INVERSIÓN DIRECTA (IED)</span>
+          <span class="flow-vol" id="vol-fdi">—</span>
+        </button>
+        <button class="flow-btn" data-flow="remit" onclick="setFlow(this,'remit')">
+          <div class="flow-dot" style="background:#A060FF"></div>
+          <span>REMESAS</span>
+          <span class="flow-vol" id="vol-remit">—</span>
+        </button>
+        <button class="flow-btn" data-flow="reserves" onclick="setFlow(this,'reserves')">
+          <div class="flow-dot" style="background:#60BFFF"></div>
+          <span>RESERVAS DIVISAS</span>
+          <span class="flow-vol" id="vol-reserves">—</span>
+        </button>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-title">// REGIÓN ORIGEN</div>
+        <div class="region-filter">
+          <button class="reg-btn active" onclick="setRegion(this,'all')">TODOS</button>
+          <button class="reg-btn" onclick="setRegion(this,'NA')">NORTEAM.</button>
+          <button class="reg-btn" onclick="setRegion(this,'EU')">EUROPA</button>
+          <button class="reg-btn" onclick="setRegion(this,'AS')">ASIA</button>
+          <button class="reg-btn" onclick="setRegion(this,'ME')">OR. MEDIO</button>
+          <button class="reg-btn" onclick="setRegion(this,'LA')">LATAM</button>
+          <button class="reg-btn" onclick="setRegion(this,'AF')">AFRICA</button>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-title">// UMBRAL MÍNIMO (B USD)</div>
+        <div class="threshold-wrap">
+          <div class="threshold-label"><span>Filtrar flujos menores a:</span><span id="thresh-val">50B</span></div>
+          <input type="range" min="0" max="500" step="10" value="50" id="threshold"
+            oninput="setThreshold(this.value)">
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-title">// TOP FLUJOS ACTIVOS</div>
+        <div class="top-flows" id="top-flows-list"></div>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div id="chart-wrap">
+      <svg id="sankey-svg"></svg>
+      <div id="tooltip"></div>
+    </div>
+
+    <!-- RIGHT: detail -->
+    <div id="detail-panel">
+      <div class="dp-placeholder" id="dp-placeholder">
+        <div class="dp-icon">⬡</div>
+        <p>SELECCIONAR NODO O FLUJO</p>
+      </div>
+      <div id="dp-content" style="display:none"></div>
+    </div>
+  </div>
+
+  <div id="legend-bar">
+    <div class="leg-item"><div class="leg-dot" style="background:#FF4060"></div><span class="leg-text">DEUDA SOBERANA</span></div>
+    <div class="leg-item"><div class="leg-dot" style="background:#FFB020"></div><span class="leg-text">COMERCIO</span></div>
+    <div class="leg-item"><div class="leg-dot" style="background:#00FFC8"></div><span class="leg-text">IED</span></div>
+    <div class="leg-item"><div class="leg-dot" style="background:#A060FF"></div><span class="leg-text">REMESAS</span></div>
+    <div class="leg-item"><div class="leg-dot" style="background:#60BFFF"></div><span class="leg-text">RESERVAS</span></div>
+    <div class="leg-sep"></div>
+    <div class="leg-total">FUENTE: World Bank 2023 · FMI Balance of Payments · BIS Debt Statistics</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  AETHER VECTOR — Financial Flow Intelligence
+//  OkrtSystem Labs — Data: World Bank / IMF / BIS (2022-23)
+// ═══════════════════════════════════════════════════════════════
+
+// ── DATA (B USD, 2022-2023 sourced from World Bank, IMF, BIS) ──
+const NODES = [
+  // SOURCES (column 0)
+  { id:'USA',   label:'EE.UU.',          region:'NA', gdp:25462, col:0 },
+  { id:'EU',    label:'Europa',           region:'EU', gdp:17818, col:0 },
+  { id:'CHN',   label:'China',            region:'AS', gdp:17963, col:0 },
+  { id:'JPN',   label:'Japón',            region:'AS', gdp:4231,  col:0 },
+  { id:'GBR',   label:'Reino Unido',      region:'EU', gdp:3070,  col:0 },
+  { id:'KSA',   label:'Arabia Saudí',     region:'ME', gdp:1108,  col:0 },
+  { id:'UAE',   label:'EAU',              region:'ME', gdp:509,   col:0 },
+  // MIDPOINTS (column 1 — flow type hubs)
+  { id:'H_DEBT',    label:'DEUDA',     region:'HUB', col:1, isHub:true },
+  { id:'H_TRADE',   label:'COMERCIO',  region:'HUB', col:1, isHub:true },
+  { id:'H_FDI',     label:'IED',       region:'HUB', col:1, isHub:true },
+  { id:'H_REMIT',   label:'REMESAS',   region:'HUB', col:1, isHub:true },
+  { id:'H_RES',     label:'RESERVAS',  region:'HUB', col:1, isHub:true },
+  // DESTINATIONS (column 2)
+  { id:'EMG',   label:'Emerg. Asia',     region:'AS', gdp:0, col:2 },
+  { id:'LAT',   label:'Latam',           region:'LA', gdp:0, col:2 },
+  { id:'AFR',   label:'África',          region:'AF', gdp:0, col:2 },
+  { id:'IND',   label:'India',           region:'AS', gdp:3386, col:2 },
+  { id:'BRA',   label:'Brasil',          region:'LA', gdp:1920, col:2 },
+  { id:'MEX',   label:'México',          region:'LA', gdp:1323, col:2 },
+  { id:'TUR',   label:'Turquía',         region:'EU', gdp:906,  col:2 },
+  { id:'NGA',   label:'Nigeria',         region:'AF', gdp:477,  col:2 },
+];
+
+// Links: source, target, value (B USD), type
+const ALL_LINKS = [
+  // DEBT flows (USA/EU → hubs → destinations)
+  { s:'USA',  t:'H_DEBT',  v:1240, type:'debt',    detail:'Bonos del Tesoro USA en circulación global. Principales tenedores: China (870B), Japón (1.1T), Europa (1.5T).' },
+  { s:'EU',   t:'H_DEBT',  v:890,  type:'debt',    detail:'Deuda soberana EU en manos extranjeras. BCE como comprador de última instancia.' },
+  { s:'CHN',  t:'H_DEBT',  v:680,  type:'debt',    detail:'Deuda pública china parcialmente internacionalizada. Bonos en yuan ganando peso.' },
+  { s:'JPN',  t:'H_DEBT',  v:340,  type:'debt',    detail:'Japón el mayor tenedor extranjero de deuda US. Banco de Japón controla curva de rendimiento.' },
+  { s:'H_DEBT', t:'EMG',   v:820,  type:'debt',    detail:'Flujo neto de deuda soberana hacia mercados emergentes de Asia. China como prestamista dominante.' },
+  { s:'H_DEBT', t:'AFR',   v:380,  type:'debt',    detail:'Deuda soberana africana: 40% en manos chinas, 30% eurobonos, 30% multilateral.' },
+  { s:'H_DEBT', t:'LAT',   v:440,  type:'debt',    detail:'América Latina: USD como moneda de emisión dominante. Riesgo de refinanciación elevado.' },
+  { s:'H_DEBT', t:'TUR',   v:210,  type:'debt',    detail:'Deuda externa turca ~450B USD. Presión sobre lira con tipo real negativo.' },
+  // TRADE flows
+  { s:'CHN',  t:'H_TRADE', v:3210, type:'trade',   detail:'China exportador mundial nº1. Superávit comercial 2023: ~823B USD. Dependencia del mercado US/EU crítica.' },
+  { s:'EU',   t:'H_TRADE', v:2890, type:'trade',   detail:'Unión Europea: zona de libre comercio interna + exportaciones masivas de manufactura y servicios.' },
+  { s:'USA',  t:'H_TRADE', v:2180, type:'trade',   detail:'EEUU mayor economía de consumo. Déficit comercial crónico: ~800B USD. Principal destino de exportaciones globales.' },
+  { s:'JPN',  t:'H_TRADE', v:870,  type:'trade',   detail:'Japón exportador de alto valor añadido: automóvil, electrónica, maquinaria.' },
+  { s:'H_TRADE', t:'EMG',  v:1640, type:'trade',   detail:'Asia emergente: manufactura exportadora hacia UE y EEUU. Vietnam, Bangladesh, Indonesia en ascenso.' },
+  { s:'H_TRADE', t:'IND',  v:660,  type:'trade',   detail:'India: hub tech y servicios en expansión. Exportaciones farmacéuticas y textil como pilares.' },
+  { s:'H_TRADE', t:'BRA',  v:340,  type:'trade',   detail:'Brasil: potencia agroexportadora (soja, carne, maíz). Petróleo como factor emergente.' },
+  { s:'H_TRADE', t:'MEX',  v:590,  type:'trade',   detail:'México: manufactura nearshore. USMCA como ancla. 80% exportaciones hacia EEUU.' },
+  { s:'H_TRADE', t:'AFR',  v:340,  type:'trade',   detail:'África subsahariana: exportaciones de materias primas concentradas. Cadenas de valor cortas.' },
+  // FDI flows
+  { s:'USA',  t:'H_FDI',   v:380,  type:'fdi',     detail:'EEUU primer emisor global de IED. Tech, finanzas y manufactura como sectores principales.' },
+  { s:'CHN',  t:'H_FDI',   v:148,  type:'fdi',     detail:'IED china redistribuyéndose. Restricciones occidentales aceleran Cinturón y Ruta.' },
+  { s:'EU',   t:'H_FDI',   v:312,  type:'fdi',     detail:'Europa: IED concentrada en servicios financieros, farmacéutica y manufactura avanzada.' },
+  { s:'JPN',  t:'H_FDI',   v:168,  type:'fdi',     detail:'IED japonesa en SE Asiático como alternativa a dependencia china.' },
+  { s:'H_FDI',  t:'EMG',   v:312,  type:'fdi',     detail:'Asia emergente como destino prioritario. Vietnam, Indonesia y Tailandia lideran captación.' },
+  { s:'H_FDI',  t:'IND',   v:180,  type:'fdi',     detail:'India capta IED récord 2022-23: 85B USD. Tech, manufactura y renovables como sectores clave.' },
+  { s:'H_FDI',  t:'BRA',   v:91,   type:'fdi',     detail:'IED en Brasil: 92B USD 2022. Agronegocio, energía y digital como destinos principales.' },
+  { s:'H_FDI',  t:'AFR',   v:48,   type:'fdi',     detail:'África: IED baja relativamente. Minería y energía como sectores dominantes.' },
+  { s:'H_FDI',  t:'MEX',   v:36,   type:'fdi',     detail:'México nearshoring: IED manufactura en máximos históricos. Tesla, BMW, TSMC en pipeline.' },
+  // REMITTANCES
+  { s:'USA',  t:'H_REMIT', v:148,  type:'remit',   detail:'EEUU primer emisor de remesas: ~148B USD. Destinos: México, India, China, Filipinas.' },
+  { s:'KSA',  t:'H_REMIT', v:43,   type:'remit',   detail:'Arabia Saudí: 43B USD en remesas. Trabajadores de Asia del Sur como principales receptores.' },
+  { s:'UAE',  t:'H_REMIT', v:46,   type:'remit',   detail:'EAU: 46B USD. India y Pakistán como destinos principales.' },
+  { s:'EU',   t:'H_REMIT', v:98,   type:'remit',   detail:'Europa: remesas de diáspora hacia Europa del Este, Magreb y África subsahariana.' },
+  { s:'H_REMIT', t:'IND',  v:125,  type:'remit',   detail:'India: mayor receptor global de remesas, 125B USD 2023. 4% del PIB.' },
+  { s:'H_REMIT', t:'MEX',  v:67,   type:'remit',   detail:'México: remesas superan IED y petróleo. 67B USD 2023. 3.6% PIB.' },
+  { s:'H_REMIT', t:'NGA',  v:21,   type:'remit',   detail:'Nigeria: 21B USD. Mayor receptor de remesas en África subsahariana.' },
+  { s:'H_REMIT', t:'LAT',  v:82,   type:'remit',   detail:'América Latina y Caribe: remesas superan 145B USD. El Salvador 24% PIB.' },
+  { s:'H_REMIT', t:'AFR',  v:48,   type:'remit',   detail:'África: remesas subestimadas por canales informales. Egipto, Marruecos como receptores clave.' },
+  // RESERVES
+  { s:'CHN',  t:'H_RES',   v:3420, type:'reserves', detail:'China: 3.42T USD en reservas de divisas. Mayor acumulador global. Diversificación en oro activa.' },
+  { s:'JPN',  t:'H_RES',   v:1225, type:'reserves', detail:'Japón: 2º en reservas globales. Usadas para estabilizar yen bajo presión.' },
+  { s:'KSA',  t:'H_RES',   v:458,  type:'reserves', detail:'Arabia Saudí: reservas del petróleo canalizadas via SAMA y PIF.' },
+  { s:'UAE',  t:'H_RES',   v:190,  type:'reserves', detail:'EAU: reservas canalizadas hacia ADIA (Abu Dhabi Investment Authority), 850B AUM.' },
+  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', detail:'USD como reserva global dominante: 59% del total mundial. Declive gradual desde 71% en 2000.' },
+  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', detail:'Euro: 20% reservas globales. Segunda moneda de reserva con ventaja estable.' },
+  { s:'H_RES',  t:'EMG',   v:890,  type:'reserves', detail:'Reservas en bonos mercados emergentes: yuan, rublo, real. Fragmentación del sistema.' },
+];
+
+const FLOW_COLORS = {
+  debt:'#FF4060', trade:'#FFB020', fdi:'#00FFC8',
+  remit:'#A060FF', reserves:'#60BFFF', all:'#00FFC8'
+};
+const FLOW_LABELS = {
+  debt:'DEUDA', trade:'COMERCIO', fdi:'IED', remit:'REMESAS', reserves:'RESERVAS'
+};
+
+let activeFlow = 'all';
+let activeRegion = 'all';
+let threshold = 50;
+
+// Clock
+setInterval(()=>{
+  const n=new Date();
+  document.getElementById('clock').textContent=
+    [n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(v=>String(v).padStart(2,'0')).join(':')+' UTC';
+},1000);
+
+// ── SANKEY LAYOUT ──
+function computeSankey(links, nodes) {
+  const wrap = document.getElementById('chart-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const PAD = { top:40, right:60, bottom:40, left:60 };
+  const cols = [0, 1, 2];
+  const colX = { 0: PAD.left + 80, 1: W/2, 2: W - PAD.right - 80 };
+
+  // assign x to nodes
+  const nodeMap = {};
+  nodes.forEach(n => { nodeMap[n.id] = {...n, inVal:0, outVal:0, links:[] }; });
+  links.forEach(l => {
+    if(nodeMap[l.s]) nodeMap[l.s].outVal += l.v;
+    if(nodeMap[l.t]) nodeMap[l.t].inVal  += l.v;
+  });
+
+  // y positions per column
+  const colNodes = {0:[], 1:[], 2:[]};
+  Object.values(nodeMap).forEach(n => colNodes[n.col].push(n));
+
+  const nodeH = (col, n) => {
+    const total = colNodes[col].reduce((s,x) => s + Math.max(x.inVal, x.outVal, 100), 0);
+    const avail = H - PAD.top - PAD.bottom;
+    return Math.max(12, (Math.max(n.inVal, n.outVal, 100) / Math.max(total,1)) * avail * 0.88);
+  };
+
+  [0,1,2].forEach(col => {
+    let y = PAD.top;
+    const gap = (H - PAD.top - PAD.bottom - colNodes[col].reduce((s,n)=>s+nodeH(col,n),0)) /
+               Math.max(colNodes[col].length - 1, 1);
+    colNodes[col].forEach(n => {
+      n.x = colX[col]; n.y = y; n.h = nodeH(col, n); n.w = 18;
+      y += n.h + Math.max(8, gap);
+    });
+  });
+
+  return { nodeMap, W, H, colX };
+}
+
+// ── RENDER ──
+function render() {
+  const links = ALL_LINKS.filter(l => {
+    if(l.v < threshold) return false;
+    if(activeFlow !== 'all' && l.type !== activeFlow) return false;
+    return true;
+  });
+
+  // filter nodes to only those with active links
+  const activeIds = new Set();
+  links.forEach(l => { activeIds.add(l.s); activeIds.add(l.t); });
+  const nodes = NODES.filter(n => {
+    if(activeRegion !== 'all' && n.region !== 'HUB' && n.region !== activeRegion) return false;
+    return activeIds.has(n.id);
+  });
+
+  const { nodeMap, W, H } = computeSankey(links, nodes);
+
+  // volumes for controls
+  ['debt','trade','fdi','remit','reserves'].forEach(type => {
+    const vol = ALL_LINKS.filter(l=>l.type===type).reduce((s,l)=>s+l.v,0);
+    const el = document.getElementById('vol-'+type);
+    if(el) el.textContent = vol >= 1000 ? (vol/1000).toFixed(1)+'T' : vol+'B';
+  });
+  const allVol = ALL_LINKS.reduce((s,l)=>s+l.v,0);
+  const visVol = links.reduce((s,l)=>s+l.v,0);
+  const elAll = document.getElementById('vol-all');
+  if(elAll) elAll.textContent = (allVol/1000).toFixed(1)+'T';
+  document.getElementById('total-flow').textContent = '$' + (visVol/1000).toFixed(1)+'T';
+  document.getElementById('node-count').textContent = Object.keys(nodeMap).length;
+
+  // build SVG
+  const svg = d3.select('#sankey-svg')
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('preserveAspectRatio','xMidYMid meet');
+  svg.selectAll('*').remove();
+
+  // defs: gradients per link
+  const defs = svg.append('defs');
+  links.forEach((l,i) => {
+    const sn = nodeMap[l.s], tn = nodeMap[l.t];
+    if(!sn || !tn) return;
+    const grad = defs.append('linearGradient')
+      .attr('id','lg'+i).attr('gradientUnits','userSpaceOnUse')
+      .attr('x1',sn.x).attr('x2',tn.x).attr('y1',sn.y).attr('y2',tn.y);
+    const col = FLOW_COLORS[l.type] || '#00FFC8';
+    grad.append('stop').attr('offset','0%').attr('stop-color',col).attr('stop-opacity',.7);
+    grad.append('stop').attr('offset','100%').attr('stop-color',col).attr('stop-opacity',.25);
+  });
+
+  // grid lines
+  svg.append('g').attr('class','grid').selectAll('line')
+    .data(d3.range(0, W, 120)).enter().append('line')
+    .attr('x1',d=>d).attr('x2',d=>d).attr('y1',0).attr('y2',H)
+    .attr('stroke','rgba(0,255,200,0.025)').attr('stroke-width',1);
+
+  // link offset tracker
+  const sOffset = {}, tOffset = {};
+  Object.keys(nodeMap).forEach(id => { sOffset[id]=0; tOffset[id]=0; });
+
+  // links
+  const linkG = svg.append('g');
+  links.forEach((l,i) => {
+    const sn = nodeMap[l.s], tn = nodeMap[l.t];
+    if(!sn || !tn) return;
+    const maxSrc = Math.max(sn.inVal, sn.outVal, 1);
+    const maxTgt = Math.max(tn.inVal, tn.outVal, 1);
+    const sh = (l.v / maxSrc) * sn.h;
+    const th = (l.v / maxTgt) * tn.h;
+    const sy = sn.y + sOffset[l.s];
+    const ty = tn.y + tOffset[l.t];
+    sOffset[l.s] += sh;
+    tOffset[l.t] += th;
+
+    const x0 = sn.x + sn.w, x1 = tn.x;
+    const cx = (x0+x1)/2;
+    const pathD = `M${x0},${sy} C${cx},${sy} ${cx},${ty} ${x1},${ty} L${x1},${ty+th} C${cx},${ty+th} ${cx},${sy+sh} ${x0},${sy+sh} Z`;
+    const col = FLOW_COLORS[l.type] || '#00FFC8';
+
+    const path = linkG.append('path').attr('class','link-path')
+      .attr('d', pathD)
+      .attr('fill', `url(#lg${i})`)
+      .attr('opacity', 0.35)
+      .attr('stroke','none');
+
+    path.on('mouseenter', (ev)=>{
+      path.attr('opacity',0.65);
+      showTooltip(ev, `${nodeMap[l.s]?.label||l.s} → ${nodeMap[l.t]?.label||l.t}`,
+        [['TIPO', FLOW_LABELS[l.type]||l.type],
+         ['VOLUMEN', '$'+l.v+'B USD'],
+         ['% DEL TOTAL', (l.v/allVol*100).toFixed(1)+'%']]);
+    })
+    .on('mouseleave', ()=>{
+      path.attr('opacity',0.35);
+      hideTooltip();
+    })
+    .on('click', ()=> showLinkDetail(l, nodeMap));
+  });
+
+  // nodes
+  const nodeG = svg.append('g');
+  Object.values(nodeMap).forEach(n => {
+    const isHub = n.isHub;
+    const col = isHub ? 'rgba(0,255,200,0.15)' : getNodeColor(n);
+    const borderCol = isHub ? 'rgba(0,255,200,0.5)' : getNodeColor(n);
+
+    const g = nodeG.append('g').attr('class','node-group').style('cursor','pointer');
+    g.append('rect').attr('class','node-rect')
+      .attr('x', n.x).attr('y', n.y).attr('width', n.w).attr('height', n.h)
+      .attr('fill', col).attr('stroke', borderCol).attr('stroke-width', 1)
+      .attr('rx', 2);
+
+    // label
+    const labelX = n.col === 0 ? n.x - 6 : (n.col === 1 ? n.x + n.w/2 : n.x + n.w + 6);
+    const anchor = n.col === 0 ? 'end' : (n.col === 1 ? 'middle' : 'start');
+    const labelY = n.col === 1 ? n.y - 8 : n.y + n.h/2 + 4;
+
+    g.append('text').attr('class','node-label')
+      .attr('x', labelX).attr('y', labelY)
+      .attr('text-anchor', anchor)
+      .text(n.label);
+
+    if(!isHub) {
+      const vol = Math.max(n.inVal, n.outVal);
+      g.append('text').attr('class','node-label-val')
+        .attr('x', labelX).attr('y', labelY + 13)
+        .attr('text-anchor', anchor)
+        .text('$' + (vol>=1000?(vol/1000).toFixed(1)+'T':vol+'B'));
+    }
+
+    g.on('mouseenter', (ev)=>{
+      g.select('.node-rect').attr('opacity', 0.7);
+      const vol = Math.max(n.inVal, n.outVal);
+      showTooltip(ev, n.label, [
+        ['VOLUMEN', '$'+(vol>=1000?(vol/1000).toFixed(1)+'T':vol+'B')],
+        ['ENTRADA', '$'+n.inVal+'B'], ['SALIDA', '$'+n.outVal+'B']
+      ]);
+    })
+    .on('mouseleave', ()=>{ g.select('.node-rect').attr('opacity',1); hideTooltip(); })
+    .on('click', ()=> showNodeDetail(n, links, nodeMap));
+  });
+
+  // column headers
+  const headers = [{x: Object.values(nodeMap).find(n=>n.col===0)?.x||80, l:'ORIGEN'},
+                   {x: Object.values(nodeMap).find(n=>n.col===1)?.x||W/2, l:'TIPO DE FLUJO'},
+                   {x: Object.values(nodeMap).find(n=>n.col===2)?.x||(W-80), l:'DESTINO'}];
+  headers.forEach(h=>{
+    svg.append('text').attr('x',h.x).attr('y',22).attr('text-anchor','middle')
+      .attr('fill','rgba(0,255,200,.3)').attr('font-family','Space Mono,monospace')
+      .attr('font-size',9).attr('letter-spacing',3).text(h.l);
+  });
+
+  // top flows list
+  const top5 = [...links].sort((a,b)=>b.v-a.v).slice(0,6);
+  document.getElementById('top-flows-list').innerHTML = top5.map(l=>{
+    const col = FLOW_COLORS[l.type]||'#888';
+    return `<div class="top-row">
+      <span class="pair">${(nodeMap[l.s]?.label||l.s).slice(0,8)} → ${(nodeMap[l.t]?.label||l.t).slice(0,8)}</span>
+      <span class="top-type" style="color:${col};border:1px solid ${col}40;background:${col}10">${FLOW_LABELS[l.type]||l.type}</span>
+      <span class="top-val">$${l.v >= 1000 ? (l.v/1000).toFixed(1)+'T' : l.v+'B'}</span>
+    </div>`;
+  }).join('');
+}
+
+function getNodeColor(n){
+  const regionColor = {NA:'rgba(255,176,32,.7)',EU:'rgba(96,191,255,.7)',AS:'rgba(0,255,200,.7)',
+                        ME:'rgba(255,128,48,.7)',LA:'rgba(160,96,255,.7)',AF:'rgba(255,64,96,.7)'};
+  return regionColor[n.region] || 'rgba(255,255,255,.2)';
+}
+
+// Tooltip
+function showTooltip(ev, title, rows){
+  const tt = document.getElementById('tooltip');
+  tt.innerHTML = `<div class="tt-title">${title}</div>` +
+    rows.map(r=>`<div class="tt-row"><span>${r[0]}</span><span class="tt-val">${r[1]}</span></div>`).join('');
+  const wrap = document.getElementById('chart-wrap');
+  const rect = wrap.getBoundingClientRect();
+  let x = ev.clientX - rect.left + 14;
+  let y = ev.clientY - rect.top - 10;
+  if(x + 260 > wrap.clientWidth) x -= 280;
+  tt.style.left = x+'px'; tt.style.top = y+'px'; tt.style.opacity = '1';
+}
+function hideTooltip(){ document.getElementById('tooltip').style.opacity='0'; }
+
+// Detail panels
+function showNodeDetail(n, links, nodeMap){
+  document.getElementById('dp-placeholder').style.display='none';
+  const dc = document.getElementById('dp-content'); dc.style.display='block';
+  const outLinks = links.filter(l=>l.s===n.id).sort((a,b)=>b.v-a.v);
+  const inLinks  = links.filter(l=>l.t===n.id).sort((a,b)=>b.v-a.v);
+  const total    = Math.max(n.inVal, n.outVal);
+  const barMax   = Math.max(...[...outLinks,...inLinks].map(l=>l.v), 1);
+
+  dc.innerHTML = `
+    <div class="dp-meta">// AETHER VECTOR · NODO</div>
+    <div class="dp-title">${n.label}</div>
+    <div class="dp-amount">$${total>=1000?(total/1000).toFixed(1)+'T':total+'B'}</div>
+    <div class="dp-amount-lbl">VOLUMEN TOTAL EN FLUJO</div>
+    <div class="dp-divider"></div>
+    ${outLinks.length?`<div class="dp-label">// FLUJOS DE SALIDA</div>
+    <div class="dp-bars">${outLinks.slice(0,5).map(l=>{
+      const col=FLOW_COLORS[l.type]||'#888';
+      return `<div class="dp-bar-row">
+        <div class="dp-bar-label"><span>${(nodeMap[l.t]?.label||l.t).slice(0,16)} · ${FLOW_LABELS[l.type]||l.type}</span><span style="color:${col}">$${l.v}B</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/barMax*100).toFixed(0)}%;background:${col}"></div></div>
+      </div>`}).join('')}</div><div class="dp-divider"></div>`:'' }
+    ${inLinks.length?`<div class="dp-label">// FLUJOS DE ENTRADA</div>
+    <div class="dp-bars">${inLinks.slice(0,5).map(l=>{
+      const col=FLOW_COLORS[l.type]||'#888';
+      return `<div class="dp-bar-row">
+        <div class="dp-bar-label"><span>${(nodeMap[l.s]?.label||l.s).slice(0,16)} · ${FLOW_LABELS[l.type]||l.type}</span><span style="color:${col}">$${l.v}B</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/barMax*100).toFixed(0)}%;background:${col}"></div></div>
+      </div>`}).join('')}</div>`:'' }`;
+}
+
+function showLinkDetail(l, nodeMap){
+  document.getElementById('dp-placeholder').style.display='none';
+  const dc = document.getElementById('dp-content'); dc.style.display='block';
+  const col = FLOW_COLORS[l.type]||'#888';
+  const allVol = ALL_LINKS.reduce((s,x)=>s+x.v,0);
+  dc.innerHTML=`
+    <div class="dp-meta">// AETHER VECTOR · FLUJO</div>
+    <div class="dp-title">${nodeMap[l.s]?.label||l.s} → ${nodeMap[l.t]?.label||l.t}</div>
+    <div class="dp-amount" style="color:${col};text-shadow:0 0 30px ${col}80">$${l.v}B</div>
+    <div class="dp-amount-lbl">USD · ESTIMACIÓN 2022-23</div>
+    <div class="dp-divider"></div>
+    <div class="dp-label">// TIPO DE FLUJO</div>
+    <div style="display:inline-block;font-size:9px;letter-spacing:.2em;padding:4px 12px;
+      color:${col};background:${col}12;border:1px solid ${col}40;margin-bottom:16px">${FLOW_LABELS[l.type]||l.type}</div>
+    <div class="dp-label">// ANÁLISIS</div>
+    <div class="dp-text">${l.detail}</div>
+    <div class="dp-divider"></div>
+    <div class="dp-label">// PESO RELATIVO</div>
+    <div class="dp-bars">
+      <div class="dp-bar-row">
+        <div class="dp-bar-label"><span>% del flujo global total</span><span style="color:${col}">${(l.v/allVol*100).toFixed(1)}%</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/allVol*100*5).toFixed(0)}%;background:${col}"></div></div>
+      </div>
+    </div>`;
+}
+
+// Controls
+function setFlow(btn, flow){
+  activeFlow = flow;
+  document.querySelectorAll('.flow-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function setRegion(btn, region){
+  activeRegion = region;
+  document.querySelectorAll('.reg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function setThreshold(val){
+  threshold = parseInt(val);
+  document.getElementById('thresh-val').textContent = val+'B';
+  render();
+}
+
+// Initial render + resize
+render();
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>
