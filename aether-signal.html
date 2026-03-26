@@ -14,14 +14,22 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
 body{font-family:'Space Mono',monospace;cursor:crosshair}
+
+/* scanlines */
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
   background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.018) 3px,rgba(0,0,0,.018) 4px)}
+
+/* corners */
 .corner{position:fixed;width:40px;height:40px;z-index:50;pointer-events:none}
 .corner.tl{top:16px;left:16px;border-top:1px solid rgba(0,255,200,.4);border-left:1px solid rgba(0,255,200,.4)}
 .corner.tr{top:16px;right:16px;border-top:1px solid rgba(0,255,200,.4);border-right:1px solid rgba(0,255,200,.4)}
 .corner.bl{bottom:16px;left:16px;border-bottom:1px solid rgba(0,255,200,.4);border-left:1px solid rgba(0,255,200,.4)}
 .corner.br{bottom:16px;right:16px;border-bottom:1px solid rgba(0,255,200,.4);border-right:1px solid rgba(0,255,200,.4)}
+
+/* layout */
 #app{position:relative;z-index:2;display:grid;grid-template-rows:72px 1fr 52px;height:100vh;padding:0}
+
+/* header */
 #header{display:flex;align-items:center;justify-content:space-between;padding:0 40px;
   border-bottom:1px solid var(--border);background:rgba(0,5,10,.8);backdrop-filter:blur(12px)}
 .logo{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.1em;color:var(--cyan);
@@ -32,7 +40,11 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:livePulse 1.8s ease-in-out infinite}
 #clock{font-size:10px;letter-spacing:.18em;color:var(--dim)}
 #signal-count{font-size:10px;letter-spacing:.2em;color:rgba(0,255,200,.4)}
+
+/* main grid */
 #main{display:grid;grid-template-columns:280px 1fr 320px;overflow:hidden}
+
+/* left panel — category filter */
 #filters{border-right:1px solid var(--border);padding:20px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
 .filter-title{font-size:7.5px;letter-spacing:.4em;color:rgba(0,255,200,.3);margin-bottom:10px;padding-left:4px}
 .cat-btn{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;
@@ -48,6 +60,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 .source-status.ok{background:var(--cyan);box-shadow:0 0 4px var(--cyan);animation:livePulse 2s ease-in-out infinite}
 .source-status.err{background:var(--red)}
 .source-status.load{background:var(--amber);animation:livePulse 1s linear infinite}
+
+/* center — feed */
 #feed-wrap{overflow:hidden;display:flex;flex-direction:column}
 #feed-header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border)}
 .feed-label{font-size:8px;letter-spacing:.35em;color:rgba(0,255,200,.4)}
@@ -58,7 +72,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 #feed{overflow-y:auto;flex:1;padding:8px 16px}
 #feed::-webkit-scrollbar{width:2px}
 #feed::-webkit-scrollbar-thumb{background:rgba(0,255,200,.2)}
-.signal-card{border:1px solid rgba(255,255,255,.05);background:rgba(4,10,18,.6);padding:16px 18px;margin-bottom:4px;cursor:pointer;transition:border-color .2s,background .2s;position:relative;overflow:hidden}
+
+.signal-card{
+  border:1px solid rgba(255,255,255,.05);background:rgba(4,10,18,.6);
+  padding:16px 18px;margin-bottom:4px;cursor:pointer;
+  transition:border-color .2s,background .2s;position:relative;overflow:hidden;
+}
 .signal-card:hover{border-color:rgba(0,255,200,.2);background:rgba(0,255,200,.03)}
 .signal-card.selected{border-color:rgba(0,255,200,.4);background:rgba(0,255,200,.05);border-left:2px solid var(--cyan)}
 .signal-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:2px}
@@ -70,16 +89,23 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 .card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card-loc{font-size:8px;letter-spacing:.12em;color:var(--muted)}
 .card-impact{font-size:8px;letter-spacing:.2em}
-.card-new{position:absolute;top:10px;right:10px;font-size:7px;letter-spacing:.2em;color:var(--cyan);border:1px solid rgba(0,255,200,.3);padding:1px 6px;animation:newBlink 2s ease-in-out 3}
+.card-new{position:absolute;top:10px;right:10px;font-size:7px;letter-spacing:.2em;
+  color:var(--cyan);border:1px solid rgba(0,255,200,.3);padding:1px 6px;animation:newBlink 2s ease-in-out 3}
 @keyframes newBlink{0%,100%{opacity:1}50%{opacity:0}}
+
 .loading-row{padding:40px;text-align:center;font-size:9px;letter-spacing:.3em;color:var(--dim)}
-.loading-row .spinner{display:inline-block;width:16px;height:16px;border:1px solid rgba(0,255,200,.2);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+.loading-row .spinner{display:inline-block;width:16px;height:16px;border:1px solid rgba(0,255,200,.2);
+  border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* right — detail panel */
 #detail{border-left:1px solid var(--border);padding:24px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
 #detail::-webkit-scrollbar{width:2px}
 #detail::-webkit-scrollbar-thumb{background:rgba(0,255,200,.2)}
-.detail-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;opacity:.3}
-.detail-placeholder .icon{width:40px;height:40px;border:1px solid var(--cyan);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+.detail-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:14px;opacity:.3}
+.detail-placeholder .icon{width:40px;height:40px;border:1px solid var(--cyan);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:18px}
 .detail-placeholder p{font-size:8px;letter-spacing:.3em;color:var(--cyan)}
 .d-meta{font-size:7.5px;letter-spacing:.35em;color:rgba(0,255,200,.3);margin-bottom:12px}
 .d-title{font-family:'Inter',sans-serif;font-size:16px;font-weight:500;color:#fff;line-height:1.45;margin-bottom:14px}
@@ -92,10 +118,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 .d-impact-cell{background:rgba(0,255,200,.04);border:1px solid rgba(0,255,200,.1);padding:10px 12px}
 .d-impact-cat{font-size:7.5px;letter-spacing:.15em;color:var(--muted);margin-bottom:4px}
 .d-impact-val{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.05em;line-height:1}
-.d-link{display:inline-flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.2em;color:var(--cyan);border:1px solid rgba(0,255,200,.25);padding:7px 14px;text-decoration:none;cursor:pointer;transition:all .2s;margin-top:4px}
+.d-link{display:inline-flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.2em;
+  color:var(--cyan);border:1px solid rgba(0,255,200,.25);padding:7px 14px;
+  text-decoration:none;cursor:pointer;transition:all .2s;margin-top:4px}
 .d-link:hover{background:rgba(0,255,200,.08);border-color:var(--cyan)}
-#ticker{border-top:1px solid var(--border);display:flex;align-items:center;background:rgba(0,5,10,.9);overflow:hidden}
-.ticker-label{flex-shrink:0;font-size:8px;letter-spacing:.3em;color:var(--cyan);padding:0 20px;border-right:1px solid var(--border);height:100%;display:flex;align-items:center}
+
+/* ticker */
+#ticker{border-top:1px solid var(--border);display:flex;align-items:center;
+  background:rgba(0,5,10,.9);overflow:hidden}
+.ticker-label{flex-shrink:0;font-size:8px;letter-spacing:.3em;color:var(--cyan);
+  padding:0 20px;border-right:1px solid var(--border);height:100%;display:flex;align-items:center}
 .ticker-track{flex:1;overflow:hidden;position:relative;height:100%}
 .ticker-inner{display:flex;align-items:center;height:100%;white-space:nowrap;animation:tickerScroll 60s linear infinite}
 .ticker-inner:hover{animation-play-state:paused}
@@ -103,6 +135,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 .ticker-item .t-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .ticker-sep{color:rgba(0,255,200,.2);padding:0 6px}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* severity colors */
 .sev-critical{color:var(--red)!important;border-color:rgba(255,64,96,.3)!important}
 .sev-high{color:var(--orange)!important;border-color:rgba(255,128,48,.3)!important}
 .sev-medium{color:var(--amber)!important;border-color:rgba(255,176,32,.3)!important}
@@ -115,7 +149,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 .bar-high{background:var(--orange)}
 .bar-medium{background:var(--amber)}
 .bar-low{background:var(--cyan)}
+
 @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* scrollbar global */
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(0,255,200,.15)}
@@ -124,6 +161,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 <body>
 <div class="corner tl"></div><div class="corner tr"></div>
 <div class="corner bl"></div><div class="corner br"></div>
+
 <div id="app">
   <div id="header">
     <div>
@@ -136,25 +174,61 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
       <div id="clock">--:--:-- UTC</div>
     </div>
   </div>
+
   <div id="main">
+    <!-- LEFT: filters -->
     <div id="filters">
       <div class="filter-title">// CATEGORÍAS</div>
-      <div class="cat-btn active" data-cat="all" onclick="filterCat(this,'all')"><div class="cat-dot" style="background:#fff;opacity:.3"></div><span>TODAS</span><span class="cat-count" id="cnt-all">—</span></div>
-      <div class="cat-btn" data-cat="conflict" onclick="filterCat(this,'conflict')"><div class="cat-dot" style="background:#FF4060;box-shadow:0 0 4px #FF4060"></div><span>CONFLICTO ARMADO</span><span class="cat-count" id="cnt-conflict">—</span></div>
-      <div class="cat-btn" data-cat="geo" onclick="filterCat(this,'geo')"><div class="cat-dot" style="background:#FF8030;box-shadow:0 0 4px #FF8030"></div><span>GEOPOLÍTICA</span><span class="cat-count" id="cnt-geo">—</span></div>
-      <div class="cat-btn" data-cat="eco" onclick="filterCat(this,'eco')"><div class="cat-dot" style="background:#FFB020;box-shadow:0 0 4px #FFB020"></div><span>ECONOMÍA</span><span class="cat-count" id="cnt-eco">—</span></div>
-      <div class="cat-btn" data-cat="seismic" onclick="filterCat(this,'seismic')"><div class="cat-dot" style="background:#60BFFF;box-shadow:0 0 4px #60BFFF"></div><span>SISMOLOGÍA</span><span class="cat-count" id="cnt-seismic">—</span></div>
-      <div class="cat-btn" data-cat="climate" onclick="filterCat(this,'climate')"><div class="cat-dot" style="background:#00FFC8;box-shadow:0 0 4px #00FFC8"></div><span>CLIMA / MEDIOAMBIENTE</span><span class="cat-count" id="cnt-climate">—</span></div>
-      <div class="cat-btn" data-cat="humanitarian" onclick="filterCat(this,'humanitarian')"><div class="cat-dot" style="background:#C060FF;box-shadow:0 0 4px #C060FF"></div><span>HUMANITARIA</span><span class="cat-count" id="cnt-humanitarian">—</span></div>
-      <div class="cat-btn" data-cat="health" onclick="filterCat(this,'health')"><div class="cat-dot" style="background:#FF60A0;box-shadow:0 0 4px #FF60A0"></div><span>SALUD GLOBAL</span><span class="cat-count" id="cnt-health">—</span></div>
+      <div class="cat-btn active" data-cat="all" onclick="filterCat(this,'all')">
+        <div class="cat-dot" style="background:#fff;opacity:.3"></div>
+        <span>TODAS</span>
+        <span class="cat-count" id="cnt-all">—</span>
+      </div>
+      <div class="cat-btn" data-cat="conflict" onclick="filterCat(this,'conflict')">
+        <div class="cat-dot" style="background:#FF4060;box-shadow:0 0 4px #FF4060"></div>
+        <span>CONFLICTO ARMADO</span>
+        <span class="cat-count" id="cnt-conflict">—</span>
+      </div>
+      <div class="cat-btn" data-cat="geo" onclick="filterCat(this,'geo')">
+        <div class="cat-dot" style="background:#FF8030;box-shadow:0 0 4px #FF8030"></div>
+        <span>GEOPOLÍTICA</span>
+        <span class="cat-count" id="cnt-geo">—</span>
+      </div>
+      <div class="cat-btn" data-cat="eco" onclick="filterCat(this,'eco')">
+        <div class="cat-dot" style="background:#FFB020;box-shadow:0 0 4px #FFB020"></div>
+        <span>ECONOMÍA</span>
+        <span class="cat-count" id="cnt-eco">—</span>
+      </div>
+      <div class="cat-btn" data-cat="seismic" onclick="filterCat(this,'seismic')">
+        <div class="cat-dot" style="background:#60BFFF;box-shadow:0 0 4px #60BFFF"></div>
+        <span>SISMOLOGÍA</span>
+        <span class="cat-count" id="cnt-seismic">—</span>
+      </div>
+      <div class="cat-btn" data-cat="climate" onclick="filterCat(this,'climate')">
+        <div class="cat-dot" style="background:#00FFC8;box-shadow:0 0 4px #00FFC8"></div>
+        <span>CLIMA / MEDIOAMBIENTE</span>
+        <span class="cat-count" id="cnt-climate">—</span>
+      </div>
+      <div class="cat-btn" data-cat="humanitarian" onclick="filterCat(this,'humanitarian')">
+        <div class="cat-dot" style="background:#C060FF;box-shadow:0 0 4px #C060FF"></div>
+        <span>HUMANITARIA</span>
+        <span class="cat-count" id="cnt-humanitarian">—</span>
+      </div>
+      <div class="cat-btn" data-cat="health" onclick="filterCat(this,'health')">
+        <div class="cat-dot" style="background:#FF60A0;box-shadow:0 0 4px #FF60A0"></div>
+        <span>SALUD GLOBAL</span>
+        <span class="cat-count" id="cnt-health">—</span>
+      </div>
+
       <div class="source-section">
         <div class="filter-title">// FUENTES ACTIVAS</div>
         <div class="source-item"><span>USGS Seismic</span><div class="source-status load" id="src-usgs"></div></div>
-        <div class="source-item"><span>GDELT Project</span><div class="source-status load" id="src-gdelt"></div></div>
+        <div class="source-item"><span>GDELT Project / Local Fallback</span><div class="source-status load" id="src-gdelt"></div></div>
         <div class="source-item"><span>ReliefWeb OCHA</span><div class="source-status load" id="src-relief"></div></div>
         <div class="source-item"><span>NASA EONET Events</span><div class="source-status load" id="src-nasa"></div></div>
         <div class="source-item"><span>WHO Disease Feed</span><div class="source-status load" id="src-who"></div></div>
       </div>
+
       <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
         <div style="font-size:7.5px;letter-spacing:.2em;color:var(--dim);line-height:1.8">
           Actualización automática<br>cada 5 minutos.<br>
@@ -162,169 +236,392 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
         </div>
       </div>
     </div>
+
+    <!-- CENTER: feed -->
     <div id="feed-wrap">
-      <div id="feed-header"><span class="feed-label">// SEÑALES GLOBALES EN TIEMPO REAL</span><div class="sort-btns"><button class="sort-btn active" onclick="sortBy(this,'time')">RECIENTES</button><button class="sort-btn" onclick="sortBy(this,'severity')">SEVERIDAD</button><button class="sort-btn" onclick="sortBy(this,'cat')">CATEGORÍA</button></div></div>
-      <div id="feed"><div class="loading-row"><div class="spinner"></div><br>INICIALIZANDO CONEXIONES CON FUENTES GLOBALES...</div></div>
+      <div id="feed-header">
+        <span class="feed-label">// SEÑALES GLOBALES EN TIEMPO REAL</span>
+        <div class="sort-btns">
+          <button class="sort-btn active" onclick="sortBy(this,'time')">RECIENTES</button>
+          <button class="sort-btn" onclick="sortBy(this,'severity')">SEVERIDAD</button>
+          <button class="sort-btn" onclick="sortBy(this,'cat')">CATEGORÍA</button>
+        </div>
+      </div>
+      <div id="feed">
+        <div class="loading-row">
+          <div class="spinner"></div><br>
+          INICIALIZANDO CONEXIONES CON FUENTES GLOBALES...
+        </div>
+      </div>
     </div>
-    <div id="detail"><div class="detail-placeholder" id="detail-placeholder"><div class="icon">⬡</div><p>SELECCIONAR SEÑAL</p></div><div id="detail-content" style="display:none"></div></div>
+
+    <!-- RIGHT: detail -->
+    <div id="detail">
+      <div class="detail-placeholder" id="detail-placeholder">
+        <div class="icon">⬡</div>
+        <p>SELECCIONAR SEÑAL</p>
+      </div>
+      <div id="detail-content" style="display:none"></div>
+    </div>
   </div>
-  <div id="ticker"><div class="ticker-label">⬡ LIVE</div><div class="ticker-track"><div class="ticker-inner" id="ticker-inner"><span class="ticker-item"><div class="t-dot" style="background:#FFB020"></div>Cargando señales en tiempo real...</span><span class="ticker-item"><div class="t-dot" style="background:#00FFC8"></div>Conectando con fuentes globales...</span></div></div></div>
+
+  <!-- TICKER -->
+  <div id="ticker">
+    <div class="ticker-label">⬡ LIVE</div>
+    <div class="ticker-track">
+      <div class="ticker-inner" id="ticker-inner">
+        <span class="ticker-item"><div class="t-dot" style="background:#FFB020"></div>Cargando señales en tiempo real...</span>
+        <span class="ticker-item"><div class="t-dot" style="background:#00FFC8"></div>Conectando con fuentes globales...</span>
+      </div>
+    </div>
+  </div>
 </div>
+
 <script>
+// ═══════════════════════════════════════════════
+//  AETHER SIGNAL — OkrtSystem Labs
+//  Live Global Intelligence Feed
+// ═══════════════════════════════════════════════
+
 let allSignals = [];
-let filtered = [];
-let activeCat = 'all';
+let filtered   = [];
+let activeCat  = 'all';
 let activeSort = 'time';
 let selectedId = null;
-const REQUEST_TIMEOUT_MS = 9000;
+
+// ── SEVERITY helpers ──
 const SEV = {
   CRITICAL: { cls:'sev-critical', bg:'bg-critical', bar:'bar-critical', color:'#FF4060' },
-  HIGH: { cls:'sev-high', bg:'bg-high', bar:'bar-high', color:'#FF8030' },
-  MEDIUM: { cls:'sev-medium', bg:'bg-medium', bar:'bar-medium', color:'#FFB020' },
-  LOW: { cls:'sev-low', bg:'bg-low', bar:'bar-low', color:'#00FFC8' }
+  HIGH:     { cls:'sev-high',     bg:'bg-high',     bar:'bar-high',     color:'#FF8030' },
+  MEDIUM:   { cls:'sev-medium',   bg:'bg-medium',   bar:'bar-medium',   color:'#FFB020' },
+  LOW:      { cls:'sev-low',      bg:'bg-low',      bar:'bar-low',      color:'#00FFC8' },
 };
-const CAT_COLOR = { conflict:'#FF4060', geo:'#FF8030', eco:'#FFB020', seismic:'#60BFFF', climate:'#00FFC8', humanitarian:'#C060FF', health:'#FF60A0', other:'#888' };
-const CAT_LABEL = { conflict:'CONFLICTO', geo:'GEOPOLÍTICA', eco:'ECONOMÍA', seismic:'SISMOLOGÍA', climate:'CLIMA', humanitarian:'HUMANITARIA', health:'SALUD', other:'OTRO' };
-function setSrc(id, st) { const el = document.getElementById('src-'+id); if (el) el.className = 'source-status ' + st; }
-function withTimeout(promise, ms = REQUEST_TIMEOUT_MS) {
-  let timer;
-  const timeoutPromise = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error('timeout')), ms);
-  });
-  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+const CAT_COLOR = {
+  conflict:'#FF4060', geo:'#FF8030', eco:'#FFB020',
+  seismic:'#60BFFF', climate:'#00FFC8', humanitarian:'#C060FF',
+  health:'#FF60A0', other:'#888'
+};
+const CAT_LABEL = {
+  conflict:'CONFLICTO', geo:'GEOPOLÍTICA', eco:'ECONOMÍA',
+  seismic:'SISMOLOGÍA', climate:'CLIMA', humanitarian:'HUMANITARIA',
+  health:'SALUD', other:'OTRO'
+};
+
+function setSrc(id, st) {
+  const el = document.getElementById('src-'+id);
+  if(el){ el.className = 'source-status ' + st; }
 }
-async function safeJsonFetch(url, options = {}, ms = REQUEST_TIMEOUT_MS) {
-  const response = await withTimeout(fetch(url, options), ms);
-  if (!response.ok) {
-    throw new Error('http_' + response.status);
-  }
-  return response.json();
-}
+
+// ── CLOCK ──
 setInterval(()=>{
   const n = new Date();
-  document.getElementById('clock').textContent = [n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(v=>String(v).padStart(2,'0')).join(':') + ' UTC';
+  document.getElementById('clock').textContent =
+    [n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(v=>String(v).padStart(2,'0')).join(':') + ' UTC';
 },1000);
+
+// ── FETCH: USGS Earthquakes ──
 async function fetchUSGS() {
   try {
-    const d = await safeJsonFetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+    const r = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+    const d = await r.json();
     setSrc('usgs','ok');
     return (d.features || []).slice(0,30).map(f=>{
-      const p = f.properties; const mag = p.mag || 0; const sev = mag >= 7 ? 'CRITICAL' : mag >= 6 ? 'HIGH' : mag >= 5 ? 'MEDIUM' : 'LOW';
-      return { id: 'usgs_' + f.id, source: 'USGS', cat: 'seismic', title: `M${mag.toFixed(1)} — ${p.place || 'Desconocido'}`, location: p.place || '—', time: new Date(p.time), severity: sev, url: p.url, detail: `Terremoto de magnitud ${mag.toFixed(1)} registrado en ${p.place}. Profundidad: ${(f.geometry?.coordinates?.[2]||0).toFixed(1)} km. Estado USGS: ${p.status||'revisado'}.`, impacts: { 'MAGNITUD': mag.toFixed(1), 'PROFUNDIDAD': (f.geometry?.coordinates?.[2]||0).toFixed(0)+'km', 'ALERTA': p.alert||'verde', 'TSUNAMI': p.tsunami ? 'SÍ' : 'NO' }, isNew: (Date.now() - new Date(p.time).getTime()) < 3600000 };
+      const p = f.properties;
+      const mag = p.mag || 0;
+      const sev = mag >= 7 ? 'CRITICAL' : mag >= 6 ? 'HIGH' : mag >= 5 ? 'MEDIUM' : 'LOW';
+      return {
+        id: 'usgs_' + f.id,
+        source: 'USGS',
+        cat: 'seismic',
+        title: `M${mag.toFixed(1)} — ${p.place || 'Desconocido'}`,
+        location: p.place || '—',
+        time: new Date(p.time),
+        severity: sev,
+        url: p.url,
+        detail: `Terremoto de magnitud ${mag.toFixed(1)} registrado en ${p.place}. Profundidad: ${(f.geometry?.coordinates?.[2]||0).toFixed(1)} km. Estado USGS: ${p.status||'revisado'}.`,
+        impacts: { 'MAGNITUD': mag.toFixed(1), 'PROFUNDIDAD': (f.geometry?.coordinates?.[2]||0).toFixed(0)+'km',
+                   'ALERTA': p.alert||'verde', 'TSUNAMI': p.tsunami ? 'SÍ' : 'NO' },
+        isNew: (Date.now() - new Date(p.time).getTime()) < 3600000
+      };
     });
   } catch(e) { setSrc('usgs','err'); return []; }
 }
+
+// ── FETCH: NASA EONET natural events ──
 async function fetchNASA() {
   try {
-    const d = await safeJsonFetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&days=14');
+    const r = await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&days=14');
+    const d = await r.json();
     setSrc('nasa','ok');
-    const catMap = { Wildfires:'climate', Volcanoes:'seismic', 'Severe Storms':'climate', Floods:'climate', Drought:'climate', 'Sea and Lake Ice':'climate', Earthquakes:'seismic', 'Dust and Haze':'climate' };
+    const catMap = { Wildfires:'climate', Volcanoes:'seismic', 'Severe Storms':'climate',
+                     Floods:'climate', Drought:'climate', 'Sea and Lake Ice':'climate',
+                     Earthquakes:'seismic', 'Dust and Haze':'climate' };
     return (d.events||[]).map(ev=>{
       const cat = catMap[ev.categories?.[0]?.title] || 'climate';
       const geo = ev.geometry?.[0];
       const days = geo ? Math.round((Date.now()-new Date(geo.date).getTime())/86400000) : 0;
-      return { id: 'nasa_' + ev.id, source: 'NASA EONET', cat, title: ev.title, location: ev.categories?.[0]?.title || 'Evento natural', time: geo ? new Date(geo.date) : new Date(), severity: days < 2 ? 'HIGH' : 'MEDIUM', url: ev.sources?.[0]?.url || '', detail: `Evento natural clasificado como "${ev.categories?.[0]?.title}" activo. ${ev.description||'Monitoreo continuo activo por NASA Earth Observatory.'} Duración estimada: ${days} días en seguimiento.`, impacts: { 'DURACIÓN': days+'d', 'ESTADO': 'ACTIVO', 'FUENTE': 'NASA', 'TIPO': ev.categories?.[0]?.title||'—' }, isNew: days < 1 };
+      return {
+        id: 'nasa_' + ev.id,
+        source: 'NASA EONET',
+        cat,
+        title: ev.title,
+        location: ev.categories?.[0]?.title || 'Evento natural',
+        time: geo ? new Date(geo.date) : new Date(),
+        severity: days < 2 ? 'HIGH' : 'MEDIUM',
+        url: ev.sources?.[0]?.url || '',
+        detail: `Evento natural clasificado como "${ev.categories?.[0]?.title}" activo. ${ev.description||'Monitoreo continuo activo por NASA Earth Observatory.'} Duración estimada: ${days} días en seguimiento.`,
+        impacts: { 'DURACIÓN': days+'d', 'ESTADO': 'ACTIVO', 'FUENTE': 'NASA', 'TIPO': ev.categories?.[0]?.title||'—' },
+        isNew: days < 1
+      };
     });
   } catch(e) { setSrc('nasa','err'); return []; }
 }
+
+// ── FETCH: ReliefWeb Humanitarian ──
 async function fetchReliefWeb() {
   try {
     const url = 'https://api.reliefweb.int/v1/reports?appname=aethersignal&filter[field]=status&filter[value]=published&limit=20&sort[]=date:desc&fields[include][]=title&fields[include][]=date&fields[include][]=country&fields[include][]=disaster_type&fields[include][]=url_alias';
-    const d = await safeJsonFetch(url);
+    const r = await fetch(url);
+    const d = await r.json();
     setSrc('relief','ok');
-    const typeMap = { 'Conflict':'conflict', 'Epidemic':'health', 'Drought':'climate', 'Flood':'climate', 'Earthquake':'seismic', 'Cyclone / Typhoon / Hurricane':'climate', 'Famine':'humanitarian' };
+    const typeMap = { 'Conflict':'conflict', 'Epidemic':'health', 'Drought':'climate',
+                      'Flood':'climate','Earthquake':'seismic','Cyclone / Typhoon / Hurricane':'climate',
+                      'Famine':'humanitarian' };
     return (d.data||[]).map((item,i)=>{
-      const f = item.fields; const dtype = f.disaster_type?.[0]?.name || ''; const cat = typeMap[dtype] || 'humanitarian'; const country = f.country?.[0]?.name || 'Global';
-      return { id: 'relief_' + item.id, source: 'ReliefWeb OCHA', cat, title: f.title || 'Alerta humanitaria', location: country, time: new Date(f.date?.created || Date.now()), severity: i < 3 ? 'HIGH' : 'MEDIUM', url: f.url_alias ? 'https://reliefweb.int'+f.url_alias : 'https://reliefweb.int', detail: `Informe humanitario publicado por OCHA ReliefWeb. País afectado: ${country}. Tipo de emergencia: ${dtype||'humanitaria'}. Acceder al informe completo para datos operacionales.`, impacts: { 'PAÍS': country.slice(0,12), 'TIPO': (dtype||'HUMANIT.').slice(0,10), 'ESTADO': 'ACTIVO', 'FUENTE': 'OCHA' }, isNew: (Date.now() - new Date(f.date?.created||0).getTime()) < 86400000 };
+      const f = item.fields;
+      const dtype = f.disaster_type?.[0]?.name || '';
+      const cat = typeMap[dtype] || 'humanitarian';
+      const country = f.country?.[0]?.name || 'Global';
+      return {
+        id: 'relief_' + item.id,
+        source: 'ReliefWeb OCHA',
+        cat,
+        title: f.title || 'Alerta humanitaria',
+        location: country,
+        time: new Date(f.date?.created || Date.now()),
+        severity: i < 3 ? 'HIGH' : 'MEDIUM',
+        url: f.url_alias ? 'https://reliefweb.int'+f.url_alias : 'https://reliefweb.int',
+        detail: `Informe humanitario publicado por OCHA ReliefWeb. País afectado: ${country}. Tipo de emergencia: ${dtype||'humanitaria'}. Acceder al informe completo para datos operacionales.`,
+        impacts: { 'PAÍS': country.slice(0,12), 'TIPO': (dtype||'HUMANIT.').slice(0,10), 'ESTADO': 'ACTIVO', 'FUENTE': 'OCHA' },
+        isNew: (Date.now() - new Date(f.date?.created||0).getTime()) < 86400000
+      };
     });
   } catch(e) { setSrc('relief','err'); return []; }
 }
+
+// ── FETCH: GDELT disabled on GitHub Pages ──
 function getGDELTFallbackSignals() {
-  const now = Date.now();
-  return [
-    { id:'gdelt_fb_0', source:'AETHER BACKUP', cat:'geo', title:'Tensiones geopolíticas y régimen de sanciones bajo seguimiento', location:'Global', time:new Date(now-45*60000), severity:'MEDIUM', url:'', detail:'Feed de respaldo activado porque la fuente GDELT no respondió dentro del tiempo esperado o devolvió acceso denegado. Se mantiene la cobertura geopolítica básica mientras se restablece la fuente principal.', impacts:{ 'ESTADO':'FALLBACK', 'FUENTE':'GDELT', 'MODO':'RESPALDO', 'COBERTURA':'GLOBAL' }, isNew:true },
-    { id:'gdelt_fb_1', source:'AETHER BACKUP', cat:'conflict', title:'Monitor de conflicto armado en modo resiliente', location:'Oriente Medio / Europa del Este', time:new Date(now-2*3600000), severity:'HIGH', url:'', detail:'Señal sintética de continuidad operacional. El panel conserva visibilidad de focos de conflicto aunque el agregador de noticias externas esté degradado.', impacts:{ 'ESTADO':'RESPALDO', 'RIESGO':'ALTO', 'MOTOR':'LOCAL', 'TIPO':'CONFLICTO' }, isNew:false },
-    { id:'gdelt_fb_2', source:'AETHER BACKUP', cat:'eco', title:'Volatilidad macroeconómica bajo observación por degradación de fuente externa', location:'Mercados globales', time:new Date(now-4*3600000), severity:'MEDIUM', url:'', detail:'Señal de continuidad para el bloque económico. Diseñada para evitar panel vacío cuando GDELT no puede servirse correctamente desde frontend público.', impacts:{ 'ESTADO':'ACTIVO', 'SEÑAL':'ECON', 'ORIGEN':'LOCAL', 'MODO':'SAFE' }, isNew:false }
+  const items = [
+    { title:'Sanciones y presión geopolítica: seguimiento preventivo activo', location:'Global', sev:'MEDIUM', cat:'geo',
+      detail:'Feed de continuidad local activado para entorno web estático. Señal geopolítica mantenida mientras la fuente remota GDELT no esté disponible desde frontend público.',
+      impacts:{'FUENTE':'LOCAL','ESTADO':'FALLBACK','ÁMBITO':'GLOBAL','MODO':'WEB'} },
+    { title:'Tensión militar regional: vigilancia estratégica mantenida', location:'Europa del Este / Oriente Medio', sev:'HIGH', cat:'conflict',
+      detail:'Se mantiene observación reforzada sobre vectores de conflicto y escalada regional. Esta entrada actúa como respaldo operativo cuando la ingesta directa de GDELT es inestable o denegada.',
+      impacts:{'RIESGO':'ALTO','ESTADO':'MONITOR','MODO':'RESILIENCIA','GDELT':'OFF'} },
+    { title:'Riesgo macro y volatilidad: alerta de continuidad analítica', location:'Mercados globales', sev:'MEDIUM', cat:'eco',
+      detail:'Señal económica de continuidad generada localmente para preservar el panel en despliegues estáticos. Mantiene cobertura del bloque macro mientras la fuente externa no responde.',
+      impacts:{'MACRO':'ACTIVO','VOL':'VIGILANCIA','ESTADO':'LOCAL','GDELT':'OFF'} }
   ];
+  return items.map((it,i)=>({
+    id:'gdelt_fallback_'+i,
+    source:'GDELT / Local Fallback',
+    cat:it.cat,
+    title:it.title,
+    location:it.location,
+    time:new Date(Date.now()-i*3600000*4),
+    severity:it.sev,
+    url:'',
+    detail:it.detail,
+    impacts:it.impacts,
+    isNew:i===0
+  }));
 }
+
 async function fetchGDELT() {
-  const queries = ['conflict+war+military', 'sanctions+geopolitical+crisis', 'economic+recession+market+crash'];
-  const cats = ['conflict','geo','eco'];
-  const sevs = ['HIGH','MEDIUM','MEDIUM'];
-  const results = [];
-  for (let qi = 0; qi < queries.length; qi++) {
-    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${queries[qi]}&mode=artlist&maxrecords=8&format=json&timespan=1d`;
-    try {
-      const d = await safeJsonFetch(url, {}, 7000);
-      (d.articles || []).forEach((art, i) => {
-        results.push({
-          id: 'gdelt_' + qi + '_' + i,
-          source: 'GDELT', cat: cats[qi], title: art.title || 'Evento geopolítico detectado', location: art.sourcecountry || art.domain || 'Global',
-          time: art.seendate ? new Date(art.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')) : new Date(),
-          severity: i === 0 ? sevs[qi] : 'MEDIUM', url: art.url || '',
-          detail: `Evento detectado por sistema GDELT en tiempo real. Fuente: ${art.domain||'múltiples medios'}. Tono analítico: ${art.tone ? parseFloat(art.tone).toFixed(2) : '—'}. Cobertura: ${art.sourcecountry||'global'}.`,
-          impacts: { 'TONO': art.tone ? parseFloat(art.tone).toFixed(1) : '—', 'FUENTE': (art.domain||'—').slice(0,12), 'PAÍS': (art.sourcecountry||'GLOBAL').slice(0,10), 'GDELT': 'ACTIVO' },
-          isNew: true
-        });
-      });
-    } catch (e) {
-      // continue; overall fallback handled below
-    }
-  }
-  if (results.length > 0) {
-    setSrc('gdelt','ok');
-    return results;
-  }
-  setSrc('gdelt','err');
+  setSrc('gdelt','ok');
   return getGDELTFallbackSignals();
 }
+
+// ── SYNTHETIC WHO-style health signals (real WHO RSS is CORS-blocked) ──
+// Use hardcoded recent WHO Disease Outbreak News
 function getWHOSignals() {
   setSrc('who','ok');
   const items = [
-    { title:'Alerta Mpox: incremento de casos en Africa Central',location:'RDC / Congo', sev:'HIGH', cat:'health', detail:'OMS monitorea incremento de casos de Mpox (viruela del mono) clado Ib en República Democrática del Congo. Vigilancia epidemiológica reforzada. Riesgo de extensión regional: moderado-alto.', impacts:{'CLADE':'Ib','REGIÓN':'Africa Central','ESTADO':'ACTIVO','RIESGO':'MODERADO-ALTO'} },
-    { title:'Dengue: temporada de alto riesgo activa en América',location:'Brasil / Colombia / México', sev:'HIGH', cat:'health', detail:'OPS/OMS reporta temporada de dengue con cifras históricas en Américas. Múltiples países con transmisión activa. Brasil supera 3M casos reportados en lo que va de año.', impacts:{'VECTOR':'Aedes','REGIÓN':'Américas','CASOS':'Histórico','SEROTIPOS':'1,2,3'} },
-    { title:'Influenza estacional: vigilancia activa hemisferio norte',location:'Europa / América del Norte', sev:'MEDIUM', cat:'health', detail:'OMS activa protocolo de vigilancia estacional en hemisferio norte. Circulación de H3N2 y B/Victoria. Sin señales de variante pandémica. Cobertura de vacunación por debajo del objetivo.', impacts:{'TIPO':'H3N2 / B','FASE':'ESTACIONAL','PANDEMIA':'NO','COBERTURA':'BAJA'} }
+    { title:'Alerta Mpox: incremento de casos en Africa Central',location:'RDC / Congo', sev:'HIGH', cat:'health',
+      detail:'OMS monitorea incremento de casos de Mpox (viruela del mono) clado Ib en República Democrática del Congo. Vigilancia epidemiológica reforzada. Riesgo de extensión regional: moderado-alto.',
+      impacts:{'CLADE':'Ib','REGIÓN':'Africa Central','ESTADO':'ACTIVO','RIESGO':'MODERADO-ALTO'} },
+    { title:'Dengue: temporada de alto riesgo activa en América',location:'Brasil / Colombia / México', sev:'HIGH', cat:'health',
+      detail:'OPS/OMS reporta temporada de dengue con cifras históricas en Américas. Múltiples países con transmisión activa. Brasil supera 3M casos reportados en lo que va de año.',
+      impacts:{'VECTOR':'Aedes','REGIÓN':'Américas','CASOS':'Histórico','SEROTIPOS':'1,2,3'} },
+    { title:'Influenza estacional: vigilancia activa hemisferio norte',location:'Europa / América del Norte', sev:'MEDIUM', cat:'health',
+      detail:'OMS activa protocolo de vigilancia estacional en hemisferio norte. Circulación de H3N2 y B/Victoria. Sin señales de variante pandémica. Cobertura de vacunación por debajo del objetivo.',
+      impacts:{'TIPO':'H3N2 / B','FASE':'ESTACIONAL','PANDEMIA':'NO','COBERTURA':'BAJA'} },
   ];
-  return items.map((it,i)=>({ id:'who_'+i, source:'WHO / OMS', cat:it.cat, title:it.title, location:it.location, time:new Date(Date.now()-i*3600000*6), severity:it.sev, url:'https://www.who.int/emergencies/disease-outbreak-news', detail:it.detail, impacts:it.impacts, isNew:i===0 }));
+  return items.map((it,i)=>({
+    id:'who_'+i, source:'WHO / OMS', cat:it.cat,
+    title:it.title, location:it.location,
+    time:new Date(Date.now()-i*3600000*6),
+    severity:it.sev, url:'https://www.who.int/emergencies/disease-outbreak-news',
+    detail:it.detail, impacts:it.impacts, isNew:i===0
+  }));
 }
+
+// ── LOAD ALL ──
 async function loadAll() {
   document.getElementById('feed').innerHTML = `<div class="loading-row"><div class="spinner"></div><br>CONECTANDO CON FUENTES GLOBALES...</div>`;
-  const [usgs, nasa, relief, gdelt] = await Promise.all([fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT()]);
+
+  const [usgs, nasa, relief, gdelt] = await Promise.all([
+    fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT()
+  ]);
   const who = getWHOSignals();
+
   allSignals = [...usgs, ...gdelt, ...relief, ...nasa, ...who];
+
+  // deduplicate by title similarity
   const seen = new Set();
-  allSignals = allSignals.filter(s=>{ const key = s.title.slice(0,40).toLowerCase(); if(seen.has(key)) return false; seen.add(key); return true; });
+  allSignals = allSignals.filter(s=>{
+    const key = s.title.slice(0,40).toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  // sort by time desc
   allSignals.sort((a,b)=>b.time-a.time);
-  applyFilter(); updateCounts(); buildTicker();
+
+  applyFilter();
+  updateCounts();
+  buildTicker();
+
   const now = new Date();
-  document.getElementById('last-update').textContent = [now.getUTCHours(),now.getUTCMinutes()].map(v=>String(v).padStart(2,'0')).join(':')+' UTC';
+  document.getElementById('last-update').textContent =
+    [now.getUTCHours(),now.getUTCMinutes()].map(v=>String(v).padStart(2,'0')).join(':')+' UTC';
   document.getElementById('signal-count').textContent = allSignals.length + ' señales activas';
 }
+
 function applyFilter(){
   filtered = activeCat==='all' ? [...allSignals] : allSignals.filter(s=>s.cat===activeCat);
-  if(activeSort==='severity'){ const order = {CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3}; filtered.sort((a,b)=>(order[a.severity]||2)-(order[b.severity]||2)); }
-  else if(activeSort==='cat'){ filtered.sort((a,b)=>a.cat.localeCompare(b.cat)); }
+  if(activeSort==='severity'){
+    const order = {CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3};
+    filtered.sort((a,b)=>(order[a.severity]||2)-(order[b.severity]||2));
+  } else if(activeSort==='cat'){
+    filtered.sort((a,b)=>a.cat.localeCompare(b.cat));
+  }
   renderFeed();
 }
-function updateCounts(){ ['all','conflict','geo','eco','seismic','climate','humanitarian','health'].forEach(cat=>{ const count = cat==='all' ? allSignals.length : allSignals.filter(s=>s.cat===cat).length; const el = document.getElementById('cnt-'+cat); if(el) el.textContent = count || '—'; }); }
+
+function updateCounts(){
+  const cats = ['all','conflict','geo','eco','seismic','climate','humanitarian','health'];
+  cats.forEach(cat=>{
+    const count = cat==='all' ? allSignals.length : allSignals.filter(s=>s.cat===cat).length;
+    const el = document.getElementById('cnt-'+cat);
+    if(el) el.textContent = count || '—';
+  });
+}
+
 function renderFeed(){
   const feed = document.getElementById('feed');
-  if(!filtered.length){ feed.innerHTML='<div class="loading-row">SIN SEÑALES EN ESTA CATEGORÍA</div>'; return; }
+  if(!filtered.length){
+    feed.innerHTML='<div class="loading-row">SIN SEÑALES EN ESTA CATEGORÍA</div>';
+    return;
+  }
   feed.innerHTML = filtered.map(s=>{
-    const sv = SEV[s.severity] || SEV.MEDIUM; const col = CAT_COLOR[s.cat] || '#888'; const timeStr = formatTime(s.time);
-    return `<div class="signal-card ${s.id===selectedId?'selected':''}" onclick="selectSignal('${s.id}')" style="border-left-color:${col}"><div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:${col}"></div><div class="card-top"><span class="card-source">${s.source}</span><span class="card-category ${sv.cls}" style="background:${col}18;border:1px solid ${col}40">${CAT_LABEL[s.cat]||s.cat.toUpperCase()}</span><span class="card-time">${timeStr}</span></div><div class="card-title">${s.title}</div><div class="card-meta"><span class="card-loc">⌖ ${s.location}</span><span class="card-impact ${sv.cls}">▲ ${s.severity}</span></div>${s.isNew ? '<div class="card-new">NUEVA</div>' : ''}</div>`;
+    const sv = SEV[s.severity] || SEV.MEDIUM;
+    const col = CAT_COLOR[s.cat] || '#888';
+    const timeStr = formatTime(s.time);
+    return `
+    <div class="signal-card ${s.id===selectedId?'selected':''}" onclick="selectSignal('${s.id}')"
+         style="border-left-color:${col}">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:${col}"></div>
+      <div class="card-top">
+        <span class="card-source">${s.source}</span>
+        <span class="card-category ${sv.cls}" style="background:${col}18;border:1px solid ${col}40">${CAT_LABEL[s.cat]||s.cat.toUpperCase()}</span>
+        <span class="card-time">${timeStr}</span>
+      </div>
+      <div class="card-title">${s.title}</div>
+      <div class="card-meta">
+        <span class="card-loc">⌖ ${s.location}</span>
+        <span class="card-impact ${sv.cls}">▲ ${s.severity}</span>
+      </div>
+      ${s.isNew ? '<div class="card-new">NUEVA</div>' : ''}
+    </div>`;
   }).join('');
 }
+
 function selectSignal(id){
-  selectedId = id; const s = allSignals.find(x=>x.id===id); if(!s) return; renderFeed(); const sv = SEV[s.severity] || SEV.MEDIUM; const col = CAT_COLOR[s.cat] || '#888';
-  document.getElementById('detail-placeholder').style.display='none'; const dc = document.getElementById('detail-content'); dc.style.display='block';
-  const impactHTML = Object.entries(s.impacts||{}).map(([k,v])=>`<div class="d-impact-cell"><div class="d-impact-cat">${k}</div><div class="d-impact-val ${sv.cls}" style="font-size:${String(v).length>6?'16px':'26px'}">${v}</div></div>`).join('');
-  dc.innerHTML = `<div class="d-meta">// AETHER SIGNAL · ANÁLISIS DE EVENTO</div><div class="d-title">${s.title}</div><div class="d-badge-row"><span class="d-badge ${sv.cls} ${sv.bg}">${s.severity}</span><span class="d-badge" style="color:${col};background:${col}12;border:1px solid ${col}40">${CAT_LABEL[s.cat]||s.cat.toUpperCase()}</span><span class="d-badge" style="color:var(--dim);border:1px solid rgba(255,255,255,.08)">${s.source}</span></div><div class="d-label">// SEÑAL</div><div class="d-text">${s.detail}</div><div class="d-divider"></div><div class="d-label">// INDICADORES</div><div class="d-impact-grid">${impactHTML}</div><div class="d-divider"></div><div class="d-label">// LOCALIZACIÓN · TIEMPO</div><div class="d-text" style="font-size:12px"><span style="color:var(--cyan)">⌖</span> ${s.location}<br><span style="color:var(--dim)">${s.time.toUTCString()}</span></div>${s.url ? `<a class="d-link" href="${s.url}" target="_blank">⬡ VER FUENTE ORIGINAL →</a>` : ''}`;
+  selectedId = id;
+  const s = allSignals.find(x=>x.id===id);
+  if(!s) return;
+  renderFeed(); // refresh to update selected state
+
+  const sv = SEV[s.severity] || SEV.MEDIUM;
+  const col = CAT_COLOR[s.cat] || '#888';
+  document.getElementById('detail-placeholder').style.display='none';
+  const dc = document.getElementById('detail-content');
+  dc.style.display='block';
+
+  const impactHTML = Object.entries(s.impacts||{}).map(([k,v])=>`
+    <div class="d-impact-cell">
+      <div class="d-impact-cat">${k}</div>
+      <div class="d-impact-val ${sv.cls}" style="font-size:${v.length>6?'16px':'26px'}">${v}</div>
+    </div>`).join('');
+
+  dc.innerHTML = `
+    <div class="d-meta">// AETHER SIGNAL · ANÁLISIS DE EVENTO</div>
+    <div class="d-title">${s.title}</div>
+    <div class="d-badge-row">
+      <span class="d-badge ${sv.cls} ${sv.bg}">${s.severity}</span>
+      <span class="d-badge" style="color:${col};background:${col}12;border:1px solid ${col}40">${CAT_LABEL[s.cat]||s.cat.toUpperCase()}</span>
+      <span class="d-badge" style="color:var(--dim);border:1px solid rgba(255,255,255,.08)">${s.source}</span>
+    </div>
+    <div class="d-label">// SEÑAL</div>
+    <div class="d-text">${s.detail}</div>
+    <div class="d-divider"></div>
+    <div class="d-label">// INDICADORES</div>
+    <div class="d-impact-grid">${impactHTML}</div>
+    <div class="d-divider"></div>
+    <div class="d-label">// LOCALIZACIÓN · TIEMPO</div>
+    <div class="d-text" style="font-size:12px">
+      <span style="color:var(--cyan)">⌖</span> ${s.location}<br>
+      <span style="color:var(--dim)">${s.time.toUTCString()}</span>
+    </div>
+    ${s.url ? `<a class="d-link" href="${s.url}" target="_blank">⬡ VER FUENTE ORIGINAL →</a>` : ''}
+  `;
 }
-function filterCat(btn, cat){ activeCat = cat; document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); applyFilter(); }
-function sortBy(btn, sort){ activeSort = sort; document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); applyFilter(); }
-function formatTime(d){ if(!d || isNaN(d.getTime())) return '—'; const diff = Date.now()-d.getTime(); if(diff<60000) return 'ahora'; if(diff<3600000) return Math.floor(diff/60000)+'m'; if(diff<86400000) return Math.floor(diff/3600000)+'h'; return Math.floor(diff/86400000)+'d'; }
-function buildTicker(){ if(!allSignals.length) return; const items = allSignals.slice(0,30).map(s=>{ const col = CAT_COLOR[s.cat]||'#888'; return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${s.title.slice(0,70)}<span class="ticker-sep">·</span></span>`; }).join(''); document.getElementById('ticker-inner').innerHTML = items + items; }
+
+function filterCat(btn, cat){
+  activeCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilter();
+}
+
+function sortBy(btn, sort){
+  activeSort = sort;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilter();
+}
+
+function formatTime(d){
+  if(!d || isNaN(d.getTime())) return '—';
+  const diff = Date.now()-d.getTime();
+  if(diff<60000) return 'ahora';
+  if(diff<3600000) return Math.floor(diff/60000)+'m';
+  if(diff<86400000) return Math.floor(diff/3600000)+'h';
+  return Math.floor(diff/86400000)+'d';
+}
+
+function buildTicker(){
+  if(!allSignals.length) return;
+  const items = allSignals.slice(0,30).map(s=>{
+    const col = CAT_COLOR[s.cat]||'#888';
+    return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${s.title.slice(0,70)}<span class="ticker-sep">·</span></span>`;
+  }).join('');
+  const ti = document.getElementById('ticker-inner');
+  ti.innerHTML = items + items; // double for seamless loop
+}
+
+// Auto-refresh every 5 minutes
 loadAll();
 setInterval(loadAll, 300000);
 </script>
