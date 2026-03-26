@@ -63,11 +63,11 @@
     width:300px; background:rgba(0,4,12,.92);
     border:1px solid rgba(0,255,200,.12); border-left:2px solid #00FFC8;
     backdrop-filter:blur(28px); padding:28px;
-    transition:transform .52s cubic-bezier(.16,1,.3,1);
+    transition:none;
     pointer-events:all; overflow:hidden; max-height:80vh; overflow-y:auto;
   }
   #panel.open { transform:translateY(-50%) translateX(0); }
-  #panel::after { content:''; position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,255,200,.35),transparent); animation:panelScan 3s ease-in-out infinite; pointer-events:none; }
+  #panel::after { content:''; position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,255,200,.35),transparent); animation:none; pointer-events:none; }
   @keyframes panelScan { 0%{top:-2px;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:calc(100% + 2px);opacity:0} }
 
   .pm { font-size:7.5px; letter-spacing:.4em; color:rgba(0,255,200,.45); margin-bottom:12px; }
@@ -100,99 +100,85 @@
 </style>
 
 <style id="aether-l2-style">
-  html.l2-protected, html.l2-protected body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden !important;
-    background: radial-gradient(circle at top, #07131a 0%, #04070b 55%, #010203 100%) !important;
+  #aether-l2-overlay{
+    position:fixed;
+    top:18px;
+    left:50%;
+    transform:translateX(-50%);
+    width:min(980px, calc(100vw - 36px));
+    z-index:2147483647;
+    display:none;
+    pointer-events:none;
   }
-  html.l2-protected body > * {
-    display: none !important;
+  html.l2-protected #aether-l2-overlay{display:block !important;}
+  .aether-l2-card{
+    border:1px solid rgba(255,90,90,.28);
+    background:linear-gradient(180deg, rgba(10,14,18,.90) 0%, rgba(4,8,10,.88) 100%);
+    box-shadow:0 18px 60px rgba(0,0,0,.42), 0 0 0 1px rgba(255,255,255,.03) inset;
+    border-radius:16px;
+    padding:14px 16px;
+    backdrop-filter:blur(10px);
+    color:#effffb;
+    font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   }
-  #aether-l2-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 2147483647;
-    display: none;
-    place-items: center;
-    padding: 24px;
-    background:
-      radial-gradient(circle at 20% 20%, rgba(0,255,200,.10), transparent 28%),
-      radial-gradient(circle at 80% 15%, rgba(0,180,255,.08), transparent 24%),
-      linear-gradient(180deg, #07131a 0%, #02070a 45%, #010203 100%);
-    color: #d9fff8;
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  .aether-l2-kicker{
+    display:inline-block;
+    padding:5px 9px;
+    border-radius:999px;
+    border:1px solid rgba(255,90,90,.28);
+    color:#ff9a9a;
+    background:rgba(255,90,90,.08);
+    font:700 10px/1 "Space Mono", monospace;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    margin-bottom:10px;
   }
-  html.l2-protected #aether-l2-overlay {
-    display: grid !important;
+  .aether-l2-title{
+    margin:0 0 8px;
+    color:#f6fffd;
+    font:700 clamp(18px,2vw,26px)/1.08 "Bebas Neue", Inter, sans-serif;
+    letter-spacing:.04em;
   }
-  .aether-l2-card {
-    width: min(760px, 100%);
-    border: 1px solid rgba(0,255,200,.28);
-    background: rgba(2, 12, 16, .82);
-    box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset, 0 24px 90px rgba(0,0,0,.55);
-    border-radius: 18px;
-    padding: 28px 26px;
-    backdrop-filter: blur(10px);
+  .aether-l2-copy{
+    margin:0;
+    color:rgba(239,255,251,.84);
+    font-size:13px;
+    line-height:1.55;
   }
-  .aether-l2-kicker {
-    display: inline-block;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,80,80,.35);
-    color: #ff8a8a;
-    background: rgba(255,80,80,.08);
-    font: 700 11px/1 "Space Mono", monospace;
-    letter-spacing: .18em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
+  .aether-l2-meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:12px;
   }
-  .aether-l2-title {
-    margin: 0 0 10px;
-    color: #f5fffd;
-    font: 700 clamp(22px, 3vw, 34px)/1.08 "Bebas Neue", Inter, sans-serif;
-    letter-spacing: .04em;
+  .aether-l2-chip{
+    border:1px solid rgba(0,255,200,.14);
+    border-radius:10px;
+    padding:9px 10px;
+    background:rgba(255,255,255,.02);
+    min-width:180px;
   }
-  .aether-l2-copy {
-    margin: 0 0 18px;
-    color: rgba(217,255,248,.82);
-    font-size: 14px;
-    line-height: 1.6;
+  .aether-l2-label{
+    color:rgba(156,255,237,.65);
+    font:700 9px/1 "Space Mono", monospace;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    margin-bottom:7px;
   }
-  .aether-l2-meta {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-    margin-top: 18px;
-  }
-  .aether-l2-meta div {
-    border: 1px solid rgba(0,255,200,.15);
-    border-radius: 12px;
-    padding: 12px;
-    background: rgba(255,255,255,.02);
-  }
-  .aether-l2-label {
-    color: rgba(156,255,237,.65);
-    font: 700 10px/1 "Space Mono", monospace;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-  .aether-l2-value {
-    color: #effffb;
-    font-size: 13px;
-    line-height: 1.45;
-    word-break: break-word;
+  .aether-l2-value{
+    color:#effffb;
+    font-size:12px;
+    line-height:1.4;
+    word-break:break-word;
   }
 </style>
-
-
 <script id="aether-l2-guard">
 (function(){
   const ALLOWED_HOST = "franjuanp.github.io";
   const ALLOWED_BASE = "/OkrtSystemLabs";
-  function isAuthorizedLocation() {
-    try {
+
+  function isAuthorizedLocation(){
+    try{
       const host = String(window.location.hostname || "").toLowerCase();
       const path = String(window.location.pathname || "");
       return host === ALLOWED_HOST && (
@@ -200,50 +186,41 @@
         path === ALLOWED_BASE + "/" ||
         path.indexOf(ALLOWED_BASE + "/") === 0
       );
-    } catch (_) {
+    }catch(_){
       return false;
     }
   }
 
   const authorized = isAuthorizedLocation();
   window.__AETHER_L2_ALLOWED__ = authorized;
-
-  if (authorized) {
-    document.documentElement.classList.add("l2-authorized");
-    return;
-  }
+  if (authorized) return;
 
   document.documentElement.classList.add("l2-protected");
 
-  try {
-    window.fetch = function(){ return Promise.reject(new Error("AETHER_L2_BLOCKED")); };
-    window.XMLHttpRequest = function(){ throw new Error("AETHER_L2_BLOCKED"); };
-    window.requestAnimationFrame = function(){ return 0; };
-    window.cancelAnimationFrame = function(){};
-    window.setInterval = function(){ return 0; };
-  } catch (_) {}
+  function mountL2(){
+    let overlay = document.getElementById("aether-l2-overlay");
+    if(overlay) return;
+    overlay = document.createElement("div");
+    overlay.id = "aether-l2-overlay";
+    overlay.innerHTML =
+      '<div class="aether-l2-card">' +
+        '<div class="aether-l2-kicker">Copyright Protection · Nivel 2</div>' +
+        '<h1 class="aether-l2-title">Uso no autorizado detectado</h1>' +
+        '<p class="aether-l2-copy">Esta instancia se está ejecutando fuera del dominio autorizado. La visualización permanece visible como aviso de copyright, pero el uso queda restringido a la publicación oficial de OkrtSystem Labs.</p>' +
+        '<div class="aether-l2-meta">' +
+          '<div class="aether-l2-chip"><div class="aether-l2-label">Dominio autorizado</div><div class="aether-l2-value">franjuanp.github.io/OkrtSystemLabs</div></div>' +
+          '<div class="aether-l2-chip"><div class="aether-l2-label">Origen detectado</div><div class="aether-l2-value">' + (window.location.href || "desconocido") + '</div></div>' +
+          '<div class="aether-l2-chip"><div class="aether-l2-label">Estado</div><div class="aether-l2-value">Protección Nivel 2 activa</div></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
 
-  window.addEventListener("DOMContentLoaded", function(){
-    try {
-      if (document.body) {
-        const overlay = document.createElement("div");
-        overlay.id = "aether-l2-overlay";
-        overlay.innerHTML =
-          '<div class="aether-l2-card">' +
-            '<div class="aether-l2-kicker">Copyright Protection · Nivel 2</div>' +
-            '<h1 class="aether-l2-title">Visualización no autorizada</h1>' +
-            '<p class="aether-l2-copy">Esta instancia de AETHER Globe está protegida para su uso exclusivo dentro del dominio autorizado de publicación. La herramienta se ha degradado automáticamente al detectar un origen distinto al permitido.</p>' +
-            '<p class="aether-l2-copy">Copyright © OkrtSystem Labs. Todos los derechos reservados. Queda prohibida la reproducción, copia, redistribución o explotación no autorizada de esta obra y de sus componentes visuales o funcionales.</p>' +
-            '<div class="aether-l2-meta">' +
-              '<div><div class="aether-l2-label">Dominio autorizado</div><div class="aether-l2-value">franjuanp.github.io/OkrtSystemLabs</div></div>' +
-              '<div><div class="aether-l2-label">Origen detectado</div><div class="aether-l2-value">' + (window.location.href || "desconocido") + '</div></div>' +
-              '<div><div class="aether-l2-label">Estado</div><div class="aether-l2-value">Herramienta degradada por protección de distribución</div></div>' +
-            '</div>' +
-          '</div>';
-        document.body.appendChild(overlay);
-      }
-    } catch (_) {}
-  }, { once: true });
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", mountL2, {once:true});
+  } else {
+    mountL2();
+  }
 })();
 </script>
 
