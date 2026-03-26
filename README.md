@@ -252,3 +252,12 @@ Los análisis son estimaciones orientativas y no deben usarse como única fuente
 *[franjuanp.github.io/OkrtSystemLabs](https://franjuanp.github.io/OkrtSystemLabs)*
 
 </div>
+
+
+## Security hardening applied (non-disruptive)
+
+This package includes a static hardening layer intended not to alter the functional behavior of the site:
+- Per-page CSP meta policy adapted to current external dependencies.
+- Referrer policy set to `no-referrer`.
+- Permissions Policy set to disable unused browser features.
+- Runtime hardening for `window.open`, external `_blank` links, and unsafe `javascript:` / `data:text/html` URLs.
