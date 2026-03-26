@@ -116,6 +116,26 @@
 @media (max-width: 900px){.aether-health-dock{left:12px;right:12px;bottom:12px;width:auto}.aether-health-grid{grid-template-columns:1fr 1fr}}
 
 </style>
+
+<style id="hide-system-health-ui">
+#system-health-dock,
+#aether-system-health,
+#robustness-dock,
+#health-dock,
+.app-robustness-dock,
+.system-health-dock,
+.system-health-panel,
+.aether-health-dock,
+.aether-system-health,
+[data-role="system-health"],
+[data-module="system-health"]{
+  display:none !important;
+  visibility:hidden !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+</style>
+
 </head>
 <body>
 
