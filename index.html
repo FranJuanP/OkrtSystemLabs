@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AETHER — Global Intelligence System · OkrtSystem Labs</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
 
 <!-- ═══ CSS: LANDING (página 1) ═══ -->
 <link rel="stylesheet" id="css-landing" href="assets/css/landing.css">
@@ -16,6 +16,8 @@
 
 <!-- ═══ CSS: TRANSICIÓN entre páginas ═══ -->
 <link rel="stylesheet" id="css-router" href="assets/css/router.css">
+<link rel="stylesheet" id="css-enhancements" href="assets/css/app-enhancements.css">
+<link rel="stylesheet" id="css-robustness" href="assets/css/app-robustness.css">
 </head>
 <body>
 
@@ -412,7 +414,7 @@ python -m http.server 8080</pre>
       <svg viewBox="0 0 46 52" width="46" height="52" fill="none" xmlns="http://www.w3.org/2000/svg">
         <polygon points="23,2 44,13 44,39 23,50 2,39 2,13" stroke="#00FFC8" stroke-width="1.4" fill="rgba(0,255,200,0.05)"/>
         <polygon points="23,9 37,17 37,35 23,43 9,35 9,17" stroke="var(--cyan)" stroke-width=".7" fill="rgba(0,255,136,0.03)"/>
-        <text x="23" y="30" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="13" font-weight="700" fill="#00FFC8">AE</text>
+        <text x="23" y="30" text-anchor="middle" font-family="'Exo 2',sans-serif" font-size="13" font-weight="700" fill="#00FFC8">AE</text>
       </svg>
       <div>
         <div class="app-name">AETHER</div>
@@ -1002,7 +1004,7 @@ python -m http.server 8080</pre>
       <div id="thermo-wrap"></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">PRÓX. ACTUALIZACIÓN</span>
-        <span id="thermo-countdown" style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--cyan)">30s</span>
+        <span id="thermo-countdown" style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:700;color:var(--cyan)">30s</span>
         <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">FLUCTUACIÓN ±<span id="thermo-range">3</span>pts</span>
       </div>
     </div>
@@ -1255,6 +1257,12 @@ python -m http.server 8080</pre>
 <script src="assets/js/app-shell-session.js"></script>
 <script src="assets/js/app-shell-telemetry.js"></script>
 <script src="assets/js/app-shell-diagnostics.js"></script>
+
+<!-- ═══ ENHANCEMENTS V1: BRIEF + EXPLAINABILITY + WATCHLIST ═══ -->
+<script src="assets/js/app-enhancements.js"></script>
+
+<!-- ═══ ROBUSTNESS PREMIUM: HEALTH + FALLBACK + DEPENDENCY VISIBILITY ═══ -->
+<script src="assets/js/app-robustness.js"></script>
 
 </body>
 </html>
