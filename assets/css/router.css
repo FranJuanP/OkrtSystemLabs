@@ -1,0 +1,19 @@
+/* Cuando AETHER está activo, restaurar cursor normal aunque css-landing diga cursor:none */
+#page-aether, #page-aether * { cursor: unset; }
+#page-aether .btn, #page-aether button,
+#page-aether select, #page-aether a,
+#page-aether input[type="range"] { cursor: pointer; }
+@media (max-width: 1200px){#world-map-wrap{height:520px;min-height:520px}}
+@media (max-width: 900px){#world-map-wrap{height:460px;min-height:460px}}
+@media (max-width: 640px){#world-map-wrap{height:380px;min-height:380px}}
+
+#page-aether .map-country { cursor: crosshair; }
+#page-aether canvas { cursor: grab; }
+#page-aether canvas:active { cursor: grabbing; }
+
+#page-landing { opacity:1; transition: opacity .6s ease, transform .6s ease; }
+#page-aether  { opacity:0; pointer-events:none; position:fixed; inset:0;
+                transform:scale(1.04); transition: opacity .7s ease, transform .7s ease;
+                z-index:9999; overflow-y:auto; }
+#page-aether.active  { opacity:1; pointer-events:all; transform:scale(1); position:relative; }
+#page-landing.hidden { opacity:0; pointer-events:none; transform:scale(.97); position:fixed; }
