@@ -168,7 +168,7 @@
     <li><a href="#install">Instalación</a></li>
     <li><a href="#ecosystem">Ecosistema</a></li>
   </ul>
-  <a href="#" onclick="launchAether(event)" data-launch-aether class="nav-cta">PROBAR AETHER</a>
+  <a href="#" data-launch-aether data-action="launch-aether" class="nav-cta">PROBAR AETHER</a>
 </nav>
 
 <section id="hero">
@@ -250,7 +250,7 @@
   <div class="hero-content">
     <h1 class="hero-title">AETHER</h1>
     <div class="hero-actions" style="margin-top:48px">
-      <a href="#" onclick="launchAether(event)" data-launch-aether class="btn-p">⟶ &nbsp;PROBAR AETHER</a>
+      <a href="#" data-launch-aether data-action="launch-aether" class="btn-p">⟶ &nbsp;PROBAR AETHER</a>
     </div>
   </div>
 
@@ -548,7 +548,7 @@ python -m http.server 8080</pre>
     </div>
     <div class="header-right" style="flex-direction:row;align-items:center;gap:18px">
       <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="window.open('aether-signal.html','_blank')"
+        <button data-action="open-signal"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.35);
                  padding:6px 13px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap"
@@ -556,7 +556,7 @@ python -m http.server 8080</pre>
           onmouseout="this.style.background='rgba(0,255,200,.07)';this.style.borderColor='rgba(0,255,200,.35)'">
           ⬡ SIGNAL
         </button>
-        <button onclick="window.open('aether-vector.html','_blank')"
+        <button data-action="open-vector"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.35);
                  padding:6px 13px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap"
@@ -564,7 +564,7 @@ python -m http.server 8080</pre>
           onmouseout="this.style.background='rgba(0,255,200,.07)';this.style.borderColor='rgba(0,255,200,.35)'">
           ⬡ VECTOR
         </button>
-        <button onclick="openAetherGlobe()"
+        <button data-action="open-globe"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.35);
                  padding:6px 13px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap"
@@ -603,14 +603,14 @@ python -m http.server 8080</pre>
     <span class="clabel">URL</span>
     <input id="ollama-url" value="http://localhost:11434"
       style="width:180px;background:rgba(5,10,16,.8);color:var(--bright);border:1px solid var(--dim);border-radius:6px;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px"/>
-    <button class="btn sec" style="padding:6px 12px;font-size:11px" onclick="checkOllama()">⚡ VERIFICAR</button>
+    <button class="btn sec" style="padding:6px 12px;font-size:11px" id="check-ollama-btn">⚡ VERIFICAR</button>
     <span id="api-status" style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:11px">● SIN VERIFICAR</span>
   </div>
 
   <!-- CONTROLS -->
   <div class="cbar">
     <span class="clabel">REGIÓN</span>
-    <select id="region-sel" onchange="onRegionChange()" style="max-width:200px">
+    <select id="region-sel" data-action="region-change" style="max-width:200px">
       <option value="WLD">🌍 Global</option>
       <optgroup label="── POTENCIAS ──">
         <option value="USA">🇺🇸 Estados Unidos</option>
@@ -685,13 +685,13 @@ python -m http.server 8080</pre>
     </select>
     <span class="clabel">HORIZONTE</span>
     <div class="horizon" style="margin:0">
-      <button class="hbtn active" onclick="setHorizon(this,6)">6 meses</button>
-      <button class="hbtn" onclick="setHorizon(this,12)">12 meses</button>
-      <button class="hbtn" onclick="setHorizon(this,24)">24 meses</button>
+      <button class="hbtn active" data-horizon="6">6 meses</button>
+      <button class="hbtn" data-horizon="12">12 meses</button>
+      <button class="hbtn" data-horizon="24">24 meses</button>
     </div>
-    <button class="btn" id="analyze-btn" onclick="runAnalysis()" style="margin-left:auto">⚡ PREDECIR CON IA</button>
-    <button class="btn sec" onclick="runScenarios()" id="scenario-btn">🔮 ESCENARIOS</button>
-    <button class="btn sec" onclick="exportPDF()">📄 PDF</button>
+    <button class="btn" id="analyze-btn" data-action="run-analysis" style="margin-left:auto">⚡ PREDECIR CON IA</button>
+    <button class="btn sec" data-action="run-scenarios" id="scenario-btn">🔮 ESCENARIOS</button>
+    <button class="btn sec" data-action="export-pdf">📄 PDF</button>
   </div>
 
   <!-- GLOBAL BANNER -->
@@ -973,12 +973,12 @@ python -m http.server 8080</pre>
       MAPA DE RIESGO GLOBAL
       <span id="map-cat-label" style="margin-left:8px;color:var(--cyan);font-size:10px">ÍNDICE GLOBAL</span>
       <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap" id="map-cat-btns">
-        <button class="hbtn active" onclick="setMapCat(this,'global')">Global</button>
-        <button class="hbtn" onclick="setMapCat(this,'eco')">Eco</button>
-        <button class="hbtn" onclick="setMapCat(this,'geo')">Geo</button>
-        <button class="hbtn" onclick="setMapCat(this,'climate')">Clima</button>
-        <button class="hbtn" onclick="setMapCat(this,'bio')">Bio</button>
-        <button class="hbtn" onclick="setMapCat(this,'finance')">Fin.</button>
+        <button class="hbtn active" data-map-cat="global">Global</button>
+        <button class="hbtn" data-map-cat="eco">Eco</button>
+        <button class="hbtn" data-map-cat="geo">Geo</button>
+        <button class="hbtn" data-map-cat="climate">Clima</button>
+        <button class="hbtn" data-map-cat="bio">Bio</button>
+        <button class="hbtn" data-map-cat="finance">Fin.</button>
       </div>
     </div>
     <div id="world-map-wrap" style="position:relative">
@@ -986,8 +986,8 @@ python -m http.server 8080</pre>
       <!-- Controles del mapa -->
       <div style="position:absolute;top:10px;right:10px;z-index:20;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
         <button id="arc-toggle-btn" class="active"
-          onclick="toggleGlobeArcs()">⬡ CONEXIONES</button>
-        <button onclick="openAetherGlobe()"
+          data-action="toggle-globe-arcs">⬡ CONEXIONES</button>
+        <button data-action="open-globe"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.08);
                  border:1px solid rgba(0,255,200,.45);padding:5px 12px;
@@ -996,17 +996,17 @@ python -m http.server 8080</pre>
           onmouseover="this.style.background='rgba(0,255,200,.18)';this.style.borderColor='#00FFC8'"
           onmouseout="this.style.background='rgba(0,255,200,.08)';this.style.borderColor='rgba(0,255,200,.45)'">🌐 GLOBE 3D</button>
         <div style="display:flex;gap:4px;align-items:center">
-          <button onclick="mapZoomIn()" title="Acercar"
+          <button data-action="map-zoom-in" title="Acercar"
             style="font-family:'Share Tech Mono',monospace;font-size:14px;font-weight:700;
                    background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.25);
                    color:rgba(0,255,200,.85);padding:2px 10px;border-radius:4px;cursor:pointer;
                    line-height:1.4">+</button>
-          <button onclick="mapZoomOut()" title="Alejar"
+          <button data-action="map-zoom-out" title="Alejar"
             style="font-family:'Share Tech Mono',monospace;font-size:14px;font-weight:700;
                    background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.25);
                    color:rgba(0,255,200,.85);padding:2px 10px;border-radius:4px;cursor:pointer;
                    line-height:1.4">−</button>
-          <button id="map-zoom-reset" onclick="mapZoomReset()" title="Vista global"
+          <button id="map-zoom-reset" data-action="map-zoom-reset" title="Vista global"
             style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;
                    background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.25);
                    color:rgba(0,255,200,.65);padding:3px 9px;border-radius:4px;cursor:pointer;
@@ -1015,35 +1015,35 @@ python -m http.server 8080</pre>
       </div>
       <!-- Leyenda de arcos -->
       <div id="arc-legend" class="visible">
-        <div class="arc-leg-item" onclick="filterArcType('WAR')" style="cursor:pointer" title="Click para filtrar">
+        <div class="arc-leg-item" data-arc-type="WAR" style="cursor:pointer" title="Click para filtrar">
           <div class="arc-leg-dot" style="background:#FF1A1A;box-shadow:0 0 5px #FF1A1A"></div>
           <span style="color:rgba(255,255,255,.7);font-weight:700">CONFLICTO ARMADO</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType('PROXY')" style="cursor:pointer">
+        <div class="arc-leg-item" data-arc-type="PROXY" style="cursor:pointer">
           <div class="arc-leg-dot" style="background:#E74C3C;box-shadow:0 0 5px #E74C3C"></div>
           <span style="color:rgba(255,255,255,.65)">CONFLICTO PROXY</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType('NUKE')" style="cursor:pointer">
+        <div class="arc-leg-item" data-arc-type="NUKE" style="cursor:pointer">
           <div class="arc-leg-dot" style="background:#00FFFF;box-shadow:0 0 5px #00FFFF"></div>
           <span style="color:rgba(255,255,255,.65)">AMENAZA NUCLEAR</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType('CRISIS')" style="cursor:pointer">
+        <div class="arc-leg-item" data-arc-type="CRISIS" style="cursor:pointer">
           <div class="arc-leg-dot" style="background:#FF6600;box-shadow:0 0 5px #FF6600"></div>
           <span style="color:rgba(255,255,255,.65)">CRISIS ACTIVA</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType('TENSION')" style="cursor:pointer">
+        <div class="arc-leg-item" data-arc-type="TENSION" style="cursor:pointer">
           <div class="arc-leg-dot" style="background:#FFB300;box-shadow:0 0 5px #FFB300"></div>
           <span style="color:rgba(255,255,255,.55)">TENSIÓN GRAVE</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType('SANCTION')" style="cursor:pointer">
+        <div class="arc-leg-item" data-arc-type="SANCTION" style="cursor:pointer">
           <div class="arc-leg-dot" style="background:#9B59B6;box-shadow:0 0 5px #9B59B6"></div>
           <span style="color:rgba(255,255,255,.55)">SANCIONES</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType('INFLUENCE')" style="cursor:pointer">
+        <div class="arc-leg-item" data-arc-type="INFLUENCE" style="cursor:pointer">
           <div class="arc-leg-dot" style="background:#3498DB;box-shadow:0 0 5px #3498DB"></div>
           <span style="color:rgba(255,255,255,.5)">INFLUENCIA</span>
         </div>
-        <div class="arc-leg-item" onclick="filterArcType(null)" style="cursor:pointer;margin-top:3px">
+        <div class="arc-leg-item" data-arc-type="ALL" style="cursor:pointer;margin-top:3px">
           <div class="arc-leg-dot" style="background:rgba(255,255,255,.2)"></div>
           <span style="color:rgba(255,255,255,.35);font-size:7px">MOSTRAR TODO</span>
         </div>
@@ -1143,7 +1143,7 @@ python -m http.server 8080</pre>
       </div>
       <!-- Controles de filtro -->
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-        <select id="ranking-region" onchange="renderRanking()" style="font-size:11px;padding:4px 8px;flex:1;min-width:100px">
+        <select id="ranking-region" data-action="render-ranking" style="font-size:11px;padding:4px 8px;flex:1;min-width:100px">
           <option value="all">🌍 Todos</option>
           <option value="europe">🇪🇺 Europa</option>
           <option value="mideast">🕌 Oriente Medio</option>
@@ -1151,7 +1151,7 @@ python -m http.server 8080</pre>
           <option value="asia">🌏 Asia-Pacífico</option>
           <option value="africa">🌍 África</option>
         </select>
-        <select id="ranking-cat" onchange="renderRanking()" style="font-size:11px;padding:4px 8px;flex:1;min-width:100px">
+        <select id="ranking-cat" data-action="render-ranking" style="font-size:11px;padding:4px 8px;flex:1;min-width:100px">
           <option value="global">📊 Global</option>
           <option value="eco">💰 Económico</option>
           <option value="geo">🌐 Geopolítico</option>
@@ -1167,13 +1167,13 @@ python -m http.server 8080</pre>
           <option value="ocean">🌊 Océanos</option>
           <option value="bio">🦠 Bioseguridad</option>
         </select>
-        <select id="ranking-top" onchange="renderRanking()" style="font-size:11px;padding:4px 8px;width:72px">
+        <select id="ranking-top" data-action="render-ranking" style="font-size:11px;padding:4px 8px;width:72px">
           <option value="10">Top 10</option>
           <option value="20">Top 20</option>
           <option value="50">Top 50</option>
           <option value="999">Todos</option>
         </select>
-        <select id="ranking-order" onchange="renderRanking()" style="font-size:11px;padding:4px 8px;width:88px">
+        <select id="ranking-order" data-action="render-ranking" style="font-size:11px;padding:4px 8px;width:88px">
           <option value="desc">▼ Mayor riesgo</option>
           <option value="asc">▲ Menor riesgo</option>
         </select>
@@ -1199,7 +1199,7 @@ python -m http.server 8080</pre>
           <div class="resil-badge" id="resilience-val" style="color:var(--green)">—</div>
           <div style="font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">RESILIENCIA</div>
         </div>
-        <button class="btn sec" style="padding:6px 12px;font-size:11px" onclick="updateCascadeModule()">↻ RECALCULAR</button>
+        <button class="btn sec" style="padding:6px 12px;font-size:11px" data-action="update-cascade">↻ RECALCULAR</button>
       </div>
     </div>
 
@@ -1244,7 +1244,7 @@ python -m http.server 8080</pre>
       </svg>
       SHOCK SIMULATOR
       <span style="margin-left:8px;font-size:9px;background:rgba(255,51,85,.1);color:var(--red);padding:2px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace">¿QUÉ PASARÍA SI...?</span>
-      <button id="shock-sim-btn" onclick="toggleShockSimulator()"
+      <button id="shock-sim-btn" data-action="toggle-shock-sim"
         style="margin-left:auto;padding:5px 14px;font-size:11px;font-family:'Share Tech Mono',monospace;
                background:rgba(0,255,200,.08);border:1px solid var(--cyan);color:var(--cyan);
                border-radius:5px;cursor:pointer;letter-spacing:.5px;transition:all .2s">
@@ -1265,7 +1265,7 @@ python -m http.server 8080</pre>
       <div style="margin-bottom:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">SHOCK MANUAL POR CATEGORÍA (−50 empeora · 0 neutro · +50 mejora... invertido para consistencia)</div>
-          <button onclick="resetShocks()" style="font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;background:none;border:1px solid var(--border);padding:2px 8px;border-radius:3px;cursor:pointer">↺ RESET</button>
+          <button data-action="reset-shocks" style="font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;background:none;border:1px solid var(--border);padding:2px 8px;border-radius:3px;cursor:pointer">↺ RESET</button>
         </div>
         <div id="shock-sliders" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 16px"></div>
       </div>
@@ -1303,9 +1303,9 @@ python -m http.server 8080</pre>
         <span style="margin-left:auto;font-size:9px;color:var(--dim)" id="model-tag">MISTRAL</span>
       </div>
       <div class="scenario-tabs" id="scenario-tabs" style="display:none">
-        <div class="stab opt" onclick="showScenario('opt',this)">✅ OPTIMISTA</div>
-        <div class="stab base active" onclick="showScenario('base',this)">📊 BASE</div>
-        <div class="stab pes" onclick="showScenario('pes',this)">⚠ PESIMISTA</div>
+        <div class="stab opt" data-scenario="opt">✅ OPTIMISTA</div>
+        <div class="stab base active" data-scenario="base">📊 BASE</div>
+        <div class="stab pes" data-scenario="pes">⚠ PESIMISTA</div>
       </div>
       <div id="scenario-prob" class="scenario-prob" style="display:none"></div>
       <div id="ai-out">
@@ -1336,8 +1336,8 @@ python -m http.server 8080</pre>
         </div>
       </div>
       <div class="chat-input-row">
-        <textarea id="chat-input" maxlength="500" placeholder="Escribe tu pregunta..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
-        <button class="btn" onclick="sendChat()" style="padding:8px 14px;white-space:nowrap">ENVIAR ↗</button>
+        <textarea id="chat-input" maxlength="500" placeholder="Escribe tu pregunta..." data-action="chat-keydown"></textarea>
+        <button class="btn" data-action="send-chat" style="padding:8px 14px;white-space:nowrap">ENVIAR ↗</button>
       </div>
     </div>
 
@@ -1442,5 +1442,7 @@ python -m http.server 8080</pre>
 
 <script src="assets/js/globe-bridge.js"></script>
 
+
+<script src="assets/js/inline-handlers-migration-1.js"></script>
 </body>
 </html>
