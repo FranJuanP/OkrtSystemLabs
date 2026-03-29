@@ -158,6 +158,122 @@
   .tt-label { font-size:8px; letter-spacing:.18em; color:rgba(255,255,255,.4); margin-bottom:6px; }
   .tt-signal { font-family:'Inter',sans-serif; font-size:11.5px; line-height:1.55; color:rgba(255,255,255,.75); }
   .tt-hint { font-size:7.5px; letter-spacing:.2em; color:rgba(0,255,200,.3); margin-top:6px; }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE & TABLET
+   Bloque añadido quirúrgicamente. No modifica ninguna regla
+   existente. Solo añade overrides dentro de @media queries.
+══════════════════════════════════════════════════════════════ */
+
+/* ── Tablet (≤ 1024px): ajustes menores ── */
+@media (max-width: 1024px) {
+  .brand { font-size: 40px; }
+  #hdr   { padding: 20px 28px; }
+  #panel { width: 270px; right: 20px; }
+  #leg   { left: 20px; }
+  #hint  { right: 20px; }
+  #arc-controls { left: 20px; }
+  #stats { gap: 1px; }
+  .sb    { padding: 10px 18px; min-width: 80px; }
+  .sv    { font-size: 30px; }
+}
+
+/* ── Mobile landscape & small tablet (≤ 768px) ── */
+@media (max-width: 768px) {
+
+  /* ·· Header compacto ·· */
+  #hdr {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .brand     { font-size: 28px; }
+  .brand-sub { font-size: 6.5px; letter-spacing: .22em; }
+  .hdr-r     { flex-direction: row; align-items: center; gap: 10px; margin-top: 2px; }
+  #clock     { font-size: 7.5px; }
+  .live-b span { display: none; }   /* oculta el texto largo, deja solo el dot */
+
+  /* ·· Esquinas ·· */
+  .corner          { width: 26px; height: 26px; }
+  .corner.tl,
+  .corner.tr        { top:  8px; }
+  .corner.bl,
+  .corner.br        { bottom: 8px; }
+  .corner.tl,
+  .corner.bl        { left:  8px; }
+  .corner.tr,
+  .corner.br        { right: 8px; }
+
+  /* ·· Controles de arcos — debajo del header ·· */
+  #arc-controls {
+    top: 76px;
+    left: 10px;
+  }
+  .arc-ctrl-label { font-size: 6.5px; letter-spacing: .22em; margin-bottom: 2px; }
+  .arc-fbtn {
+    font-size: 7px;
+    padding: 6px 8px;
+    min-height: 28px;
+    touch-action: manipulation;  /* elimina delay de 300ms en touch */
+  }
+  .arc-filter-row,
+  .arc-mode-row { gap: 4px; }
+
+  /* ·· Stats — barra inferior compacta ·· */
+  #stats  { bottom: 10px; gap: 1px; }
+  .sb     { padding: 8px 10px; min-width: 58px; }
+  .sv     { font-size: 22px; }
+  .sl     { font-size: 6px; letter-spacing: .18em; margin-top: 2px; }
+
+  /* ·· Leyenda e instrucciones — ocultar en móvil ·· */
+  #leg  { display: none; }
+  #hint { display: none; }
+
+  /* ·· Panel de detalle — desliza desde abajo ·· */
+  #panel {
+    right: 0;
+    left: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    max-height: 62vh;
+    /* resetea el transform de escritorio */
+    transform: translateY(100%) !important;
+    border-left: none;
+    border-top: 2px solid #00FFC8;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
+    transition: transform .35s cubic-bezier(.4,0,.2,1);
+  }
+  #panel.open {
+    transform: translateY(0) !important;
+  }
+  /* Botón de cierre del panel */
+  .pcl { top: 10px; right: 10px; }
+
+  /* ·· Tooltip de arco — adaptado a pantalla pequeña ·· */
+  #arc-tooltip {
+    max-width: calc(100vw - 20px);
+  }
+  .tt-signal { font-size: 10.5px; }
+}
+
+/* ── Mobile portrait (≤ 480px): reducción adicional ── */
+@media (max-width: 480px) {
+  .brand     { font-size: 22px; }
+  #hdr       { padding: 10px 12px; }
+  #arc-controls { top: 66px; }
+  .arc-fbtn  { font-size: 6.5px; padding: 5px 7px; }
+  .sv        { font-size: 19px; }
+  .sb        { padding: 6px 8px; min-width: 50px; }
+  .sl        { display: none; }          /* oculta etiquetas CRÍTICO/ALTO etc. */
+  .ld-title  { font-size: 44px; }
+  .ld-bar    { width: 220px; }
+  #panel     { max-height: 70vh; padding: 20px 16px; }
+  .pn        { font-size: 28px; }
+}
 </style>
 
 <style id="aether-l2-style">
