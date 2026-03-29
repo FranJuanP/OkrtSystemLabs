@@ -5,10 +5,6 @@
 <!-- © OkrtSystem Labs · AETHER Global Intelligence System · franjuanp.github.io/OkrtSystemLabs -->
 
 <meta charset="UTF-8">
-<meta name="referrer" content="no-referrer">
-<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()">
-<meta http-equiv="X-DNS-Prefetch-Control" content="off">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- inline enhancements/robustness build for GitHub Pages -->
 <title>AETHER — Global Intelligence System · OkrtSystem Labs</title>
@@ -141,8 +137,6 @@
 }
 </style>
 
-
-<script src="assets/js/security-hardening.js"></script>
 </head>
 <body>
 
@@ -548,7 +542,7 @@ python -m http.server 8080</pre>
     </div>
     <div class="header-right" style="flex-direction:row;align-items:center;gap:18px">
       <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="window.open('aether-signal.html','_blank','noopener,noreferrer')"
+        <button onclick="window.open('aether-signal.html','_blank')"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.35);
                  padding:6px 13px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap"
@@ -556,7 +550,7 @@ python -m http.server 8080</pre>
           onmouseout="this.style.background='rgba(0,255,200,.07)';this.style.borderColor='rgba(0,255,200,.35)'">
           ⬡ SIGNAL
         </button>
-        <button onclick="window.open('aether-vector.html','_blank','noopener,noreferrer')"
+        <button onclick="window.open('aether-vector.html','_blank')"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.35);
                  padding:6px 13px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap"
@@ -564,7 +558,7 @@ python -m http.server 8080</pre>
           onmouseout="this.style.background='rgba(0,255,200,.07)';this.style.borderColor='rgba(0,255,200,.35)'">
           ⬡ VECTOR
         </button>
-        <button onclick="window.open('aether-globe-v3.html','_blank','noopener,noreferrer')"
+        <button onclick="window.open('aether-globe-v3.html','_blank')"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.35);
                  padding:6px 13px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap"
@@ -610,7 +604,7 @@ python -m http.server 8080</pre>
   <!-- CONTROLS -->
   <div class="cbar">
     <span class="clabel">REGIÓN</span>
-    <select id="region-sel" onchange="onRegionChange()" style="max-width:200px;font-family:system-ui,'Segoe UI','Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">
+    <select id="region-sel" onchange="onRegionChange()" style="max-width:200px">
       <option value="WLD">🌍 Global</option>
       <optgroup label="── POTENCIAS ──">
         <option value="USA">🇺🇸 Estados Unidos</option>
@@ -987,7 +981,7 @@ python -m http.server 8080</pre>
       <div style="position:absolute;top:10px;right:10px;z-index:20;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
         <button id="arc-toggle-btn" class="active"
           onclick="toggleGlobeArcs()">⬡ CONEXIONES</button>
-        <button onclick="window.open('aether-globe-v3.html','_blank','noopener,noreferrer')"
+        <button onclick="window.open('aether-globe-v3.html','_blank')"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.08);
                  border:1px solid rgba(0,255,200,.45);padding:5px 12px;
@@ -2036,5 +2030,212 @@ python -m http.server 8080</pre>
 })();
 
 </script>
+
+<style id="okrt-flags-data-style">
+#region-sel{visibility:hidden;position:absolute;pointer-events:none}
+.okrt-region-shell{position:relative;display:inline-flex;min-width:240px;max-width:280px;z-index:30}
+.okrt-region-btn{
+  width:100%;display:flex;align-items:center;gap:10px;justify-content:space-between;
+  background:rgba(10,14,24,.92);border:1px solid rgba(0,255,200,.22);color:var(--text);
+  border-radius:12px;padding:10px 12px;min-height:42px;cursor:pointer;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:12px;
+}
+.okrt-region-btn:hover,.okrt-region-btn:focus{border-color:rgba(0,255,200,.42);outline:none}
+.okrt-region-left{display:flex;align-items:center;gap:10px;min-width:0}
+.okrt-flag{width:18px;height:13px;display:inline-block;border-radius:2px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.okrt-flag.okrt-globe{width:18px;height:18px;border-radius:50%;box-shadow:none;font-size:16px;line-height:18px;text-align:center}
+.okrt-region-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.okrt-region-chevron{color:var(--dim);font-size:11px;transition:transform .18s ease}
+.okrt-region-shell.open .okrt-region-chevron{transform:rotate(180deg)}
+.okrt-region-menu{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;max-height:380px;overflow:auto;display:none;
+  background:rgba(8,12,20,.98);backdrop-filter:blur(10px);border:1px solid rgba(0,255,200,.18);
+  border-radius:14px;padding:10px;box-shadow:0 18px 55px rgba(0,0,0,.42)
+}
+.okrt-region-shell.open .okrt-region-menu{display:block}
+.okrt-region-group{padding:6px 4px 8px}
+.okrt-region-group + .okrt-region-group{border-top:1px solid rgba(255,255,255,.06)}
+.okrt-region-group-title{font-size:10px;letter-spacing:1.2px;color:var(--dim);margin:2px 4px 8px;font-family:'Share Tech Mono',monospace}
+.okrt-region-item{
+  width:100%;display:flex;align-items:center;gap:10px;background:transparent;border:0;color:var(--text);
+  text-align:left;border-radius:10px;padding:8px 9px;cursor:pointer;font-size:12px
+}
+.okrt-region-item:hover,.okrt-region-item:focus{background:rgba(0,255,200,.08);outline:none}
+.okrt-region-item.active{background:rgba(0,255,200,.12);box-shadow:inset 0 0 0 1px rgba(0,255,200,.16)}
+.okrt-data-card{
+  margin:0 0 16px;background:linear-gradient(180deg,rgba(10,16,28,.96),rgba(7,10,18,.96));
+  border:1px solid rgba(0,255,200,.14);border-radius:18px;padding:16px 18px;box-shadow:0 14px 44px rgba(0,0,0,.24)
+}
+.okrt-data-head{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:12px}
+.okrt-data-title{font-size:11px;letter-spacing:2px;color:var(--dim);font-family:'Share Tech Mono',monospace}
+.okrt-data-region{font-size:12px;color:var(--cyan);font-family:'Share Tech Mono',monospace}
+.okrt-data-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.okrt-data-pill{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:10px 12px;min-height:72px}
+.okrt-data-k{font-size:10px;letter-spacing:1.2px;color:var(--dim);margin-bottom:7px;font-family:'Share Tech Mono',monospace}
+.okrt-data-v{font-size:18px;font-weight:700;line-height:1.1;color:var(--text)}
+.okrt-data-s{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.35}
+@media (max-width:1200px){.okrt-data-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:760px){.okrt-data-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.okrt-region-shell{min-width:100%;max-width:none}}
+</style>
+
+
+<script id="okrt-flags-data-script">
+(function(){
+  function $(id){ return document.getElementById(id); }
+  const FLAG_OVERRIDES = { WLD:'🌍', EUU:'eu' };
+  function flagRef(code){
+    if (FLAG_OVERRIDES[code]) return FLAG_OVERRIDES[code];
+    if (!/^[A-Z]{3}$/.test(code)) return '🌍';
+    const map = { DEU:'de', ESP:'es', FRA:'fr', GBR:'gb', ITA:'it', USA:'us', CHN:'cn', RUS:'ru', IND:'in', JPN:'jp', POL:'pl', UKR:'ua', TUR:'tr', NOR:'no', SWE:'se', CHE:'ch', BLR:'by', SRB:'rs', SAU:'sa', IRN:'ir', ISR:'il', EGY:'eg', YEM:'ye', SYR:'sy', IRQ:'iq', ARE:'ae', QAT:'qa', BRA:'br', MEX:'mx', ARG:'ar', CAN:'ca', COL:'co', VEN:'ve', CHL:'cl', HTI:'ht', KOR:'kr', AUS:'au', PAK:'pk', IDN:'id', BGD:'bd', THA:'th', VNM:'vn', TWN:'tw', SGP:'sg', AFG:'af', KAZ:'kz', NZL:'nz', NGA:'ng', ZAF:'za', ETH:'et', KEN:'ke', DZA:'dz', MAR:'ma', SDN:'sd', SSD:'ss', COD:'cd', SOM:'so' };
+    return map[code] || code.slice(0,2).toLowerCase();
+  }
+  function cleanLabel(text){ return (text || '').replace(/^[\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}\u{1F300}-\u{1FAFF}]\s*/u,'').trim(); }
+  function buildFlag(code, alt){
+    const ref = flagRef(code);
+    if (ref === '🌍') return '<span class="okrt-flag okrt-globe" aria-hidden="true">🌍</span>';
+    return '<img class="okrt-flag" src="https://flagcdn.com/w20/'+ref+'.png" srcset="https://flagcdn.com/w40/'+ref+'.png 2x" alt="'+(alt || code)+'" loading="lazy" referrerpolicy="no-referrer">';
+  }
+  function extractOptions(select){
+    const groups = [];
+    [...select.children].forEach(node => {
+      if (node.tagName === 'OPTGROUP') {
+        groups.push({ label: node.label || '', options: [...node.querySelectorAll('option')].map(o => ({ value:o.value, text: cleanLabel(o.textContent), raw:o.textContent || '' })) });
+      } else if (node.tagName === 'OPTION') {
+        groups.push({ label:'', options:[{ value:node.value, text: cleanLabel(node.textContent), raw:node.textContent || '' }] });
+      }
+    });
+    return groups.filter(g => g.options.length);
+  }
+  function installFlagSelector(){
+    const select = $('region-sel');
+    if (!select || select.dataset.okrtFlagsReady === '1') return;
+    select.dataset.okrtFlagsReady = '1';
+    const shell = document.createElement('div');
+    shell.className = 'okrt-region-shell';
+    shell.innerHTML = '<button type="button" class="okrt-region-btn" aria-haspopup="listbox" aria-expanded="false"><span class="okrt-region-left"></span><span class="okrt-region-chevron">▾</span></button><div class="okrt-region-menu" role="listbox"></div>';
+    select.insertAdjacentElement('afterend', shell);
+    const btn = shell.querySelector('.okrt-region-btn');
+    const left = shell.querySelector('.okrt-region-left');
+    const menu = shell.querySelector('.okrt-region-menu');
+    const groups = extractOptions(select);
+    menu.innerHTML = groups.map(group => '<div class="okrt-region-group">'+(group.label ? '<div class="okrt-region-group-title">'+group.label.replace(/─/g,'').trim()+'</div>' : '') + group.options.map(opt => '<button type="button" class="okrt-region-item" data-value="'+opt.value+'">'+buildFlag(opt.value, opt.text)+'<span class="okrt-region-name">'+opt.text+'</span></button>').join('') + '</div>').join('');
+    function sync(){
+      const current = select.value || 'WLD';
+      const option = select.querySelector('option[value="'+current+'"]');
+      const text = cleanLabel(option ? option.textContent : current);
+      left.innerHTML = buildFlag(current, text) + '<span class="okrt-region-name">'+text+'</span>';
+      menu.querySelectorAll('.okrt-region-item').forEach(item => item.classList.toggle('active', item.dataset.value === current));
+      btn.setAttribute('aria-expanded', shell.classList.contains('open') ? 'true' : 'false');
+    }
+    btn.addEventListener('click', (e) => { e.stopPropagation(); shell.classList.toggle('open'); sync(); });
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('.okrt-region-item');
+      if (!item) return;
+      select.value = item.dataset.value;
+      select.dispatchEvent(new Event('change', { bubbles:true }));
+      if (typeof window.onRegionChange === 'function') window.onRegionChange();
+      shell.classList.remove('open');
+      sync();
+    });
+    document.addEventListener('click', (e) => { if (!shell.contains(e.target)) { shell.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { shell.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
+    select.addEventListener('change', sync);
+    sync();
+  }
+
+  function categoryKeys(){ return Array.isArray(window.CAT_KEYS) && window.CAT_KEYS.length ? window.CAT_KEYS : ['eco','geo','health','climate','social','tech','food','mental','energy','demo','urban','science','justice','finance','ocean','bio']; }
+  function regionName(){
+    const sel = $('region-sel'); if (!sel) return 'Global';
+    const opt = sel.options[sel.selectedIndex];
+    return cleanLabel(opt ? opt.textContent : 'Global');
+  }
+  function readData(){
+    const code = $('region-sel')?.value || 'WLD';
+    const DATA = window.DATA || {};
+    return { code, data: DATA[code] || DATA.WLD || {} };
+  }
+  function gauge(key){
+    const raw = $('n-'+key)?.textContent || '';
+    const m = raw.match(/-?\d+(?:\.\d+)?/);
+    return m ? Math.round(Number(m[0])) : null;
+  }
+  function dominant(keys, data){
+    const arr = keys.map(k => ({ key:k, score: gauge(k) ?? Math.round(Number(data?.[k]?.score || 0)) })).filter(x => Number.isFinite(x.score));
+    arr.sort((a,b)=>b.score-a.score);
+    return arr[0] || null;
+  }
+  function countFields(data){
+    let total = 0;
+    for (const [k,v] of Object.entries(data || {})) {
+      if (v && typeof v === 'object' && !Array.isArray(v)) total += Object.keys(v).length;
+      else total += 1;
+    }
+    return total;
+  }
+  function getLabel(key){
+    const map = {eco:'Económico',geo:'Geopolítico',health:'Sanitario',climate:'Climático',social:'Cohesión',tech:'Tecnológico',food:'Seg. alimentaria',mental:'Salud mental',energy:'Energético',demo:'Demográfico',urban:'Urbano',science:'Ciencia',justice:'Justicia',finance:'Financiero',ocean:'Océanos',bio:'Bioseguridad'};
+    return map[key] || key;
+  }
+  function installDataBlock(){
+    if ($('okrt-data-card')) return;
+    const banner = $('gbanner'); if (!banner) return;
+    const card = document.createElement('div');
+    card.className = 'okrt-data-card';
+    card.id = 'okrt-data-card';
+    card.innerHTML = '<div class="okrt-data-head"><div class="okrt-data-title">DATOS RECOGIDOS</div><div class="okrt-data-region" id="okrt-data-region">—</div></div><div class="okrt-data-grid">'
+      + '<div class="okrt-data-pill"><div class="okrt-data-k">REGIÓN ACTIVA</div><div class="okrt-data-v" id="okrt-dr-region">—</div><div class="okrt-data-s">Selección sincronizada con el dashboard principal.</div></div>'
+      + '<div class="okrt-data-pill"><div class="okrt-data-k">CATEGORÍAS</div><div class="okrt-data-v" id="okrt-dr-cats">16</div><div class="okrt-data-s">Bloques monitorizados por el motor analítico.</div></div>'
+      + '<div class="okrt-data-pill"><div class="okrt-data-k">SCORE GLOBAL</div><div class="okrt-data-v" id="okrt-dr-score">—</div><div class="okrt-data-s">Valor agregado visible en el panel superior.</div></div>'
+      + '<div class="okrt-data-pill"><div class="okrt-data-k">RIESGO DOMINANTE</div><div class="okrt-data-v" id="okrt-dr-dom">—</div><div class="okrt-data-s">Categoría con mayor presión en la lectura actual.</div></div>'
+      + '<div class="okrt-data-pill"><div class="okrt-data-k">CAMPOS DEL DATASET</div><div class="okrt-data-v" id="okrt-dr-fields">—</div><div class="okrt-data-s">Campos estructurados detectados para la región.</div></div>'
+      + '<div class="okrt-data-pill"><div class="okrt-data-k">SHOCKS ACTIVOS</div><div class="okrt-data-v" id="okrt-dr-shocks">—</div><div class="okrt-data-s">Escenarios manuales activos en esta sesión.</div></div>'
+      + '</div>';
+    banner.insertAdjacentElement('beforebegin', card);
+  }
+  function updateDataBlock(){
+    if (!$('okrt-data-card')) return;
+    const {code, data} = readData();
+    const keys = categoryKeys();
+    const name = regionName();
+    const score = $('gnum')?.textContent?.trim() || '—';
+    const dom = dominant(keys, data);
+    const shocks = window.ShockSim?.shocks || {};
+    const activeShocks = Object.values(shocks).filter(v => Math.abs(Number(v)||0) >= 1).length;
+    $('okrt-data-region').textContent = code + ' · ' + name;
+    $('okrt-dr-region').textContent = name;
+    $('okrt-dr-cats').textContent = String(keys.length);
+    $('okrt-dr-score').textContent = score && score !== '--' ? score + '/100' : '—';
+    $('okrt-dr-dom').textContent = dom ? getLabel(dom.key) + ' · ' + dom.score : '—';
+    $('okrt-dr-fields').textContent = String(countFields(data));
+    $('okrt-dr-shocks').textContent = String(activeShocks);
+  }
+  function init(){
+    installFlagSelector();
+    installDataBlock();
+    updateDataBlock();
+    const sel = $('region-sel');
+    if (sel && !sel.dataset.okrtDataBound) {
+      sel.dataset.okrtDataBound = '1';
+      sel.addEventListener('change', () => setTimeout(updateDataBlock, 120));
+    }
+    const analyze = $('analyze-btn');
+    if (analyze && !analyze.dataset.okrtDataBound) {
+      analyze.dataset.okrtDataBound = '1';
+      analyze.addEventListener('click', () => setTimeout(updateDataBlock, 300));
+    }
+    const scenario = $('scenario-btn');
+    if (scenario && !scenario.dataset.okrtDataBound) {
+      scenario.dataset.okrtDataBound = '1';
+      scenario.addEventListener('click', () => setTimeout(updateDataBlock, 300));
+    }
+    setTimeout(updateDataBlock, 600);
+    setTimeout(updateDataBlock, 1400);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+  window.addEventListener('load', () => setTimeout(init, 150));
+})();
+</script>
+
 </body>
 </html>
