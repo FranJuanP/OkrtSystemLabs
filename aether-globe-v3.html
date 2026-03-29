@@ -1705,6 +1705,77 @@ function initArcControls(){
   }, 100);
 }
 
+
+
+// ── Bridge de contexto con dashboard principal ──
+function normalizeGlobeText(s){
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+}
+function resolveCountryFromDashboard(name){
+  if(!name) return null;
+  const aliases = {
+    'estados unidos':'Estados Unidos','usa':'Estados Unidos','eeuu':'Estados Unidos',
+    'union europea':'Unión Europea','espana':'España','alemania':'Alemania','francia':'Francia','italia':'Italia',
+    'japon':'Japón','arabia saudi':'Arabia Saudí','emiratos arabes':'Emiratos Árabes',
+    'mexico':'México','canada':'Canadá','peru':'Perú','libano':'Líbano','iran':'Irán','turquia':'Turquía',
+    'sudafrica':'Sudáfrica','etiopia':'Etiopía','argelia':'Argelia','sudan':'Sudán','sudan del sur':'Sudán del Sur',
+    'taiwan':'Taiwán','corea del sur':'Corea del Sur','corea del norte':'Corea del Norte','nueva zelanda':'Nueva Zelanda',
+    'rd congo':'RD Congo'
+  };
+  const target = aliases[normalizeGlobeText(name)] || name;
+  const normalizedTarget = normalizeGlobeText(target);
+  return COUNTRIES_DEDUP.find(c => normalizeGlobeText(c.name) === normalizedTarget) || null;
+}
+function focusDashboardCountry(countryName){
+  const country = resolveCountryFromDashboard(countryName);
+  if(!country) return false;
+  showPanel(country);
+  try {
+    const target = ll2v(country.lat, country.lng, 1.0);
+    const dir = target.clone().normalize();
+    camera.position.copy(dir.multiplyScalar(2.9));
+    camera.lookAt(0,0,0);
+  } catch(e){}
+  return true;
+}
+function restoreDashboardContext(){
+  try {
+    const raw = localStorage.getItem('aether_globe_context');
+    if(!raw) return;
+    const ctx = JSON.parse(raw);
+    if(!ctx || !ctx.ts || (Date.now() - ctx.ts) > 2*60*60*1000) return;
+    if(ctx.scores) {
+      localStorage.setItem('aether_globe_scores', JSON.stringify({ ts: ctx.ts, code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence }));
+    }
+    if(ctx.horizon) {
+      localStorage.setItem('aether_horizon', String(ctx.horizon));
+    }
+    if(ctx.globeName) {
+      let tries = 0;
+      const poll = setInterval(function(){
+        tries++;
+        if(typeof COUNTRIES_DEDUP !== 'undefined' && COUNTRIES_DEDUP.length){
+          clearInterval(poll);
+          focusDashboardCountry(ctx.globeName);
+        } else if(tries > 80) {
+          clearInterval(poll);
+        }
+      }, 120);
+    }
+  } catch(e){}
+}
+window.addEventListener('storage', function(ev){
+  if(ev.key === 'aether_globe_context' && ev.newValue){
+    try {
+      const ctx = JSON.parse(ev.newValue);
+      if(ctx?.scores) localStorage.setItem('aether_globe_scores', JSON.stringify({ ts: ctx.ts || Date.now(), code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence }));
+      if(ctx?.horizon) localStorage.setItem('aether_horizon', String(ctx.horizon));
+      if(ctx?.globeName) focusDashboardCountry(ctx.globeName);
+    } catch(e){}
+  }
+});
+
+restoreDashboardContext();
 init();
 initArcControls();
 </script>
