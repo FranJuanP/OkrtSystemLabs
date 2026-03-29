@@ -201,8 +201,10 @@
       window.setHTML = safeSetHTML;
     }
     if (document.getElementById('region-sel')) {
-      rebuildFlagSelector();
-      window.installFlagSelector = rebuildFlagSelector;
+      // Mantener el selector original de la herramienta. Esta capa solo sanea DOM.
+      if (typeof window.installFlagSelector !== 'function') {
+        window.installFlagSelector = function(){ return null; };
+      }
     }
     observeTargets();
   }
