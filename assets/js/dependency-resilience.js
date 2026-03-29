@@ -1,6 +1,22 @@
 (function(){
   'use strict';
 
+  var state = window.AETHER_DEPENDENCY_STATE = window.AETHER_DEPENDENCY_STATE || {
+    page: (location.pathname.split('/').pop() || '').toLowerCase(),
+    attempts: [],
+    recovered: [],
+    unavailable: []
+  };
+
+  function remember(kind, label, url){
+    try {
+      var entry = { kind: kind, label: label, url: url || '', at: new Date().toISOString() };
+      if (kind === 'attempt') state.attempts.push(entry);
+      else if (kind === 'recovered') state.recovered.push(entry);
+      else if (kind === 'unavailable') state.unavailable.push(entry);
+    } catch(_) {}
+  }
+
   function loadScript(url){
     return new Promise(function(resolve,reject){
       var s=document.createElement('script');
@@ -16,10 +32,15 @@
     if (testFn()) return true;
     for (var i=0;i<urls.length;i++){
       try {
+        remember('attempt', label, urls[i]);
         await loadScript(urls[i]);
-        if (testFn()) return true;
+        if (testFn()) {
+          remember('recovered', label, urls[i]);
+          return true;
+        }
       } catch (_) {}
     }
+    remember('unavailable', label, '');
     console.warn('[AETHER] Dependency unavailable:', label);
     return false;
   }

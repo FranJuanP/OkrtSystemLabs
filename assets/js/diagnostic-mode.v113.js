@@ -34,12 +34,18 @@
 
   function mapLegacyHorizon(raw){
     let v = raw;
-    try {
-      if (typeof v === 'string') {
-        const parsed = JSON.parse(v);
-        if (typeof parsed === 'string' || typeof parsed === 'number') v = parsed;
+    if (v == null) return null;
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (/^"?[012]"?$/.test(t)) {
+        v = t.replace(/^"|"$/g, '');
+      } else {
+        try {
+          const parsed = JSON.parse(t);
+          if (typeof parsed === 'string' || typeof parsed === 'number') v = parsed;
+        } catch(_) {}
       }
-    } catch(_) {}
+    }
     v = String(v).trim().toLowerCase().replace(/^"|"$/g, '');
     return ({ '0':'6m', '1':'12m', '2':'24m' })[v] || null;
   }
@@ -216,7 +222,7 @@
       const meta = x.present
         ? (x.detail ? (x.type + ' · ' + x.detail) : (x.type + ' · ' + x.size))
         : 'vacío';
-      return '<div class="aether-diag-row"><span>'+x.key+'</span><span class="aether-diag-meta">'+meta+(x.invalid?' · inválido':'')+(x.normalized?' · normalizable':'')+'</span></div>';
+      return '<div class="aether-diag-row"><span>'+x.key+'</span><span class="aether-diag-meta">'+meta+(x.invalid?' · inválido':'')+(x.normalized?' · legacy reconocido':'')+'</span></div>';
     }).join('');
     const errs = d.errors.length ? d.errors.map(x => '<div class="aether-diag-log">'+escapeHtml(x)+'</div>').join('') : '<div class="aether-diag-empty">Sin errores capturados</div>';
     const rej = d.rejected.length ? d.rejected.map(x => '<div class="aether-diag-log">'+escapeHtml(x)+'</div>').join('') : '<div class="aether-diag-empty">Sin promesas rechazadas</div>';

@@ -34,35 +34,40 @@
 
   function mapLegacyHorizon(raw){
     let v = raw;
-    try {
-      if (typeof v === 'string') {
-        const parsed = JSON.parse(v);
-        if (typeof parsed === 'string' || typeof parsed === 'number') v = parsed;
+    if (v == null) return null;
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (/^"?[012]"?$/.test(t)) {
+        v = t.replace(/^"|"$/g, '');
+      } else {
+        try {
+          const parsed = JSON.parse(t);
+          if (typeof parsed === 'string' || typeof parsed === 'number') v = parsed;
+        } catch(_) {}
       }
-    } catch(_) {}
+    }
     v = String(v).trim().toLowerCase().replace(/^"|"$/g, '');
     return ({ '0':'6m', '1':'12m', '2':'24m' })[v] || null;
   }
 
   function jsonStatus(k){
+    const raw = safeGetLS(k);
+    if (!raw) return {key:k, present:false};
+    if (k === 'aether_horizon') {
+      const legacy = mapLegacyHorizon(raw);
+      if (legacy) return { key:k, present:true, type:'legacy-index', size:String(raw).length, detail: String(raw).replace(/^"|"$/g, '') + ' → ' + legacy, normalized:true };
+    }
     try {
-      const raw = safeGetLS(k);
-      if (!raw) return {key:k, present:false};
-      if (k === 'aether_horizon') {
-        const legacy = mapLegacyHorizon(raw);
-        if (legacy) return { key:k, present:true, type:'legacy-index', size:raw.length, detail: raw + ' → ' + legacy, normalized:true };
-      }
       const parsed = JSON.parse(raw);
       const t = Array.isArray(parsed) ? 'array' : typeof parsed;
       const size = Array.isArray(parsed) ? parsed.length : (parsed && typeof parsed === 'object' ? Object.keys(parsed).length : String(parsed).length);
       return {key:k, present:true, type:t, size:size};
     } catch(e){
-      const raw = safeGetLS(k);
       if (k === 'aether_horizon') {
         const legacy = mapLegacyHorizon(raw);
-        if (legacy) return { key:k, present:!!raw, type:'legacy-index', size: raw ? raw.length : 0, detail: raw + ' → ' + legacy, normalized:true };
+        if (legacy) return { key:k, present:!!raw, type:'legacy-index', size: raw ? String(raw).length : 0, detail: String(raw).replace(/^"|"$/g, '') + ' → ' + legacy, normalized:true };
       }
-      return {key:k, present:!!raw, type:'raw', size: raw ? raw.length : 0, invalid:true};
+      return {key:k, present:!!raw, type:'raw', size: raw ? String(raw).length : 0, invalid:true};
     }
   }
 
@@ -213,10 +218,16 @@
     const deps = rowsFromChecks(d.deps);
     const checks = rowsFromChecks(d.checks);
     const ls = d.localStorage.map(x => {
-      const meta = x.present
-        ? (x.detail ? (x.type + ' · ' + x.detail) : (x.type + ' · ' + x.size))
+      let row = x;
+      if (x.key === 'aether_horizon' && (!x.normalized || x.invalid)) {
+        const rawLive = safeGetLS('aether_horizon');
+        const legacyLive = mapLegacyHorizon(rawLive);
+        if (legacyLive) row = { key:x.key, present:true, type:'legacy-index', size:String(rawLive).length, detail:String(rawLive).replace(/^"|"$/g, '') + ' → ' + legacyLive, normalized:true };
+      }
+      const meta = row.present
+        ? (row.detail ? (row.type + ' · ' + row.detail) : (row.type + ' · ' + row.size))
         : 'vacío';
-      return '<div class="aether-diag-row"><span>'+x.key+'</span><span class="aether-diag-meta">'+meta+(x.invalid?' · inválido':'')+(x.normalized?' · normalizable':'')+'</span></div>';
+      return '<div class="aether-diag-row"><span>'+row.key+'</span><span class="aether-diag-meta">'+meta+(row.invalid?' · inválido':'')+(row.normalized?' · legacy reconocido':'')+'</span></div>';
     }).join('');
     const errs = d.errors.length ? d.errors.map(x => '<div class="aether-diag-log">'+escapeHtml(x)+'</div>').join('') : '<div class="aether-diag-empty">Sin errores capturados</div>';
     const rej = d.rejected.length ? d.rejected.map(x => '<div class="aether-diag-log">'+escapeHtml(x)+'</div>').join('') : '<div class="aether-diag-empty">Sin promesas rechazadas</div>';
