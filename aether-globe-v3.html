@@ -757,7 +757,12 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, W/H, 0.1, 200);
 camera.position.set(0, 0, 2.9);
 const lctx   = lblCanvas.getContext('2d');
-lblCanvas.width = W; lblCanvas.height = H;
+const DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+lblCanvas.width = Math.floor(W * DPR);
+lblCanvas.height = Math.floor(H * DPR);
+lblCanvas.style.width = W + 'px';
+lblCanvas.style.height = H + 'px';
+if(lctx && typeof lctx.setTransform === 'function') lctx.setTransform(DPR,0,0,DPR,0,0);
 
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
@@ -1322,7 +1327,13 @@ window.addEventListener('mousemove',e=>{
 });
 window.addEventListener('mousedown',e=>{ isDrag=true; didDrag=false; autoRot=false; prevX=e.clientX; prevY=e.clientY; clearTimeout(resumeTimer); });
 window.addEventListener('mouseup',()=>{ isDrag=false; resumeTimer=setTimeout(()=>{ autoRot=true; },2800); });
-window.addEventListener('wheel',e=>{ camera.position.z=Math.max(1.55,Math.min(6.0,camera.position.z+e.deltaY*.003)); },{passive:true});
+window.addEventListener('wheel',e=>{
+  const dir = camera.position.clone().normalize();
+  const currentDist = camera.position.length();
+  const nextDist = Math.max(1.55, Math.min(6.0, currentDist + e.deltaY * .003));
+  camera.position.copy(dir.multiplyScalar(nextDist));
+  camera.lookAt(0,0,0);
+},{passive:true});
 window.addEventListener('click',e=>{
   if(didDrag) return;
   raycaster.setFromCamera(mouse,camera);
@@ -1442,9 +1453,15 @@ async function init(){
 
 window.addEventListener('resize',()=>{
   const w=innerWidth,h=innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
   camera.aspect=w/h; camera.updateProjectionMatrix();
+  renderer.setPixelRatio(dpr);
   renderer.setSize(w,h);
-  lblCanvas.width=w; lblCanvas.height=h;
+  lblCanvas.width=Math.floor(w*dpr);
+  lblCanvas.height=Math.floor(h*dpr);
+  lblCanvas.style.width=w+'px';
+  lblCanvas.style.height=h+'px';
+  if(lctx && typeof lctx.setTransform === 'function') lctx.setTransform(dpr,0,0,dpr,0,0);
 });
 
 // ══════════════════════════════════════════════════
@@ -1733,7 +1750,8 @@ function focusDashboardCountry(countryName){
   try {
     const target = ll2v(country.lat, country.lng, 1.0);
     const dir = target.clone().normalize();
-    camera.position.copy(dir.multiplyScalar(2.9));
+    const currentDist = Math.max(1.85, Math.min(6.0, camera.position.length() || 2.9));
+    camera.position.copy(dir.multiplyScalar(currentDist));
     camera.lookAt(0,0,0);
   } catch(e){}
   return true;
