@@ -229,3 +229,42 @@ img,canvas,svg{max-width:100%;}
   body.globe-mobile #stats{top:100px !important;}
   body.globe-mobile #leg{top:174px !important;}
 }
+
+
+@media (max-width: 900px){
+  body.globe-mobile #globe-hotspots{
+    display:block !important;
+    width:auto !important;
+    max-width:none !important;
+    margin-top:12px;
+    padding:10px 12px 12px;
+    overflow:visible;
+  }
+  body.globe-mobile #globe-hotspots-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  body.globe-mobile .gh-item{
+    grid-template-columns:28px minmax(0,1fr) auto;
+    min-width:0;
+    padding:9px 10px;
+  }
+  body.globe-mobile .gh-name,
+  body.globe-mobile .gh-meta{
+    min-width:0;
+    overflow:visible;
+    text-overflow:clip;
+    white-space:normal;
+    line-height:1.35;
+  }
+}
+
+@media (max-width: 480px){
+  body.globe-mobile #globe-hotspots{
+    display:block !important;
+  }
+  body.globe-mobile .gh-meta{
+    display:block !important;
+  }
+}
