@@ -1,0 +1,13 @@
+#vector-insights-card{margin-top:12px;padding:12px;border:1px solid rgba(0,255,200,.14);background:linear-gradient(180deg,rgba(0,255,200,.05),rgba(96,191,255,.03));border-radius:10px;display:flex;flex-direction:column;gap:8px}
+#vector-insights-card .vic-title{font-size:9px;letter-spacing:.18em;color:#9fe7d8;text-transform:uppercase}
+#vector-insights-card .vic-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#vector-insights-card .vic-item{padding:8px;border:1px solid rgba(255,255,255,.06);border-radius:8px;background:rgba(255,255,255,.02)}
+#vector-insights-card .vic-k{font-size:8px;letter-spacing:.12em;color:#8ea8ad;text-transform:uppercase;margin-bottom:4px}
+#vector-insights-card .vic-v{font-size:11px;color:#e8feff;line-height:1.25}
+#vector-insights-card .vic-badges{display:flex;flex-wrap:wrap;gap:6px}
+#vector-insights-card .vic-badge{font-size:8px;letter-spacing:.12em;padding:4px 7px;border-radius:999px;border:1px solid rgba(0,255,200,.16);background:rgba(0,255,200,.06);color:#9fffe7;text-transform:uppercase}
+.top-flows .vector-rank{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-right:6px;border-radius:999px;font-size:9px;font-weight:700;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#dff}
+.top-flows > *{position:relative}
+.top-flows > *.vector-top1{box-shadow:inset 0 0 0 1px rgba(0,255,200,.16);border-radius:8px;background:rgba(0,255,200,.04)}
+.top-flows > *.vector-top2{box-shadow:inset 0 0 0 1px rgba(96,191,255,.14);border-radius:8px}
+.top-flows > *.vector-top3{box-shadow:inset 0 0 0 1px rgba(255,176,32,.14);border-radius:8px}
