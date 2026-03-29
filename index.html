@@ -981,7 +981,7 @@ python -m http.server 8080</pre>
       <div style="position:absolute;top:10px;right:10px;z-index:20;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
         <button id="arc-toggle-btn" class="active"
           onclick="toggleGlobeArcs()">⬡ CONEXIONES</button>
-        <button onclick="window.open('aether-globe-v3.html','_blank')"
+        <button onclick="openAetherGlobe()"
           style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
                  color:#00FFC8;background:rgba(0,255,200,.08);
                  border:1px solid rgba(0,255,200,.45);padding:5px 12px;
@@ -2318,32 +2318,24 @@ const OKRT_CONTINENT_ORDER = ['África','América','Asia','Europa','Oceanía'];
 </script>
 
 
-<script id="okrt-globe-bridge">
+<script>
 (function(){
   function $(id){ return document.getElementById(id); }
-  function safeSet(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){} }
-  function normalizeText(s){
-    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
-  }
+  function safeSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   function cleanRegionName(name){
-    return String(name || '').replace(/^[^\s]+\s+/, '').trim();
+    return String(name || '').replace(/^\s*[🌍🌐🗺️🧭]+\s*/u,'').replace(/^\s*[A-Z]{2}\s+/,'').trim();
   }
   function mapRegionToGlobeName(code, name){
-    const n = normalizeText(name);
+    const n = String(cleanRegionName(name)).toLowerCase();
     const aliases = {
-      'estados unidos':'Estados Unidos','usa':'Estados Unidos','eeuu':'Estados Unidos',
-      'reino unido':'Reino Unido','rusia':'Rusia','china':'China','india':'India','japon':'Japón',
-      'union europea':'Unión Europea','espana':'España','alemania':'Alemania','francia':'Francia','italia':'Italia',
-      'ucrania':'Ucrania','turquia':'Turquía','noruega':'Noruega','suecia':'Suecia','suiza':'Suiza','bielorrusia':'Bielorrusia','serbia':'Serbia',
-      'arabia saudi':'Arabia Saudí','iran':'Irán','israel':'Israel','egipto':'Egipto','yemen':'Yemen','siria':'Siria','iraq':'Irak',
-      'qatar':'Qatar','emiratos arabes':'Emiratos Árabes','jordania':'Jordania','libano':'Líbano',
+      'estados unidos':'Estados Unidos','usa':'Estados Unidos','eeuu':'Estados Unidos','reino unido':'Reino Unido','uk':'Reino Unido','rusia':'Rusia','iran':'Irán',
       'corea del norte':'Corea del Norte','corea del sur':'Corea del Sur','taiwan':'Taiwán','australia':'Australia','nueva zelanda':'Nueva Zelanda',
       'mexico':'México','canada':'Canadá','brasil':'Brasil','argentina':'Argentina','colombia':'Colombia','venezuela':'Venezuela','chile':'Chile','peru':'Perú',
-      'sudafrica':'Sudáfrica','nigeria':'Nigeria','etiopia':'Etiopía','kenia':'Kenia','argelia':'Argelia','marruecos':'Marruecos','sudan':'Sudán','sudan del sur':'Sudán del Sur','rd congo':'RD Congo','somalia':'Somalia'
+      'sudafrica':'Sudáfrica','nigeria':'Nigeria','etiopia':'Etiopía','kenia':'Kenia','argelia':'Argelia','marruecos':'Marruecos','sudan':'Sudán','sudan del sur':'Sudán del Sur','rd congo':'RD Congo','somalia':'Somalia',
+      'españa':'España','alemania':'Alemania','francia':'Francia','italia':'Italia','japon':'Japón','china':'China','india':'India','turquia':'Turquía','egipto':'Egipto','arabia saudi':'Arabia Saudí'
     };
     if(code === 'WLD') return null;
-    if(aliases[n]) return aliases[n];
-    return cleanRegionName(name);
+    return aliases[n] || cleanRegionName(name);
   }
   function getHorizonValue(){
     try {
@@ -2382,22 +2374,20 @@ const OKRT_CONTINENT_ORDER = ['África','América','Asia','Europa','Oceanía'];
   };
   window.openAetherGlobe = function(){
     window.syncAetherGlobeBridge();
-    const url = 'aether-globe-v3.html';
-    const w = window.open(url, '_blank', 'noopener');
+    const w = window.open('aether-globe-v3.html?ctx=' + Date.now(), '_blank', 'noopener');
     if (w) { try { w.opener = null; } catch(e){} }
   };
   function installBridgeHooks(){
     try { window.syncAetherGlobeBridge(); } catch(e){}
     const sel = $('region-sel');
     if (sel && !sel.dataset.globeBridgeBound) {
-      sel.addEventListener('change', () => setTimeout(window.syncAetherGlobeBridge, 60));
+      sel.addEventListener('change', () => setTimeout(window.syncAetherGlobeBridge, 80));
       sel.dataset.globeBridgeBound = '1';
     }
     document.addEventListener('click', function(ev){
       const b = ev.target.closest('.horizon .hbtn, #analyze-btn, #scenario-btn, #shock-sim-btn');
       if (b) setTimeout(window.syncAetherGlobeBridge, 120);
     }, true);
-    window.addEventListener('storage', function(ev){ if (ev.key === 'aether_globe_context') { /* no-op same tab */ } });
     setInterval(window.syncAetherGlobeBridge, 5000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installBridgeHooks); else installBridgeHooks();

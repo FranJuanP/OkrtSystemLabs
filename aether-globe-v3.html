@@ -757,12 +757,7 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, W/H, 0.1, 200);
 camera.position.set(0, 0, 2.9);
 const lctx   = lblCanvas.getContext('2d');
-const DPR = Math.min(window.devicePixelRatio || 1, 2.5);
-lblCanvas.width = Math.floor(W * DPR);
-lblCanvas.height = Math.floor(H * DPR);
-lblCanvas.style.width = W + 'px';
-lblCanvas.style.height = H + 'px';
-if(lctx && typeof lctx.setTransform === 'function') lctx.setTransform(DPR,0,0,DPR,0,0);
+lblCanvas.width = W; lblCanvas.height = H;
 
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
@@ -1329,9 +1324,9 @@ window.addEventListener('mousedown',e=>{ isDrag=true; didDrag=false; autoRot=fal
 window.addEventListener('mouseup',()=>{ isDrag=false; resumeTimer=setTimeout(()=>{ autoRot=true; },2800); });
 window.addEventListener('wheel',e=>{
   const dir = camera.position.clone().normalize();
-  const currentDist = camera.position.length();
-  const nextDist = Math.max(1.55, Math.min(6.0, currentDist + e.deltaY * .003));
-  camera.position.copy(dir.multiplyScalar(nextDist));
+  const dist = camera.position.length();
+  const next = Math.max(1.55, Math.min(6.0, dist + e.deltaY * 0.003));
+  camera.position.copy(dir.multiplyScalar(next));
   camera.lookAt(0,0,0);
 },{passive:true});
 window.addEventListener('click',e=>{
@@ -1447,21 +1442,72 @@ async function init(){
   setTimeout(()=>{
     document.getElementById('loading').classList.add('fade');
     setTimeout(()=>{ document.getElementById('loading').style.display='none'; },900);
+    applyDashboardContext();
     animate();
   },600);
 }
 
 window.addEventListener('resize',()=>{
   const w=innerWidth,h=innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
   camera.aspect=w/h; camera.updateProjectionMatrix();
-  renderer.setPixelRatio(dpr);
-  renderer.setSize(w,h);
-  lblCanvas.width=Math.floor(w*dpr);
-  lblCanvas.height=Math.floor(h*dpr);
-  lblCanvas.style.width=w+'px';
-  lblCanvas.style.height=h+'px';
-  if(lctx && typeof lctx.setTransform === 'function') lctx.setTransform(dpr,0,0,dpr,0,0);
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2.5));
+  renderer.setSize(w,h,false);
+  lblCanvas.width=w; lblCanvas.height=h;
+});
+
+
+
+// ── Bridge con dashboard: foco por país + contexto ──
+function normalizeGlobeName(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+function findMarkerByName(name){
+  const target = normalizeGlobeName(name);
+  if(!target) return null;
+  for(let i=0;i<markerData.length;i++){
+    const n = normalizeGlobeName(markerData[i]?.name);
+    if(n === target) return { index:i, data:markerData[i], pos: dotMeshes[i]?.position?.clone?.() || ll2v(markerData[i].lat, markerData[i].lng, 1.018) };
+  }
+  const aliases = {
+    'eeuu':'estados unidos','usa':'estados unidos','uk':'reino unido','gran bretana':'reino unido','corea del sur':'corea del sur','corea del norte':'corea del norte',
+    'sudafrica':'sudafrica','rd congo':'rd congo','republica democratica del congo':'rd congo','arabia saudi':'arabia saudi','nueva zelanda':'nueva zelanda'
+  };
+  const alias = aliases[target];
+  if(alias){
+    for(let i=0;i<markerData.length;i++){
+      const n = normalizeGlobeName(markerData[i]?.name);
+      if(n === alias) return { index:i, data:markerData[i], pos: dotMeshes[i]?.position?.clone?.() || ll2v(markerData[i].lat, markerData[i].lng, 1.018) };
+    }
+  }
+  return null;
+}
+function focusDashboardCountry(name){
+  const found = findMarkerByName(name);
+  if(!found || !found.pos) return false;
+  const dir = found.pos.clone().normalize();
+  const dist = Math.max(1.85, Math.min(3.6, camera.position.length()));
+  camera.position.copy(dir.multiplyScalar(dist));
+  camera.lookAt(0,0,0);
+  selectedCountry = found.index;
+  return true;
+}
+function applyDashboardContext(){
+  try {
+    const raw = localStorage.getItem('aether_globe_context');
+    if(!raw) return;
+    const ctx = JSON.parse(raw);
+    if(!ctx || !ctx.ts || (Date.now() - ctx.ts > 30*60*1000)) return;
+    if(ctx.horizon) try { localStorage.setItem('aether_horizon', ctx.horizon); } catch(e){}
+    if(ctx.scores) {
+      try { localStorage.setItem('aether_globe_scores', JSON.stringify({ ts: ctx.ts, code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence })); } catch(e){}
+    }
+    if(ctx.globeName) setTimeout(()=>focusDashboardCountry(ctx.globeName), 120);
+  } catch(e){}
+}
+window.addEventListener('storage', ev => {
+  if(ev.key === 'aether_globe_context' && ev.newValue){
+    try { const ctx = JSON.parse(ev.newValue); if(ctx?.globeName) focusDashboardCountry(ctx.globeName); } catch(e){}
+  }
 });
 
 // ══════════════════════════════════════════════════
@@ -1722,78 +1768,6 @@ function initArcControls(){
   }, 100);
 }
 
-
-
-// ── Bridge de contexto con dashboard principal ──
-function normalizeGlobeText(s){
-  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
-}
-function resolveCountryFromDashboard(name){
-  if(!name) return null;
-  const aliases = {
-    'estados unidos':'Estados Unidos','usa':'Estados Unidos','eeuu':'Estados Unidos',
-    'union europea':'Unión Europea','espana':'España','alemania':'Alemania','francia':'Francia','italia':'Italia',
-    'japon':'Japón','arabia saudi':'Arabia Saudí','emiratos arabes':'Emiratos Árabes',
-    'mexico':'México','canada':'Canadá','peru':'Perú','libano':'Líbano','iran':'Irán','turquia':'Turquía',
-    'sudafrica':'Sudáfrica','etiopia':'Etiopía','argelia':'Argelia','sudan':'Sudán','sudan del sur':'Sudán del Sur',
-    'taiwan':'Taiwán','corea del sur':'Corea del Sur','corea del norte':'Corea del Norte','nueva zelanda':'Nueva Zelanda',
-    'rd congo':'RD Congo'
-  };
-  const target = aliases[normalizeGlobeText(name)] || name;
-  const normalizedTarget = normalizeGlobeText(target);
-  return COUNTRIES_DEDUP.find(c => normalizeGlobeText(c.name) === normalizedTarget) || null;
-}
-function focusDashboardCountry(countryName){
-  const country = resolveCountryFromDashboard(countryName);
-  if(!country) return false;
-  showPanel(country);
-  try {
-    const target = ll2v(country.lat, country.lng, 1.0);
-    const dir = target.clone().normalize();
-    const currentDist = Math.max(1.85, Math.min(6.0, camera.position.length() || 2.9));
-    camera.position.copy(dir.multiplyScalar(currentDist));
-    camera.lookAt(0,0,0);
-  } catch(e){}
-  return true;
-}
-function restoreDashboardContext(){
-  try {
-    const raw = localStorage.getItem('aether_globe_context');
-    if(!raw) return;
-    const ctx = JSON.parse(raw);
-    if(!ctx || !ctx.ts || (Date.now() - ctx.ts) > 2*60*60*1000) return;
-    if(ctx.scores) {
-      localStorage.setItem('aether_globe_scores', JSON.stringify({ ts: ctx.ts, code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence }));
-    }
-    if(ctx.horizon) {
-      localStorage.setItem('aether_horizon', String(ctx.horizon));
-    }
-    if(ctx.globeName) {
-      let tries = 0;
-      const poll = setInterval(function(){
-        tries++;
-        if(typeof COUNTRIES_DEDUP !== 'undefined' && COUNTRIES_DEDUP.length){
-          clearInterval(poll);
-          focusDashboardCountry(ctx.globeName);
-        } else if(tries > 80) {
-          clearInterval(poll);
-        }
-      }, 120);
-    }
-  } catch(e){}
-}
-window.addEventListener('storage', function(ev){
-  if(ev.key === 'aether_globe_context' && ev.newValue){
-    try {
-      const ctx = JSON.parse(ev.newValue);
-      if(ctx?.scores) localStorage.setItem('aether_globe_scores', JSON.stringify({ ts: ctx.ts || Date.now(), code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence }));
-      if(ctx?.horizon) localStorage.setItem('aether_horizon', String(ctx.horizon));
-      if(ctx?.globeName) focusDashboardCountry(ctx.globeName);
-    } catch(e){}
-  }
-});
-
-restoreDashboardContext();
 init();
 initArcControls();
 </script>
