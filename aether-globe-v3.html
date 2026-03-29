@@ -9,7 +9,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AETHER — Global Intelligence Globe</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000508; }
@@ -1313,6 +1313,11 @@ window.addEventListener('mousemove',e=>{
     tRotY+=dx*.005; tRotX+=dy*.005;
     tRotX=Math.max(-1.35,Math.min(1.35,tRotX));
     prevX=e.clientX; prevY=e.clientY;
+    if(arcTooltip){ arcTooltip.classList.remove('show'); tooltipActive=false; }
+  } else {
+    raycaster.setFromCamera(mouse,camera);
+    document.body.style.cursor=raycaster.intersectObjects(dotMeshes).length?'pointer':'crosshair';
+    if(typeof updateArcTooltip==='function') updateArcTooltip(e);
   }
 });
 window.addEventListener('mousedown',e=>{ isDrag=true; didDrag=false; autoRot=false; prevX=e.clientX; prevY=e.clientY; clearTimeout(resumeTimer); });
@@ -1323,10 +1328,6 @@ window.addEventListener('click',e=>{
   raycaster.setFromCamera(mouse,camera);
   const hits=raycaster.intersectObjects(dotMeshes);
   if(hits.length){ const idx=dotMeshes.indexOf(hits[0].object); if(idx>=0) showPanel(markerData[idx]); }
-});
-window.addEventListener('mousemove',()=>{
-  raycaster.setFromCamera(mouse,camera);
-  document.body.style.cursor=raycaster.intersectObjects(dotMeshes).length?'pointer':'crosshair';
 });
 
 // ── ANIMATE ──
@@ -1619,11 +1620,7 @@ function updateArcTooltip(e){
   }
 }
 
-// Añadir al listener mousemove existente
-window.addEventListener('mousemove', e => {
-  if(!isDrag) updateArcTooltip(e);
-  else { arcTooltip.classList.remove('show'); tooltipActive = false; }
-});
+
 
 // ══════════════════════════════════════════════════
 //  NIVEL 4 — DATOS DINÁMICOS
@@ -1683,23 +1680,29 @@ function applyTimelineHorizon(){
 
 // ── Polling periódico (cada 30s) ──
 function startDynamicSync(){
-  applyDashboardIntensity();
-  syncSignalEvents();
-  applyTimelineHorizon();
+  try{ applyDashboardIntensity(); }catch(e){}
+  try{ syncSignalEvents(); }catch(e){}
+  try{ applyTimelineHorizon(); }catch(e){}
   setInterval(()=>{
-    applyDashboardIntensity();
-    syncSignalEvents();
-    applyTimelineHorizon();
+    try{ applyDashboardIntensity(); }catch(e){}
+    try{ syncSignalEvents(); }catch(e){}
+    try{ applyTimelineHorizon(); }catch(e){}
   }, 30000);
 }
 
 // ── Inicializar modo global al arrancar ──
 function initArcControls(){
   startDynamicSync();
-  // Arrancar en modo global con todos los arcos
-  setTimeout(()=>{
-    showGlobalArcs();
-  }, 400);
+  // Esperar a que arcObjects esté poblado antes de activar arcos globales
+  let _arcWait = 0;
+  const _arcPoll = setInterval(()=>{
+    if(typeof arcObjects !== 'undefined' && arcObjects.length > 0){
+      clearInterval(_arcPoll);
+      showGlobalArcs();
+    } else if(++_arcWait > 60){ // máx ~6s de espera
+      clearInterval(_arcPoll);
+    }
+  }, 100);
 }
 
 init();
