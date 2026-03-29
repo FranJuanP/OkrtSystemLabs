@@ -3,3 +3,13 @@ body{cursor:auto !important;}
 .cursor,.cursor-ring,#cur,#cur2{pointer-events:none !important;}
 a,button,[role="button"],input,select,textarea{cursor:pointer !important;}
 textarea,input[type="text"],input[type="search"],input[type="number"],select{cursor:text !important;}
+
+/* CAPA 7 - hover handlers externalizados */
+.aether-hover-cyan-btn:hover{
+  background: rgba(0,255,200,.18) !important;
+  border-color: #00FFC8 !important;
+}
+.aether-hover-cyan-btn-strong:hover{
+  background: rgba(0,255,200,.18) !important;
+  border-color: #00FFC8 !important;
+}
