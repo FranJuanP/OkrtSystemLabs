@@ -1322,13 +1322,7 @@ window.addEventListener('mousemove',e=>{
 });
 window.addEventListener('mousedown',e=>{ isDrag=true; didDrag=false; autoRot=false; prevX=e.clientX; prevY=e.clientY; clearTimeout(resumeTimer); });
 window.addEventListener('mouseup',()=>{ isDrag=false; resumeTimer=setTimeout(()=>{ autoRot=true; },2800); });
-window.addEventListener('wheel',e=>{
-  const dir = camera.position.clone().normalize();
-  const dist = camera.position.length();
-  const next = Math.max(1.55, Math.min(6.0, dist + e.deltaY * 0.003));
-  camera.position.copy(dir.multiplyScalar(next));
-  camera.lookAt(0,0,0);
-},{passive:true});
+window.addEventListener('wheel',e=>{ camera.position.z=Math.max(1.55,Math.min(6.0,camera.position.z+e.deltaY*.003)); },{passive:true});
 window.addEventListener('click',e=>{
   if(didDrag) return;
   raycaster.setFromCamera(mouse,camera);
@@ -1442,7 +1436,6 @@ async function init(){
   setTimeout(()=>{
     document.getElementById('loading').classList.add('fade');
     setTimeout(()=>{ document.getElementById('loading').style.display='none'; },900);
-    applyDashboardContext();
     animate();
   },600);
 }
@@ -1450,64 +1443,8 @@ async function init(){
 window.addEventListener('resize',()=>{
   const w=innerWidth,h=innerHeight;
   camera.aspect=w/h; camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2.5));
-  renderer.setSize(w,h,false);
+  renderer.setSize(w,h);
   lblCanvas.width=w; lblCanvas.height=h;
-});
-
-
-
-// ── Bridge con dashboard: foco por país + contexto ──
-function normalizeGlobeName(s){
-  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-}
-function findMarkerByName(name){
-  const target = normalizeGlobeName(name);
-  if(!target) return null;
-  for(let i=0;i<markerData.length;i++){
-    const n = normalizeGlobeName(markerData[i]?.name);
-    if(n === target) return { index:i, data:markerData[i], pos: dotMeshes[i]?.position?.clone?.() || ll2v(markerData[i].lat, markerData[i].lng, 1.018) };
-  }
-  const aliases = {
-    'eeuu':'estados unidos','usa':'estados unidos','uk':'reino unido','gran bretana':'reino unido','corea del sur':'corea del sur','corea del norte':'corea del norte',
-    'sudafrica':'sudafrica','rd congo':'rd congo','republica democratica del congo':'rd congo','arabia saudi':'arabia saudi','nueva zelanda':'nueva zelanda'
-  };
-  const alias = aliases[target];
-  if(alias){
-    for(let i=0;i<markerData.length;i++){
-      const n = normalizeGlobeName(markerData[i]?.name);
-      if(n === alias) return { index:i, data:markerData[i], pos: dotMeshes[i]?.position?.clone?.() || ll2v(markerData[i].lat, markerData[i].lng, 1.018) };
-    }
-  }
-  return null;
-}
-function focusDashboardCountry(name){
-  const found = findMarkerByName(name);
-  if(!found || !found.pos) return false;
-  const dir = found.pos.clone().normalize();
-  const dist = Math.max(1.85, Math.min(3.6, camera.position.length()));
-  camera.position.copy(dir.multiplyScalar(dist));
-  camera.lookAt(0,0,0);
-  selectedCountry = found.index;
-  return true;
-}
-function applyDashboardContext(){
-  try {
-    const raw = localStorage.getItem('aether_globe_context');
-    if(!raw) return;
-    const ctx = JSON.parse(raw);
-    if(!ctx || !ctx.ts || (Date.now() - ctx.ts > 30*60*1000)) return;
-    if(ctx.horizon) try { localStorage.setItem('aether_horizon', ctx.horizon); } catch(e){}
-    if(ctx.scores) {
-      try { localStorage.setItem('aether_globe_scores', JSON.stringify({ ts: ctx.ts, code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence })); } catch(e){}
-    }
-    if(ctx.globeName) setTimeout(()=>focusDashboardCountry(ctx.globeName), 120);
-  } catch(e){}
-}
-window.addEventListener('storage', ev => {
-  if(ev.key === 'aether_globe_context' && ev.newValue){
-    try { const ctx = JSON.parse(ev.newValue); if(ctx?.globeName) focusDashboardCountry(ctx.globeName); } catch(e){}
-  }
 });
 
 // ══════════════════════════════════════════════════
