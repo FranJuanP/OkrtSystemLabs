@@ -1,4 +1,4 @@
-const AETHER_CACHE = 'aether-pwa-v1';
+const AETHER_CACHE = 'aether-pwa-okrt-icon-v2';
 const AETHER_ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,12 @@ const AETHER_ASSETS = [
   "./aether-vector.html",
   "./manifest.webmanifest",
   "./favicon.ico",
+  "./assets/icons/icon-okrt-512-maskable-v2.png",
+  "./assets/icons/icon-okrt-512-v2.png",
+  "./assets/icons/icon-okrt-192-v2.png",
+  "./apple-touch-icon-precomposed.png",
+  "./apple-touch-icon.png",
+  "./apple-touch-icon-okrt-v2.png",
   "./assets/css/aether-globe-v3.inline1.css",
   "./assets/css/aether-globe-v3.inline2.css",
   "./assets/css/aether-globe-v3.inline3.css",
