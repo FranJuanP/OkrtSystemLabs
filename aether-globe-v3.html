@@ -406,6 +406,7 @@
 
 <script src="assets/js/storage-contract.js"></script>
 <script src="assets/js/background-throttle.js"></script>
+  <link rel="stylesheet" href="assets/css/globe-hardening.css">
 </head>
 <body>
 
@@ -440,10 +441,10 @@
   </div>
   <div id="leg">
     <div class="lt">// NIVEL DE RIESGO</div>
-    <div class="li"><div class="ld2" style="background:#FF4060;box-shadow:0 0 6px #FF4060"></div><span class="ll">CRÍTICO</span></div>
-    <div class="li"><div class="ld2" style="background:#FF8030;box-shadow:0 0 6px #FF8030"></div><span class="ll">ALTO</span></div>
-    <div class="li"><div class="ld2" style="background:#FFB020;box-shadow:0 0 6px #FFB020"></div><span class="ll">MEDIO</span></div>
-    <div class="li"><div class="ld2" style="background:#00FFC8;box-shadow:0 0 6px #00FFC8"></div><span class="ll">BAJO</span></div>
+    <div class="li"><div class="ld2 ld2-critical"></div><span class="ll">CRÍTICO</span></div>
+    <div class="li"><div class="ld2 ld2-high"></div><span class="ll">ALTO</span></div>
+    <div class="li"><div class="ld2 ld2-medium"></div><span class="ll">MEDIO</span></div>
+    <div class="li"><div class="ld2 ld2-low"></div><span class="ll">BAJO</span></div>
   </div>
   <div id="hint">ARRASTRAR · Rotar<br>SCROLL · Zoom<br>CLICK · Activar nodo</div>
 
@@ -451,18 +452,18 @@
   <div id="arc-controls">
     <div class="arc-ctrl-label">// FILTRO DE CONEXIONES</div>
     <div class="arc-mode-row">
-      <button class="arc-fbtn active" data-type="GLOBAL" onclick="toggleGlobalMode()">⊕ GLOBAL</button>
-      <button class="arc-fbtn" data-type="ALL" onclick="setArcFilter('ALL')">TODOS</button>
+      <button class="arc-fbtn active" data-type="GLOBAL">⊕ GLOBAL</button>
+      <button class="arc-fbtn" data-type="ALL">TODOS</button>
     </div>
     <div class="arc-filter-row">
-      <button class="arc-fbtn" data-type="CRITICAL" onclick="setArcFilter('CRITICAL')" style="border-color:rgba(255,64,96,.35)">● CONFLICTO</button>
-      <button class="arc-fbtn" data-type="HIGH"     onclick="setArcFilter('HIGH')"     style="border-color:rgba(255,128,48,.35)">● TENSIÓN</button>
-      <button class="arc-fbtn" data-type="SANCTION" onclick="setArcFilter('SANCTION')" style="border-color:rgba(68,153,255,.35)">● SANCIÓN</button>
+      <button class="arc-fbtn arc-border-critical" data-type="CRITICAL">● CONFLICTO</button>
+      <button class="arc-fbtn arc-border-high" data-type="HIGH">● TENSIÓN</button>
+      <button class="arc-fbtn arc-border-sanction" data-type="SANCTION">● SANCIÓN</button>
     </div>
     <div class="arc-filter-row">
-      <button class="arc-fbtn" data-type="ENERGY"   onclick="setArcFilter('ENERGY')"   style="border-color:rgba(255,154,60,.35)">● ENERGÍA</button>
-      <button class="arc-fbtn" data-type="ALLIANCE" onclick="setArcFilter('ALLIANCE')" style="border-color:rgba(0,204,102,.35)">● ALIANZA</button>
-      <button class="arc-fbtn" data-type="PROXY"    onclick="setArcFilter('PROXY')"    style="border-color:rgba(204,68,255,.35)">● PROXY</button>
+      <button class="arc-fbtn arc-border-energy" data-type="ENERGY">● ENERGÍA</button>
+      <button class="arc-fbtn arc-border-alliance" data-type="ALLIANCE">● ALIANZA</button>
+      <button class="arc-fbtn arc-border-proxy" data-type="PROXY">● PROXY</button>
     </div>
   </div>
 
@@ -483,7 +484,7 @@
     <div class="ps" id="pSig">—</div>
     <div class="pdv"></div>
     <div class="pco" id="pCoords">—</div>
-    <div id="arcSection" style="display:none">
+    <div id="arcSection" hidden>
       <div class="arc-label">// TENSIONES ACTIVAS DETECTADAS</div>
       <div id="arcList"></div>
     </div>
@@ -1374,15 +1375,38 @@ function showPanel(c){
   document.getElementById('pCoords').textContent=lat+'   '+lng;
   const related=TENSION_ARCS.filter(a=>a.a===c.name||a.b===c.name);
   const sec=document.getElementById('arcSection'), lst=document.getElementById('arcList');
-  lst.innerHTML=''; activeArcIndex=-1;
+  lst.replaceChildren(); activeArcIndex=-1;
   if(related.length>0){
-    sec.style.display='block';
+    sec.hidden=false;
     related.forEach((arc,i)=>{
       const other=arc.a===c.name?arc.b:arc.a;
       const row=document.createElement('div'); row.className='arc-row';
-      row.innerHTML=`<div class="arc-head"><span class="arc-name">↔ ${other.toUpperCase()}</span><span class="arc-type ${arc.cssType}">${arc.type}</span></div>
-        <div style="font-size:8px;letter-spacing:.18em;color:rgba(255,255,255,.28);margin-bottom:2px">${arc.label}</div>
-        <div class="arc-sig">${arc.signal}</div>`;
+
+      const head=document.createElement('div');
+      head.className='arc-head';
+
+      const name=document.createElement('span');
+      name.className='arc-name';
+      name.textContent=`↔ ${other.toUpperCase()}`;
+
+      const type=document.createElement('span');
+      type.className=`arc-type ${arc.cssType}`;
+      type.textContent=arc.type;
+
+      const label=document.createElement('div');
+      label.className='arc-label';
+      label.textContent=arc.label;
+
+      const sig=document.createElement('div');
+      sig.className='arc-sig';
+      sig.textContent=arc.signal;
+
+      head.appendChild(name);
+      head.appendChild(type);
+      row.appendChild(head);
+      row.appendChild(label);
+      row.appendChild(sig);
+
       row.addEventListener('click',()=>{
         document.querySelectorAll('.arc-row').forEach(r=>r.classList.remove('active'));
         if(activeArcIndex===i) activeArcIndex=-1;
@@ -1390,7 +1414,7 @@ function showPanel(c){
       });
       lst.appendChild(row);
     });
-  } else { sec.style.display='none'; }
+  } else { sec.hidden=true; }
   document.getElementById('panel').classList.add('open');
   // Desactivar modo global cuando se selecciona un país
   globalArcMode = false;
@@ -1918,73 +1942,8 @@ initArcControls();
 }
 </style>
 
-<script>
-// ── TOUCH SUPPORT PATCH ──
-// Se ejecuta tras el script principal. Añade rotación táctil,
-// pinch-zoom y tap-to-select país. Cero modificaciones al código original.
-(function(){
-  var touchDidDrag = false;
-  var touch2Dist   = 0;
-  var touchAutoRotTimer = null;
-
-  function dist2(e){
-    var dx = e.touches[0].clientX - e.touches[1].clientX;
-    var dy = e.touches[0].clientY - e.touches[1].clientY;
-    return Math.sqrt(dx*dx + dy*dy);
-  }
-
-  window.addEventListener('touchstart', function(e){
-    clearTimeout(touchAutoRotTimer);
-    if(e.touches.length === 1){
-      touchDidDrag = false;
-      autoRot = false;
-      isDrag  = true;
-      prevX   = e.touches[0].clientX;
-      prevY   = e.touches[0].clientY;
-    } else if(e.touches.length === 2){
-      isDrag     = false;
-      touch2Dist = dist2(e);
-    }
-  }, {passive:true});
-
-  window.addEventListener('touchmove', function(e){
-    if(e.touches.length === 1 && isDrag){
-      var dx = e.touches[0].clientX - prevX;
-      var dy = e.touches[0].clientY - prevY;
-      if(Math.abs(dx) + Math.abs(dy) > 3) touchDidDrag = true;
-      tRotY += dx * 0.005;
-      tRotX += dy * 0.005;
-      tRotX  = Math.max(-1.35, Math.min(1.35, tRotX));
-      prevX  = e.touches[0].clientX;
-      prevY  = e.touches[0].clientY;
-      if(arcTooltip){ arcTooltip.classList.remove('show'); tooltipActive = false; }
-    } else if(e.touches.length === 2){
-      var d     = dist2(e);
-      var delta = touch2Dist - d;
-      camera.position.z = Math.max(1.55, Math.min(6.0, camera.position.z + delta * 0.012));
-      touch2Dist = d;
-    }
-  }, {passive:true});
-
-  window.addEventListener('touchend', function(e){
-    isDrag = false;
-    // Exponer didDrag al listener de click existente para que lo descarte si fue drag
-    didDrag = touchDidDrag;
-    touchAutoRotTimer = setTimeout(function(){ autoRot = true; }, 2800);
-
-    // Tap limpio → actualizar mouse para que el listener de click existente funcione
-    if(!touchDidDrag && e.changedTouches.length === 1){
-      var tx = e.changedTouches[0].clientX;
-      var ty = e.changedTouches[0].clientY;
-      mouse.x =  (tx / innerWidth)  * 2 - 1;
-      mouse.y = -(ty / innerHeight) * 2 + 1;
-      // El listener 'click' del código original se disparará tras este touchend
-      // y encontrará las coordenadas correctas en `mouse`.
-    }
-  }, {passive:true});
-
-})();
-</script>
+  <script src="assets/js/globe-module-hardening.js"></script>
+  <script src="assets/js/globe-touch-patch.js"></script>
 
 </body>
 </html>

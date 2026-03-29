@@ -1,0 +1,13 @@
+/* Capa 9 — refuerzo periférico de Globe */
+.ld2-critical{ background:#FF4060; box-shadow:0 0 6px #FF4060; }
+.ld2-high{ background:#FF8030; box-shadow:0 0 6px #FF8030; }
+.ld2-medium{ background:#FFB020; box-shadow:0 0 6px #FFB020; }
+.ld2-low{ background:#00FFC8; box-shadow:0 0 6px #00FFC8; }
+.arc-border-critical{ border-color:rgba(255,64,96,.35); }
+.arc-border-high{ border-color:rgba(255,128,48,.35); }
+.arc-border-sanction{ border-color:rgba(68,153,255,.35); }
+.arc-border-energy{ border-color:rgba(255,154,60,.35); }
+.arc-border-alliance{ border-color:rgba(0,204,102,.35); }
+.arc-border-proxy{ border-color:rgba(204,68,255,.35); }
+.arc-label{ font-size:8px; letter-spacing:.18em; color:rgba(255,255,255,.28); margin-bottom:2px; }
+[hidden]{ display:none !important; }
