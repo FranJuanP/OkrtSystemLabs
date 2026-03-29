@@ -1,0 +1,5 @@
+/* Ajuste no invasivo: restaurar cursor real del sistema sin tocar el runtime */
+body{cursor:auto !important;}
+.cursor,.cursor-ring,#cur,#cur2{pointer-events:none !important;}
+a,button,[role="button"],input,select,textarea{cursor:pointer !important;}
+textarea,input[type="text"],input[type="search"],input[type="number"],select{cursor:text !important;}

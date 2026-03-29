@@ -1,0 +1,61 @@
+
+.aether-enh-card{--acc:var(--cyan);margin-bottom:16px;background:linear-gradient(180deg, rgba(2,14,24,.92), rgba(4,12,20,.94));box-shadow:0 12px 36px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.02)}
+.aether-enh-grid{display:grid;grid-template-columns:1.2fr 1fr .95fr;gap:12px;align-items:stretch}
+.aether-enh-block{background:linear-gradient(180deg, rgba(5,12,18,.78), rgba(3,9,15,.9));border:1px solid rgba(90,110,140,.18);border-radius:12px;padding:12px;position:relative;overflow:hidden}
+.aether-enh-block:before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:1px;background:linear-gradient(90deg, rgba(0,255,200,.16), rgba(0,255,200,0));pointer-events:none}
+.aether-enh-kicker{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:1.3px;margin-bottom:6px;text-transform:uppercase}
+.aether-enh-brief{font-size:14px;line-height:1.5;color:var(--bright);min-height:72px}
+.aether-enh-brief strong{color:var(--cyan)}
+.aether-enh-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.aether-pill{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;border-radius:999px;border:1px solid rgba(0,255,200,.22);background:rgba(0,255,200,.05);color:var(--bright)}
+.aether-pill.is-hot{border-color:rgba(255,95,95,.28);background:rgba(255,60,60,.08);color:#ffc7c7}
+.aether-pill.is-cool{border-color:rgba(0,255,200,.28);background:rgba(0,255,200,.08);color:var(--cyan)}
+.aether-brief-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.aether-kpi-box{padding:9px 10px;border-radius:10px;background:rgba(8,15,23,.75);border:1px solid rgba(90,110,140,.16)}
+.aether-kpi-label{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:5px}
+.aether-kpi-value{font-size:20px;line-height:1;color:var(--bright);font-family:'Share Tech Mono',monospace}
+.aether-kpi-value span{font-size:11px;color:var(--dim);margin-left:2px}
+.aether-kpi-value.is-small{font-size:13px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aether-brief-status{margin-top:10px}
+.aether-status-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.aether-status-pill{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;border-radius:999px;border:1px solid rgba(90,110,140,.18);background:rgba(255,255,255,.03);color:var(--bright);white-space:nowrap}
+.aether-status-pill.is-up{border-color:rgba(255,120,120,.28);background:rgba(255,56,56,.08);color:#ffc2c2}
+.aether-status-pill.is-down{border-color:rgba(0,255,200,.28);background:rgba(0,255,200,.08);color:var(--cyan)}
+.aether-status-pill.is-flat{border-color:rgba(255,209,102,.22);background:rgba(255,209,102,.08);color:#ffeab5}
+.aether-status-text{font-size:10px;color:var(--dim);line-height:1.45;flex:1;min-width:160px}
+.aether-explain-list{display:grid;gap:8px}
+.aether-ex-row{display:grid;grid-template-columns:92px 1fr 36px;gap:8px;align-items:center}
+.aether-ex-label{font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.aether-ex-bar{height:8px;border-radius:999px;background:rgba(18,28,40,.9);border:1px solid rgba(90,110,140,.16);overflow:hidden}
+.aether-ex-fill{height:100%;border-radius:999px;background:linear-gradient(90deg, rgba(0,255,200,.35), rgba(0,255,200,.9))}
+.aether-ex-row.tone-up .aether-ex-fill{background:linear-gradient(90deg, rgba(255,117,117,.35), rgba(255,164,64,.95))}
+.aether-ex-row.tone-down .aether-ex-fill{background:linear-gradient(90deg, rgba(0,255,200,.18), rgba(117,255,218,.92))}
+.aether-ex-val{font-size:10px;color:var(--bright);font-family:'Share Tech Mono',monospace;text-align:right}
+.aether-drivers{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.aether-driver{font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 8px;border-radius:999px;border:1px solid color-mix(in srgb, var(--driver) 35%, rgba(90,110,140,.2));background:color-mix(in srgb, var(--driver) 10%, rgba(255,255,255,.02));color:var(--bright)}
+.aether-driver.is-primary{box-shadow:0 0 0 1px color-mix(in srgb, var(--driver) 38%, transparent)}
+.aether-note{margin-top:10px;font-size:10px;color:var(--dim);line-height:1.45}
+.aether-watch-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.aether-mini-btn{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.8px;background:rgba(0,255,200,.06);border:1px solid rgba(0,255,200,.28);color:var(--cyan);padding:6px 10px;border-radius:7px;cursor:pointer;transition:all .2s}
+.aether-mini-btn:hover{background:rgba(0,255,200,.14);border-color:var(--cyan)}
+.aether-watchlist{display:grid;gap:8px;max-height:255px;overflow:auto;padding-right:2px}
+.aether-watch-item{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 10px;border-radius:10px;background:rgba(7,12,18,.68);border:1px solid rgba(90,110,140,.16)}
+.aether-watch-main{min-width:0}
+.aether-watch-name-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.aether-watch-name{font-size:12px;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aether-watch-band{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);padding:3px 6px;border-radius:999px;border:1px solid rgba(90,110,140,.16)}
+.aether-watch-sub{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-top:4px;letter-spacing:1px;display:flex;gap:8px;flex-wrap:wrap}
+.aether-watch-delta.up{color:#ffb0b0}.aether-watch-delta.down{color:var(--cyan)}.aether-watch-delta.flat{color:#ffeab5}
+.aether-watch-dominant{font-size:10px;color:var(--bright);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aether-watch-side{text-align:right;display:grid;gap:8px;align-items:center}
+.aether-watch-confidence{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--bright)}
+.aether-watch-actions{display:flex;gap:6px;justify-content:flex-end}
+.aether-watch-icon{font-size:9px;padding:5px 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(90,110,140,.16);color:var(--bright);cursor:pointer}
+.aether-watch-empty{font-size:11px;color:var(--dim);padding:12px;border:1px dashed rgba(90,110,140,.2);border-radius:8px;text-align:center;line-height:1.45}
+@media (max-width: 1320px){.aether-enh-grid{grid-template-columns:1fr}.aether-watchlist{max-height:none}.aether-brief-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+.aether-driver-soft{border-color:rgba(90,110,140,.18);background:rgba(255,255,255,.03);color:var(--dim)}
+.aether-ex-row.tone-flat .aether-ex-fill{background:linear-gradient(90deg, rgba(255,209,102,.30), rgba(255,209,102,.92))}
+.aether-ex-val{min-width:36px}
+

@@ -1,0 +1,45 @@
+
+#region-sel{visibility:hidden;position:absolute;pointer-events:none}
+.okrt-region-shell{position:relative;display:inline-flex;min-width:240px;max-width:280px;z-index:30}
+.okrt-region-btn{
+  width:100%;display:flex;align-items:center;gap:10px;justify-content:space-between;
+  background:rgba(10,14,24,.92);border:1px solid rgba(0,255,200,.22);color:var(--text);
+  border-radius:12px;padding:10px 12px;min-height:42px;cursor:pointer;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:12px;
+}
+.okrt-region-btn:hover,.okrt-region-btn:focus{border-color:rgba(0,255,200,.42);outline:none}
+.okrt-region-left{display:flex;align-items:center;gap:10px;min-width:0}
+.okrt-flag{width:18px;height:13px;display:inline-block;border-radius:2px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.okrt-flag.okrt-globe{width:18px;height:18px;border-radius:50%;box-shadow:none;font-size:16px;line-height:18px;text-align:center}
+.okrt-region-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.okrt-region-chevron{color:var(--dim);font-size:11px;transition:transform .18s ease}
+.okrt-region-shell.open .okrt-region-chevron{transform:rotate(180deg)}
+.okrt-region-menu{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;max-height:380px;overflow:auto;display:none;
+  background:rgba(8,12,20,.98);backdrop-filter:blur(10px);border:1px solid rgba(0,255,200,.18);
+  border-radius:14px;padding:10px;box-shadow:0 18px 55px rgba(0,0,0,.42)
+}
+.okrt-region-shell.open .okrt-region-menu{display:block}
+.okrt-region-group{padding:6px 4px 8px}
+.okrt-region-group + .okrt-region-group{border-top:1px solid rgba(255,255,255,.06)}
+.okrt-region-group-title{font-size:10px;letter-spacing:1.2px;color:var(--dim);margin:2px 4px 8px;font-family:'Share Tech Mono',monospace}
+.okrt-region-item{
+  width:100%;display:flex;align-items:center;gap:10px;background:transparent;border:0;color:var(--text);
+  text-align:left;border-radius:10px;padding:8px 9px;cursor:pointer;font-size:12px
+}
+.okrt-region-item:hover,.okrt-region-item:focus{background:rgba(0,255,200,.08);outline:none}
+.okrt-region-item.active{background:rgba(0,255,200,.12);box-shadow:inset 0 0 0 1px rgba(0,255,200,.16)}
+.okrt-data-card{
+  margin:0 0 16px;background:linear-gradient(180deg,rgba(10,16,28,.96),rgba(7,10,18,.96));
+  border:1px solid rgba(0,255,200,.14);border-radius:18px;padding:16px 18px;box-shadow:0 14px 44px rgba(0,0,0,.24)
+}
+.okrt-data-head{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:12px}
+.okrt-data-title{font-size:11px;letter-spacing:2px;color:var(--dim);font-family:'Share Tech Mono',monospace}
+.okrt-data-region{font-size:12px;color:var(--cyan);font-family:'Share Tech Mono',monospace}
+.okrt-data-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.okrt-data-pill{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:10px 12px;min-height:72px}
+.okrt-data-k{font-size:10px;letter-spacing:1.2px;color:var(--dim);margin-bottom:7px;font-family:'Share Tech Mono',monospace}
+.okrt-data-v{font-size:18px;font-weight:700;line-height:1.1;color:var(--text)}
+.okrt-data-s{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.35}
+@media (max-width:1200px){.okrt-data-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:760px){.okrt-data-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.okrt-region-shell{min-width:100%;max-width:none}}

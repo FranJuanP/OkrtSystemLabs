@@ -1,0 +1,35 @@
+
+
+/* === Robustez Premium === */
+.aether-health-dock{position:fixed;right:18px;bottom:18px;z-index:9999;width:min(360px,calc(100vw - 24px));border:1px solid rgba(0,255,200,.16);border-radius:18px;background:linear-gradient(180deg,rgba(8,18,28,.96),rgba(6,13,20,.94));box-shadow:0 18px 46px rgba(0,0,0,.45),0 0 0 1px rgba(0,255,200,.05) inset;backdrop-filter:blur(14px);color:#d8fdf5;font-family:'Exo 2',system-ui,sans-serif;overflow:hidden}
+.aether-health-dock[data-collapsed="1"] .aether-health-body{display:none}
+.aether-health-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(0,255,200,.10);background:linear-gradient(90deg,rgba(0,255,200,.06),rgba(10,239,255,.03))}
+.aether-health-title{display:flex;align-items:center;gap:10px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;font-family:'Share Tech Mono',monospace;color:#9fffee}
+.aether-health-led{width:10px;height:10px;border-radius:999px;background:#00ffc8;box-shadow:0 0 8px rgba(0,255,200,.65)}
+.aether-health-led.warn{background:#ffd86b;box-shadow:0 0 8px rgba(255,216,107,.6)}
+.aether-health-led.err{background:#ff5b7e;box-shadow:0 0 8px rgba(255,91,126,.65)}
+.aether-health-actions{display:flex;align-items:center;gap:8px}
+.aether-health-chip{padding:4px 8px;border-radius:999px;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-family:'Share Tech Mono',monospace;border:1px solid rgba(255,255,255,.08)}
+.aether-health-chip.ok{color:#7affd8;background:rgba(0,255,200,.10);border-color:rgba(0,255,200,.24)}
+.aether-health-chip.warn{color:#ffd86b;background:rgba(255,190,70,.10);border-color:rgba(255,190,70,.22)}
+.aether-health-chip.err{color:#ff9db1;background:rgba(255,91,126,.10);border-color:rgba(255,91,126,.24)}
+.aether-health-toggle{border:0;background:rgba(255,255,255,.05);color:#d7fff7;border-radius:10px;padding:6px 9px;cursor:pointer}
+.aether-health-body{padding:14px;display:grid;gap:12px}
+.aether-health-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.aether-health-stat{border:1px solid rgba(0,255,200,.09);border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.02)}
+.aether-health-k{font:10px 'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:#7aa6a0;margin-bottom:6px}
+.aether-health-v{font-size:20px;font-weight:700;color:#f2fffc;line-height:1}
+.aether-health-s{margin-top:6px;font-size:11px;color:#8fb7b1}
+.aether-health-list{display:grid;gap:8px}
+.aether-health-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04)}
+.aether-health-row span:first-child{font-size:12px;color:#d8f8f1}
+.aether-health-row small{font-size:11px;color:#8fb7b1}
+.aether-health-badge{padding:3px 7px;border-radius:999px;font:10px 'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.aether-health-badge.local{color:#8dfff1;background:rgba(0,255,200,.11)}
+.aether-health-badge.external{color:#ffd86b;background:rgba(255,190,70,.12)}
+.aether-health-badge.fallback{color:#9ad0ff;background:rgba(90,160,255,.14)}
+.aether-health-events{max-height:110px;overflow:auto;display:grid;gap:6px;padding-right:4px}
+.aether-health-event{font-size:11px;color:#8fb7b1;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.03)}
+.aether-health-footer{font-size:10px;color:#6f9691;font-family:'Share Tech Mono',monospace;letter-spacing:.8px;text-transform:uppercase}
+@media (max-width: 900px){.aether-health-dock{left:12px;right:12px;bottom:12px;width:auto}.aether-health-grid{grid-template-columns:1fr 1fr}}
+
