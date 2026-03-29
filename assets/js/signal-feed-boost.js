@@ -131,6 +131,192 @@
     }
   ];
 
+
+
+  const SHADOW_FETCH_TIMEOUT_MS = 7000;
+  const SHADOW_SOURCE_LIMIT = 6;
+  const shadowHealth = Object.create(null);
+  const shadowSources = [
+    {
+      id: 'src-usgs',
+      cat: 'seismic',
+      name: 'USGS GeoJSON Feed',
+      urls: [
+        'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
+        'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson'
+      ],
+      parse(data) {
+        const features = Array.isArray(data && data.features) ? data.features : [];
+        return features.slice(0, SHADOW_SOURCE_LIMIT).map((feature, idx) => {
+          const props = feature && feature.properties || {};
+          const coords = Array.isArray(feature && feature.geometry && feature.geometry.coordinates) ? feature.geometry.coordinates : [];
+          const mag = Number(props.mag);
+          const place = props.place || 'Actividad sísmica global';
+          return {
+            id: `shadow_usgs_${props.code || idx}`,
+            cat: 'seismic',
+            severity: mag >= 6 ? 'HIGH' : (mag >= 4.5 ? 'MEDIUM' : 'LOW'),
+            source: 'USGS GeoJSON Feed',
+            title: props.title || `Evento sísmico ${place}`,
+            location: place,
+            time: new Date(props.time || Date.now()),
+            summary: `Magnitud ${Number.isFinite(mag) ? mag.toFixed(1) : 'n/d'} · profundidad ${Number.isFinite(coords[2]) ? coords[2] + ' km' : 'n/d'} · actualización automática desde USGS.`,
+            impacts: {
+              Seismic: String(Math.max(45, Math.min(92, Math.round((Number.isFinite(mag) ? mag : 3.5) * 12)))) ,
+              Infrastructure: String(Math.max(30, Math.min(88, Math.round((Number.isFinite(mag) ? mag : 3.5) * 10)))),
+              Preparedness: String(mag >= 6 ? 81 : (mag >= 4.5 ? 63 : 44))
+            },
+            url: props.url || ''
+          };
+        });
+      }
+    },
+    {
+      id: 'src-nasa',
+      cat: 'climate',
+      name: 'NASA EONET',
+      urls: [
+        'https://eonet.gsfc.nasa.gov/api/v3/events/geojson?limit=12&days=20&status=open',
+        'https://eonet.gsfc.nasa.gov/api/v3/events/geojson?limit=12&days=30'
+      ],
+      parse(data) {
+        const features = Array.isArray(data && data.features) ? data.features : [];
+        return features.slice(0, SHADOW_SOURCE_LIMIT).map((feature, idx) => {
+          const props = feature && feature.properties || {};
+          const categories = Array.isArray(props.categories) ? props.categories.map(c => c && c.title).filter(Boolean) : [];
+          const title = props.title || `Evento natural ${idx+1}`;
+          const firstCategory = String(categories[0] || '').toLowerCase();
+          const cat = /fire|wildfire|volcano|severe storms?|flood|dust/i.test(firstCategory) ? 'climate' : 'geo';
+          return {
+            id: `shadow_eonet_${feature && feature.id || idx}`,
+            cat,
+            severity: /volcano|severe storms?|flood|wildfire/i.test(firstCategory) ? 'HIGH' : 'MEDIUM',
+            source: 'NASA EONET',
+            title,
+            location: Array.isArray(feature && feature.geometry) && feature.geometry[0] && Array.isArray(feature.geometry[0].coordinates)
+              ? `Lat ${Number(feature.geometry[0].coordinates[1]).toFixed(2)} / Lon ${Number(feature.geometry[0].coordinates[0]).toFixed(2)}`
+              : 'Evento natural global',
+            time: new Date(props.updated || props.closed || Date.now()),
+            summary: `${title}. Categorías: ${categories.join(', ') || 'evento natural'} · seguimiento reforzado desde EONET.`,
+            impacts: cat === 'climate'
+              ? { Climate: '74', Logistics: '53', Risk: '58' }
+              : { Diplomacy: '42', Stability: '47', Risk: '55' },
+            url: props.sources && props.sources[0] && props.sources[0].url ? props.sources[0].url : ''
+          };
+        });
+      }
+    },
+    {
+      id: 'src-relief',
+      cat: 'humanitarian',
+      name: 'ReliefWeb API',
+      urls: [
+        'https://api.reliefweb.int/v2/disasters?appname=aether&limit=8&profile=full&sort[]=date:desc',
+        'https://api.reliefweb.int/v2/reports?appname=aether&limit=8&preset=latest&sort[]=date:desc'
+      ],
+      parse(data) {
+        const items = Array.isArray(data && data.data) ? data.data : [];
+        return items.slice(0, SHADOW_SOURCE_LIMIT).map((entry, idx) => {
+          const fields = entry && entry.fields || {};
+          const country = Array.isArray(fields.country) && fields.country[0] ? fields.country[0].name : '';
+          const title = fields.title || fields.headline || `Señal humanitaria ${idx+1}`;
+          const body = String(fields.body || fields.description || fields.headline || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          return {
+            id: `shadow_relief_${entry && entry.id || idx}`,
+            cat: 'humanitarian',
+            severity: /emergency|famine|cholera|flood|conflict|earthquake|cyclone/i.test(title + ' ' + body) ? 'HIGH' : 'MEDIUM',
+            source: 'ReliefWeb API',
+            title,
+            location: country || 'Cobertura humanitaria global',
+            time: new Date(fields.date && (fields.date.changed || fields.date.created) || Date.now()),
+            summary: body.slice(0, 280) || 'Actualización humanitaria incorporada desde ReliefWeb.',
+            impacts: { Humanitarian: '83', Logistics: '66', Food: '58', Health: '57' },
+            url: fields.url || ''
+          };
+        });
+      }
+    }
+  ];
+
+  function setSourceStatus(id, state) {
+    const dot = document.getElementById(id);
+    if (!dot) return;
+    dot.classList.remove('load', 'ok', 'err');
+    dot.classList.add(state);
+  }
+
+  async function fetchJsonWithTimeout(url, timeoutMs) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      const response = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store', signal: controller ? controller.signal : undefined });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  async function fetchShadowSource(source) {
+    setSourceStatus(source.id, 'load');
+    let lastError = null;
+    for (const url of source.urls) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const bust = url + (url.includes('?') ? '&' : '?') + 'aether_retry=' + attempt + '&t=' + Date.now();
+          const data = await fetchJsonWithTimeout(bust, SHADOW_FETCH_TIMEOUT_MS + (attempt * 1500));
+          const events = source.parse(data).filter(Boolean);
+          if (events.length) {
+            shadowHealth[source.id] = { ok: true, count: events.length, ts: Date.now(), source: source.name };
+            setSourceStatus(source.id, 'ok');
+            return events;
+          }
+        } catch (err) {
+          lastError = err;
+        }
+      }
+    }
+    shadowHealth[source.id] = { ok: false, count: 0, ts: Date.now(), source: source.name, error: String(lastError && lastError.message || lastError || 'unknown') };
+    setSourceStatus(source.id, 'err');
+    return [];
+  }
+
+  function mergeShadowSignals(events) {
+    if (!Array.isArray(events) || !events.length) return 0;
+    const knownKeys = new Set((Array.isArray(allSignals) ? allSignals : []).map(eventKey));
+    let added = 0;
+    for (const event of events) {
+      const key = eventKey(event);
+      if (!key || knownKeys.has(key)) continue;
+      knownKeys.add(key);
+      allSignals.push(event);
+      added += 1;
+    }
+    return added;
+  }
+
+  async function enrichFromShadowSources() {
+    if (!Array.isArray(allSignals)) return { added: 0, fetched: 0 };
+    const counts = categoryCounts(allSignals);
+    const wanted = shadowSources.filter(source => (counts[source.cat] || 0) < 3 || allSignals.length < TARGET_TOTAL + 4);
+    if (!wanted.length) return { added: 0, fetched: 0 };
+    const batches = await Promise.allSettled(wanted.map(fetchShadowSource));
+    let fetched = 0;
+    let added = 0;
+    for (const result of batches) {
+      if (result.status !== 'fulfilled') continue;
+      fetched += result.value.length;
+      added += mergeShadowSignals(result.value);
+    }
+    if (added > 0) {
+      const consolidated = consolidateSignals();
+      allSignals = sortSignalsQuality(allSignals);
+      filtered = allSignals.slice();
+      return { added, fetched, merged: consolidated.merged || 0 };
+    }
+    return { added: 0, fetched };
+  }
+
   function cloneDeep(obj) {
     try { return structuredClone(obj); } catch (_) {
       return JSON.parse(JSON.stringify(obj));
@@ -403,11 +589,15 @@
     }
   }
 
-  function annotateUpdate(additionsCount, mergedCount) {
+  function annotateUpdate(additionsCount, mergedCount, shadowAdded) {
     const el = document.getElementById('last-update');
     if (!el) return;
     const base = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    if (additionsCount > 0 && mergedCount > 0) {
+    if (shadowAdded > 0 && additionsCount > 0) {
+      el.textContent = `${base} UTC · cobertura reforzada · shadow feeds activos`;
+    } else if (shadowAdded > 0) {
+      el.textContent = `${base} UTC · shadow feeds activos`;
+    } else if (additionsCount > 0 && mergedCount > 0) {
       el.textContent = `${base} UTC · cobertura reforzada · duplicados consolidados`;
     } else if (additionsCount > 0) {
       el.textContent = `${base} UTC · cobertura reforzada`;
@@ -458,13 +648,20 @@
     }
   }
 
-  function processSignals() {
+  async function processSignals() {
     const consolidated = consolidateSignals();
     const reinforced = reinforceSignals();
+    const shadow = await enrichFromShadowSources();
     allSignals = sortSignalsQuality(allSignals);
     filtered = allSignals.slice();
-    annotateUpdate(reinforced.additions, consolidated.merged);
-    return { changed: consolidated.changed || reinforced.changed, additions: reinforced.additions, merged: consolidated.merged };
+    annotateUpdate(reinforced.additions, (consolidated.merged || 0) + (shadow.merged || 0), shadow.added || 0);
+    return {
+      changed: consolidated.changed || reinforced.changed || (shadow.added || 0) > 0,
+      additions: reinforced.additions,
+      merged: (consolidated.merged || 0) + (shadow.merged || 0),
+      shadowAdded: shadow.added || 0,
+      shadowFetched: shadow.fetched || 0
+    };
   }
 
   function installSignalBoost() {
@@ -475,7 +672,7 @@
     const originalLoadAll = loadAll;
     loadAll = async function boostedLoadAll() {
       await originalLoadAll();
-      processSignals();
+      await processSignals();
       rerenderSignalModule();
     };
 
@@ -489,8 +686,7 @@
 
     setInterval(() => {
       try {
-        const result = processSignals();
-        if (result.changed) rerenderSignalModule();
+        processSignals().then(result => { if (result.changed) rerenderSignalModule(); });
       } catch (err) {
         console.warn('AETHER Signal boost maintenance warning:', err);
       }
