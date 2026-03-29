@@ -1,0 +1,36 @@
+.aether-diag-toggle{
+  position:fixed;right:14px;bottom:14px;z-index:2147483000;
+  border:1px solid rgba(0,255,200,.22);background:rgba(8,12,20,.86);color:#d7fff8;
+  border-radius:999px;padding:8px 12px;font:600 11px/1 'Segoe UI',Arial,sans-serif;letter-spacing:1.4px;
+  cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(8px);opacity:.72;
+}
+.aether-diag-toggle:hover,.aether-diag-toggle.active{opacity:1;border-color:rgba(0,255,200,.48)}
+.aether-diagnostic-panel[hidden]{display:none !important}
+.aether-diagnostic-panel{
+  position:fixed;right:14px;bottom:56px;width:min(640px,calc(100vw - 28px));max-height:min(78vh,900px);overflow:auto;
+  z-index:2147483001;background:rgba(7,10,18,.98);color:#e9fffb;border:1px solid rgba(0,255,200,.22);border-radius:18px;
+  box-shadow:0 22px 60px rgba(0,0,0,.52);padding:14px 14px 12px;backdrop-filter:blur(12px)
+}
+.aether-diag-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.aether-diag-title{font:700 14px/1.1 'Segoe UI',Arial,sans-serif;letter-spacing:1.6px;color:#d7fff8}
+.aether-diag-sub{font:500 11px/1.4 'Segoe UI',Arial,sans-serif;color:#8fe8d6;margin-top:4px}
+.aether-diag-actions{display:flex;gap:8px;flex-wrap:wrap}
+.aether-diag-btn{border:1px solid rgba(0,255,200,.18);background:rgba(255,255,255,.03);color:#e9fffb;border-radius:10px;padding:7px 10px;font:600 11px/1 'Segoe UI',Arial,sans-serif;cursor:pointer}
+.aether-diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.aether-diag-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:11px 12px}
+.aether-diag-card h3,.aether-diag-card h4{margin:0 0 8px;font:700 11px/1.2 'Segoe UI',Arial,sans-serif;letter-spacing:1.2px;color:#8fe8d6}
+.aether-diag-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font:500 12px/1.35 'Segoe UI',Arial,sans-serif}
+.aether-diag-row:last-child{border-bottom:0}
+.aether-diag-badge{display:inline-flex;align-items:center;justify-content:center;min-width:38px;border-radius:999px;padding:4px 8px;font:700 10px/1 'Segoe UI',Arial,sans-serif;letter-spacing:1px}
+.aether-diag-badge.ok{background:rgba(0,255,200,.14);color:#9dffe8}
+.aether-diag-badge.ko{background:rgba(255,81,81,.14);color:#ffadad}
+.aether-diag-kv{display:grid;gap:8px}
+.aether-diag-kv div{display:flex;justify-content:space-between;gap:10px;font:500 12px/1.35 'Segoe UI',Arial,sans-serif}
+.aether-diag-kv span,.aether-diag-meta{color:#9fb7b1}
+.aether-diag-kv strong{font-weight:700;color:#f3fffd;text-align:right}
+.aether-diag-script,.aether-diag-log,.aether-diag-empty{font:500 11px/1.45 'Consolas','Courier New',monospace;padding:5px 0;color:#cfeee8;word-break:break-word}
+.aether-diag-log{color:#ffd4d4}
+@media (max-width: 760px){
+  .aether-diagnostic-panel{left:10px;right:10px;width:auto;bottom:52px;max-height:72vh}
+  .aether-diag-grid{grid-template-columns:1fr}
+}
