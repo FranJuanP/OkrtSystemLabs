@@ -1,0 +1,11 @@
+@media screen and (min-width: 768px) and (max-width: 1180px) {
+  #stats,
+  .stats,
+  [data-module="globe-stats"],
+  .globe-stats {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
