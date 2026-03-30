@@ -1,0 +1,52 @@
+@media (min-width: 768px) and (max-width: 1180px) {
+  body.globe-tablet{ overflow:hidden !important; }
+  body.globe-tablet #hdr{
+    left:24px !important; right:24px !important; top:16px !important;
+    padding:18px 22px; flex-direction:row; align-items:flex-start; gap:14px;
+  }
+  body.globe-tablet .brand{ font-size:52px; }
+  body.globe-tablet .brand-sub{ font-size:8.5px; letter-spacing:.22em; }
+  body.globe-tablet .hdr-r{ flex-direction:column; align-items:flex-end; gap:8px; }
+
+  body.globe-tablet #stats{
+    left:24px !important; right:auto !important; top:112px !important; bottom:auto !important;
+    width:min(380px, 42vw); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;
+    padding:0; background:transparent; backdrop-filter:none;
+  }
+  body.globe-tablet #stats .sb{ min-width:0; padding:10px 12px; }
+  body.globe-tablet #leg{
+    left:24px !important; right:auto !important; bottom:24px !important; top:auto !important;
+    width:min(360px, 42vw); flex-wrap:wrap; gap:8px 10px;
+    padding:10px 12px; background:rgba(5,10,18,.82); backdrop-filter:none;
+  }
+  body.globe-tablet #hint{ right:24px !important; bottom:18px !important; }
+
+  body.globe-tablet #arc-controls{
+    top:232px !important; left:24px !important; right:auto !important; bottom:auto !important;
+    width:min(340px, 42vw) !important; max-width:min(340px, 42vw) !important;
+    max-height:calc(100dvh - 340px); overflow:auto;
+    padding:14px 14px 16px;
+    background:rgba(5,10,18,.82) !important; backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.35);
+  }
+  body.globe-tablet .arc-mode-row,
+  body.globe-tablet .arc-filter-row{ flex-wrap:wrap; overflow:visible; gap:8px; }
+  body.globe-tablet .arc-fbtn{ min-height:36px; font-size:12px; padding:8px 12px; }
+  body.globe-tablet .arc-ctrl-label{ margin-bottom:8px; }
+
+  body.globe-tablet #globe-hotspots{ display:none !important; }
+
+  body.globe-tablet #panel{
+    left:auto !important; right:18px !important; top:50% !important; bottom:auto !important;
+    width:min(360px, 38vw) !important; max-width:min(360px, 38vw) !important; max-height:76vh !important;
+    transform:translateY(-50%) translateX(110%) !important;
+    border-radius:18px 0 0 18px; border-top:none; border-left:2px solid #00FFC8;
+    background:rgba(5,10,18,.84); backdrop-filter:blur(20px);
+  }
+  body.globe-tablet #panel.open{ transform:translateY(-50%) translateX(0) !important; }
+
+  body.globe-tablet #arc-tooltip{
+    left:auto !important; right:24px !important; bottom:24px !important; max-width:min(360px, 36vw) !important;
+  }
+}
