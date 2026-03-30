@@ -1,0 +1,31 @@
+@media (min-width: 768px) and (max-width: 1180px) and (orientation: portrait) {
+  body.globe-tablet #stats,
+  body.globe-tablet .stats,
+  body.globe-tablet [data-module="globe-stats"],
+  body.globe-tablet .globe-stats,
+  body.globe-tablet #leg,
+  body.globe-tablet .legend,
+  body.globe-tablet .globe-legend,
+  body.globe-tablet #globe-hotspots {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  body.globe-tablet #arc-controls {
+    z-index: 60 !important;
+    background: rgba(5, 16, 32, 0.96) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 0 0 1px rgba(0,255,255,0.14), 0 8px 28px rgba(0,0,0,0.32) !important;
+  }
+
+  body.globe-tablet #arc-controls::before,
+  body.globe-tablet #arc-controls::after,
+  body.globe-tablet #panel::before,
+  body.globe-tablet #panel::after {
+    display: none !important;
+    content: none !important;
+  }
+}
