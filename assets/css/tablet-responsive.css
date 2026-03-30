@@ -1,0 +1,101 @@
+/* Tablet / iPad adjustments */
+body.tablet-optimized {
+  overflow: hidden;
+}
+
+body.globe-tablet #hdr {
+  padding: 20px 26px;
+}
+body.globe-tablet .brand {
+  font-size: 42px;
+}
+body.globe-tablet .brand-sub {
+  font-size: 7px;
+  letter-spacing: .28em;
+}
+body.globe-tablet #arc-controls {
+  top: 102px;
+  left: 22px;
+  max-width: 320px;
+  gap: 8px;
+}
+body.globe-tablet .arc-filter-row,
+body.globe-tablet .arc-mode-row {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+body.globe-tablet .arc-fbtn {
+  min-width: 110px;
+  min-height: 42px;
+  font-size: 9px;
+  padding: 8px 12px;
+}
+body.globe-tablet #stats {
+  left: 26px;
+  right: auto;
+  bottom: 26px;
+  transform: none;
+  gap: 6px;
+}
+body.globe-tablet #stats .sb {
+  min-width: 82px;
+  padding: 10px 14px;
+}
+body.globe-tablet .sv,
+body.globe-tablet #stats .s-num {
+  font-size: 28px;
+}
+body.globe-tablet .sl,
+body.globe-tablet #stats .s-lbl {
+  font-size: 7px;
+}
+body.globe-tablet #leg {
+  left: 26px;
+  bottom: 124px;
+  gap: 8px;
+}
+body.globe-tablet #hint {
+  right: 26px;
+  bottom: 26px;
+  max-width: 180px;
+}
+body.globe-tablet #panel {
+  right: 22px;
+  top: 112px;
+  bottom: 22px;
+  width: 312px;
+  max-height: none;
+  transform: translateX(calc(100% + 40px));
+}
+body.globe-tablet #panel.open {
+  transform: translateX(0);
+}
+body.globe-tablet #globe-hotspots {
+  position: absolute;
+  left: 22px;
+  top: 312px;
+  width: 320px;
+  max-height: 260px;
+  overflow: hidden;
+}
+body.globe-tablet #globe-hotspots-list {
+  max-height: 206px;
+  overflow: auto;
+}
+body.globe-tablet #arc-tooltip {
+  max-width: 260px;
+}
+
+body.signal-tablet .signal-shell,
+body.vector-tablet .vector-shell,
+body.tablet-optimized .app-shell {
+  max-width: 100%;
+}
+
+@media (min-width: 821px) and (max-width: 1180px) {
+  body.globe-tablet #gl-canvas,
+  body.globe-tablet #lbl-canvas {
+    width: 100vw;
+    height: 100dvh;
+  }
+}
