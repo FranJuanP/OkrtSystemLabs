@@ -159,6 +159,73 @@
   .tt-signal { font-family:'Inter',sans-serif; font-size:11.5px; line-height:1.55; color:rgba(255,255,255,.75); }
   .tt-hint { font-size:7.5px; letter-spacing:.2em; color:rgba(0,255,200,.3); margin-top:6px; }
 
+/* ── Desktop readability boost (≥ 1280px) ── */
+@media (min-width: 1280px) {
+  #hdr { padding: 30px 42px; }
+  .brand {
+    font-size: 66px;
+    letter-spacing: .09em;
+    text-shadow: 0 0 28px rgba(0,255,200,.42), 0 0 56px rgba(0,255,200,.14);
+  }
+  .brand-sub {
+    font-size: 10px;
+    letter-spacing: .34em;
+    color: rgba(0,255,200,.42);
+    margin-top: 6px;
+  }
+
+  #arc-controls {
+    top: 122px;
+    left: 36px;
+    gap: 9px;
+    max-width: 360px;
+  }
+  .arc-ctrl-label {
+    font-size: 10px;
+    letter-spacing: .28em;
+    color: rgba(255,255,255,.22);
+    margin-bottom: 5px;
+  }
+  .arc-mode-row,
+  .arc-filter-row {
+    gap: 8px;
+  }
+  .arc-fbtn {
+    font-size: 10px;
+    letter-spacing: .14em;
+    padding: 8px 13px;
+    min-height: 36px;
+    color: rgba(255,255,255,.56);
+  }
+
+  #leg {
+    left: 36px;
+    bottom: 40px;
+    gap: 10px;
+  }
+  .lt {
+    font-size: 10px;
+    letter-spacing: .3em;
+    color: rgba(255,255,255,.2);
+    margin-bottom: 8px;
+  }
+  .li { gap: 12px; }
+  .ld2 { width: 10px; height: 10px; }
+  .ll {
+    font-size: 11px;
+    letter-spacing: .14em;
+    color: rgba(255,255,255,.42);
+  }
+
+  #hint {
+    right: 36px;
+    bottom: 40px;
+    font-size: 9px;
+    letter-spacing: .18em;
+    color: rgba(255,255,255,.16);
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════
    RESPONSIVE — MOBILE & TABLET
    Bloque añadido quirúrgicamente. No modifica ninguna regla
@@ -274,6 +341,167 @@
   #panel     { max-height: 70vh; padding: 20px 16px; }
   .pn        { font-size: 28px; }
 }
+
+/* ── DESKTOP LEGIBILITY BOOST + HOTSPOTS ── */
+@media (min-width: 1025px) and (hover: hover) and (pointer: fine) {
+  #hdr { padding: 30px 42px; }
+  .brand {
+    font-size: 64px;
+    letter-spacing: .09em;
+    text-shadow: 0 0 28px rgba(0,255,200,.42), 0 0 58px rgba(0,255,200,.14);
+  }
+  .brand-sub {
+    font-size: 10px;
+    letter-spacing: .42em;
+    color: rgba(0,255,200,.42);
+    margin-top: 8px;
+  }
+
+  #arc-controls {
+    top: 116px;
+    left: 36px;
+    width: 330px;
+    gap: 8px;
+  }
+  .arc-ctrl-label {
+    font-size: 10px;
+    letter-spacing: .32em;
+    color: rgba(255,255,255,.22);
+    margin-bottom: 6px;
+  }
+  .arc-mode-row, .arc-filter-row {
+    gap: 8px;
+  }
+  .arc-fbtn {
+    font-size: 10px;
+    padding: 8px 14px;
+    min-height: 36px;
+    letter-spacing: .16em;
+    border-width: 1px;
+  }
+
+  #desktop-hotspots {
+    position: absolute;
+    top: 286px;
+    left: 36px;
+    width: 330px;
+    padding: 14px;
+    background: rgba(0,5,8,.72);
+    border: 1px solid rgba(0,255,200,.16);
+    box-shadow: inset 0 0 0 1px rgba(0,255,200,.04);
+    pointer-events: auto;
+    z-index: 11;
+  }
+  .dh-title {
+    font-size: 10px;
+    letter-spacing: .34em;
+    color: rgba(255,255,255,.22);
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .dh-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dh-item {
+    display: grid;
+    grid-template-columns: 38px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    min-height: 48px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,.36);
+    border: 1px solid rgba(255,255,255,.06);
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    -webkit-appearance: none;
+    border-radius: 0;
+    cursor: pointer;
+  }
+  .dh-item:hover {
+    border-color: rgba(0,255,200,.18);
+    background: rgba(0,255,200,.03);
+  }
+  .dh-item:focus-visible {
+    outline: 1px solid rgba(0,255,200,.42);
+    outline-offset: 1px;
+  }
+  .dh-rank {
+    font-size: 24px;
+    line-height: 1;
+    color: #00FFC8;
+    text-shadow: 0 0 12px rgba(0,255,200,.22);
+    font-family:'Bebas Neue',sans-serif;
+    letter-spacing: .06em;
+  }
+  .dh-name {
+    font-size: 14px;
+    letter-spacing: .16em;
+    color: rgba(255,255,255,.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dh-risk {
+    font-size: 10px;
+    letter-spacing: .16em;
+    color: rgba(255,255,255,.42);
+    text-transform: uppercase;
+  }
+
+  #leg {
+    left: 36px;
+    bottom: 28px;
+    gap: 10px;
+  }
+  .lt {
+    font-size: 10px;
+    letter-spacing: .32em;
+    color: rgba(255,255,255,.18);
+    margin-bottom: 6px;
+  }
+  .ld2 {
+    width: 10px;
+    height: 10px;
+    box-shadow: 0 0 10px currentColor;
+  }
+  .ld2-critical { background:#FF4060; color:#FF4060; }
+  .ld2-high     { background:#FF8030; color:#FF8030; }
+  .ld2-medium   { background:#FFB020; color:#FFB020; }
+  .ld2-low      { background:#00FFC8; color:#00FFC8; }
+  .ll {
+    font-size: 12px;
+    letter-spacing: .12em;
+    color: rgba(255,255,255,.45);
+  }
+
+  #hint {
+    right: 36px;
+    bottom: 30px;
+    font-size: 9px;
+    letter-spacing: .2em;
+    color: rgba(255,255,255,.16);
+  }
+}
+
+/* Un poco más de aire en escritorio muy ancho */
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  #arc-controls, #desktop-hotspots, #leg { left: 40px; }
+  #desktop-hotspots { width: 340px; }
+}
+
+/* En tablet/móvil no mostrar el bloque extra */
+@media (max-width: 1024px) {
+  #desktop-hotspots { display: none !important; }
+}
+
+/* Blindaje extra: tablets táctiles y móviles grandes mantienen el layout original */
+@media (hover: none), (pointer: coarse) {
+  #desktop-hotspots { display: none !important; }
+}
+
 </style>
 
 <style id="aether-l2-style">
@@ -480,6 +708,12 @@
       <button class="arc-fbtn arc-border-alliance" data-type="ALLIANCE">● ALIANZA</button>
       <button class="arc-fbtn arc-border-proxy" data-type="PROXY">● PROXY</button>
     </div>
+  </div>
+
+  <!-- HOTSPOTS PRIORITARIOS · DESKTOP -->
+  <div id="desktop-hotspots" aria-label="Hotspots prioritarios">
+    <div class="dh-title">// HOTSPOTS PRIORITARIOS</div>
+    <div class="dh-list" id="desktopHotspotsList"></div>
   </div>
 
   <!-- TOOLTIP DE ARCO -->
@@ -1868,6 +2102,66 @@ function initArcControls(){
   }, 100);
 }
 
+
+function renderDesktopHotspots(){
+  const list = document.getElementById('desktopHotspotsList');
+  if(!list || !Array.isArray(COUNTRIES)) return;
+
+  const priorityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+  const labelMap = { CRITICAL: 'CRITICAL', HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' };
+  const preferredNames = ['Rusia', 'China', 'EE.UU.', 'Irán', 'Israel'];
+
+  const byName = new Map(COUNTRIES.map(c => [c.name, c]));
+  let selected = preferredNames.map(n => byName.get(n)).filter(Boolean);
+
+  if(selected.length < 5){
+    const extras = COUNTRIES
+      .filter(c => !selected.some(s => s.name === c.name))
+      .sort((a,b) => {
+        const ra = priorityOrder[a.risk] ?? 99;
+        const rb = priorityOrder[b.risk] ?? 99;
+        if(ra !== rb) return ra - rb;
+        return a.name.localeCompare(b.name, 'es');
+      })
+      .slice(0, 5 - selected.length);
+    selected = selected.concat(extras);
+  }
+
+  list.innerHTML = selected.slice(0,5).map((c, idx) => `
+    <button class="dh-item" type="button" data-country="${c.name}" aria-label="Abrir detalle de ${c.name}">
+      <div class="dh-rank">${String(idx + 1).padStart(2,'0')}</div>
+      <div class="dh-name">${c.name}</div>
+      <div class="dh-risk">${labelMap[c.risk] || c.risk}</div>
+    </button>
+  `).join('');
+
+  list.querySelectorAll('.dh-item[data-country]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const countryName = btn.getAttribute('data-country');
+      const country = COUNTRIES_DEDUP.find(c => c.name === countryName) || COUNTRIES.find(c => c.name === countryName);
+      if(country) showPanel(country);
+    });
+  });
+}
+
+function bindArcControlButtons(){
+  document.querySelectorAll('.arc-fbtn[data-type]').forEach(btn => {
+    if(btn.dataset.boundArcClick === '1') return;
+    btn.dataset.boundArcClick = '1';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const type = btn.getAttribute('data-type');
+      if(type === 'GLOBAL') toggleGlobalMode();
+      else setArcFilter(type);
+    });
+  });
+}
+
+renderDesktopHotspots();
+bindArcControlButtons();
 init();
 initArcControls();
 </script>
