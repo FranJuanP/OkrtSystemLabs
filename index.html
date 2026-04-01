@@ -280,17 +280,23 @@
   <h2 class="section-title">Inteligencia que lo<br><em>impregna todo</em></h2>
   <div class="what-grid">
     <div class="what-text">
-      <p><strong>AETHER</strong> es un sistema de inteligencia de riesgos globales que corre completamente en local, sin servidor, sin base de datos, sin dependencias de backend. Un único archivo HTML con todo el motor analítico embebido.</p>
-      <p>Cada país, cada categoría, cada correlación están vivos — el algoritmo <strong>propaga shocks en cascada</strong> a través del tiempo, detecta puntos de inflexión antes de que sean evidentes y genera distribuciones de probabilidad mediante simulación estocástica.</p>
-      <p>La IA no es un chatbot genérico. Es <strong>Mistral corriendo en tu máquina</strong>, con contexto completo de la región activa, generando predicciones estructuradas, escenarios y análisis sin enviar datos a ningún servidor externo.</p>
+      <p><strong>AETHER</strong> es un sistema de inteligencia de riesgos globales que corre completamente en local, sin servidor, sin base de datos, sin dependencias de backend. Un único archivo HTML con todo el motor analítico embebido — e instalable como <strong>PWA</strong> en cualquier dispositivo móvil con soporte offline completo.</p>
+      <p>El algoritmo de <strong>cinco capas</strong> combina scores base calibrados con 15+ organismos internacionales, vectores de velocidad por categoría, una matriz de correlación 16×16, propagación de shocks en cascada con lag y decaimiento configurables, y <strong>400 simulaciones Monte Carlo</strong> que generan bandas de confianza p10/p50/p90. Cada shock se propaga generando impactos de segundo y tercer orden. El <strong>Shock Simulator</strong> permite introducir perturbaciones manuales o usar 8 escenarios predefinidos — Pandemia, Recesión Global, Guerra Regional, Colapso Climático y más.</p>
+      <p>La visualización es <strong>dual</strong>: mapa coroplético clásico D3.js y <strong>globo 3D interactivo Three.js</strong> con 92 arcos geopolíticos en 5 tipos — alianzas, tensiones, flujos comerciales, rutas energéticas y migraciones masivas. Completamente responsivo con soporte táctil, con puente en tiempo real entre ambas vistas. Las <strong>Señales de Alerta</strong> monitorizan 64 fuentes oficiales — OMS, FAO, ACLED, GDELT, SIPRI, NOAA, IMF — ponderadas dinámicamente por el score activo de cada categoría.</p>
+      <p>La IA no es un chatbot genérico. Es <strong>Mistral corriendo en tu máquina</strong>, con contexto completo de la región activa, generando predicciones estructuradas, escenarios Optimista/Base/Pesimista y análisis sin enviar datos a ningún servidor externo. Once módulos interactivos, 202 países, 16 dimensiones de riesgo.</p>
       <div class="what-tags">
         <span class="tag">Ollama / Mistral</span>
         <span class="tag">D3.js · TopoJSON</span>
-        <span class="tag">Monte Carlo</span>
+        <span class="tag">Three.js · Globo 3D</span>
+        <span class="tag">92 Arcos Geopolíticos</span>
+        <span class="tag">Monte Carlo · 400 sim</span>
         <span class="tag">Cascada Temporal</span>
+        <span class="tag">Shock Simulator</span>
         <span class="tag">World Bank API</span>
+        <span class="tag">64 Fuentes de Alerta</span>
+        <span class="tag">PWA · Offline</span>
+        <span class="tag">Mobile Responsive</span>
         <span class="tag">Zero Backend</span>
-        <span class="tag">Single File</span>
         <span class="tag">Open Source</span>
       </div>
     </div>
@@ -367,7 +373,7 @@
 <!-- FEATURES -->
 <section id="features">
   <div class="section-label">03 — Módulos</div>
-  <h2 class="section-title">Ocho módulos<br><em>interactivos</em></h2>
+  <h2 class="section-title">Once módulos<br><em>interactivos</em></h2>
   <div class="feat-grid">
     <div class="feat-card"><span class="feat-num">01</span><span class="feat-icon">🌍</span><div class="feat-title">Mapa Mundial</div><div class="feat-desc">Coropletas en 7 niveles de riesgo sobre proyección Natural Earth D3.js. Pulso animado en países críticos. Tooltip con top 4 categorías. Click para cargar cualquier país en el dashboard.</div><div class="feat-tag">D3.js · TopoJSON · 202 países</div></div>
     <div class="feat-card"><span class="feat-num">02</span><span class="feat-icon">⚡</span><div class="feat-title">Shock Simulator</div><div class="feat-desc">Introduce shocks manuales en cualquier categoría y observa la propagación en cascada. 8 escenarios predefinidos: Pandemia, Recesión global, Guerra regional, Colapso climático...</div><div class="feat-tag">Cascada · Baseline vs Shock</div></div>
@@ -377,6 +383,9 @@
     <div class="feat-card"><span class="feat-num">06</span><span class="feat-icon">🌡️</span><div class="feat-title">Termómetro Live</div><div class="feat-desc">Top 8 categorías de mayor riesgo mostradas como tubos de temperatura animados. Actualización automática cada 30 segundos con fluctuación calibrada por vectores de velocidad.</div><div class="feat-tag">Live · 30s refresh</div></div>
     <div class="feat-card"><span class="feat-num">07</span><span class="feat-icon">🏆</span><div class="feat-title">Ranking Mundial</div><div class="feat-desc">Todos los países ordenados con 4 filtros: región geográfica, categoría, Top N y orden. Scroll interno independiente. Click en fila para cargar el país en el dashboard completo.</div><div class="feat-tag">Filtros · Regiones · Top N</div></div>
     <div class="feat-card"><span class="feat-num">08</span><span class="feat-icon">📰</span><div class="feat-title">Señales de Alerta</div><div class="feat-desc">Feed de eventos con 64 fuentes oficiales enlazadas: OMS, FAO, ACLED, GDELT, SIPRI, NOAA, IMF, IIF, NTI Bio. Ponderadas dinámicamente según el score activo de cada categoría.</div><div class="feat-tag">64 fuentes · Tiempo real</div></div>
+    <div class="feat-card"><span class="feat-num">09</span><span class="feat-icon">🌐</span><div class="feat-title">Globo 3D Interactivo</div><div class="feat-desc">Esfera Three.js con 92 arcos geopolíticos en 5 tipologías: conflictos, alianzas, sanciones, rutas comerciales y flujos migratorios. Filtros por tipo de relación, tooltips hover y bridge bidireccional con el dashboard vía localStorage.</div><div class="feat-tag">Three.js · 92 arcos · 5 tipologías</div></div>
+    <div class="feat-card"><span class="feat-num">10</span><span class="feat-icon">🧠</span><div class="feat-title">Brief · Explainabilidad · Watchlist</div><div class="feat-desc">Panel de contexto narrativo por región activa, barras de explainabilidad por categoría con contribución porcentual al score, y lista de seguimiento personalizable para monitorizar múltiples países en paralelo.</div><div class="feat-tag">Explainabilidad IA · Watchlist · Brief</div></div>
+    <div class="feat-card"><span class="feat-num">11</span><span class="feat-icon">📱</span><div class="feat-title">PWA &amp; Mobile First</div><div class="feat-desc">Instalable como app nativa en iOS y Android vía Web App Manifest. Service Worker con caché offline, soporte completo táctil y diseño responsive adaptado a todos los tamaños de pantalla.</div><div class="feat-tag">PWA · Offline · iOS · Android</div></div>
   </div>
 </section>
 
@@ -522,7 +531,7 @@ python -m http.server 8080</pre>
     <li><a href="#install">Instalación</a></li>
     <li><a href="#ecosystem">Ecosistema</a></li>
   </ul>
-  <div class="footer-copy">© 2025 <span>OkrtSystem Labs</span> · MIT License · AETHER v1.0</div>
+  <div class="footer-copy">© 2025 <span>OkrtSystem Labs</span> · MIT License · AETHER v2.0</div>
 </footer>
 
 <script src="assets/js/runtime-guard.js"></script>
@@ -1358,7 +1367,7 @@ python -m http.server 8080</pre>
   </div>
 
   <div style="text-align:center;padding:16px;font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-top:4px">
-    AETHER v1.0 · OKRTSYSTEM LABS · 195 PAÍSES · 16 CATEGORÍAS
+    AETHER v2.0 · OKRTSYSTEM LABS · 202 PAÍSES · 16 CATEGORÍAS
     <br><span style="opacity:.5">Los análisis son estimaciones analíticas orientativas — no constituyen asesoramiento financiero, político ni médico</span>
   </div>
 
