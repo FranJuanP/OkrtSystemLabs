@@ -233,7 +233,11 @@ const lblCanvas = document.getElementById('lbl-canvas');
 const W = innerWidth, H = innerHeight;
 const renderer  = new THREE.WebGLRenderer({ canvas:glCanvas, antialias:true });
 renderer.setSize(W, H);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2.5));
+/* T30 · Tope de 1,75 en vez de 2,5.
+   Con 2,5 un movil de densidad 3 renderiza 6,25 veces los pixeles logicos; a
+   partir de 1,75 la diferencia en un globo con brillos y lineas finas es
+   practicamente invisible y el coste de relleno crece con el cuadrado. */
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.setClearColor(0x000508, 1);
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, W/H, 0.1, 200);
@@ -364,6 +368,10 @@ function ll2v(lat,lng,r=1.0){
 
 // ── STATE ──
 let selectedCountry = null, activeArcIndex = -1;
+/* T30: dotMeshes y pulseMeshes se quedan vacios. Eran los 211+633 objetos
+   que ahora son mallas instanciadas; los arrays se conservan porque el
+   export y el asa de depuracion los nombran, y vaciarlos deja constancia de
+   que ya no hay mallas sueltas que recorrer. */
 const dotMeshes=[], markerData=[], pulseMeshes=[], arcObjects=[];
 
 // ── RETICLE STATE ──
@@ -375,40 +383,180 @@ const reticle = {
 };
 
 
+/* T30 · Los marcadores pasan a mallas instanciadas.
+
+   Medido antes: 1.724 llamadas de dibujado, 433.656 triangulos, 1.728 hijos
+   en la escena, 9 fps. Ocultando solo los marcadores el globo subia a 24 fps
+   y las llamadas bajaban a 183, asi que el problema no estaba en las
+   etiquetas ni en los arcos: estaba en crear SEIS MALLAS SUELTAS POR PAIS.
+   Con 211 paises eso son mas de mil objetos, cada uno con su propia llamada
+   de dibujado y su propia geometria.
+
+   Ahora cada tipo de marcador es una sola InstancedMesh con 211 instancias:
+   una geometria, un material, una llamada. El color por instancia va con
+   setColorAt, que MeshBasicMaterial sabe usar.
+
+   Los anillos que laten son el caso delicado: cada pais late en su propia
+   fase y con su propia opacidad, y la opacidad de un material es una sola
+   para todas las instancias. En vez de renunciar al efecto, la fase va como
+   atributo de instancia y el latido se calcula EN EL VERTEX SHADER, que es
+   donde sale gratis. Se ve igual que antes y cuesta una llamada por anillo.
+
+   Las espigas de los paises criticos siguen siendo mallas sueltas: son pocas
+   (las que esten en CRITICAL, ahora mismo ninguna) y no merece la pena. */
+
+/** Matriz de un marcador: posicion sobre la esfera y orientacion al exterior. */
+const _m4 = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _ARRIBA = new THREE.Vector3(0, 1, 0);
+const _escala = new THREE.Vector3(1, 1, 1);
+
+function matrizDeMarcador(pos, up, escala) {
+  _q.setFromUnitVectors(_ARRIBA, up);
+  _escala.set(escala, escala, escala);
+  return _m4.compose(pos, _q, _escala);
+}
+
+/**
+ * Anillos que laten, con la fase por instancia.
+ *
+ * El vertex shader escala el anillo y el fragment lo atenua, igual que hacia
+ * el bucle de animacion mesh a mesh. uTime es lo unico que se actualiza por
+ * fotograma: una asignacion, en vez de 633 escalas y 633 opacidades.
+ */
+const PULSO_VERT = `
+  attribute float fase;
+  attribute vec3 instanceColorA;
+  uniform float uTime;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main(){
+    float s = 1.0 + 0.65 * (sin(uTime * 1.75 + fase) * 0.5 + 0.5);
+    vColor = instanceColorA;
+    vAlpha = 1.0 - (s - 1.0) / 0.65;
+    vec3 p = position * s;
+    gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(p, 1.0);
+  }`;
+
+const PULSO_FRAG = `
+  uniform float uOpacidad;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main(){
+    gl_FragColor = vec4(vColor, uOpacidad * vAlpha);
+  }`;
+
+/** Los materiales de pulso, para poder actualizar uTime en el bucle. */
+const materialesPulso = [];
+
 function buildMarkers(){
-  COUNTRIES_DEDUP.forEach((c,i)=>{
-    const col=RISK_INT[c.risk], pos=ll2v(c.lat,c.lng,1.018), up=pos.clone().normalize();
-    const dot=new THREE.Mesh(new THREE.SphereGeometry(.011,10,10),new THREE.MeshBasicMaterial({color:col}));
-    dot.position.copy(pos); globeGroup.add(dot); dotMeshes.push(dot); markerData.push(c);
+  const n = COUNTRIES_DEDUP.length;
+  if (!n) return;
 
-    // Glow layers
-    [{r:.018,op:.16},{r:.028,op:.06}].forEach(({r,op})=>{
-      const m=new THREE.Mesh(new THREE.SphereGeometry(r,8,8),
-        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending}));
-      m.position.copy(pos); globeGroup.add(m);
+  const pos = [];
+  const ups = [];
+  const colores = [];
+  COUNTRIES_DEDUP.forEach((c) => {
+    const v = ll2v(c.lat, c.lng, 1.018);
+    pos.push(v);
+    ups.push(v.clone().normalize());
+    colores.push(new THREE.Color(RISK_INT[c.risk]));
+    markerData.push(c);
+  });
+
+  /** Crea una InstancedMesh colocada en los 211 puntos. */
+  const instanciar = (geo, mat, escala) => {
+    const im = new THREE.InstancedMesh(geo, mat, n);
+    for (let i = 0; i < n; i++) {
+      im.setMatrixAt(i, matrizDeMarcador(pos[i], ups[i], escala));
+      im.setColorAt(i, colores[i]);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    // Los marcadores no se mueven respecto del globo: no hace falta
+    // recalcular su matriz en cada fotograma.
+    im.matrixAutoUpdate = false;
+    globeGroup.add(im);
+    return im;
+  };
+
+  // El punto. Es lo que se puede pulsar, asi que se guarda para el raycast.
+  // 10x10 segmentos por esfera eran 160 triangulos; 8x6 bastan a este tamano.
+  dotInstances = instanciar(
+    new THREE.SphereGeometry(0.011, 8, 6),
+    new THREE.MeshBasicMaterial({}),
+    1,
+  );
+
+  // Halos. Mismo centro, radios mayores, aditivos.
+  [{ r: 0.018, op: 0.16 }, { r: 0.028, op: 0.06 }].forEach(({ r, op }) => {
+    instanciar(
+      new THREE.SphereGeometry(r, 8, 6),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false }),
+      1,
+    );
+  });
+
+  // Anillo de base. El toro pasa de 8x36 a 6x24 segmentos: a 20 pixeles de
+  // diametro en pantalla la diferencia no se ve y son 576 triangulos menos
+  // por pais.
+  instanciar(
+    new THREE.TorusGeometry(0.02, 0.002, 6, 24),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55 }),
+    1,
+  );
+
+  // Anillos que laten, uno por nivel. Cada nivel incluye a los paises cuyo
+  // riesgo le da derecho a ese anillo; los demas se colocan con escala 0,
+  // que es la forma de "no dibujar" una instancia sin romper el indice.
+  const tamanos = [0.022, 0.034, 0.05];
+  const opacidades = [0.48, 0.26, 0.13];
+  for (let ri = 0; ri < 3; ri++) {
+    const geo = new THREE.TorusGeometry(tamanos[ri], 0.0014, 6, 24);
+    const fases = new Float32Array(n);
+    const colorA = new Float32Array(n * 3);
+    let cuantos = 0;
+    const im = new THREE.InstancedMesh(
+      geo,
+      new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 }, uOpacidad: { value: opacidades[ri] } },
+        vertexShader: PULSO_VERT,
+        fragmentShader: PULSO_FRAG,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+      n,
+    );
+    COUNTRIES_DEDUP.forEach((c, i) => {
+      const maximo = c.risk === 'CRITICAL' ? 3 : c.risk === 'HIGH' ? 2 : 1;
+      const visible = ri < maximo;
+      if (visible) cuantos++;
+      im.setMatrixAt(i, matrizDeMarcador(pos[i], ups[i], visible ? 1 : 0));
+      fases[i] = (i / n) * Math.PI * 2 + ri * 1.2;
+      colorA[i * 3] = colores[i].r;
+      colorA[i * 3 + 1] = colores[i].g;
+      colorA[i * 3 + 2] = colores[i].b;
     });
+    geo.setAttribute('fase', new THREE.InstancedBufferAttribute(fases, 1));
+    geo.setAttribute('instanceColorA', new THREE.InstancedBufferAttribute(colorA, 3));
+    im.instanceMatrix.needsUpdate = true;
+    im.matrixAutoUpdate = false;
+    globeGroup.add(im);
+    materialesPulso.push(im.material);
+    if (!cuantos) im.visible = false;
+  }
 
-    // Base ring
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(.02,.002,8,36),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.55}));
-    ring.position.copy(pos); ring.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up); globeGroup.add(ring);
-
-    // Pulse rings by risk
-    const maxRings = c.risk==='CRITICAL'?3:c.risk==='HIGH'?2:1;
-    const sizes=[.022,.034,.05], opacities=[.48,.26,.13];
-    for(let ri=0;ri<maxRings;ri++){
-      const pm=new THREE.Mesh(new THREE.TorusGeometry(sizes[ri],.0014,8,36),
-        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:opacities[ri],blending:THREE.AdditiveBlending}));
-      pm.position.copy(pos); pm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up);
-      pm.userData={phase:(i/COUNTRIES_DEDUP.length)*Math.PI*2+ri*1.2};
-      globeGroup.add(pm); pulseMeshes.push(pm);
-    }
-
-    // Critical spike
-    if(c.risk==='CRITICAL'){
-      const spike=new THREE.Mesh(new THREE.CylinderGeometry(.0004,.0025,.09,6),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.45}));
-      spike.position.copy(pos).addScaledVector(up,.045);
-      spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up); globeGroup.add(spike);
-    }
+  // Espigas de los paises criticos: pocas, siguen sueltas.
+  COUNTRIES_DEDUP.forEach((c, i) => {
+    if (c.risk !== 'CRITICAL') return;
+    const spike = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.0004, 0.0025, 0.09, 6),
+      new THREE.MeshBasicMaterial({ color: RISK_INT[c.risk], transparent: true, opacity: 0.45 }),
+    );
+    spike.position.copy(pos[i]).addScaledVector(ups[i], 0.045);
+    spike.quaternion.setFromUnitVectors(_ARRIBA, ups[i]);
+    globeGroup.add(spike);
   });
 }
 
@@ -757,6 +905,11 @@ setInterval(()=>{
 
 // ── INTERACTION ──
 const mouse=new THREE.Vector2(-9,-9);
+/* T30 · La malla instanciada de los puntos, que es lo que se puede pulsar.
+   Antes dotMeshes era un array de 211 mallas y el raycast las recorria una a
+   una; ahora es un solo objeto y el raycast devuelve el instanceId. */
+let dotInstances = null;
+
 const raycaster=new THREE.Raycaster();
 let isDrag=false, autoRot=true, prevX=0, prevY=0;
 let rotY=0.4, rotX=0.15, tRotY=0.4, tRotX=0.15;
@@ -773,8 +926,13 @@ window.addEventListener('mousemove',e=>{
     prevX=e.clientX; prevY=e.clientY;
     if(arcTooltip){ arcTooltip.classList.remove('show'); tooltipActive=false; }
   } else {
-    raycaster.setFromCamera(mouse,camera);
-    document.body.style.cursor=raycaster.intersectObjects(dotMeshes).length?'pointer':'crosshair';
+    /* T30 · El raycast ya no se hace aqui.
+       mousemove se dispara hasta cientos de veces por segundo, y cada
+       disparo lanzaba un raycast contra las 211 mallas de los puntos. Ahora
+       solo se apunta que hay que comprobarlo, y el bucle de animacion lo
+       hace UNA VEZ por fotograma, que es tantas veces como se puede llegar a
+       ver el resultado. */
+    hayQueRaycast = true;
     if(typeof updateArcTooltip==='function') updateArcTooltip(e);
   }
 });
@@ -784,9 +942,22 @@ window.addEventListener('wheel',e=>{ camera.position.z=Math.max(1.55,Math.min(6.
 window.addEventListener('click',e=>{
   if(didDrag) return;
   raycaster.setFromCamera(mouse,camera);
-  const hits=raycaster.intersectObjects(dotMeshes);
-  if(hits.length){ const idx=dotMeshes.indexOf(hits[0].object); if(idx>=0) showPanel(markerData[idx]); }
+  const idx = paisBajoElPuntero();
+  if(idx >= 0) showPanel(markerData[idx]);
 });
+
+/* T30 · El pais que esta bajo el puntero, o -1.
+   Con InstancedMesh el raycast devuelve instanceId, que es directamente el
+   indice del pais en COUNTRIES_DEDUP y en markerData. */
+function paisBajoElPuntero(){
+  if(!dotInstances) return -1;
+  const hits = raycaster.intersectObject(dotInstances);
+  if(!hits.length) return -1;
+  const id = hits[0].instanceId;
+  return (typeof id === 'number') ? id : -1;
+}
+
+let hayQueRaycast = false;
 
 // ── ANIMATE ──
 let globeMat;
@@ -820,10 +991,18 @@ function animate(){
   if(autoRot) tRotY+=.00065;
   rotY+=(tRotY-rotY)*.055; rotX+=(tRotX-rotX)*.055;
   globeGroup.rotation.y=rotY; globeGroup.rotation.x=rotX;
-  pulseMeshes.forEach(m=>{
-    const s=1.+.65*(Math.sin(t*1.75+m.userData.phase)*.5+.5);
-    m.scale.set(s,s,s); m.material.opacity=.55*(1.-(s-1.)/.65);
-  });
+  /* T30 · El latido de los anillos lo calcula el shader con la fase de cada
+     instancia. Aqui solo se mueve el reloj: tres asignaciones por fotograma
+     en vez de 633 escalas y 633 opacidades. */
+  for(const mat of materialesPulso) mat.uniforms.uTime.value = t;
+
+  /* T30 · Un raycast por fotograma como maximo, y solo si el puntero se ha
+     movido desde el ultimo. */
+  if(hayQueRaycast){
+    hayQueRaycast = false;
+    raycaster.setFromCamera(mouse,camera);
+    document.body.style.cursor = paisBajoElPuntero() >= 0 ? 'pointer' : 'crosshair';
+  }
   updateArcs(dt);
   drawLabels();
   drawReticle(dt);
@@ -1332,6 +1511,12 @@ onVisibilityChange((hidden) => {
    Las pruebas necesitan poder comprobar que son los mismos que los del panel
    (tests/paridad.mjs), asi que se expone una referencia congelada y marcada
    como tal. Ningun modulo la usa. */
+window.__AETHER_GLOBE_DIAG__ = { renderer, scene, globeGroup, dotMeshes, pulseMeshes, lblCanvas,
+  get dotInstances(){ return dotInstances; },
+  get info(){ return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
+                       geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,
+                       hijos: globeGroup.children.length }; } };
+
 window.__AETHER_GLOBE__ = Object.freeze({
   COUNTRIES: COUNTRIES_DEDUP,
   PAISES_FUERA,

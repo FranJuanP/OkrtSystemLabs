@@ -24,8 +24,23 @@ const BASE = argOf('base', 'http://localhost:8080').replace(/\/$/, '');
 
 /** Tope de tareas largas aceptadas al recorrer cinco regiones. */
 const MAX_TAREAS_LARGAS = 2;
-/** FPS mínimo aceptable para el globo en escritorio. */
-const FPS_MINIMO = 24;
+
+/**
+ * Topes del globo.
+ *
+ * Se mide lo que NO depende de la máquina: llamadas de dibujado, triángulos y
+ * objetos en la escena. Antes de T30 eran 1.724 llamadas, 433.656 triángulos
+ * y 1.728 hijos, porque cada país tenía seis mallas sueltas.
+ *
+ * Los fps se MIDEN y se IMPRIMEN, pero no deciden si la prueba pasa. El
+ * navegador de las pruebas va sin GPU (SwiftShader), y en esta escena el
+ * coste dominante es de relleno: la Tierra, las nubes y tres capas de
+ * atmósfera transparentes y aditivas que cubren media pantalla. Eso en
+ * software es lentísimo y en una GPU de verdad no se parece. Poner un umbral
+ * de fps aquí sería medir el entorno de pruebas, no el globo.
+ */
+const MAX_LLAMADAS = 700;
+const MAX_HIJOS = 700;
 
 let fallos = 0;
 const ok = (m) => console.log(`   OK    ${m}`);
@@ -135,16 +150,55 @@ const observarTareasLargas = () => {
 
   const malla = await globo.evaluate(() => {
     const h = window.__AETHER_GLOBE__;
+    const d = window.__AETHER_GLOBE_DIAG__;
     return {
       paises: h && h.COUNTRIES ? h.COUNTRIES.length : 0,
-      objetos: window.__AETHER_GLOBE_STATS__ ? window.__AETHER_GLOBE_STATS__.objetos : null,
+      info: d ? d.info : null,
+      instancias: d && d.dotInstances ? d.dotInstances.count : null,
+      sueltas: d ? d.dotMeshes.length + d.pulseMeshes.length : null,
     };
   });
 
-  console.log(`   dato  el globo carga en ${carga} ms con ${malla.paises} países` +
-              (malla.objetos != null ? ` y ${malla.objetos} objetos en la escena` : ''));
-  if (fps >= FPS_MINIMO) ok(`el globo rinde ${fps} fps (mínimo ${FPS_MINIMO})`);
-  else mal(`el globo rinde ${fps} fps, por debajo de ${FPS_MINIMO}`);
+  console.log(`   dato  el globo carga en ${carga} ms con ${malla.paises} países y rinde ${fps} fps`);
+  console.log('   dato  (los fps de aquí salen de un navegador sin GPU; valen para comparar, no como cifra de usuario)');
+
+  if (!malla.info) {
+    mal('el globo no expone __AETHER_GLOBE_DIAG__.info');
+  } else {
+    const { calls, triangles, hijos } = malla.info;
+    if (calls <= MAX_LLAMADAS) ok(`${calls} llamadas de dibujado (eran 1.724 antes de instanciar; tope ${MAX_LLAMADAS})`);
+    else mal(`${calls} llamadas de dibujado, por encima de ${MAX_LLAMADAS}`);
+    if (hijos <= MAX_HIJOS) ok(`${hijos} objetos en la escena (eran 1.728; tope ${MAX_HIJOS})`);
+    else mal(`${hijos} objetos en la escena, por encima de ${MAX_HIJOS}`);
+    console.log(`   dato  ${triangles.toLocaleString('es-ES')} triángulos (eran 433.656)`);
+  }
+
+  if (malla.instancias === malla.paises) {
+    ok(`los marcadores son una malla instanciada con ${malla.instancias} instancias`);
+  } else {
+    mal(`la malla instanciada tiene ${malla.instancias} instancias y hay ${malla.paises} países`);
+  }
+  if (malla.sueltas === 0) ok('no queda ninguna malla de marcador suelta');
+  else mal(`quedan ${malla.sueltas} mallas de marcador sueltas`);
+
+  // El raycast solo puede correr una vez por fotograma, no en cada mousemove.
+  const raycasts = await globo.evaluate(async () => {
+    const d = window.__AETHER_GLOBE_DIAG__;
+    if (!d || !d.dotInstances) return null;
+    let n = 0;
+    const original = d.dotInstances.raycast.bind(d.dotInstances);
+    d.dotInstances.raycast = function (...a) { n++; return original(...a); };
+    // 40 movimientos de puntero en un solo fotograma.
+    for (let i = 0; i < 40; i++) {
+      window.dispatchEvent(new MouseEvent('mousemove', { clientX: 700 + i, clientY: 400, bubbles: true }));
+    }
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    d.dotInstances.raycast = original;
+    return n;
+  });
+  if (raycasts === null) mal('no se puede comprobar el raycast');
+  else if (raycasts <= 2) ok(`40 movimientos de puntero producen ${raycasts} raycast (antes, 40)`);
+  else mal(`40 movimientos de puntero producen ${raycasts} raycast`);
 
   if (!errores.length) ok('ninguna de las dos páginas da errores');
   else mal(`errores: ${errores.slice(0, 3).join(' | ')}`);
