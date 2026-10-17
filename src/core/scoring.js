@@ -199,8 +199,35 @@ export function calcular(datos) {
   }
 
   // ── 2 y 3. Categorías y países ───────────────────────────────────────────
-  const paises = {};
-  for (const [iso, pais] of Object.entries(datos.paises)) {
+  /**
+   * Percentil de un valor que NO está en la muestra, interpolando en la
+   * distribución de los países. Lo necesitan los agregados (el mundo, la
+   * Unión Europea): tienen que poder situarse frente a los países sin
+   * contarse entre ellos, porque el mundo es la media de todos y meterlo en
+   * la muestra desplazaría el centro de todas las comparaciones.
+   */
+  function percentilExterno(id, valor) {
+    const meta = datos.indicadores[id];
+    if (!meta || meta.direccion === 'ambiguo' || !Number.isFinite(valor)) return null;
+    const signo = meta.direccion === 'menos_riesgo' ? -1 : 1;
+    const muestra = [];
+    for (const pais of Object.values(datos.paises)) {
+      const d = pais.indicadores && pais.indicadores[id];
+      if (d && Number.isFinite(d.value)) muestra.push(signo * d.value);
+    }
+    if (!muestra.length) return null;
+    const r = signo * valor;
+    let menores = 0;
+    let iguales = 0;
+    for (const v of muestra) {
+      if (v < r) menores++;
+      else if (v === r) iguales++;
+    }
+    return ((menores + iguales / 2) / muestra.length) * 100;
+  }
+
+  /** Calcula las 16 categorías y la puntuación de una entrada cualquiera. */
+  function puntuar(iso, entrada, externo) {
     const resultadoCats = {};
 
     for (const cat of categorias) {
@@ -213,9 +240,11 @@ export function calcular(datos) {
       const detalle = [];
 
       for (const [id, meta] of delCat) {
-        const d = pais.indicadores && pais.indicadores[id];
+        const d = entrada.indicadores && entrada.indicadores[id];
         if (!d) continue;
-        const p = porIndicador[id].percentiles.get(iso);
+        const p = externo
+          ? percentilExterno(id, d.value)
+          : porIndicador[id].percentiles.get(iso);
         const peso = PESOS_INDICADOR[id] || 1;
         if (meta.direccion !== 'ambiguo' && Number.isFinite(p)) {
           suma += p * peso;
@@ -230,9 +259,8 @@ export function calcular(datos) {
           year: d.year,
           source: d.source,
           url: d.url,
+          nota: meta.nota || null,
           decimales: meta.decimales,
-          // `riesgo` es null en los ambiguos: el dato se muestra, pero no se
-          // le pone un color de riesgo que no se puede justificar.
           riesgo: meta.direccion === 'ambiguo' ? null : (Number.isFinite(p) ? Math.round(p) : null),
           puntua: meta.direccion !== 'ambiguo',
         });
@@ -246,7 +274,6 @@ export function calcular(datos) {
       };
     }
 
-    // Puntuación del país: media de las categorías que tengan puntuación.
     let suma = 0;
     let pesos = 0;
     const aniosPais = [];
@@ -262,15 +289,28 @@ export function calcular(datos) {
     }
     const score = pesos ? Math.round(suma / pesos) : null;
 
-    paises[iso] = {
-      nombre: pais.nombre,
-      iso2: pais.iso2,
-      region: pais.region,
+    return {
+      nombre: entrada.nombre,
+      iso2: entrada.iso2,
+      region: entrada.region,
+      lat: entrada.lat != null ? entrada.lat : null,
+      lng: entrada.lng != null ? entrada.lng : null,
+      capital: entrada.capital || null,
       score,
       nivel: score === null ? null : nivelDe(score),
       confianza: confianzaDe(catsConDato, categorias.length, aniosPais, anioActual),
       categorias: resultadoCats,
     };
+  }
+
+  const paises = {};
+  for (const [iso, pais] of Object.entries(datos.paises)) {
+    paises[iso] = puntuar(iso, pais, false);
+  }
+
+  const agregados = {};
+  for (const [iso, entrada] of Object.entries(datos.agregados || {})) {
+    agregados[iso] = puntuar(iso, entrada, true);
   }
 
   // ── 4. Posición de cada país en el conjunto ──────────────────────────────
@@ -329,5 +369,6 @@ export function calcular(datos) {
     anioDatos: anioDatos ? anioDatos[0] : anioActual,
     indicadores: porIndicador,
     paises,
+    agregados,
   };
 }

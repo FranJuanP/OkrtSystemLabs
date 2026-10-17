@@ -26,6 +26,14 @@ import { pedir, trozos } from './http.mjs';
 
 const BASE = 'https://api.worldbank.org/v2';
 
+/**
+ * La API está traducida: `/v2/es/...` devuelve los nombres de país y de
+ * región en español («España», «Mundo», «Países Bajos»). Se usa para la lista
+ * de países, porque esos nombres son los que se muestran en la interfaz; los
+ * valores numéricos son los mismos en cualquier idioma.
+ */
+const BASE_ES = 'https://api.worldbank.org/v2/es';
+
 /** Número de fuente de la API para cada catálogo del registro. */
 const SOURCE = { wb: 2, wgi: 3, uhc: 58 };
 
@@ -38,7 +46,7 @@ const TANDA = 55;
  * porque el panel sí usa algunos como referencia.
  */
 export async function listaPaises() {
-  const j = await pedir(`${BASE}/country?format=json&per_page=400`);
+  const j = await pedir(`${BASE_ES}/country?format=json&per_page=400`);
   const filas = j[1] || [];
   const paises = [];
   const agregados = [];
@@ -49,6 +57,12 @@ export async function listaPaises() {
       nombre: c.name,
       region: c.region && c.region.value,
       ingreso: c.incomeLevel && c.incomeLevel.value,
+      // Coordenadas de la capital, que publica el propio Banco Mundial. Son
+      // las que usa el globo para colocar cada marcador (T23); antes el globo
+      // llevaba su propia tabla de 176 pares lat/lng escritos a mano.
+      capital: c.capitalCity || null,
+      lat: c.latitude === '' || c.latitude == null ? null : Number(c.latitude),
+      lng: c.longitude === '' || c.longitude == null ? null : Number(c.longitude),
     };
     (c.region && c.region.id === 'NA' ? agregados : paises).push(fila);
   }
@@ -71,7 +85,7 @@ export async function ultimoValor(codigo, iso3, catalogo = 'wb') {
 
   for (const tanda of trozos(iso3, TANDA)) {
     const url =
-      `${BASE}/country/${tanda.join(';')}/indicator/${encodeURIComponent(codigo)}` +
+      `${BASE_ES}/country/${tanda.join(';')}/indicator/${encodeURIComponent(codigo)}` +
       `?format=json&per_page=${TANDA * 2}&mrnev=1&source=${source}`;
     const j = await pedir(url, { timeoutMs: 45000 });
 

@@ -53,6 +53,15 @@ const enSeco = args.includes('--dry');
 const ALIAS = { KOS: 'XKX' };
 
 /**
+ * Agregados que el panel usa como referencia: «Global» es su vista por
+ * defecto y la Unión Europea aparece en el selector. Se descargan igual que
+ * los países pero se guardan aparte, y NO entran en la distribución con la
+ * que se calculan los percentiles: el mundo es la media de todos, meterlo en
+ * la muestra desplazaría el centro de todas las comparaciones.
+ */
+const AGREGADOS = ['WLD', 'EUU'];
+
+/**
  * Territorios que el panel incluye y para los que NO hay serie oficial
  * comparable en ninguna de las cinco fuentes. Se dejan anotados para que la
  * ausencia sea una decisión documentada y no un hueco inexplicado.
@@ -80,7 +89,12 @@ async function main() {
   // ── Países ───────────────────────────────────────────────────────────────
   const { paises, agregados } = await listaPaises();
   const iso3 = paises.map((p) => p.iso3);
-  console.log(`países del Banco Mundial: ${paises.length} (y ${agregados.length} agregados)`);
+  // Los agregados se piden en la misma tanda; separarlos después es barato.
+  const aPedir = iso3.concat(AGREGADOS);
+  const metaAgregados = AGREGADOS.map(
+    (code) => agregados.find((a) => a.iso3 === code) || { iso3: code, nombre: code },
+  );
+  console.log(`países del Banco Mundial: ${paises.length}, más ${AGREGADOS.join(' y ')} como referencia`);
 
   // ── Descarga por fuente ──────────────────────────────────────────────────
   const avisos = [];
@@ -97,7 +111,7 @@ async function main() {
     const lista = INDICADORES.filter((i) => i.fuente === catalogo);
     for (const ind of lista) {
       try {
-        const r = await ultimoValor(ind.codigo, iso3, catalogo);
+        const r = await ultimoValor(ind.codigo, aPedir, catalogo);
         datos[catalogo].set(ind.codigo, r.valores);
         if (r.actualizado) versiones[catalogo] = { actualizado: r.actualizado };
         console.log(`  ${catalogo.padEnd(6)} ${ind.id.padEnd(26)} ${String(r.valores.size).padStart(3)} países`);
@@ -198,9 +212,17 @@ async function main() {
   salida.categorias = CATEGORIAS.map((c) => ({ ...c }));
 
   const cobertura = {};
-  for (const p of paises) {
+
+  /** Monta la entrada de un país o agregado con todos sus indicadores. */
+  function montar(p, contarCobertura) {
     const codigoFuente = ALIAS[p.iso3] || p.iso3;
-    const entrada = { nombre: p.nombre, iso2: p.iso2, region: p.region, ingreso: p.ingreso, indicadores: {} };
+    const entrada = { nombre: p.nombre, indicadores: {} };
+    if (p.iso2) entrada.iso2 = p.iso2;
+    if (p.region) entrada.region = p.region;
+    if (p.ingreso) entrada.ingreso = p.ingreso;
+    if (p.capital) entrada.capital = p.capital;
+    if (p.lat != null && p.lng != null) { entrada.lat = p.lat; entrada.lng = p.lng; }
+
     for (const ind of INDICADORES) {
       const tabla = datos[ind.fuente] && datos[ind.fuente].get(ind.codigo);
       const v = tabla && tabla.get(codigoFuente);
@@ -213,10 +235,15 @@ async function main() {
         url: urlIndicador(ind),
         fetched_at: ahora,
       };
-      cobertura[ind.id] = (cobertura[ind.id] || 0) + 1;
+      if (contarCobertura) cobertura[ind.id] = (cobertura[ind.id] || 0) + 1;
     }
-    salida.paises[p.iso3] = entrada;
+    return entrada;
   }
+
+  for (const p of paises) salida.paises[p.iso3] = montar(p, true);
+
+  salida.agregados = {};
+  for (const a of metaAgregados) salida.agregados[a.iso3] = montar(a, false);
 
   if (coferDatos) {
     salida.global.cofer = {

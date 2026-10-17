@@ -9,7 +9,7 @@
     "smoke:compare": "node tests/compare.mjs",
     "test:xss": "node tests/xss.mjs --base http://localhost:8080/OkrtSystemLabs",
     "test:watchlist": "node tests/watchlist.mjs --base http://localhost:8080/OkrtSystemLabs",
-    "test": "npm run test:xss && npm run test:watchlist && npm run test:coverage && npm run test:sw",
+    "test": "npm run test:xss && npm run test:watchlist && npm run test:coverage && npm run test:paridad && npm run test:sw",
     "test:coverage": "node tests/coverage.mjs --base http://localhost:8080/OkrtSystemLabs",
     "test:sw": "node tests/sw.mjs --base http://localhost:8080/OkrtSystemLabs",
     "dev": "vite",
@@ -19,7 +19,8 @@
     "build:flags": "node tools/fetch-flags.mjs",
     "build:icons": "node tools/build-icons.mjs",
     "datos": "node tools/fetch-data.mjs",
-    "datos:validar": "node tools/validate-data.mjs"
+    "datos:validar": "node tools/validate-data.mjs",
+    "test:paridad": "node tests/paridad.mjs --base http://localhost:8080/OkrtSystemLabs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

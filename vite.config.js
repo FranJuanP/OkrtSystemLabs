@@ -86,7 +86,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    target: 'es2020',
+    // T23: es2022 por el top-level await con el que el motor espera a
+    // data/latest.json. Con es2020 el build falla al transformarlo.
+    target: 'es2022',
     // Solo minificar, con el minificador por defecto de Vite. Sin ofuscación
     // y sin mangling agresivo de nombres: el objetivo es peso, no esconder el
     // código. La fuente que se versiona sigue siendo legible.

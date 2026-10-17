@@ -84,6 +84,26 @@
           "iso2": { "type": "string" },
           "region": { "type": "string" },
           "ingreso": { "type": "string" },
+          "capital": { "type": ["string", "null"] },
+          "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+          "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+          "indicadores": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/$defs/dato" }
+          }
+        }
+      }
+    },
+
+    "agregados": {
+      "description": "Agregados de referencia (mundo, Unión Europea). Se descargan igual que los países pero NO entran en la distribución con la que se calculan los percentiles: el mundo es la media de todos, y meterlo en la muestra desplazaría el centro de todas las comparaciones.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Z]{3}$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["nombre", "indicadores"],
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1 },
           "indicadores": {
             "type": "object",
             "additionalProperties": { "$ref": "#/$defs/dato" }
