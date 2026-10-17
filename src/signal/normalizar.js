@@ -149,10 +149,62 @@ export function normalizarGDELT(d, indiceConsulta, ahora = Date.now()) {
   }));
 }
 
+/**
+ * Brotes de la OMS (Disease Outbreak News).
+ *
+ * La categoría SALUD se quedó sin fuente cuando T1 borró los tres items de
+ * la OMS escritos a mano -tenían marcas de tiempo sintéticas y pintaban su
+ * punto en verde sin que hubiera ninguna petición detrás- y cuando ReliefWeb
+ * cerró su API, que era la que alimentaba «Epidemic».
+ *
+ * Esta sí es la OMS de verdad: el mismo OData que usa su propia web, con el
+ * título, la fecha de publicación real y el enlace al informe. Y responde
+ * con `Access-Control-Allow-Origin: *`, así que la página puede consultarla
+ * directamente; no hace falta pasar por el trabajo automático.
+ */
+export function normalizarWHO(d, ahora = Date.now()) {
+  return (d.value || []).map((ev, i) => {
+    const fecha = new Date(ev.PublicationDateAndTime || ev.PublicationDate || ahora);
+    const dias = Math.max(0, Math.round((ahora - fecha.getTime()) / 86400000));
+    // El resumen viene con HTML y con espacios finos; se limpia para la ficha.
+    const resumen = String(ev.Summary || ev.Overview || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/[\u00a0\u202f\u2009]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return {
+      id: 'who_' + (ev.Id || ev.UrlName || i),
+      source: 'OMS · Disease Outbreak News',
+      cat: 'health',
+      title: ev.Title || 'Brote notificado por la OMS',
+      location: String(ev.Title || '').split(' - ').slice(1).join(' - ') || 'Global',
+      time: fecha,
+      // Un brote notificado esta semana pesa más que uno de hace dos meses.
+      severity: dias <= 7 ? 'HIGH' : dias <= 30 ? 'MEDIUM' : 'LOW',
+      url: ev.UrlName
+        ? 'https://www.who.int/emergencies/disease-outbreak-news/item/' + ev.UrlName
+        : 'https://www.who.int/emergencies/disease-outbreak-news',
+      detail: resumen || 'Informe de brote publicado por la OMS en Disease Outbreak News.',
+      impacts: {
+        'PUBLICADO': fecha.toISOString().slice(0, 10),
+        'ANTIGÜEDAD': dias + 'd',
+        'FUENTE': 'OMS',
+        'TIPO': 'BROTE',
+      },
+      isNew: dias <= 2,
+    };
+  });
+}
+
 /** URLs de las fuentes, en un solo sitio para que el trabajo y la página coincidan. */
 export const URLS = {
   usgs: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson',
   eonet: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&days=14',
+  /* OData de la propia web de la OMS. Se piden los campos que se usan y los
+     20 más recientes; sin `$select` la respuesta pasa de 270 KB. */
+  who: 'https://www.who.int/api/news/diseaseoutbreaknews'
+     + '?%24orderby=PublicationDateAndTime%20desc&%24top=20'
+     + '&%24select=Id,Title,PublicationDateAndTime,UrlName,Summary&%24format=json',
   /* ReliefWeb no tiene URL aqui a proposito.
 
      La v1 devuelve 410 Gone y la v2 responde 403 a cualquier appname que

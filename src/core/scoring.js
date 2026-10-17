@@ -67,23 +67,75 @@ export const PESOS_CATEGORIA = {
  * el mismo peso que a un dato suelto los diluiría; dárselo doble refleja que
  * resumen más información que los demás.
  */
+/**
+ * Cómo se reparte el índice de un país entre sus dos mitades.
+ *
+ * Suman 1. Cambiarlos cambia la clasificación entera, así que están aquí y
+ * no incrustados en el cálculo: es un sitio y se ve.
+ */
+export const PESO_CONJUNTO = 0.5;
+export const PESO_PEORES = 0.5;
+
+/** Cuántas categorías entran en la mitad «lo peor». */
+export const CUANTAS_PEORES = 3;
+
 export const PESOS_INDICADOR = {
   inform_riesgo: 2,
   vulnerabilidad_clima: 2,
 };
 
-/** Umbrales de la etiqueta de riesgo. Son los del globo, que ya existían. */
+/**
+ * Los niveles son TRAMOS DE LA DISTRIBUCIÓN, no umbrales fijos.
+ *
+ * Antes eran umbrales absolutos heredados del globo (≤35 bajo, ≤55 medio,
+ * ≤75 alto, resto crítico). Con el índice calculado el rango real se queda
+ * entre 27 y 74 —promediar percentiles comprime hacia el centro—, de modo
+ * que CRÍTICO no lo alcanzaba nadie y la escala decía cuatro niveles
+ * teniendo tres.
+ *
+ * Ahora cada país se clasifica por **dónde cae entre los demás**:
+ *
+ *   el 5 % con más riesgo      CRÍTICO
+ *   el 15 % siguiente          ALTO
+ *   el 30 % siguiente          MEDIO
+ *   el 50 % restante           BAJO
+ *
+ * Es una clasificación RELATIVA, y eso cambia lo que significa la etiqueta:
+ * «CRÍTICO» ya no quiere decir «ha superado un listón», quiere decir «está
+ * entre los once países con más riesgo medido». Siempre habrá un 5 % en
+ * crítico, incluso si el mundo entero mejorase. La interfaz lo dice: ver
+ * `ETIQUETA_RELATIVA` y la página de metodología.
+ */
 export const NIVELES = [
-  { max: 35, clave: 'LOW', etiqueta: 'BAJO' },
-  { max: 55, clave: 'MEDIUM', etiqueta: 'MEDIO' },
-  { max: 75, clave: 'HIGH', etiqueta: 'ALTO' },
-  { max: Infinity, clave: 'CRITICAL', etiqueta: 'CRÍTICO' },
+  { hasta: 0.05, clave: 'CRITICAL', etiqueta: 'CRÍTICO', descripcion: 'el 5 % con más riesgo' },
+  { hasta: 0.20, clave: 'HIGH',     etiqueta: 'ALTO',    descripcion: 'entre el 5 % y el 20 %' },
+  { hasta: 0.50, clave: 'MEDIUM',   etiqueta: 'MEDIO',   descripcion: 'entre el 20 % y el 50 %' },
+  { hasta: 1.00, clave: 'LOW',      etiqueta: 'BAJO',    descripcion: 'la mitad con menos riesgo' },
 ];
 
-/** La etiqueta que corresponde a una puntuación de 0 a 100. */
-export function nivelDe(score) {
-  for (const n of NIVELES) if (score <= n.max) return n;
+/** Lo que la interfaz tiene que decir junto a cualquier nivel. */
+export const ETIQUETA_RELATIVA =
+  'Clasificación relativa: cada país se compara con los demás, no con un umbral fijo.';
+
+/**
+ * El nivel que corresponde a una posición en la distribución.
+ * @param {number} fraccion 0 = el de más riesgo, 1 = el de menos
+ */
+export function nivelPorFraccion(fraccion) {
+  for (const n of NIVELES) if (fraccion <= n.hasta) return n;
   return NIVELES[NIVELES.length - 1];
+}
+
+/**
+ * El nivel de una puntuación cualquiera frente a una lista de puntuaciones.
+ *
+ * Lo usan los agregados (el mundo, la Unión Europea), que no ocupan puesto
+ * entre los países pero sí se pueden situar frente a ellos.
+ */
+export function nivelDe(score, distribucion) {
+  if (!Array.isArray(distribucion) || !distribucion.length) return nivelPorFraccion(1);
+  const peores = distribucion.filter((v) => v > score).length;
+  return nivelPorFraccion((peores + 0.5) / distribucion.length);
 }
 
 /**
@@ -121,6 +173,59 @@ export function percentiles(observaciones, direccion) {
     i = j + 1;
   }
   return salida;
+}
+
+/**
+ * Velocidad de una categoría: hacia dónde se mueve, y a qué ritmo.
+ *
+ * Sustituye a la tabla VELOCITY que llevaba el motor, que tenía valores
+ * escritos a mano para diez países y hacía que los otros 207 usaran los del
+ * mundo. Ahora sale de la variación de los propios indicadores entre sus dos
+ * últimos años publicados.
+ *
+ * Para cada indicador que puntúa y que tiene valor anterior:
+ *
+ *   cambio relativo anual = (v1 − v0) / |v0| / (años transcurridos)
+ *
+ * y se le da el signo del riesgo: si el indicador es de los que suben el
+ * riesgo al crecer, un aumento es velocidad positiva; si es de los que lo
+ * bajan, un aumento es velocidad negativa. La velocidad de la categoría es
+ * la mediana de las de sus indicadores.
+ *
+ * Mediana y no media por un motivo concreto: basta un indicador que pase de
+ * 0,1 a 0,3 para que un cambio relativo del 200 % domine la media de toda la
+ * categoría. La mediana no se deja arrastrar por un solo denominador
+ * pequeño.
+ *
+ * Se recorta a ±0,6, que es el rango en el que se movía la tabla anterior y
+ * para el que está calibrada la aritmética del motor
+ * (`enhancedScore` hace `base * vel * 0,28`).
+ */
+export const VELOCIDAD_MAXIMA = 0.6;
+
+/** Cambio relativo anual de un dato, con el signo del riesgo. */
+export function velocidadDeIndicador(dato, direccion) {
+  if (!dato || dato.prev_value == null || dato.prev_year == null) return null;
+  if (direccion === 'ambiguo') return null;
+  const anios = dato.year - dato.prev_year;
+  if (!(anios > 0)) return null;
+  /* Un hueco muy grande no es una tendencia. Si entre los dos valores han
+     pasado mas de diez anos, repartir el cambio por ano da un numero que
+     parece una velocidad y no lo es. */
+  if (anios > 10) return null;
+  const base = Math.abs(dato.prev_value);
+  // Un valor de partida casi cero hace explotar cualquier cambio relativo.
+  if (!(base > 1e-9)) return null;
+  const cambio = (dato.value - dato.prev_value) / base / anios;
+  return direccion === 'menos_riesgo' ? -cambio : cambio;
+}
+
+/** La mediana de una lista de números. */
+function mediana(xs) {
+  if (!xs.length) return null;
+  const o = xs.slice().sort((a, b) => a - b);
+  const m = Math.floor(o.length / 2);
+  return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
 /**
@@ -267,8 +372,25 @@ export function calcular(datos) {
       }
 
       const score = pesos ? suma / pesos : null;
+
+      /* Velocidad de la categoría, de sus propios indicadores. */
+      const velocidades = [];
+      for (const [id, meta] of delCat) {
+        const d = entrada.indicadores && entrada.indicadores[id];
+        const v = velocidadDeIndicador(d, meta.direccion);
+        if (v !== null && Number.isFinite(v)) velocidades.push(v);
+      }
+      const vel = mediana(velocidades);
+      const velocidad = vel === null
+        ? 0
+        : Math.max(-VELOCIDAD_MAXIMA, Math.min(VELOCIDAD_MAXIMA, Math.round(vel * 1000) / 1000));
+
       resultadoCats[cat] = {
         score: score === null ? null : Math.round(score),
+        velocidad,
+        // Cuántos indicadores respaldan esa velocidad: con cero, es un cero
+        // declarado, no una medición de estabilidad.
+        velocidadDe: velocidades.length,
         confianza: confianzaDe(anios.length, puntuables.length, anios, anioActual),
         indicadores: detalle,
       };
@@ -278,6 +400,7 @@ export function calcular(datos) {
     let pesos = 0;
     const aniosPais = [];
     let catsConDato = 0;
+    const puntuadas = [];
     for (const cat of categorias) {
       const r = resultadoCats[cat];
       if (r.score === null) continue;
@@ -285,19 +408,57 @@ export function calcular(datos) {
       suma += r.score * peso;
       pesos += peso;
       catsConDato++;
+      puntuadas.push(r.score);
       if (r.confianza.anioMediano) aniosPais.push(r.confianza.anioMediano);
     }
-    const score = pesos ? Math.round(suma / pesos) : null;
+
+    /* El índice: mitad el conjunto, mitad los tres dominios peores.
+     *
+     * La media de las 16 categorías sola tiene un defecto que se ve en
+     * cuanto se mira un país en guerra: Ucrania tenía GEO en 85 y acababa
+     * con 53, porque sus quince categorías restantes la arrastraban al
+     * centro. Un país puede estar en una situación crítica por un dominio y
+     * razonablemente bien en los demás, y la media lo esconde.
+     *
+     * Promediar solo los tres peores tendría el defecto contrario: un país
+     * con un problema serio y todo lo demás impecable se leería igual que
+     * uno con problemas en todas partes.
+     *
+     * Mitad y mitad: el conjunto sigue contando, y lo peor pesa.
+     */
+    const media = pesos ? suma / pesos : null;
+    const tresPeores = puntuadas.slice().sort((a, b) => b - a).slice(0, 3);
+    const mediaTresPeores = tresPeores.length
+      ? tresPeores.reduce((a, b) => a + b, 0) / tresPeores.length
+      : null;
+    const score = (media === null || mediaTresPeores === null)
+      ? null
+      : Math.round(PESO_CONJUNTO * media + PESO_PEORES * mediaTresPeores);
+
+    const velocidades = {};
+    for (const cat of categorias) velocidades[cat] = resultadoCats[cat].velocidad;
 
     return {
       nombre: entrada.nombre,
+      velocidades,
       iso2: entrada.iso2,
       region: entrada.region,
       lat: entrada.lat != null ? entrada.lat : null,
       lng: entrada.lng != null ? entrada.lng : null,
       capital: entrada.capital || null,
       score,
-      nivel: score === null ? null : nivelDe(score),
+      // El nivel se asigna después, cuando se conoce la distribución entera.
+      nivel: null,
+      // Las dos mitades, visibles: sin esto el índice es un número opaco.
+      desglose: score === null ? null : {
+        media: Math.round(media),
+        peores: Math.round(mediaTresPeores),
+        categoriasPeores: Object.entries(resultadoCats)
+          .filter(([, r]) => r.score !== null)
+          .sort((a, b) => b[1].score - a[1].score)
+          .slice(0, 3)
+          .map(([cat, r]) => ({ cat, score: r.score })),
+      },
       confianza: confianzaDe(catsConDato, categorias.length, aniosPais, anioActual),
       categorias: resultadoCats,
     };
@@ -324,7 +485,28 @@ export function calcular(datos) {
   ordenados.forEach(([iso], i) => {
     paises[iso].puesto = i + 1;
     paises[iso].deTotal = ordenados.length;
+    /* El nivel se asigna AQUI y no antes, porque depende de la distribucion
+       entera: es el tramo en el que cae el pais, no un umbral que supera.
+
+       La fraccion se calcula con los que tienen MAS indice, no con el puesto,
+       para que dos paises con el mismo numero caigan en el mismo nivel. Con
+       el puesto no pasaba: Papua Nueva Guinea y Corea del Norte empataban a
+       79 y salian uno CRITICO y el otro ALTO, porque el corte del 5 % caia
+       justo entre los dos. */
+    const conMas = ordenados.filter(([, q]) => q.score > paises[iso].score).length;
+    paises[iso].fraccion = (conMas + 0.5) / ordenados.length;
+    paises[iso].nivel = nivelPorFraccion(paises[iso].fraccion);
   });
+
+  /* Los agregados se situan frente a los paises sin contarse entre ellos:
+     el mundo es la media de todos y meterlo en la muestra desplazaria los
+     tramos. */
+  const distribucion = ordenados.map(([, p]) => p.score);
+  for (const p of Object.values(agregados)) {
+    if (p.score === null) continue;
+    p.nivel = nivelDe(p.score, distribucion);
+    p.fraccion = (distribucion.filter((v) => v > p.score).length + 0.5) / distribucion.length;
+  }
 
   // La categoría con más riesgo de cada país, que es lo que de verdad
   // distingue a Ucrania de Bélgica: la media de 16 categorías las acerca, el
@@ -364,11 +546,24 @@ export function calcular(datos) {
   }
   const anioDatos = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0];
 
+  /* Donde cae cada corte en puntos de indice, para poder enseñarlo: decir
+     "CRITICO = el 5 % con mas riesgo" es exacto, pero el lector tambien
+     quiere saber a partir de que numero. */
+  const cortes = {};
+  for (const n of NIVELES) {
+    if (n.hasta >= 1) continue;
+    const i = Math.max(0, Math.ceil(n.hasta * distribucion.length) - 1);
+    cortes[n.clave] = distribucion[i];
+  }
+
   return {
     generado: datos.generado,
     anioDatos: anioDatos ? anioDatos[0] : anioActual,
     indicadores: porIndicador,
     paises,
     agregados,
+    niveles: NIVELES,
+    cortes,
+    etiquetaRelativa: ETIQUETA_RELATIVA,
   };
 }

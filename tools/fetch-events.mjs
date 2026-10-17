@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 
 import { pedir } from './data/http.mjs';
 import {
-  normalizarUSGS, normalizarEONET, normalizarGDELT,
+  normalizarUSGS, normalizarEONET, normalizarGDELT, normalizarWHO,
   CONSULTAS_GDELT, urlGDELT, URLS, FUENTES_PENDIENTES,
 } from '../src/signal/normalizar.js';
 
@@ -67,6 +67,9 @@ async function main() {
 
   await intentar('nasa', 'NASA EONET', async () =>
     normalizarEONET(await pedir(URLS.eonet, { timeoutMs: 30000 }), ahora));
+
+  await intentar('who', 'OMS · Disease Outbreak News', async () =>
+    normalizarWHO(await pedir(URLS.who, { timeoutMs: 30000 }), ahora));
 
   /* ReliefWeb no se descarga: su v1 devuelve 410 y la v2 exige un appname
      aprobado. Se anota en el fichero para que la pagina pueda decir por que

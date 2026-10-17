@@ -17,7 +17,7 @@
  */
 import { esc, safeHref, safeUrl } from '../core/escape.js';
 import {
-  normalizarUSGS, normalizarEONET, normalizarGDELT,
+  normalizarUSGS, normalizarEONET, normalizarGDELT, normalizarWHO,
   CONSULTAS_GDELT, urlGDELT, URLS, rehidratar,
 } from './normalizar.js';
 
@@ -96,6 +96,7 @@ const SOURCE_LABELS = {
           + 'Se solicita en https://apidoc.reliefweb.int/ y se pone en fetchReliefWeb().',
   },
   nasa:   { name: 'NASA EONET',     row: 'NASA EONET Events' },
+  who:    { name: 'OMS',             row: 'OMS · Brotes (DON)' },
 };
 
 /** Fuentes que no se consultan porque no se puede, con su motivo. */
@@ -287,6 +288,15 @@ async function fetchReliefWeb() {
      que ReliefWeb sirvió cuando todavía respondía, marcados como tales. */
   setSrc('relief', 'pendiente');
   return loadLastReading('relief');
+}
+
+// ── FETCH: OMS · Disease Outbreak News ──
+async function fetchWHO() {
+  try {
+    const r = await fetch(URLS.who);
+    if(!r.ok) return sourceFailed('who');
+    return sourceOk('who', normalizarWHO(await r.json()), r);
+  } catch(e) { return sourceFailed('who'); }
 }
 
 // ── FETCH: GDELT via RSS proxy ──
@@ -514,7 +524,7 @@ async function loadAll() {
   };
 
   const enCurso = [
-    fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT(),
+    fetchUSGS(), fetchNASA(), fetchWHO(), fetchReliefWeb(), fetchGDELT(),
   ].map(promesa => promesa.then(pintar).catch(err => {
     console.warn('AETHER Signal: una fuente ha fallado:', err);
   }));
@@ -539,10 +549,11 @@ async function loadAll() {
     const clave = id.includes('usgs') ? 'usgs'
       : id.includes('eonet') || id.includes('nasa') ? 'nasa'
       : id.includes('gdelt') ? 'gdelt'
+      : id.includes('oms') || id.includes('who') ? 'who'
       : id.includes('relief') ? 'relief' : null;
     if(clave) porFuente.set(clave, (porFuente.get(clave) || 0) + 1);
   }
-  const vacias = ['usgs','nasa','gdelt','relief'].filter(id => !porFuente.get(id));
+  const vacias = ['usgs','nasa','who','gdelt','relief'].filter(id => !porFuente.get(id));
   if(vacias.length){
     const delServidor = await cargarEventosDelServidor(vacias);
     if(delServidor.length) pintar(delServidor);

@@ -18,9 +18,12 @@
  * equivocado, así que se piden los códigos explícitos en tandas de 55 y la
  * respuesta trae el ISO3 de vuelta.
  *
- * `mrnev=1` pide el último valor no vacío de cada país, que puede ser de un
- * año distinto en cada uno. El año se guarda dato a dato precisamente por
- * eso, y METHODOLOGY.md explica qué implica comparar años distintos.
+ * Se piden los últimos valores de cada país, no solo el más reciente: hacen
+ * falta DOS para saber hacia dónde se mueve un indicador, que es de donde
+ * sale la velocidad de cada categoría (antes era una tabla escrita a mano
+ * con diez países). El más reciente de cada país puede ser de un año distinto
+ * al de su vecino; el año se guarda dato a dato precisamente por eso, y
+ * METHODOLOGY.md explica qué implica comparar años distintos.
  */
 import { pedir, trozos } from './http.mjs';
 
@@ -70,24 +73,39 @@ export async function listaPaises() {
 }
 
 /**
- * Último valor no vacío de un indicador para una lista de ISO3.
+ * Cuántos años recientes se piden por país.
+ *
+ * Cuidado con este número: `MRV` cuenta AÑOS DE CALENDARIO, no valores con
+ * dato. Con 8 se perdían indicadores dispersos —la deuda pública central
+ * cayó del 50 % de cobertura al 28 %, porque en muchos países su último dato
+ * es de hace más de ocho años—. Con 40 se recupera lo que daba `mrnev`, que
+ * buscaba el último valor no vacío sin límite de antigüedad.
+ */
+const VALORES_RECIENTES = 40;
+
+/**
+ * Los dos valores no vacíos más recientes de un indicador, por país.
+ *
+ * Devuelve el último y, si existe, el anterior con su año. Con esos dos se
+ * calcula la velocidad de la categoría; sin el anterior, ese indicador
+ * simplemente no aporta tendencia.
  *
  * @param {string} codigo  código del indicador
  * @param {string[]} iso3  países a pedir
  * @param {'wb'|'wgi'|'uhc'} catalogo
- * @returns {Promise<{valores: Map<string,{valor:number,anio:number}>, nombre:string, actualizado:string}>}
+ * @returns {Promise<{valores: Map<string,{valor:number,anio:number,previo:?{valor:number,anio:number}}>, nombre:string, actualizado:string}>}
  */
 export async function ultimoValor(codigo, iso3, catalogo = 'wb') {
   const source = SOURCE[catalogo];
-  const valores = new Map();
+  const porPais = new Map();
   let nombre = '';
   let actualizado = '';
 
   for (const tanda of trozos(iso3, TANDA)) {
     const url =
       `${BASE_ES}/country/${tanda.join(';')}/indicator/${encodeURIComponent(codigo)}` +
-      `?format=json&per_page=${TANDA * 2}&mrnev=1&source=${source}`;
-    const j = await pedir(url, { timeoutMs: 45000 });
+      `?format=json&per_page=${TANDA * VALORES_RECIENTES * 2}&MRV=${VALORES_RECIENTES}&source=${source}`;
+    const j = await pedir(url, { timeoutMs: 60000 });
 
     // La API contesta 200 con un mensaje de error dentro del cuerpo cuando el
     // indicador no existe. Hay que mirarlo o el indicador se queda vacío sin
@@ -104,11 +122,19 @@ export async function ultimoValor(codigo, iso3, catalogo = 'wb') {
       if (!iso) continue;
       const anio = Number(fila.date);
       if (!Number.isFinite(anio)) continue;
-      const previo = valores.get(iso);
-      if (previo && previo.anio >= anio) continue;
-      valores.set(iso, { valor: Number(fila.value), anio });
+      if (!porPais.has(iso)) porPais.set(iso, []);
+      porPais.get(iso).push({ valor: Number(fila.value), anio });
       if (!nombre && fila.indicator) nombre = fila.indicator.value;
     }
+  }
+
+  // De cada país, el más reciente y el anterior a ese.
+  const valores = new Map();
+  for (const [iso, lista] of porPais) {
+    lista.sort((a, b) => b.anio - a.anio);
+    const ultimo = lista[0];
+    const previo = lista.find((x) => x.anio < ultimo.anio) || null;
+    valores.set(iso, { valor: ultimo.valor, anio: ultimo.anio, previo });
   }
 
   return { valores, nombre, actualizado };

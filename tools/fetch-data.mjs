@@ -235,6 +235,14 @@ async function main() {
         url: urlIndicador(ind),
         fetched_at: ahora,
       };
+      /* El valor anterior, cuando la fuente lo da: es lo que permite saber
+         hacia donde se mueve el indicador. La velocidad de cada categoria
+         sale de aqui, y ya no de una tabla escrita a mano. */
+      if (v.previo) {
+        entrada.indicadores[ind.id].prev_value =
+          Number(v.previo.valor.toFixed(Math.max(ind.decimales, 4)));
+        entrada.indicadores[ind.id].prev_year = v.previo.anio;
+      }
       if (contarCobertura) cobertura[ind.id] = (cobertura[ind.id] || 0) + 1;
     }
     return entrada;

@@ -196,6 +196,8 @@
         "value": { "type": "number" },
         "unit": { "type": "string" },
         "year": { "type": "integer", "minimum": 1960, "maximum": 2100 },
+        "prev_value": { "type": "number" },
+        "prev_year": { "type": "integer", "minimum": 1960, "maximum": 2100 },
         "source": { "type": "string", "minLength": 2 },
         "url": { "type": "string", "pattern": "^https://" },
         "fetched_at": { "type": "string", "format": "date-time" }

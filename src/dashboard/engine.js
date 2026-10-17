@@ -26,6 +26,7 @@ import { easeCubicInOut, easeQuadOut } from 'd3-ease';
 import { feature as topoFeature } from 'topojson-client';
 import { cargarDatos, fechaDatos } from '../core/datos.js';
 import { construirDATA } from './datos-dashboard.js';
+import { ETIQUETA_RELATIVA } from '../core/scoring.js';
 
 const d3 = {
   select, zoom, zoomIdentity, drag,
@@ -266,6 +267,30 @@ function drawGauge(svgId, score, color){
 // ──────────────────────────────────────────
 // RISK LABEL
 // ──────────────────────────────────────────
+/* Color y texto de cada nivel. Las claves son las de src/core/scoring.js.
+   Los colores son los que ya usaba la aplicacion; lo que cambia es que
+   ahora los asigna el tramo de la distribucion y no un umbral fijo. */
+const NIVEL_INFO = {
+  CRITICAL: { etiqueta: 'CRÍTICO', color: 'var(--red)',    descripcion: 'El 5 % de países con más riesgo medido' },
+  HIGH:     { etiqueta: 'ALTO',    color: 'var(--orange)', descripcion: 'Entre el 5 % y el 20 % con más riesgo' },
+  MEDIUM:   { etiqueta: 'MEDIO',   color: 'var(--yellow)', descripcion: 'Entre el 20 % y el 50 % con más riesgo' },
+  LOW:      { etiqueta: 'BAJO',    color: 'var(--green)',  descripcion: 'La mitad de países con menos riesgo' },
+};
+
+/** La linea que recuerda que la clasificacion es relativa. */
+function actualizarPieDeNivel(d){
+  const el = document.getElementById('nivel-relativo');
+  if(!el) return;
+  if(!d || !d.nivel){ el.textContent = ''; return; }
+  const info = NIVEL_INFO[d.nivel];
+  el.textContent = (info ? info.descripcion : '') + (d.puesto ? ' · puesto ' + d.puesto + ' de ' + d.deTotal : '');
+  el.title = ETIQUETA_RELATIVA;
+}
+
+/* riskLabel se queda para las CATEGORIAS, que si se leen contra una escala
+   de 0 a 100: el percentil de una categoria es directamente su posicion
+   entre los 217 paises en ese dominio. Lo que no puede es etiquetar el
+   indice compuesto, que esta comprimido hacia el centro. */
 function riskLabel(s){
   if(s<30)return['BAJO','var(--green)'];
   if(s<50)return['MODERADO','var(--yellow)'];
@@ -693,7 +718,27 @@ const CAT_COLORS=[
   "#7DD8F0",   // océanos   — cian claro
   "#B0C8E0",   // bioseg    — gris-azul claro
 ];
-const VELOCITY={"WLD": {"eco": 0.1, "geo": 0.4, "health": -0.1, "climate": 0.5, "social": 0.2, "tech": 0.3, "food": 0.2, "mental": 0.4, "energy": 0.1, "demo": 0.2, "urban": 0.3, "science": 0.1, "justice": 0.1, "finance": 0.3, "ocean": 0.5, "bio": 0.2}, "USA": {"eco": -0.1, "geo": 0.3, "health": -0.1, "climate": 0.2, "social": 0.4, "tech": 0.1, "food": -0.1, "mental": 0.5, "energy": -0.2, "demo": 0.1, "urban": 0.3, "science": -0.1, "justice": 0.2, "finance": 0.4, "ocean": 0.2, "bio": -0.1}, "CHN": {"eco": 0.3, "geo": 0.5, "health": -0.1, "climate": 0.2, "social": 0.1, "tech": 0.2, "food": -0.1, "mental": 0.3, "energy": -0.1, "demo": 0.5, "urban": -0.1, "science": -0.2, "justice": 0.1, "finance": 0.5, "ocean": 0.3, "bio": 0.1}, "ESP": {"eco": -0.1, "geo": -0.1, "health": -0.1, "climate": 0.5, "social": 0.1, "tech": -0.1, "food": 0.2, "mental": 0.2, "energy": -0.2, "demo": 0.4, "urban": 0.3, "science": 0.1, "justice": -0.1, "finance": 0.2, "ocean": 0.4, "bio": -0.1}, "RUS": {"eco": 0.2, "geo": 0.6, "health": 0.2, "climate": 0.2, "social": 0.5, "tech": 0.2, "food": -0.1, "mental": 0.6, "energy": 0.1, "demo": 0.5, "urban": 0.3, "science": 0.4, "justice": 0.4, "finance": 0.3, "ocean": 0.2, "bio": 0.2}, "IND": {"eco": -0.3, "geo": 0.2, "health": -0.1, "climate": 0.5, "social": 0.1, "tech": -0.2, "food": 0.2, "mental": 0.2, "energy": -0.2, "demo": -0.1, "urban": 0.3, "science": -0.1, "justice": 0.1, "finance": -0.1, "ocean": 0.3, "bio": 0.2}, "EUU": {"eco": 0.2, "geo": 0.3, "health": -0.1, "climate": 0.2, "social": 0.2, "tech": 0.1, "food": 0.1, "mental": 0.3, "energy": -0.1, "demo": 0.2, "urban": 0.2, "science": -0.1, "justice": -0.1, "finance": 0.2, "ocean": 0.3, "bio": -0.1}, "BRA": {"eco": -0.1, "geo": 0.1, "health": 0.1, "climate": 0.4, "social": 0.2, "tech": 0.1, "food": -0.1, "mental": 0.3, "energy": -0.1, "demo": -0.1, "urban": 0.2, "science": 0.1, "justice": 0.1, "finance": 0.2, "ocean": 0.3, "bio": 0.2}, "MEX": {"eco": 0.1, "geo": 0.3, "health": 0.1, "climate": 0.4, "social": 0.2, "tech": 0.1, "food": 0.2, "mental": 0.2, "energy": 0.2, "demo": 0.1, "urban": 0.4, "science": 0.2, "justice": 0.2, "finance": 0.1, "ocean": 0.2, "bio": 0.2}, "JPN": {"eco": 0.1, "geo": 0.2, "health": -0.1, "climate": 0.2, "social": 0.2, "tech": -0.1, "food": 0.1, "mental": 0.1, "energy": 0.1, "demo": 0.6, "urban": -0.1, "science": -0.1, "justice": -0.1, "finance": 0.3, "ocean": 0.2, "bio": -0.1}};
+/* T28/B-d · VELOCITY se calcula de los datos.
+
+   Aqui habia una tabla escrita a mano con valores para DIEZ paises; los
+   otros 207 usaban los del mundo, de modo que la "velocidad" de Nigeria era
+   la misma que la de Noruega. No tenia fuente ni forma de comprobarse.
+
+   Ahora sale de la variacion de los propios indicadores entre sus dos
+   ultimos anos publicados, con el signo del riesgo y por mediana, en
+   src/core/scoring.js. Cada categoria lleva ademas de cuantos indicadores
+   sale esa velocidad: con cero, es un cero declarado y no una medicion de
+   estabilidad. */
+const VELOCITY = {};
+
+/* Se rellena aqui y no junto a DATA: en el modulo, `const VELOCITY` esta en
+   su zona muerta hasta esta linea, y asignarle antes lanzaba
+   "Cannot set properties of undefined", dejaba DATOS_ESTADO en fallo y el
+   panel entero decia SIN DATOS teniendo los datos cargados. */
+if (DATOS_ESTADO.ok && DATOS_ESTADO.calculo) {
+  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.paises)) VELOCITY[iso] = p.velocidades;
+  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.agregados || {})) VELOCITY[iso] = p.velocidades;
+}
 const CORR_MATRIX=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
 const ISO_MAP={
   '004':'AFG',
@@ -2411,11 +2456,30 @@ function loadRegion(){
   const global=(typeof d.score==='number')
     ? d.score
     : Math.round(scores.filter(v=>typeof v==='number').reduce((a,b)=>a+b,0)/Math.max(1,scores.filter(v=>typeof v==='number').length));
-  const[lbl,col]=riskLabel(global);
-  document.getElementById('gnum').textContent=global;
-  document.getElementById('gnum').style.color=col;
-  document.getElementById('gstatus').textContent=lbl;
-  document.getElementById('gstatus').style.color=col;
+  /* La etiqueta sale del NIVEL CALCULADO, no de un umbral fijo.
+
+     riskLabel() tenia sus propios cortes (30/50/70) heredados de cuando las
+     puntuaciones estaban escritas a mano. Con el indice actual eso dejaba a
+     Espana en "ELEVADO" cuando esta en la mitad con MENOS riesgo del mundo:
+     dos escalas distintas contandole al usuario cosas distintas sobre el
+     mismo numero.
+
+     Ahora la etiqueta es el tramo en el que cae el pais entre los 217, y la
+     interfaz dice que es una clasificacion relativa. */
+  const nivel = d.nivel ? NIVEL_INFO[d.nivel] : null;
+  const col = nivel ? nivel.color : 'var(--dim)';
+  const lbl = nivel ? nivel.etiqueta : '—';
+  const gnumEl = document.getElementById('gnum');
+  const gstatusEl = document.getElementById('gstatus');
+  gnumEl.textContent = global;
+  gnumEl.style.color = col;
+  gstatusEl.textContent = lbl;
+  gstatusEl.style.color = col;
+  if (nivel && d.puesto) {
+    gstatusEl.title = nivel.descripcion + ' · puesto ' + d.puesto + ' de ' + d.deTotal
+      + '. ' + ETIQUETA_RELATIVA;
+  }
+  actualizarPieDeNivel(d);
   for(let i=0;i<16;i++){
     const el=document.getElementById('gs'+i);
     if(el){
