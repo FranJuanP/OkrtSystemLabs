@@ -27,7 +27,6 @@ import earthDayUrl from '../../assets/img/earth-day.webp?url';
 import earthNightUrl from '../../assets/img/earth-night.webp?url';
 import earthCloudsUrl from '../../assets/img/earth-clouds.webp?url';
 import * as THREE from 'three';
-import { feature as topoFeature, mesh as topoMesh, merge as topoMerge } from 'topojson-client';
 
 /* ── T16 · three.js r128 -> r186 ──────────────────────────────────────────
    Se sube a la version actual y se empaqueta en el repositorio, en vez de
@@ -515,47 +514,16 @@ function makeAtmos(r, pw, op, col) {
   return new THREE.Mesh(new THREE.SphereGeometry(r,64,64), m);
 }
 
-// ── WORLD TEXTURE ──
-async function buildTex(world) {
-  const TW=4096, TH=2048;
-  const tc = document.createElement('canvas'); tc.width=TW; tc.height=TH;
-  const ctx = tc.getContext('2d');
-  const og = ctx.createLinearGradient(0,0,0,TH);
-  og.addColorStop(0,'#001C28'); og.addColorStop(.5,'#001418'); og.addColorStop(1,'#000C12');
-  ctx.fillStyle=og; ctx.fillRect(0,0,TW,TH);
-  for(let i=0;i<12000;i++){
-    ctx.fillStyle=`rgba(0,180,160,${Math.random()*.022})`;
-    ctx.fillRect(Math.random()*TW,Math.random()*TH,1,1);
-  }
-  const proj = d3.geoEquirectangular().scale(TW/(2*Math.PI)).translate([TW/2,TH/2]);
-  const path = d3.geoPath(proj, ctx);
-  const g10 = d3.geoGraticule().step([10,10])();
-  ctx.beginPath(); path(g10); ctx.strokeStyle='rgba(0,255,200,.05)'; ctx.lineWidth=.7; ctx.stroke();
-  const g30 = d3.geoGraticule().step([30,30])();
-  ctx.beginPath(); path(g30); ctx.strokeStyle='rgba(0,255,200,.11)'; ctx.lineWidth=1.1; ctx.stroke();
-  const countries = topoFeature(world, world.objects.countries);
-  ctx.shadowColor='rgba(0,255,200,.28)'; ctx.shadowBlur=18;
-  ctx.fillStyle='rgba(0,85,80,.72)';
-  countries.features.forEach(f=>{ctx.beginPath();path(f);ctx.fill();});
-  ctx.shadowBlur=0;
-  const lg=ctx.createLinearGradient(0,0,0,TH);
-  lg.addColorStop(0,'rgba(0,100,95,.5)'); lg.addColorStop(.5,'rgba(0,92,88,.46)'); lg.addColorStop(1,'rgba(0,80,78,.44)');
-  ctx.fillStyle=lg;
-  countries.features.forEach(f=>{ctx.beginPath();path(f);ctx.fill();});
-  const borders=topoMesh(world,world.objects.countries,(a,b)=>a!==b);
-  ctx.beginPath();path(borders);ctx.strokeStyle='rgba(0,255,200,.35)';ctx.lineWidth=1.4;ctx.stroke();
-  const land=topoMerge(world,world.objects.countries.geometries);
-  ctx.beginPath();path(land);ctx.strokeStyle='rgba(0,255,200,.52)';ctx.lineWidth=1.8;ctx.stroke();
-  ctx.beginPath();path({type:'LineString',coordinates:[[-180,0],[180,0]]});
-  ctx.strokeStyle='rgba(0,255,200,.28)';ctx.lineWidth=1.6;ctx.stroke();
-  [-23.5,23.5].forEach(lat=>{
-    ctx.beginPath();path({type:'LineString',coordinates:[[-180,lat],[180,lat]]});
-    ctx.strokeStyle='rgba(0,255,200,.1)';ctx.lineWidth=.9;ctx.setLineDash([12,8]);ctx.stroke();ctx.setLineDash([]);
-  });
-  const tex = new THREE.CanvasTexture(tc);
-  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return tex;
-}
+/* buildTex() borrada: no se llamaba desde ningun sitio.
+
+   Generaba la textura del mundo dibujando los paises de un topojson sobre
+   un canvas de 4096x2048 con d3-geo, y devolvia una CanvasTexture. Nadie la
+   invocaba: el globo usa las tres texturas WebP (dia, noche y nubes) desde
+   T18. Se quedo ahi al externalizar el motor y arrastraba topojson-client al
+   bundle para nada; d3 ni siquiera estaba importado en este modulo, asi que
+   si alguien la hubiera llamado habria lanzado un ReferenceError.
+
+   Esta en el historial si alguna vez hace falta: git log -- src/globe/engine.js */
 
 // ── STARS ──
 function buildStars() {

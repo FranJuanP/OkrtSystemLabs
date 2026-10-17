@@ -101,36 +101,12 @@ const shadowSources = [
       });
     }
   },
-  {
-    id: 'src-relief',
-    cat: 'humanitarian',
-    name: 'ReliefWeb API',
-    urls: [
-      'https://api.reliefweb.int/v2/disasters?appname=aether&limit=8&profile=full&sort[]=date:desc',
-      'https://api.reliefweb.int/v2/reports?appname=aether&limit=8&preset=latest&sort[]=date:desc'
-    ],
-    parse(data) {
-      const items = Array.isArray(data && data.data) ? data.data : [];
-      return items.slice(0, SHADOW_SOURCE_LIMIT).map((entry, idx) => {
-        const fields = entry && entry.fields || {};
-        const country = Array.isArray(fields.country) && fields.country[0] ? fields.country[0].name : '';
-        const title = fields.title || fields.headline || `Señal humanitaria ${idx+1}`;
-        const body = String(fields.body || fields.description || fields.headline || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-        return {
-          id: `shadow_relief_${entry && entry.id || idx}`,
-          cat: 'humanitarian',
-          severity: /emergency|famine|cholera|flood|conflict|earthquake|cyclone/i.test(title + ' ' + body) ? 'HIGH' : 'MEDIUM',
-          source: 'ReliefWeb API',
-          title,
-          location: country || 'Cobertura humanitaria global',
-          time: new Date(fields.date && (fields.date.changed || fields.date.created) || Date.now()),
-          summary: body.slice(0, 280) || 'Actualización humanitaria incorporada desde ReliefWeb.',
-          impacts: { Humanitarian: '83', Logistics: '66', Food: '58', Health: '57' },
-          url: fields.url || ''
-        };
-      });
-    }
-  }
+  /* La fuente en la sombra de ReliefWeb se retira.
+
+     Llamaba a la API v2 con appname=aether, que ReliefWeb no ha aprobado,
+     y respondia 403 en cada carga: dos peticiones mas por visita que no
+     podian funcionar. Vuelve cuando haya un appname aprobado; el motivo
+     esta en SOURCE_LABELS.relief del motor. */
 ];
 
 function setSourceStatus(id, state) {
@@ -151,6 +127,9 @@ async function fetchJsonWithTimeout(url, timeoutMs) {
     const response = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store', signal: controller ? controller.signal : undefined });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
+    // El service worker ya no intercepta otros origenes, asi que hoy nadie
+    // pone esta cabecera. Se deja por lo mismo que en el motor: si se
+    // vuelve a cachear una fuente, esto ya la trata como ultima lectura.
     // T18: el service worker marca con X-AETHER-Cache lo que sirve de su
     // cache cuando la red falla. Hay que mirarlo: si no, estas fuentes
     // pintarian su punto en verde con datos viejos y pisarian el estado
