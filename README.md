@@ -284,14 +284,25 @@ Score final = Base histórico
 
 ---
 
-## Protección intelectual
+## Autoría y licencia
 
-Este software está protegido mediante:
-- **Ofuscación de código** — lógica del motor encriptada y transformada
-- **Domain fingerprinting** — vinculado al dominio autorizado `franjuanp.github.io`
-- **Copyright** — © OkrtSystem Labs. Todos los derechos reservados.
+**© OkrtSystem Labs. Todos los derechos reservados.** La reproducción,
+distribución o uso comercial no autorizado está prohibido.
 
-La reproducción, distribución o uso comercial no autorizado está prohibido.
+### Aviso de copia no oficial
+
+Cuando AETHER se abre desde un host que no es `franjuanp.github.io`,
+`localhost` o `127.0.0.1`, muestra un aviso discreto de copyright en una
+esquina. La aplicación sigue funcionando con normalidad.
+
+> **Esto no es una medida de seguridad y no debe tomarse como tal.** Todo el
+> código se ejecuta en el navegador de quien visita la página: cualquiera
+> puede borrar `assets/js/domain-notice.js` de una copia y el aviso
+> desaparece. Es, exactamente, un aviso de autoría. Lo mismo vale para la
+> ofuscación del motor, que dificulta la lectura pero no impide copiar nada.
+
+La protección real de la obra es la legal: el copyright y los términos de
+uso, no el código del navegador.
 
 ---
 

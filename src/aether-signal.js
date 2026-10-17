@@ -5,38 +5,9 @@
    comportamiento: este fichero es el punto de partida de la Fase 1.
    ────────────────────────────────────────────────────────────────────────── */
 
-/* Bloqueo de dominio. Reproducido tal cual estaba en el publicado, incluida
-   la comparacion por subcadena (indexOf) que la Fase 1 corrige en T6. */
-(function(){
-  var allowed = ['franjuanp.github.io', 'localhost', '127.0.0.1'];
-  var host = window.location.hostname;
-  var ok = false;
-  for (var i = 0; i < allowed.length; i++) {
-    if (host === allowed[i] || host.indexOf(allowed[i]) !== -1) { ok = true; break; }
-  }
-  if (!ok) {
-    window._aetherLock = true;
-    window.fetch = function(){
-      return new Promise(function(resolve){
-        setTimeout(function(){
-          resolve({
-            ok: false,
-            json: function(){ return Promise.resolve({}); },
-            text: function(){ return Promise.resolve(''); }
-          });
-        }, 3000);
-      });
-    };
-    document.addEventListener('DOMContentLoaded', function(){
-      setTimeout(function(){
-        var overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-        overlay.innerHTML = '<div style="font-family:monospace;color:rgba(0,255,200,0.10);transform:rotate(-35deg);user-select:none;font-size:clamp(12px,2vw,20px);font-weight:700;white-space:nowrap;letter-spacing:3px">UNAUTHORIZED COPY · OKRTSYSTEM LABS · UNAUTHORIZED COPY · OKRTSYSTEM LABS</div>';
-        document.body.appendChild(overlay);
-      }, 800);
-    });
-  }
-})();
+/* T6: el bloqueo de dominio que habia aqui (comparacion por subcadena y
+   sustitucion de window.fetch) se sustituye por el aviso comun de
+   assets/js/domain-notice.js, que la pagina carga antes que este fichero. */
 
 // ═══════════════════════════════════════════════
 //  AETHER SIGNAL — OkrtSystem Labs
