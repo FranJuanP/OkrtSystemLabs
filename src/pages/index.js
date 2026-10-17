@@ -10,13 +10,12 @@
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';
-import '../core/background-throttle.js';
+import '../core/visibility.js';
 import '../core/mobile-viewport-fix.js';
 import '../core/pwa-register.js';
 
 import './../dashboard/shell-state.js';
 import '../dashboard/app-shell-config.js';
-import '../dashboard/dom-safety-layer.js';
 import '../dashboard/runtime-guard.js';
 
 import {
@@ -28,7 +27,6 @@ import {
 } from '../dashboard/engine.js';
 
 import '../dashboard/app-shell-bindings.js';
-import '../dashboard/app-config.js';
 import '../dashboard/app-dom.js';
 import { launchAether } from '../dashboard/app-router-legacy.js';
 import '../dashboard/app-aux.js';

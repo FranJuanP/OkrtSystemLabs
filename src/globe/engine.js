@@ -19,6 +19,7 @@
  */
 import { AETHER_COVERAGE } from '../core/coverage.js';
 import { AETHER_STORAGE } from '../core/storage.js';
+import { onVisibilityChange } from '../core/visibility.js';
 
 const THREE = window.THREE;
 
@@ -981,11 +982,19 @@ const clock3=new THREE.Clock();
 const sunDir = new THREE.Vector3(1, 0.3, 0).normalize();
 
 
+/**
+ * Un fotograma del globo.
+ *
+ * T14: antes se reencolaba con requestAnimationFrame(animate) desde dentro,
+ * asi que el bucle no se podia parar: solo se podia dejar que el navegador
+ * dejara de llamarlo. Ahora lo gobierna renderer.setAnimationLoop(), que
+ * admite setAnimationLoop(null) para soltarlo de verdad cuando la pestana
+ * deja de verse.
+ */
 function animate(){
   for (const hook of beforeFrameHooks) {
     try { hook(); } catch (err) { /* un hook no debe tumbar el bucle */ }
   }
-  requestAnimationFrame(animate);
   const dt=clock3.getDelta(), t=clock3.elapsedTime;
   if(globeMat) {
     globeMat.uniforms.uTime.value=t;
@@ -1083,7 +1092,7 @@ async function init(){
   setTimeout(()=>{
     document.getElementById('loading').classList.add('fade');
     setTimeout(()=>{ document.getElementById('loading').style.display='none'; },900);
-    animate();
+    startRenderLoop();
   },600);
 }
 
@@ -1479,3 +1488,18 @@ export {
   setArcFilter, toggleGlobalMode,
   currentArcFilter,
 };
+
+
+/* ── T14 · El bucle se suelta cuando la pestana no se ve ──────────────────
+   El globo es lo mas caro de la aplicacion. Con la pestana oculta no hay
+   nada que mirar, asi que se suelta el bucle en vez de seguir rindiendo
+   fotogramas que nadie ve. clock3 se reinicia al volver para que el delta
+   del primer fotograma no sea el tiempo que la pestana estuvo oculta. */
+export function startRenderLoop(){ renderer.setAnimationLoop(animate); }
+export function stopRenderLoop(){ renderer.setAnimationLoop(null); }
+
+onVisibilityChange((hidden) => {
+  if (hidden) { stopRenderLoop(); return; }
+  clock3.getDelta();
+  startRenderLoop();
+});
