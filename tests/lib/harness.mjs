@@ -90,13 +90,23 @@ export async function freezeClock(context, nowMs = FROZEN_NOW) {
 }
 
 /**
- * Instala la intercepcion de red.
- * @param {import('playwright').Page} page
+ * Instala la interceptacion de red.
+ *
+ * IMPORTANTE: hay que enrutar sobre el BrowserContext, no sobre la Page.
+ * `page.route` no intercepta las peticiones que hace un service worker por
+ * su cuenta, solo las de la pagina. Desde T18 el service worker media las
+ * llamadas a las APIs, asi que con page.route el escenario "todas las
+ * fuentes caidas" dejaba de ser tal: el worker salia a la red de verdad y
+ * la prueba media otra cosa. `context.route` si las cubre.
+ *
+ * @param {import('playwright').Page|import('playwright').BrowserContext} target
  * @param {object} opts
  * @param {'up'|'down'} opts.sources  'down' = todas las fuentes caidas.
  * @param {Record<string,object>} [opts.override]  fixture alternativo por id de fuente.
  */
-export async function routeSources(page, { sources = 'up', override = {} } = {}) {
+export async function routeSources(target, { sources = 'up', override = {} } = {}) {
+  // Si llega una Page, se enruta su contexto, que es lo que cubre al worker.
+  const page = (typeof target.context === 'function') ? target.context() : target;
   for (const src of SOURCES) {
     await page.route(src.match, async (route) => {
       if (sources === 'down') {
@@ -148,7 +158,14 @@ export function collectDiagnostics(page, baseUrl) {
   page.on('console', (msg) => {
     const text = msg.text();
     if (msg.type() === 'error') {
-      consoleErrors.push(text);
+      // "Failed to load resource: net::ERR_..." no dice QUE recurso fallo, y
+      // lo que de verdad importa ya se recoge con detalle en requestFailures,
+      // que ademas filtra las fuentes que el escenario tumba a proposito.
+      // Ademas el texto cambia segun quien produzca el fallo: la red da
+      // ERR_CONNECTION_REFUSED y el service worker ERR_FAILED, de modo que
+      // contarlo convertia un cambio de capa en una regresion aparente.
+      const esRuidoDeRed = /^Failed to load resource: net::ERR_/.test(text);
+      if (!esRuidoDeRed) consoleErrors.push(text);
       if (/Content Security Policy|Refused to/i.test(text)) cspViolations.push(text);
     } else if (msg.type() === 'warning') {
       consoleWarnings.push(text);

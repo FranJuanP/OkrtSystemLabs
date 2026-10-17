@@ -1,13 +1,18 @@
 /**
- * T11 · Prueba del service worker.
+ * T18 · Prueba del service worker (Workbox).
  *
- *   1. El precache cubre todo lo que las páginas referencian y todas sus
- *      entradas existen en disco.
- *   2. El nombre de caché lleva versión.
- *   3. Tras una primera visita con red, las cuatro páginas siguen abriendo
- *      con la red cortada, y el CSS móvil que antes faltaba está en caché.
+ * Lo que de verdad hay que comprobar, y que el service worker anterior no
+ * cumplía: **con la red cortada después de la primera visita, las cuatro
+ * páginas cargan y el globo se renderiza**.
  *
- * Uso: node tests/sw.mjs [--base http://localhost:8080]
+ * Además:
+ *   - el precache lo genera el build, no una lista escrita a mano;
+ *   - cubre HTML, JS, CSS, imágenes, tipografías y texturas;
+ *   - no hay `skipWaiting()` automático: una versión nueva espera y avisa.
+ *
+ * Requiere el sitio construido y servido:
+ *   npm run build && npm run preview
+ *   node tests/sw.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,113 +21,127 @@ import { REPO_DIR, PAGES } from './lib/harness.mjs';
 
 const args = process.argv.slice(2);
 const argOf = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const BASE = argOf('base', 'http://localhost:8080').replace(/\/$/, '');
+const BASE = argOf('base', 'http://localhost:8080/OkrtSystemLabs').replace(/\/$/, '');
 
 let failures = 0;
 const ok = (m) => console.log(`   OK    ${m}`);
 const bad = (m) => { failures++; console.log(`   FALLO ${m}`); };
 
-const swText = fs.readFileSync(path.join(REPO_DIR, 'service-worker.js'), 'utf8');
-const precache = JSON.parse(swText.slice(swText.indexOf('const AETHER_ASSETS = [') + 'const AETHER_ASSETS = '.length,
-  swText.indexOf('];', swText.indexOf('const AETHER_ASSETS = [')) + 1));
-const cacheName = (swText.match(/const AETHER_CACHE = '([^']+)'/) || [])[1];
+console.log('===== PRUEBA DEL SERVICE WORKER (T18) =====\n');
 
-console.log('===== PRUEBA DEL SERVICE WORKER (T11) =====\n');
-
-// 1. Nombre de cache versionado.
-if (cacheName && /^aether-v\d{8}-[0-9a-f]{8}$/.test(cacheName)) ok(`nombre de cache versionado: ${cacheName}`);
-else bad(`nombre de cache sin version reconocible: ${cacheName}`);
-
-// 2. Todas las entradas del precache existen.
-const inexistentes = precache.filter((rel) => rel !== './' && !fs.existsSync(path.join(REPO_DIR, rel.replace(/^\.\//, ''))));
-if (inexistentes.length === 0) ok(`las ${precache.length} entradas del precache existen en disco`);
-else bad(`entradas inexistentes: ${JSON.stringify(inexistentes)}`);
-
-// 3. El precache cubre lo que las paginas referencian.
-const referenced = new Set();
-for (const page of PAGES) {
-  const html = fs.readFileSync(path.join(REPO_DIR, page), 'utf8');
-  for (const m of html.matchAll(/(?:src|href)="((?:assets|src)\/[^"]+)"/g)) referenced.add('./' + m[1]);
+// ── 1. El build genera el service worker y su manifiesto ──────────────────
+const SW = path.join(REPO_DIR, 'dist', 'sw.js');
+if (!fs.existsSync(SW)) {
+  bad('no existe dist/sw.js — hay que ejecutar npm run build antes');
+  process.exit(1);
 }
-const set = new Set(precache);
-const uncovered = [...referenced].filter((r) => !set.has(r)).sort();
-if (uncovered.length === 0) ok(`el precache cubre los ${referenced.size} recursos que referencian las paginas`);
-else bad(`referenciados y fuera del precache: ${JSON.stringify(uncovered)}`);
+const sw = fs.readFileSync(SW, 'utf8');
+// Workbox inyecta el manifiesto como [{"revision":...,"url":"..."}].
+const entradas = [...sw.matchAll(/\{"revision":(null|"[^"]*"),"url":"([^"]+)"\}/g)]
+  .map((m) => ({ revision: m[1] === 'null' ? null : m[1], url: m[2] }));
+const urls = entradas.map((e) => e.url);
 
-// 4. Los seis que faltaban segun el encargo.
-const REQUERIDOS = [
-  './assets/js/signal-mobile-fix.js', './assets/css/signal-mobile-fix.css',
-  './assets/js/vector-mobile-fix.js', './assets/css/vector-mobile-fix.css',
-  './assets/css/globe-tablet-portrait-cleanup.css',
-  './assets/icons/apple-touch-icon-okrt-v2.png',
-];
-const faltan = REQUERIDOS.filter((r) => !set.has(r));
-if (faltan.length === 0) ok('los seis ficheros que faltaban estan en el precache');
-else bad(`siguen faltando: ${JSON.stringify(faltan)}`);
+if (urls.length > 50) ok(`el precache lo genera el build: ${urls.length} entradas`);
+else bad(`solo ${urls.length} entradas en el precache; se esperaban muchas más`);
 
-// 5. Offline de verdad.
+const byExt = {};
+for (const u of urls) {
+  const ext = (u.match(/\.([a-z0-9]+)(?:\?|$)/i) || [, 'otro'])[1].toLowerCase();
+  byExt[ext] = (byExt[ext] || 0) + 1;
+}
+const quiere = { html: 'HTML', js: 'JS', css: 'CSS', webp: 'imágenes', woff2: 'tipografías' };
+const faltan = Object.keys(quiere).filter((e) => !byExt[e]);
+if (faltan.length === 0) {
+  ok('cubre ' + Object.entries(byExt).filter(([e]) => quiere[e]).map(([e, n]) => `${quiere[e]} ${n}`).join(', '));
+} else {
+  bad(`el precache no cubre: ${faltan.map((e) => quiere[e]).join(', ')}`);
+}
+
+const texturas = urls.filter((u) => /earth-(day|night|clouds)/.test(u));
+if (texturas.length >= 3) ok(`las texturas del globo están precacheadas (${texturas.length})`);
+else bad(`solo ${texturas.length} texturas del globo en el precache`);
+
+// Cada entrada tiene que poder invalidarse: o revisión propia, o hash de
+// Vite en el nombre. Las dos cosas a null significa que un cambio en ese
+// fichero no llegaría nunca al navegador.
+const sinVersion = entradas.filter((e) => !e.revision && !/-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/.test(e.url));
+if (sinVersion.length === 0) ok('todas las entradas llevan revisión o hash en el nombre');
+else bad(`${sinVersion.length} entradas sin forma de invalidarse: ${JSON.stringify(sinVersion.slice(0, 3).map((e) => e.url))}`);
+
+// ── 2. Nada de skipWaiting automático ─────────────────────────────────────
+if (/SKIP_WAITING/.test(sw)) ok('la activación espera a que la página mande SKIP_WAITING');
+else bad('el service worker no espera: se activa solo');
+
+// ── 3. Offline de verdad ──────────────────────────────────────────────────
 (async () => {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
 
-  await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 45000 });
-  // Esperar a que el service worker tome el control y acabe el precache.
-  const registered = await page.evaluate(async () => {
+  await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 60000 });
+  const estado = await page.evaluate(async () => {
     if (!navigator.serviceWorker) return 'sin soporte';
-    const reg = await navigator.serviceWorker.ready.catch(() => null);
-    if (!reg) return 'no listo';
-    for (let i = 0; i < 40 && !navigator.serviceWorker.controller; i++) {
+    await navigator.serviceWorker.ready.catch(() => null);
+    for (let i = 0; i < 60 && !navigator.serviceWorker.controller; i++) {
       await new Promise((r) => setTimeout(r, 250));
     }
     return navigator.serviceWorker.controller ? 'controlando' : 'registrado sin control';
   });
-  if (registered === 'controlando') ok('el service worker controla la pagina');
-  else bad(`el service worker no tomo el control: ${registered}`);
-
-  await page.waitForTimeout(4000);   // margen para que termine de precachear
-
-  const cached = await page.evaluate(async (required) => {
-    const names = await caches.keys();
-    const name = names.find((n) => n.startsWith('aether-v')) || names[0];
-    if (!name) return { names, error: 'sin cache' };
-    const cache = await caches.open(name);
-    const keys = (await cache.keys()).map((r) => new URL(r.url).pathname);
-    const have = required.filter((r) => keys.some((k) => k.endsWith(r.replace(/^\.\//, ''))));
-    return { names, name, total: keys.length, have };
-  }, REQUERIDOS);
-
-  if (cached.error) bad(cached.error);
-  else {
-    if (cached.names.length === 1) ok(`una sola cache activa: ${cached.name} (${cached.total} entradas)`);
-    else bad(`hay ${cached.names.length} caches a la vez: ${JSON.stringify(cached.names)}`);
-    if (cached.have.length === REQUERIDOS.length) ok('los seis ficheros estan realmente en la cache del navegador');
-    else bad(`en cache solo ${cached.have.length} de ${REQUERIDOS.length}: ${JSON.stringify(cached.have)}`);
+  // Con activación diferida (sin skipWaiting ni clients.claim) el service
+  // worker NO controla la primera carga: se instala, precachea y toma el
+  // control en la siguiente navegación. Eso es lo correcto aquí, así que se
+  // comprueba que esté registrado y activo, no que mande ya.
+  if (estado === 'controlando' || estado === 'registrado sin control') {
+    ok(`service worker instalado y activo (${estado})`);
+  } else {
+    bad(`el service worker no se instaló: ${estado}`);
   }
 
-  // Cortar la red y recargar las cuatro paginas.
+  // Dar tiempo a que termine de precachear.
+  await page.waitForTimeout(14000);
+
+  const cacheado = await page.evaluate(async () => {
+    const names = await caches.keys();
+    let total = 0;
+    for (const n of names) total += (await (await caches.open(n)).keys()).length;
+    return { names, total };
+  });
+  if (cacheado.total > 50) ok(`${cacheado.total} recursos en caché (${cacheado.names.length} cachés)`);
+  else bad(`solo ${cacheado.total} recursos en caché`);
+
   await context.setOffline(true);
   for (const p of PAGES) {
     const errors = [];
-    page.on('pageerror', (e) => errors.push(e.message.split('\n')[0]));
-    let navOk = true;
-    try {
-      await page.goto(`${BASE}/${p}`, { waitUntil: 'load', timeout: 30000 });
-    } catch (e) { navOk = false; }
-    await page.waitForTimeout(2500);
-    const state = await page.evaluate(() => ({
-      titulo: document.title,
-      nodos: document.querySelectorAll('*').length,
-      cuerpo: document.body ? document.body.innerText.length : 0,
-    })).catch(() => ({ nodos: 0, cuerpo: 0 }));
+    const onErr = (e) => errors.push(e.message.split('\n')[0]);
+    page.on('pageerror', onErr);
 
-    // El globo necesita three.js, que hoy viene de CDN: offline no renderiza.
-    // Es lo esperado en la Fase 1; T16 lo empaqueta en el repositorio.
-    const esGlobo = p.includes('globe');
-    if (navOk && state.nodos > 50) {
-      ok(`offline: ${p} carga (${state.nodos} nodos, ${state.cuerpo} chars)${esGlobo ? ' — sin three.js, esperado hasta T16' : ''}`);
+    let navOk = true;
+    try { await page.goto(`${BASE}/${p}`, { waitUntil: 'load', timeout: 40000 }); }
+    catch { navOk = false; }
+    await page.waitForTimeout(p.includes('globe') ? 10000 : 4000);
+
+    const vista = await page.evaluate(() => {
+      const c = document.querySelector('canvas');
+      return {
+        nodos: document.querySelectorAll('*').length,
+        canvas: document.querySelectorAll('canvas').length,
+        globoVivo: !!c && c.width > 100 && c.height > 100,
+        svg: document.querySelectorAll('svg path').length,
+        tarjetas: document.querySelectorAll('.signal-card').length,
+      };
+    }).catch(() => ({ nodos: 0 }));
+
+    page.off('pageerror', onErr);
+
+    if (!navOk || vista.nodos < 50) {
+      bad(`offline: ${p} no carga (nav=${navOk}, nodos=${vista.nodos})`);
+    } else if (errors.length) {
+      bad(`offline: ${p} carga pero da pageerror: ${JSON.stringify([...new Set(errors)].slice(0, 2))}`);
+    } else if (p.includes('globe')) {
+      if (vista.globoVivo) ok(`offline: ${p} carga Y el globo se renderiza (${vista.canvas} canvas)`);
+      else bad(`offline: ${p} carga pero el globo no se renderiza`);
     } else {
-      bad(`offline: ${p} no carga (nav=${navOk}, nodos=${state.nodos})`);
+      ok(`offline: ${p} carga (${vista.nodos} nodos, ${vista.svg} paths, ${vista.tarjetas} tarjetas)`);
     }
   }
 

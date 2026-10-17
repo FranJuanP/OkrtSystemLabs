@@ -152,6 +152,17 @@ Visualización **Sankey interactiva** de flujos financieros globales con datos r
 - Conexión a internet para cargar librerías CDN y APIs en tiempo real
 - [Ollama](https://ollama.ai) con Mistral instalado *(solo para funciones de IA)*
 
+### Despliegue
+
+El sitio se construye con Vite y se publica desde
+`.github/workflows/deploy-pages.yml` en cada empujón a `main`.
+
+> **Hay que cambiar un ajuste una sola vez:** en
+> *Settings → Pages → Build and deployment → Source*, pasar de
+> «Deploy from a branch» a **«GitHub Actions»**. Ese ajuste no se puede
+> cambiar desde el repositorio; hasta que se haga, el workflow construye
+> correctamente y falla en el paso de publicación.
+
 ### Uso directo en GitHub Pages
 
 ```
@@ -280,6 +291,9 @@ Score final = Base histórico
 - El termómetro no se refresca: muestra la estimación base y no se mueve
   mientras no haya un dato nuevo medido.
 - El panel de temas no lleva hora, porque sus entradas no tienen fecha propia.
+- La imagen de portada es una captura real del dashboard, hecha con
+  Playwright sobre la aplicación servida (`npm run build:hero`). Sustituye a
+  un montaje anterior que tenía texto ilegible y un país inexistente.
 - Las cifras del globo y del dashboard proceden hoy de tablas distintas.
 
 ---

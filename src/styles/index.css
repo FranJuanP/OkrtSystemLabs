@@ -1,0 +1,159 @@
+/* Estilos de index.html.
+   T17: iban en bloques <style> dentro del HTML, lo que obligaba a
+   mantener 'unsafe-inline' en style-src. Vite los empaqueta y los
+   sirve como fichero, asi que la directiva puede cerrarse. */
+
+.aether-enh-card{--acc:var(--cyan);margin-bottom:16px;background:linear-gradient(180deg, rgba(2,14,24,.92), rgba(4,12,20,.94));box-shadow:0 12px 36px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.02)}
+.aether-enh-grid{display:grid;grid-template-columns:1.2fr 1fr .95fr;gap:12px;align-items:stretch}
+.aether-enh-block{background:linear-gradient(180deg, rgba(5,12,18,.78), rgba(3,9,15,.9));border:1px solid rgba(90,110,140,.18);border-radius:12px;padding:12px;position:relative;overflow:hidden}
+.aether-enh-block:before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:1px;background:linear-gradient(90deg, rgba(0,255,200,.16), rgba(0,255,200,0));pointer-events:none}
+.aether-enh-kicker{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:1.3px;margin-bottom:6px;text-transform:uppercase}
+.aether-enh-brief{font-size:14px;line-height:1.5;color:var(--bright);min-height:72px}
+.aether-enh-brief strong{color:var(--cyan)}
+.aether-enh-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.aether-pill{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;border-radius:999px;border:1px solid rgba(0,255,200,.22);background:rgba(0,255,200,.05);color:var(--bright)}
+.aether-pill.is-hot{border-color:rgba(255,95,95,.28);background:rgba(255,60,60,.08);color:#ffc7c7}
+.aether-pill.is-cool{border-color:rgba(0,255,200,.28);background:rgba(0,255,200,.08);color:var(--cyan)}
+.aether-brief-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.aether-kpi-box{padding:9px 10px;border-radius:10px;background:rgba(8,15,23,.75);border:1px solid rgba(90,110,140,.16)}
+.aether-kpi-label{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:5px}
+.aether-kpi-value{font-size:20px;line-height:1;color:var(--bright);font-family:'Share Tech Mono',monospace}
+.aether-kpi-value span{font-size:11px;color:var(--dim);margin-left:2px}
+.aether-kpi-value.is-small{font-size:13px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aether-brief-status{margin-top:10px}
+.aether-status-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.aether-status-pill{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;border-radius:999px;border:1px solid rgba(90,110,140,.18);background:rgba(255,255,255,.03);color:var(--bright);white-space:nowrap}
+.aether-status-pill.is-up{border-color:rgba(255,120,120,.28);background:rgba(255,56,56,.08);color:#ffc2c2}
+.aether-status-pill.is-down{border-color:rgba(0,255,200,.28);background:rgba(0,255,200,.08);color:var(--cyan)}
+.aether-status-pill.is-flat{border-color:rgba(255,209,102,.22);background:rgba(255,209,102,.08);color:#ffeab5}
+.aether-status-text{font-size:10px;color:var(--dim);line-height:1.45;flex:1;min-width:160px}
+.aether-explain-list{display:grid;gap:8px}
+.aether-ex-row{display:grid;grid-template-columns:92px 1fr 36px;gap:8px;align-items:center}
+.aether-ex-label{font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.aether-ex-bar{height:8px;border-radius:999px;background:rgba(18,28,40,.9);border:1px solid rgba(90,110,140,.16);overflow:hidden}
+.aether-ex-fill{height:100%;border-radius:999px;background:linear-gradient(90deg, rgba(0,255,200,.35), rgba(0,255,200,.9))}
+.aether-ex-row.tone-up .aether-ex-fill{background:linear-gradient(90deg, rgba(255,117,117,.35), rgba(255,164,64,.95))}
+.aether-ex-row.tone-down .aether-ex-fill{background:linear-gradient(90deg, rgba(0,255,200,.18), rgba(117,255,218,.92))}
+.aether-ex-val{font-size:10px;color:var(--bright);font-family:'Share Tech Mono',monospace;text-align:right}
+.aether-drivers{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.aether-driver{font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 8px;border-radius:999px;border:1px solid color-mix(in srgb, var(--driver) 35%, rgba(90,110,140,.2));background:color-mix(in srgb, var(--driver) 10%, rgba(255,255,255,.02));color:var(--bright)}
+.aether-driver.is-primary{box-shadow:0 0 0 1px color-mix(in srgb, var(--driver) 38%, transparent)}
+.aether-note{margin-top:10px;font-size:10px;color:var(--dim);line-height:1.45}
+.aether-watch-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.aether-mini-btn{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.8px;background:rgba(0,255,200,.06);border:1px solid rgba(0,255,200,.28);color:var(--cyan);padding:6px 10px;border-radius:7px;cursor:pointer;transition:all .2s}
+.aether-mini-btn:hover{background:rgba(0,255,200,.14);border-color:var(--cyan)}
+.aether-watchlist{display:grid;gap:8px;max-height:255px;overflow:auto;padding-right:2px}
+.aether-watch-item{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 10px;border-radius:10px;background:rgba(7,12,18,.68);border:1px solid rgba(90,110,140,.16)}
+.aether-watch-main{min-width:0}
+.aether-watch-name-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.aether-watch-name{font-size:12px;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aether-watch-band{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);padding:3px 6px;border-radius:999px;border:1px solid rgba(90,110,140,.16)}
+.aether-watch-sub{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-top:4px;letter-spacing:1px;display:flex;gap:8px;flex-wrap:wrap}
+.aether-watch-delta.up{color:#ffb0b0}.aether-watch-delta.down{color:var(--cyan)}.aether-watch-delta.flat{color:#ffeab5}
+.aether-watch-dominant{font-size:10px;color:var(--bright);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aether-watch-side{text-align:right;display:grid;gap:8px;align-items:center}
+.aether-watch-confidence{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--bright)}
+.aether-watch-actions{display:flex;gap:6px;justify-content:flex-end}
+.aether-watch-icon{font-size:9px;padding:5px 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(90,110,140,.16);color:var(--bright);cursor:pointer}
+.aether-watch-empty{font-size:11px;color:var(--dim);padding:12px;border:1px dashed rgba(90,110,140,.2);border-radius:8px;text-align:center;line-height:1.45}
+@media (max-width: 1320px){.aether-enh-grid{grid-template-columns:1fr}.aether-watchlist{max-height:none}.aether-brief-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+.aether-driver-soft{border-color:rgba(90,110,140,.18);background:rgba(255,255,255,.03);color:var(--dim)}
+.aether-ex-row.tone-flat .aether-ex-fill{background:linear-gradient(90deg, rgba(255,209,102,.30), rgba(255,209,102,.92))}
+.aether-ex-val{min-width:36px}
+
+/* === Robustez Premium === */
+.aether-health-dock{position:fixed;right:18px;bottom:18px;z-index:9999;width:min(360px,calc(100vw - 24px));border:1px solid rgba(0,255,200,.16);border-radius:18px;background:linear-gradient(180deg,rgba(8,18,28,.96),rgba(6,13,20,.94));box-shadow:0 18px 46px rgba(0,0,0,.45),0 0 0 1px rgba(0,255,200,.05) inset;backdrop-filter:blur(14px);color:#d8fdf5;font-family:'Exo 2',system-ui,sans-serif;overflow:hidden}
+.aether-health-dock[data-collapsed="1"] .aether-health-body{display:none}
+.aether-health-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(0,255,200,.10);background:linear-gradient(90deg,rgba(0,255,200,.06),rgba(10,239,255,.03))}
+.aether-health-title{display:flex;align-items:center;gap:10px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;font-family:'Share Tech Mono',monospace;color:#9fffee}
+.aether-health-led{width:10px;height:10px;border-radius:999px;background:#00ffc8;box-shadow:0 0 8px rgba(0,255,200,.65)}
+.aether-health-led.warn{background:#ffd86b;box-shadow:0 0 8px rgba(255,216,107,.6)}
+.aether-health-led.err{background:#ff5b7e;box-shadow:0 0 8px rgba(255,91,126,.65)}
+.aether-health-actions{display:flex;align-items:center;gap:8px}
+.aether-health-chip{padding:4px 8px;border-radius:999px;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-family:'Share Tech Mono',monospace;border:1px solid rgba(255,255,255,.08)}
+.aether-health-chip.ok{color:#7affd8;background:rgba(0,255,200,.10);border-color:rgba(0,255,200,.24)}
+.aether-health-chip.warn{color:#ffd86b;background:rgba(255,190,70,.10);border-color:rgba(255,190,70,.22)}
+.aether-health-chip.err{color:#ff9db1;background:rgba(255,91,126,.10);border-color:rgba(255,91,126,.24)}
+.aether-health-toggle{border:0;background:rgba(255,255,255,.05);color:#d7fff7;border-radius:10px;padding:6px 9px;cursor:pointer}
+.aether-health-body{padding:14px;display:grid;gap:12px}
+.aether-health-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.aether-health-stat{border:1px solid rgba(0,255,200,.09);border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.02)}
+.aether-health-k{font:10px 'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:#7aa6a0;margin-bottom:6px}
+.aether-health-v{font-size:20px;font-weight:700;color:#f2fffc;line-height:1}
+.aether-health-s{margin-top:6px;font-size:11px;color:#8fb7b1}
+.aether-health-list{display:grid;gap:8px}
+.aether-health-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04)}
+.aether-health-row span:first-child{font-size:12px;color:#d8f8f1}
+.aether-health-row small{font-size:11px;color:#8fb7b1}
+.aether-health-badge{padding:3px 7px;border-radius:999px;font:10px 'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.aether-health-badge.local{color:#8dfff1;background:rgba(0,255,200,.11)}
+.aether-health-badge.external{color:#ffd86b;background:rgba(255,190,70,.12)}
+.aether-health-badge.fallback{color:#9ad0ff;background:rgba(90,160,255,.14)}
+.aether-health-events{max-height:110px;overflow:auto;display:grid;gap:6px;padding-right:4px}
+.aether-health-event{font-size:11px;color:#8fb7b1;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.03)}
+.aether-health-footer{font-size:10px;color:#6f9691;font-family:'Share Tech Mono',monospace;letter-spacing:.8px;text-transform:uppercase}
+@media (max-width: 900px){.aether-health-dock{left:12px;right:12px;bottom:12px;width:auto}.aether-health-grid{grid-template-columns:1fr 1fr}}
+
+#system-health-dock,
+#aether-system-health,
+#robustness-dock,
+#health-dock,
+.app-robustness-dock,
+.system-health-dock,
+.system-health-panel,
+.aether-health-dock,
+.aether-system-health,
+[data-role="system-health"],
+[data-module="system-health"]{
+  display:none !important;
+  visibility:hidden !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+
+#region-sel{visibility:hidden;position:absolute;pointer-events:none}
+.okrt-region-shell{position:relative;display:inline-flex;min-width:240px;max-width:280px;z-index:30}
+.okrt-region-btn{
+  width:100%;display:flex;align-items:center;gap:10px;justify-content:space-between;
+  background:rgba(10,14,24,.92);border:1px solid rgba(0,255,200,.22);color:var(--text);
+  border-radius:12px;padding:10px 12px;min-height:42px;cursor:pointer;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:12px;
+}
+.okrt-region-btn:hover,.okrt-region-btn:focus{border-color:rgba(0,255,200,.42);outline:none}
+.okrt-region-left{display:flex;align-items:center;gap:10px;min-width:0}
+.okrt-flag{width:18px;height:13px;display:inline-block;border-radius:2px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.okrt-flag.okrt-globe{width:18px;height:18px;border-radius:50%;box-shadow:none;font-size:16px;line-height:18px;text-align:center}
+.okrt-region-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.okrt-region-chevron{color:var(--dim);font-size:11px;transition:transform .18s ease}
+.okrt-region-shell.open .okrt-region-chevron{transform:rotate(180deg)}
+.okrt-region-menu{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;max-height:380px;overflow:auto;display:none;
+  background:rgba(8,12,20,.98);backdrop-filter:blur(10px);border:1px solid rgba(0,255,200,.18);
+  border-radius:14px;padding:10px;box-shadow:0 18px 55px rgba(0,0,0,.42)
+}
+.okrt-region-shell.open .okrt-region-menu{display:block}
+.okrt-region-group{padding:6px 4px 8px}
+.okrt-region-group + .okrt-region-group{border-top:1px solid rgba(255,255,255,.06)}
+.okrt-region-group-title{font-size:10px;letter-spacing:1.2px;color:var(--dim);margin:2px 4px 8px;font-family:'Share Tech Mono',monospace}
+.okrt-region-item{
+  width:100%;display:flex;align-items:center;gap:10px;background:transparent;border:0;color:var(--text);
+  text-align:left;border-radius:10px;padding:8px 9px;cursor:pointer;font-size:12px
+}
+.okrt-region-item:hover,.okrt-region-item:focus{background:rgba(0,255,200,.08);outline:none}
+.okrt-region-item.active{background:rgba(0,255,200,.12);box-shadow:inset 0 0 0 1px rgba(0,255,200,.16)}
+.okrt-data-card{
+  margin:0 0 16px;background:linear-gradient(180deg,rgba(10,16,28,.96),rgba(7,10,18,.96));
+  border:1px solid rgba(0,255,200,.14);border-radius:18px;padding:16px 18px;box-shadow:0 14px 44px rgba(0,0,0,.24)
+}
+.okrt-data-head{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:12px}
+.okrt-data-title{font-size:11px;letter-spacing:2px;color:var(--dim);font-family:'Share Tech Mono',monospace}
+.okrt-data-region{font-size:12px;color:var(--cyan);font-family:'Share Tech Mono',monospace}
+.okrt-data-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.okrt-data-pill{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:10px 12px;min-height:72px}
+.okrt-data-k{font-size:10px;letter-spacing:1.2px;color:var(--dim);margin-bottom:7px;font-family:'Share Tech Mono',monospace}
+.okrt-data-v{font-size:18px;font-weight:700;line-height:1.1;color:var(--text)}
+.okrt-data-s{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.35}
+@media (max-width:1200px){.okrt-data-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:760px){.okrt-data-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.okrt-region-shell{min-width:100%;max-width:none}}

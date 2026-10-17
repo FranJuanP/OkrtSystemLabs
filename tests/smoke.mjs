@@ -72,8 +72,13 @@ async function probe(page) {
       title: document.title,
       nodes: count('*'),
       bodyChars: document.body ? document.body.innerText.length : 0,
-      dataKeys: (() => { const d = globalValue('DATA'); return d && typeof d === 'object' ? Object.keys(d).length : null; })(),
-      signalCount: (() => { const s = globalValue('allSignals'); return Array.isArray(s) ? s.length : null; })(),
+      // Desde T12 el motor es un módulo: DATA ya no es global. El asa
+      // window.__AETHER__ existe precisamente para las pruebas y la consola.
+      dataKeys: (() => {
+        const d = (window.__AETHER__ && window.__AETHER__.DATA) || globalValue('DATA');
+        return d && typeof d === 'object' ? Object.keys(d).length : null;
+      })(),
+      signalCount: document.querySelectorAll('.signal-card').length || null,
       threeLoaded: typeOf('THREE') === 'object' || typeOf('THREE') === 'function',
       d3Loaded: typeOf('d3') === 'object',
       engineFns: ['enhancedScore', 'runMonteCarlo', 'simulateCascade', 'loadRegion']
@@ -122,7 +127,7 @@ async function run() {
             await page.goto(`${BASE}/${pageName}`, { waitUntil: 'load', timeout: 45000 });
             await settle(page);
           } catch { /* el caso real se mide despues */ }
-          await page.unrouteAll();
+          await context.unrouteAll();
         }
 
         const diag = collectDiagnostics(page, BASE);
