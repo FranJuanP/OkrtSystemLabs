@@ -64,23 +64,16 @@ async function openDashboard(page) {
   if (added.error) { bad(added.error); await browser.close(); process.exit(1); }
   await page.waitForTimeout(1200);
 
-  // 2. Los atributos data-* deben sobrevivir al saneador.
+  // 2. Los atributos data-* deben seguir en su sitio.
   //
-  // Se fuerza una pasada explicita de AetherSafeDOM.sanitizeTree sobre el
-  // contenedor. Hace falta porque el observador de dom-safety-layer.js se
-  // engancha en DOMContentLoaded y para entonces #aether-watchlist todavia
-  // no existe (lo crea app-enhancements.js despues), asi que hoy el saneo
-  // no llega a dispararse solo y el fallo queda latente. Forzandolo, la
-  // prueba mide lo que de verdad importa: que el saneador no rompa los
-  // botones el dia que si le toque pasar por ahi.
-  const sanitized = await page.evaluate(() => {
+  // T8 arreglo dom-safety-layer, que los borraba. T14 ha retirado esa capa
+  // entera: el escapado en origen de la Fase 1 cubre los sumideros, como
+  // demuestra tests/xss.mjs. Si vuelve a existir un saneador, esta prueba
+  // fuerza una pasada suya para comprobar que no rompe los botones.
+  await page.evaluate(() => {
     const box = document.getElementById('aether-watchlist');
-    if (!box || !window.AetherSafeDOM) return false;
-    window.AetherSafeDOM.sanitizeTree(box);
-    return true;
+    if (box && window.AetherSafeDOM) window.AetherSafeDOM.sanitizeTree(box);
   });
-  if (sanitized) ok('se ha forzado una pasada del saneador sobre la watchlist');
-  else bad('no se pudo forzar el saneador (falta AetherSafeDOM o el contenedor)');
   await page.waitForTimeout(400);
 
   const attrs = await page.evaluate(() => ({

@@ -19,7 +19,7 @@
  * revision de build y aviso de "Nueva version disponible" en vez de
  * skipWaiting automatico.
  */
-const AETHER_CACHE = 'aether-v20261017-88e21b4d';
+const AETHER_CACHE = 'aether-v20261017-63eed361';
 
 const AETHER_ASSETS = [
   "./",
@@ -49,7 +49,6 @@ const AETHER_ASSETS = [
   "./favicon.ico",
   "./index.html",
   "./manifest.webmanifest",
-  "./src/core/background-throttle.js",
   "./src/core/coverage.js",
   "./src/core/dependency-resilience.js",
   "./src/core/domain-notice.js",
@@ -57,10 +56,9 @@ const AETHER_ASSETS = [
   "./src/core/frame-buster.js",
   "./src/core/mobile-viewport-fix.js",
   "./src/core/pwa-register.js",
-  "./src/core/security-hardening.js",
   "./src/core/storage.js",
+  "./src/core/visibility.js",
   "./src/dashboard/app-aux.js",
-  "./src/dashboard/app-config.js",
   "./src/dashboard/app-dom.js",
   "./src/dashboard/app-enhancements.js",
   "./src/dashboard/app-robustness.js",
@@ -73,7 +71,6 @@ const AETHER_ASSETS = [
   "./src/dashboard/app-shell-panels.js",
   "./src/dashboard/app-shell-session.js",
   "./src/dashboard/app-shell-telemetry.js",
-  "./src/dashboard/dom-safety-layer.js",
   "./src/dashboard/engine.js",
   "./src/dashboard/globe-bridge.js",
   "./src/dashboard/okrt-flags-data.js",

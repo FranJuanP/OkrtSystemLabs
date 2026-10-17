@@ -1,5 +1,11 @@
 /**
- * AETHER · configuración del shell del dashboard.
+ * AETHER · configuración del dashboard.
+ *
+ * T14: aquí se ha fusionado app-config.js, que era una vista reducida de
+ * este mismo objeto con `||` por defecto para cada campo. Dos ficheros, dos
+ * globales (AETHER_SHELL_CONFIG y AETHER_CONFIG) y una relación de copia
+ * entre ellos, para una configuración que nunca cambia en tiempo de
+ * ejecución. Ahora hay un solo objeto.
  *
  * T12: módulo ES. Antes era un IIFE que se comunicaba con el resto por
  * variables globales; ahora las dependencias son imports explícitos.
@@ -46,8 +52,8 @@ const cfg = Object.freeze({
   }),
   runtime: Object.freeze({
     cardsEngine: 'src/dashboard/engine.js',
-    routerLegacy: 'assets/js/app-router-legacy.js',
-    guard: 'assets/js/runtime-guard.js'
+    routerLegacy: 'src/dashboard/app-router-legacy.js',
+    guard: 'src/dashboard/runtime-guard.js'
   })
 });
 

@@ -436,7 +436,7 @@ function showNodeDetail(n, links, nodeMap){
 
   dc.innerHTML = `
     <div class="dp-meta">// AETHER VECTOR · NODO</div>
-    <div class="dp-title">${n.label}</div>
+    <div class="dp-title">${esc(n.label)}</div>
     <div class="dp-amount">$${total>=1000?(total/1000).toFixed(1)+'T':total+'B'}</div>
     <div class="dp-amount-lbl">VOLUMEN TOTAL EN FLUJO</div>
     <div class="dp-divider"></div>
@@ -444,14 +444,14 @@ function showNodeDetail(n, links, nodeMap){
     <div class="dp-bars">${outLinks.slice(0,5).map(l=>{
       const col=FLOW_COLORS[l.type]||'#888';
       return `<div class="dp-bar-row">
-        <div class="dp-bar-label"><span>${(nodeMap[l.t]?.label||l.t).slice(0,16)} · ${FLOW_LABELS[l.type]||l.type}</span><span style="color:${col}">$${l.v}B</span></div>
+        <div class="dp-bar-label"><span>${(nodeMap[l.t]?.label||l.t).slice(0,16)} · ${esc(FLOW_LABELS[l.type]||l.type)}</span><span style="color:${col}">$${l.v}B</span></div>
         <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/barMax*100).toFixed(0)}%;background:${col}"></div></div>
       </div>`}).join('')}</div><div class="dp-divider"></div>`:'' }
     ${inLinks.length?`<div class="dp-label">// FLUJOS DE ENTRADA</div>
     <div class="dp-bars">${inLinks.slice(0,5).map(l=>{
       const col=FLOW_COLORS[l.type]||'#888';
       return `<div class="dp-bar-row">
-        <div class="dp-bar-label"><span>${(nodeMap[l.s]?.label||l.s).slice(0,16)} · ${FLOW_LABELS[l.type]||l.type}</span><span style="color:${col}">$${l.v}B</span></div>
+        <div class="dp-bar-label"><span>${(nodeMap[l.s]?.label||l.s).slice(0,16)} · ${esc(FLOW_LABELS[l.type]||l.type)}</span><span style="color:${col}">$${l.v}B</span></div>
         <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/barMax*100).toFixed(0)}%;background:${col}"></div></div>
       </div>`}).join('')}</div>`:'' }`;
 }
