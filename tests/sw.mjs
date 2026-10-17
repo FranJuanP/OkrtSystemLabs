@@ -49,10 +49,13 @@ const uncovered = [...referenced].filter((r) => !set.has(r)).sort();
 if (uncovered.length === 0) ok(`el precache cubre los ${referenced.size} recursos que referencian las paginas`);
 else bad(`referenciados y fuera del precache: ${JSON.stringify(uncovered)}`);
 
-// 4. Los seis que faltaban segun el encargo.
+// Los seis ficheros que faltaban en el precache segun el encargo (T11).
+// Tras T12 los dos .js viven en src/ y el navegador los carga como parte del
+// grafo de modulos de su pagina, no como <script> sueltos; el generador los
+// precachea igualmente siguiendo los imports.
 const REQUERIDOS = [
-  './assets/js/signal-mobile-fix.js', './assets/css/signal-mobile-fix.css',
-  './assets/js/vector-mobile-fix.js', './assets/css/vector-mobile-fix.css',
+  './src/signal/mobile-fix.js', './assets/css/signal-mobile-fix.css',
+  './src/vector/mobile-fix.js', './assets/css/vector-mobile-fix.css',
   './assets/css/globe-tablet-portrait-cleanup.css',
   './assets/icons/apple-touch-icon-okrt-v2.png',
 ];

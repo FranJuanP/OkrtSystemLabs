@@ -20,7 +20,7 @@ const cfg = Object.freeze({
     router: shell.stylesheets?.router || 'css-router'
   }),
   runtime: Object.freeze({
-    cardsEngine: shell.runtime?.cardsEngine || 'assets/js/app-core.js',
+    cardsEngine: shell.runtime?.cardsEngine || 'src/dashboard/engine.js',
     routerLegacy: shell.runtime?.routerLegacy || 'assets/js/app-router-legacy.js'
   })
 });

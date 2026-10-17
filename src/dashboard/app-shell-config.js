@@ -45,7 +45,7 @@ const cfg = Object.freeze({
     initialBootDelayMs: 300
   }),
   runtime: Object.freeze({
-    cardsEngine: 'assets/js/app-core.js',
+    cardsEngine: 'src/dashboard/engine.js',
     routerLegacy: 'assets/js/app-router-legacy.js',
     guard: 'assets/js/runtime-guard.js'
   })
