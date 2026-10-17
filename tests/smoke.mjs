@@ -32,6 +32,11 @@ const OUT_DIR = path.join(OUT_ROOT, LABEL);
 const SCENARIOS = [
   { id: 'online', sources: 'up', note: 'fuentes respondiendo con fixtures' },
   { id: 'offline', sources: 'down', note: 'todas las fuentes caidas' },
+  // Primero una carga con las fuentes vivas, que deja la ultima lectura real
+  // en localStorage, y despues una recarga con todo caido en el mismo
+  // contexto. Comprueba el camino "Sin conexion con <fuente>" + ultima lectura.
+  { id: 'ultima-lectura', sources: 'down', warmUp: true, only: ['aether-signal.html'],
+    note: 'carga previa con fuentes vivas, luego todas caidas' },
 ];
 
 /** Sondas en pagina: estado observable que debe mantenerse entre versiones. */
@@ -68,6 +73,10 @@ async function probe(page) {
       clock: textOf('clock'),
       sourceDots: [...document.querySelectorAll('[id^="src-"]')]
         .map((el) => `${el.id}=${el.className || ''}`.trim()).sort(),
+      sourceLabels: [...document.querySelectorAll('[id^="srclbl-"]')]
+        .map((el) => `${el.id}="${(el.textContent || '').trim()}"`).sort(),
+      staleCards: [...document.querySelectorAll('.card-time')]
+        .filter((el) => /última lectura/i.test(el.textContent || '')).length,
       // Marcadores de honestidad que las fases vigilan
       hasRobustezBadge: /ROBUSTEZ PREMIUM/i.test(document.body ? document.body.innerText : ''),
       hasLiveBadge: count('.live-badge') > 0 || !!document.getElementById('live-btn'),
@@ -83,6 +92,7 @@ async function run() {
   for (const scenario of SCENARIOS) {
     for (const vp of VIEWPORTS) {
       for (const pageName of PAGES) {
+        if (scenario.only && !scenario.only.includes(pageName)) continue;
         const key = `${scenario.id} | ${pageName} | ${vp.name}`;
         const context = await browser.newContext({
           viewport: { width: vp.width, height: vp.height },
@@ -90,6 +100,18 @@ async function run() {
         });
         await freezeClock(context);
         const page = await context.newPage();
+
+        // Fase de calentamiento: una carga con las fuentes vivas para que la
+        // pagina guarde su ultima lectura real antes de tumbarlas.
+        if (scenario.warmUp) {
+          await routeSources(page, { sources: 'up' });
+          try {
+            await page.goto(`${BASE}/${pageName}`, { waitUntil: 'load', timeout: 45000 });
+            await settle(page);
+          } catch { /* el caso real se mide despues */ }
+          await page.unrouteAll();
+        }
+
         const diag = collectDiagnostics(page, BASE);
         await routeSources(page, { sources: scenario.sources });
 

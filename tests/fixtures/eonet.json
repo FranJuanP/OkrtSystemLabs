@@ -6,33 +6,242 @@
       "id": "FX_EONET_1001",
       "title": "Wildfire - Northern California, United States",
       "description": "Incendio forestal activo en el norte de California.",
-      "categories": [{ "id": 8, "title": "Wildfires" }],
-      "sources": [{ "id": "InciWeb", "url": "https://inciweb.wildfire.gov/incident/fx1001/" }],
-      "geometry": [{ "magnitudeValue": 12400, "magnitudeUnit": "acres", "date": "2026-10-15T12:00:00Z", "type": "Point", "coordinates": [-121.5, 39.8] }]
+      "categories": [
+        {
+          "id": 8,
+          "title": "Wildfires"
+        }
+      ],
+      "sources": [
+        {
+          "id": "InciWeb",
+          "url": "https://inciweb.wildfire.gov/incident/fx1001/"
+        }
+      ],
+      "geometry": [
+        {
+          "magnitudeValue": 12400,
+          "magnitudeUnit": "acres",
+          "date": "2026-10-15T12:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            -121.5,
+            39.8
+          ]
+        }
+      ]
     },
     {
       "id": "FX_EONET_1002",
       "title": "Volcano - Mount Etna, Italy",
       "description": "Actividad eruptiva registrada en el Etna.",
-      "categories": [{ "id": 12, "title": "Volcanoes" }],
-      "sources": [{ "id": "SIVolcano", "url": "https://volcano.si.edu/volcano.cfm?vn=fx1002" }],
-      "geometry": [{ "date": "2026-10-14T06:00:00Z", "type": "Point", "coordinates": [15.0, 37.75] }]
+      "categories": [
+        {
+          "id": 12,
+          "title": "Volcanoes"
+        }
+      ],
+      "sources": [
+        {
+          "id": "SIVolcano",
+          "url": "https://volcano.si.edu/volcano.cfm?vn=fx1002"
+        }
+      ],
+      "geometry": [
+        {
+          "date": "2026-10-14T06:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            15.0,
+            37.75
+          ]
+        }
+      ]
     },
     {
       "id": "FX_EONET_1003",
       "title": "Severe Storm - Bay of Bengal",
       "description": "Sistema tormentoso severo sobre la bahia de Bengala.",
-      "categories": [{ "id": 10, "title": "Severe Storms" }],
-      "sources": [{ "id": "JTWC", "url": "https://www.metoc.navy.mil/jtwc/fx1003.html" }],
-      "geometry": [{ "date": "2026-10-16T18:00:00Z", "type": "Point", "coordinates": [88.2, 16.4] }]
+      "categories": [
+        {
+          "id": 10,
+          "title": "Severe Storms"
+        }
+      ],
+      "sources": [
+        {
+          "id": "JTWC",
+          "url": "https://www.metoc.navy.mil/jtwc/fx1003.html"
+        }
+      ],
+      "geometry": [
+        {
+          "date": "2026-10-16T18:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            88.2,
+            16.4
+          ]
+        }
+      ]
     },
     {
       "id": "FX_EONET_1004",
       "title": "Flood - Lower Niger Basin, Nigeria",
       "description": "Inundaciones en la cuenca baja del Niger.",
-      "categories": [{ "id": 9, "title": "Floods" }],
-      "sources": [{ "id": "GDACS", "url": "https://www.gdacs.org/report.aspx?eventid=fx1004" }],
-      "geometry": [{ "date": "2026-10-11T00:00:00Z", "type": "Point", "coordinates": [6.7, 7.9] }]
+      "categories": [
+        {
+          "id": 9,
+          "title": "Floods"
+        }
+      ],
+      "sources": [
+        {
+          "id": "GDACS",
+          "url": "https://www.gdacs.org/report.aspx?eventid=fx1004"
+        }
+      ],
+      "geometry": [
+        {
+          "date": "2026-10-11T00:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            6.7,
+            7.9
+          ]
+        }
+      ]
+    }
+  ],
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "FX_EONET_1001",
+      "properties": {
+        "title": "Wildfire - Northern California, United States",
+        "description": "Incendio forestal activo en el norte de California.",
+        "categories": [
+          {
+            "id": 8,
+            "title": "Wildfires"
+          }
+        ],
+        "sources": [
+          {
+            "id": "InciWeb",
+            "url": "https://inciweb.wildfire.gov/incident/fx1001/"
+          }
+        ],
+        "updated": "2026-10-15T12:00:00Z",
+        "closed": null
+      },
+      "geometry": [
+        {
+          "date": "2026-10-15T12:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            -121.5,
+            39.8
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Feature",
+      "id": "FX_EONET_1002",
+      "properties": {
+        "title": "Volcano - Mount Etna, Italy",
+        "description": "Actividad eruptiva registrada en el Etna.",
+        "categories": [
+          {
+            "id": 12,
+            "title": "Volcanoes"
+          }
+        ],
+        "sources": [
+          {
+            "id": "SIVolcano",
+            "url": "https://volcano.si.edu/volcano.cfm?vn=fx1002"
+          }
+        ],
+        "updated": "2026-10-14T06:00:00Z",
+        "closed": null
+      },
+      "geometry": [
+        {
+          "date": "2026-10-14T06:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            15.0,
+            37.75
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Feature",
+      "id": "FX_EONET_1003",
+      "properties": {
+        "title": "Severe Storm - Bay of Bengal",
+        "description": "Sistema tormentoso severo sobre la bahia de Bengala.",
+        "categories": [
+          {
+            "id": 10,
+            "title": "Severe Storms"
+          }
+        ],
+        "sources": [
+          {
+            "id": "JTWC",
+            "url": "https://www.metoc.navy.mil/jtwc/fx1003.html"
+          }
+        ],
+        "updated": "2026-10-16T18:00:00Z",
+        "closed": null
+      },
+      "geometry": [
+        {
+          "date": "2026-10-16T18:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            88.2,
+            16.4
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Feature",
+      "id": "FX_EONET_1004",
+      "properties": {
+        "title": "Flood - Lower Niger Basin, Nigeria",
+        "description": "Inundaciones en la cuenca baja del Niger.",
+        "categories": [
+          {
+            "id": 9,
+            "title": "Floods"
+          }
+        ],
+        "sources": [
+          {
+            "id": "GDACS",
+            "url": "https://www.gdacs.org/report.aspx?eventid=fx1004"
+          }
+        ],
+        "updated": "2026-10-11T00:00:00Z",
+        "closed": null
+      },
+      "geometry": [
+        {
+          "date": "2026-10-11T00:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            6.7,
+            7.9
+          ]
+        }
+      ]
     }
   ]
 }

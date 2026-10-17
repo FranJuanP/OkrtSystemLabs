@@ -2,55 +2,10 @@
 <html lang="es">
 <head>
 
-<script>
-(function(){
-  const originalFetch = window.fetch ? window.fetch.bind(window) : null;
-  if (!originalFetch) return;
-
-  const fallbackGdelt = {
-    articles: [
-      { title: "Sanciones y presión geopolítica: seguimiento preventivo activo", url: "", sourcecountry: "Global", seendate: new Date().toISOString().replace(/[-:T]/g,'').slice(0,14) },
-      { title: "Tensión militar regional: vigilancia estratégica mantenida", url: "", sourcecountry: "Europa del Este / Oriente Medio", seendate: new Date(Date.now()-4*3600e3).toISOString().replace(/[-:T]/g,'').slice(0,14) },
-      { title: "Riesgo macro y volatilidad: alerta de continuidad analítica", url: "", sourcecountry: "Mercados globales", seendate: new Date(Date.now()-8*3600e3).toISOString().replace(/[-:T]/g,'').slice(0,14) }
-    ]
-  };
-
-  const fallbackRelief = {
-    data: [
-      { id: "relief_fallback_1", fields: { title: "Respuesta humanitaria en observación reforzada", source: [{ shortname: "ReliefWeb / Local Fallback" }], country: [{ shortname: "África Oriental" }], date: { created: new Date().toISOString() }, body: "Señal local de continuidad para entorno estático. Mantiene la cobertura humanitaria del panel cuando ReliefWeb no está accesible desde frontend público.", url: "" } },
-      { id: "relief_fallback_2", fields: { title: "Desplazamientos y presión logística: seguimiento activo", source: [{ shortname: "ReliefWeb / Local Fallback" }], country: [{ shortname: "Oriente Medio" }], date: { created: new Date(Date.now()-6*3600e3).toISOString() }, body: "Evento de respaldo operativo para preservar la lectura de presión humanitaria, desplazamientos y respuesta logística.", url: "" } },
-      { id: "relief_fallback_3", fields: { title: "Riesgo alimentario y sanitario: continuidad analítica", source: [{ shortname: "ReliefWeb / Local Fallback" }], country: [{ shortname: "Regiones vulnerables" }], date: { created: new Date(Date.now()-12*3600e3).toISOString() }, body: "Feed local de continuidad humanitaria y sanitaria mientras la fuente ReliefWeb permanezca restringida o inestable.", url: "" } }
-    ]
-  };
-
-  function jsonResponse(obj) {
-    return Promise.resolve(new Response(JSON.stringify(obj), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    }));
-  }
-
-  window.fetch = function(input, init){
-    try{
-      const url = typeof input === "string" ? input : (input && input.url) ? input.url : "";
-      if (url.includes("api.gdeltproject.org/api/v2/doc/doc")) {
-        return jsonResponse(fallbackGdelt);
-      }
-      if (url.includes("api.reliefweb.int/v1/reports")) {
-        return jsonResponse(fallbackRelief);
-      }
-    }catch(e){}
-    return originalFetch(input, init).catch(err => {
-      try{
-        const url = typeof input === "string" ? input : (input && input.url) ? input.url : "";
-        if (url.includes("api.gdeltproject.org/api/v2/doc/doc")) return jsonResponse(fallbackGdelt);
-        if (url.includes("api.reliefweb.int/v1/reports")) return jsonResponse(fallbackRelief);
-      }catch(e){}
-      throw err;
-    });
-  };
-})();
-</script>
+<!-- T1: aqui habia un parche de window.fetch que interceptaba GDELT y ReliefWeb
+     y devolvia senales fabricadas sin llegar a tocar la red. Eliminado: ambas
+     fuentes se consultan de verdad y, si fallan, se muestra "Sin conexion con
+     <fuente>" y la ultima lectura real guardada. -->
 
 <!-- © OkrtSystem Labs · AETHER Global Intelligence System · Unauthorized reproduction prohibited · franjuanp.github.io/OkrtSystemLabs -->
 
@@ -246,7 +201,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
     </div>
     <div class="header-right">
       <div id="signal-count">— señales activas</div>
-      <div class="live-badge"><div class="live-dot"></div><span>FEED EN VIVO</span></div>
+      <div class="live-badge" id="feed-state"><div class="live-dot" id="feed-state-dot"></div><span id="feed-state-label">FEED EN VIVO</span></div>
       <div id="clock">--:--:-- UTC</div>
     </div>
   </div>
@@ -298,11 +253,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 
       <div class="source-section">
         <div class="filter-title">// FUENTES ACTIVAS</div>
-        <div class="source-item"><span>USGS Seismic</span><div class="source-status load" id="src-usgs"></div></div>
-        <div class="source-item"><span>GDELT Project</span><div class="source-status load" id="src-gdelt"></div></div>
-        <div class="source-item"><span>ReliefWeb OCHA</span><div class="source-status load" id="src-relief"></div></div>
-        <div class="source-item"><span>NASA EONET Events</span><div class="source-status load" id="src-nasa"></div></div>
-        <div class="source-item"><span>WHO Disease Feed</span><div class="source-status load" id="src-who"></div></div>
+        <div class="source-item"><span id="srclbl-usgs">USGS Seismic</span><div class="source-status load" id="src-usgs"></div></div>
+        <div class="source-item"><span id="srclbl-gdelt">GDELT Project</span><div class="source-status load" id="src-gdelt"></div></div>
+        <div class="source-item"><span id="srclbl-relief">ReliefWeb OCHA</span><div class="source-status load" id="src-relief"></div></div>
+        <div class="source-item"><span id="srclbl-nasa">NASA EONET Events</span><div class="source-status load" id="src-nasa"></div></div>
       </div>
 
       <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">

@@ -67,9 +67,121 @@ const CAT_LABEL = {
   health:'SALUD', other:'OTRO'
 };
 
+/* ── T1 · estado real de las fuentes y ultima lectura ──────────────────────
+   El punto de estado de cada fuente refleja unicamente el resultado de su
+   fetch: 'load' mientras esta en vuelo, 'ok' si respondio, 'err' si fallo.
+   Cuando una fuente falla se muestra "Sin conexion con <fuente>" en su fila
+   y, si hay una lectura real guardada, se reinyecta marcada como tal. */
+
+const SOURCE_LABELS = {
+  usgs:   { name: 'USGS',           row: 'USGS Seismic' },
+  gdelt:  { name: 'GDELT',          row: 'GDELT Project' },
+  relief: { name: 'ReliefWeb',      row: 'ReliefWeb OCHA' },
+  nasa:   { name: 'NASA EONET',     row: 'NASA EONET Events' },
+};
+
+const LAST_READING_PREFIX = 'aether.signal.lastReading.';
+const LAST_READING_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
+
 function setSrc(id, st) {
   const el = document.getElementById('src-'+id);
   if(el){ el.className = 'source-status ' + st; }
+  const label = document.getElementById('srclbl-'+id);
+  const meta = SOURCE_LABELS[id];
+  if(label && meta){
+    label.textContent = st === 'err' ? ('Sin conexión con ' + meta.name) : meta.row;
+  }
+}
+
+/** Guarda la ultima lectura real de una fuente. */
+function saveLastReading(id, signals){
+  if(!Array.isArray(signals) || !signals.length) return;
+  try{
+    const payload = {
+      fetchedAt: new Date().toISOString(),
+      signals: signals.map(s => Object.assign({}, s, {
+        time: s.time instanceof Date ? s.time.toISOString() : s.time,
+      })),
+    };
+    localStorage.setItem(LAST_READING_PREFIX + id, JSON.stringify(payload));
+  }catch(e){ /* cuota llena o almacenamiento bloqueado: no es critico */ }
+}
+
+/**
+ * Recupera la ultima lectura real de una fuente caida. Las senales vuelven
+ * marcadas con stale/fetchedAt para que el feed las rotule "ultima lectura"
+ * y nunca se confundan con datos del momento.
+ */
+function loadLastReading(id){
+  try{
+    const raw = localStorage.getItem(LAST_READING_PREFIX + id);
+    if(!raw) return [];
+    const payload = JSON.parse(raw);
+    const fetchedAt = new Date(payload && payload.fetchedAt);
+    if(isNaN(fetchedAt.getTime())) return [];
+    if(Date.now() - fetchedAt.getTime() > LAST_READING_MAX_AGE_MS) return [];
+    if(!Array.isArray(payload.signals)) return [];
+    return payload.signals.map(s => Object.assign({}, s, {
+      time: new Date(s.time),
+      isNew: false,
+      stale: true,
+      fetchedAt: fetchedAt,
+    }));
+  }catch(e){ return []; }
+}
+
+/** Marca la fuente como caida y devuelve su ultima lectura real, si la hay. */
+function sourceFailed(id){
+  setSrc(id, 'err');
+  return loadLastReading(id);
+}
+
+/** Marca la fuente como viva, guarda la lectura y la devuelve. */
+function sourceOk(id, signals){
+  setSrc(id, 'ok');
+  saveLastReading(id, signals);
+  return signals;
+}
+
+/** Fecha corta y legible en UTC para la etiqueta "ultima lectura". */
+function formatReadingDate(d){
+  if(!(d instanceof Date) || isNaN(d.getTime())) return '—';
+  const p = v => String(v).padStart(2, '0');
+  return p(d.getUTCDate())+'/'+p(d.getUTCMonth()+1)+' '+p(d.getUTCHours())+':'+p(d.getUTCMinutes())+' UTC';
+}
+
+/**
+ * Hora de la ultima actualizacion, en UTC de verdad.
+ * Antes se usaba toLocaleTimeString() y se le pegaba el sufijo " UTC", de
+ * modo que un navegador en Madrid rotulaba las 12:00 UTC como "14:00 UTC".
+ */
+function formatUTCClock(d){
+  return d.toLocaleTimeString('es-ES', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false, timeZone: 'UTC',
+  });
+}
+
+function updateLastUpdate(suffix){
+  const el = document.getElementById('last-update');
+  if(!el) return;
+  el.textContent = formatUTCClock(new Date()) + ' UTC' + (suffix ? ' · ' + suffix : '');
+}
+
+/**
+ * Contador de cabecera. Cuenta solo eventos reales y separa los que
+ * provienen de una ultima lectura guardada de una fuente caida.
+ */
+function updateSignalCount(){
+  const el = document.getElementById('signal-count');
+  if(!el) return;
+  const total = allSignals.length;
+  const stale = allSignals.filter(s => s && s.stale).length;
+  const live = total - stale;
+  let text = live + ' señales activas';
+  if(stale) text += ' · ' + stale + ' de última lectura';
+  if(!total) text = 'sin señales disponibles';
+  el.textContent = text;
 }
 
 // ── CLOCK ──
@@ -84,8 +196,7 @@ async function fetchUSGS() {
   try {
     const r = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
     const d = await r.json();
-    setSrc('usgs','ok');
-    return (d.features || []).slice(0,30).map(f=>{
+    const out = (d.features || []).slice(0,30).map(f=>{
       const p = f.properties;
       const mag = p.mag || 0;
       const sev = mag >= 7 ? 'CRITICAL' : mag >= 6 ? 'HIGH' : mag >= 5 ? 'MEDIUM' : 'LOW';
@@ -104,7 +215,8 @@ async function fetchUSGS() {
         isNew: (Date.now() - new Date(p.time).getTime()) < 3600000
       };
     });
-  } catch(e) { setSrc('usgs','err'); return []; }
+    return sourceOk('usgs', out);
+  } catch(e) { return sourceFailed('usgs'); }
 }
 
 // ── FETCH: NASA EONET natural events ──
@@ -112,11 +224,10 @@ async function fetchNASA() {
   try {
     const r = await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&days=14');
     const d = await r.json();
-    setSrc('nasa','ok');
     const catMap = { Wildfires:'climate', Volcanoes:'seismic', 'Severe Storms':'climate',
                      Floods:'climate', Drought:'climate', 'Sea and Lake Ice':'climate',
                      Earthquakes:'seismic', 'Dust and Haze':'climate' };
-    return (d.events||[]).map(ev=>{
+    const out = (d.events||[]).map(ev=>{
       const cat = catMap[ev.categories?.[0]?.title] || 'climate';
       const geo = ev.geometry?.[0];
       const days = geo ? Math.round((Date.now()-new Date(geo.date).getTime())/86400000) : 0;
@@ -134,7 +245,8 @@ async function fetchNASA() {
         isNew: days < 1
       };
     });
-  } catch(e) { setSrc('nasa','err'); return []; }
+    return sourceOk('nasa', out);
+  } catch(e) { return sourceFailed('nasa'); }
 }
 
 // ── FETCH: ReliefWeb Humanitarian ──
@@ -143,11 +255,10 @@ async function fetchReliefWeb() {
     const url = 'https://api.reliefweb.int/v1/reports?appname=aethersignal&filter[field]=status&filter[value]=published&limit=20&sort[]=date:desc&fields[include][]=title&fields[include][]=date&fields[include][]=country&fields[include][]=disaster_type&fields[include][]=url_alias';
     const r = await fetch(url);
     const d = await r.json();
-    setSrc('relief','ok');
     const typeMap = { 'Conflict':'conflict', 'Epidemic':'health', 'Drought':'climate',
                       'Flood':'climate','Earthquake':'seismic','Cyclone / Typhoon / Hurricane':'climate',
                       'Famine':'humanitarian' };
-    return (d.data||[]).map((item,i)=>{
+    const out = (d.data||[]).map((item,i)=>{
       const f = item.fields;
       const dtype = f.disaster_type?.[0]?.name || '';
       const cat = typeMap[dtype] || 'humanitarian';
@@ -166,7 +277,8 @@ async function fetchReliefWeb() {
         isNew: (Date.now() - new Date(f.date?.created||0).getTime()) < 86400000
       };
     });
-  } catch(e) { setSrc('relief','err'); return []; }
+    return sourceOk('relief', out);
+  } catch(e) { return sourceFailed('relief'); }
 }
 
 // ── FETCH: GDELT via RSS proxy ──
@@ -205,34 +317,19 @@ async function fetchGDELT() {
         });
       } catch(e2){ /* individual query fail is ok */ }
     }
-    setSrc('gdelt', results.length > 0 ? 'ok' : 'err');
-    return results;
-  } catch(e) { setSrc('gdelt','err'); return []; }
+    if(!results.length) return sourceFailed('gdelt');
+    return sourceOk('gdelt', results);
+  } catch(e) { return sourceFailed('gdelt'); }
 }
 
 // ── SYNTHETIC WHO-style health signals (real WHO RSS is CORS-blocked) ──
 // Use hardcoded recent WHO Disease Outbreak News
-function getWHOSignals() {
-  setSrc('who','ok');
-  const items = [
-    { title:'Alerta Mpox: incremento de casos en Africa Central',location:'RDC / Congo', sev:'HIGH', cat:'health',
-      detail:'OMS monitorea incremento de casos de Mpox (viruela del mono) clado Ib en República Democrática del Congo. Vigilancia epidemiológica reforzada. Riesgo de extensión regional: moderado-alto.',
-      impacts:{'CLADE':'Ib','REGIÓN':'Africa Central','ESTADO':'ACTIVO','RIESGO':'MODERADO-ALTO'} },
-    { title:'Dengue: temporada de alto riesgo activa en América',location:'Brasil / Colombia / México', sev:'HIGH', cat:'health',
-      detail:'OPS/OMS reporta temporada de dengue con cifras históricas en Américas. Múltiples países con transmisión activa. Brasil supera 3M casos reportados en lo que va de año.',
-      impacts:{'VECTOR':'Aedes','REGIÓN':'Américas','CASOS':'Histórico','SEROTIPOS':'1,2,3'} },
-    { title:'Influenza estacional: vigilancia activa hemisferio norte',location:'Europa / América del Norte', sev:'MEDIUM', cat:'health',
-      detail:'OMS activa protocolo de vigilancia estacional en hemisferio norte. Circulación de H3N2 y B/Victoria. Sin señales de variante pandémica. Cobertura de vacunación por debajo del objetivo.',
-      impacts:{'TIPO':'H3N2 / B','FASE':'ESTACIONAL','PANDEMIA':'NO','COBERTURA':'BAJA'} },
-  ];
-  return items.map((it,i)=>({
-    id:'who_'+i, source:'WHO / OMS', cat:it.cat,
-    title:it.title, location:it.location,
-    time:new Date(Date.now()-i*3600000*6),
-    severity:it.sev, url:'https://www.who.int/emergencies/disease-outbreak-news',
-    detail:it.detail, impacts:it.impacts, isNew:i===0
-  }));
-}
+/* T1 · getWHOSignals eliminada.
+   Eran tres items escritos a mano con marcas de tiempo sinteticas
+   (new Date(Date.now() - i*6h)), de modo que siempre parecian eventos de
+   las ultimas 18 horas, y ademas pintaban src-who en verde sin existir
+   ningun fetch detras. La categoria SALUD se sigue alimentando de
+   ReliefWeb (disaster_type 'Epidemic'), que si es una fuente real. */
 
 // ── LOAD ALL ──
 async function loadAll() {
@@ -241,9 +338,10 @@ async function loadAll() {
   const [usgs, nasa, relief, gdelt] = await Promise.all([
     fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT()
   ]);
-  const who = getWHOSignals();
 
-  allSignals = [...usgs, ...gdelt, ...relief, ...nasa, ...who];
+  // Solo eventos reales: lo que devolvio cada fuente, o su ultima lectura
+  // real guardada si la fuente esta caida. Nada generado por la aplicacion.
+  allSignals = [...usgs, ...gdelt, ...relief, ...nasa];
 
   // deduplicate by title similarity
   const seen = new Set();
@@ -260,10 +358,9 @@ async function loadAll() {
   updateCounts();
   buildTicker();
 
-  const now = new Date();
-  document.getElementById('last-update').textContent =
-    [now.getUTCHours(),now.getUTCMinutes()].map(v=>String(v).padStart(2,'0')).join(':')+' UTC';
-  document.getElementById('signal-count').textContent = allSignals.length + ' señales activas';
+  updateLastUpdate();
+  updateSignalCount();
+  updateFeedState();
 }
 
 function applyFilter(){
@@ -295,7 +392,11 @@ function renderFeed(){
   feed.innerHTML = filtered.map(s=>{
     const sv = SEV[s.severity] || SEV.MEDIUM;
     const col = CAT_COLOR[s.cat] || '#888';
-    const timeStr = formatTime(s.time);
+    // T1: las senales recuperadas de una fuente caida se rotulan con la fecha
+    // de su ultima lectura real, nunca como si fueran de ahora mismo.
+    const timeStr = s.stale
+      ? ('última lectura · ' + formatReadingDate(s.fetchedAt))
+      : formatTime(s.time);
     return `
     <div class="signal-card ${s.id===selectedId?'selected':''}" onclick="selectSignal('${s.id}')"
          style="border-left-color:${col}">
@@ -392,3 +493,18 @@ function buildTicker(){
 // Auto-refresh every 5 minutes
 loadAll();
 setInterval(loadAll, 300000);
+
+/**
+ * T1 · La insignia de cabecera refleja el estado real del feed.
+ * Con todas las fuentes caidas ya no puede decir "FEED EN VIVO": pasa a
+ * "SIN CONEXION" y se le quita el pulso, porque lo que se ve en pantalla es
+ * la ultima lectura guardada, no datos del momento.
+ */
+function updateFeedState(){
+  const dot = document.getElementById('feed-state-dot');
+  const label = document.getElementById('feed-state-label');
+  if(!label) return;
+  const live = allSignals.some(s => s && !s.stale);
+  label.textContent = live ? 'FEED EN VIVO' : 'SIN CONEXIÓN';
+  if(dot) dot.style.animation = live ? '' : 'none';
+}
