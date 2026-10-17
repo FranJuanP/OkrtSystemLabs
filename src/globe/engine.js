@@ -17,6 +17,15 @@
 import { AETHER_COVERAGE } from '../core/coverage.js';
 import { AETHER_STORAGE } from '../core/storage.js';
 import { onVisibilityChange } from '../core/visibility.js';
+
+/* T18: las texturas se importan en vez de referenciarse por cadena. Con la
+   cadena, Vite no sabia que existian: no las copiaba al build, la peticion
+   daba 404 y el globo se dibujaba sin ellas, porque el catch de loadTex se
+   tragaba el fallo en silencio. Importadas, Vite las emite con hash y el
+   precache de Workbox las recoge. */
+import earthDayUrl from '../../assets/img/earth-day.webp?url';
+import earthNightUrl from '../../assets/img/earth-night.webp?url';
+import earthCloudsUrl from '../../assets/img/earth-clouds.webp?url';
 import * as THREE from 'three';
 import { feature as topoFeature, mesh as topoMesh, merge as topoMerge } from 'topojson-client';
 
@@ -1050,12 +1059,12 @@ async function init(){
   // T16: texturas autoalojadas. Venian de unpkg.com, que ademas de ser una
   // dependencia de terceros en el camino critico del render obligaba a abrir
   // img-src a ese dominio. WebP: dia 1.428 -> 584 KB, noche 698 -> 264 KB.
-  const DAY_URL   = 'assets/img/earth-day.webp';
-  const NIGHT_URL = 'assets/img/earth-night.webp';
+  const DAY_URL   = earthDayUrl;
+  const NIGHT_URL = earthNightUrl;
   // T15: la textura de nubes iba aqui en base64, 479 kB de texto dentro del
   // JavaScript, duplicando byte a byte assets/img/earth-clouds.png, que ya
   // estaba en el repositorio y en el precache. Ahora se carga del fichero.
-  const CLOUDS_URL = 'assets/img/earth-clouds.webp';
+  const CLOUDS_URL = earthCloudsUrl;
 
   let texDay, texNight, texClouds;
   try {
@@ -1064,7 +1073,8 @@ async function init(){
     prog(50, 'Descargando textura nocturna NASA...');
     texNight = await loadTex(NIGHT_URL);
     prog(62, 'Descargando capa de nubes...');
-    try { texClouds = await loadTex(CLOUDS_URL); } catch(e){ texClouds = null; }
+    try { texClouds = await loadTex(CLOUDS_URL); }
+    catch(e){ texClouds = null; console.warn('AETHER Globe: no se pudo cargar la textura de nubes', e); }
   } catch(e){
     // Fallback: procedural canvas texture
     prog(45, 'Fallback: textura procedural...');
