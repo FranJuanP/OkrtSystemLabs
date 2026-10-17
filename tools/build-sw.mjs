@@ -34,23 +34,54 @@ const EXTRAS = [
   './apple-touch-icon-precomposed.png',
   './apple-touch-icon-okrt-v2.png',
   './assets/icons/apple-touch-icon-okrt-v2.png',
-  './assets/icons/icon-180.png',
-  './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
-  './assets/icons/icon-512-maskable.png',
   './assets/icons/icon-okrt-192-v2.png',
   './assets/icons/icon-okrt-512-v2.png',
   './assets/icons/icon-okrt-512-maskable-v2.png',
   './assets/img/earth-clouds.png',
 ];
 
+/**
+ * Sigue el grafo de imports de un modulo ES y devuelve todos los ficheros
+ * que acaba cargando el navegador.
+ *
+ * Hace falta desde T12: las paginas ya no listan sus scripts, solo apuntan a
+ * una entrada de modulo, y los `import` de esa entrada no aparecen en el
+ * HTML. Sin esto el precache se quedaria en la entrada y offline fallaria al
+ * resolver el primer import.
+ *
+ * T18 lo sustituye por Workbox injectManifest sobre el build, que es quien
+ * debe hacer esto de verdad.
+ */
+function moduleGraph(entryRel, seen = new Set()) {
+  const rel = entryRel.replace(/^\.\//, '');
+  if (seen.has(rel)) return seen;
+  const abs = path.join(ROOT, rel);
+  if (!fs.existsSync(abs)) return seen;
+  seen.add(rel);
+  const src = fs.readFileSync(abs, 'utf8');
+  const specifiers = [
+    ...src.matchAll(/^\s*import\s+(?:[^'"]*?from\s*)?['"]([^'"]+)['"]/gm),
+    ...src.matchAll(/^\s*export\s+\*\s+from\s*['"]([^'"]+)['"]/gm),
+  ].map((m) => m[1]).filter((spec) => spec.startsWith('.'));
+  for (const spec of specifiers) {
+    const resolved = path.relative(ROOT, path.resolve(path.dirname(abs), spec)).split(path.sep).join('/');
+    moduleGraph(resolved, seen);
+  }
+  return seen;
+}
+
 function referencedAssets() {
   const found = new Set();
   for (const page of PAGES) {
     found.add('./' + page);
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
-    for (const m of html.matchAll(/(?:src|href)="((?:assets|src)\/[^"]+)"/g)) {
-      found.add('./' + m[1]);
+    for (const m of html.matchAll(/(?:src|href)="\/?((?:assets|src)\/[^"]+)"/g)) {
+      const rel = m[1];
+      found.add('./' + rel);
+      // Si es un modulo, hay que precachear tambien todo lo que importa.
+      if (rel.endsWith('.js')) {
+        for (const dep of moduleGraph(rel)) found.add('./' + dep);
+      }
     }
   }
   return found;

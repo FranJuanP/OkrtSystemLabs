@@ -35,8 +35,8 @@
  * usan explícitamente. Al cargar se limpian las claves basura que la
  * versión anterior pudo dejar en Safari.
  *
- * Nota: assets/js/aether-storage-contract.js es otro fichero, no se carga
- * en ninguna página y se borra en la Fase 2. No se toca aquí.
+ * Nota: habia otro fichero, assets/js/aether-storage-contract.js, que no se
+ * cargaba en ninguna pagina. T13 lo ha borrado.
  */
 
 var CONTRACT_VERSION = '2.0.0';
