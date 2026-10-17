@@ -17,19 +17,25 @@ import { VitePWA } from 'vite-plugin-pwa';
  * funciona sin red.
  */
 function datosEnElBuild() {
+  // `latest.json` lo escribe el trabajo semanal y `events.json` el de cada
+  // media hora. Las instantáneas con fecha NO se publican: son varios megas
+  // cada una y solo sirven para comparar.
+  const ficheros = ['data/latest.json', 'data/events.json'];
   return {
     name: 'aether-datos',
     generateBundle() {
-      try {
-        this.emitFile({
-          type: 'asset',
-          fileName: 'data/latest.json',
-          source: readFileSync(resolve(import.meta.dirname, 'data/latest.json'), 'utf8'),
-        });
-      } catch (err) {
-        // Sin datos el sitio sigue construyéndose; las páginas lo dicen en
-        // lugar de quedarse en blanco. Mejor avisar que romper el build.
-        this.warn('no se encontró data/latest.json; ejecuta `npm run datos`');
+      for (const fileName of ficheros) {
+        try {
+          this.emitFile({
+            type: 'asset',
+            fileName,
+            source: readFileSync(resolve(import.meta.dirname, fileName), 'utf8'),
+          });
+        } catch (err) {
+          // Sin datos el sitio sigue construyéndose; las páginas lo dicen en
+          // lugar de quedarse en blanco. Mejor avisar que romper el build.
+          this.warn(`no se encontró ${fileName}; ejecuta \`npm run datos\` o \`npm run eventos\``);
+        }
       }
     },
   };

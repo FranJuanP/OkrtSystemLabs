@@ -20,7 +20,8 @@
     "build:icons": "node tools/build-icons.mjs",
     "datos": "node tools/fetch-data.mjs",
     "datos:validar": "node tools/validate-data.mjs",
-    "test:paridad": "node tests/paridad.mjs --base http://localhost:8080/OkrtSystemLabs"
+    "test:paridad": "node tests/paridad.mjs --base http://localhost:8080/OkrtSystemLabs",
+    "eventos": "node tools/fetch-events.mjs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
