@@ -8,7 +8,9 @@
     "serve": "python -m http.server 8080 --bind 127.0.0.1",
     "smoke": "node tests/smoke.mjs",
     "smoke:compare": "node tests/compare.mjs",
-    "test:xss": "node tests/xss.mjs"
+    "test:xss": "node tests/xss.mjs",
+    "test:watchlist": "node tests/watchlist.mjs",
+    "test": "node tests/xss.mjs && node tests/watchlist.mjs"
   },
   "devDependencies": {
     "pixelmatch": "^7.1.0",

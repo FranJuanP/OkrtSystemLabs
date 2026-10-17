@@ -2,7 +2,24 @@
   'use strict';
 
   const SAFE_TAGS = new Set(['A','ABBR','B','BR','BUTTON','CODE','DIV','EM','H1','H2','H3','H4','H5','H6','HR','I','IMG','LI','OL','OPTION','OPTGROUP','P','PRE','SECTION','SMALL','SPAN','STRONG','SUB','SUP','TIME','U','UL']);
-  const SAFE_ATTRS = new Set(['alt','aria-expanded','aria-haspopup','aria-hidden','class','data-value','disabled','id','loading','referrerpolicy','role','src','srcset','title','type','value']);
+  const SAFE_ATTRS = new Set(['alt','aria-expanded','aria-haspopup','aria-hidden','class','disabled','id','loading','referrerpolicy','role','src','srcset','title','type','value']);
+
+  /**
+   * T8: los atributos data-* se conservan.
+   *
+   * La lista anterior solo permitia 'data-value', de modo que el saneador
+   * borraba data-open y data-del de los botones de la watchlist (que es uno
+   * de los contenedores observados) y los dejaba sin efecto: cargar y
+   * eliminar una region dejaban de funcionar. Afectaba igual a los
+   * data-* que la Fase 1 introduce al sustituir los manejadores inline
+   * (data-rank-code, data-shock-cat, data-action, data-signal-id).
+   *
+   * Conservarlos no abre ningun agujero: un atributo data-* no se ejecuta
+   * ni navega; es solo texto que lee el propio codigo de la pagina. Y lo
+   * que de verdad importa, los on*= y las URL con esquema peligroso, se
+   * sigue eliminando igual mas abajo.
+   */
+  function isDataAttr(name){ return name.indexOf('data-') === 0; }
   const SAFE_URL_ATTRS = new Set(['href','src','srcset']);
   const SAFE_PROTOCOLS = /^(https?:|data:image\/|blob:|\/|\.\/|\.\.\/|#)/i;
   let busy = false;
@@ -42,7 +59,7 @@
         if (safeStyle) node.setAttribute('style', safeStyle); else node.removeAttribute('style');
         return;
       }
-      if (!SAFE_ATTRS.has(name) && !SAFE_URL_ATTRS.has(name)) {
+      if (!SAFE_ATTRS.has(name) && !SAFE_URL_ATTRS.has(name) && !isDataAttr(name)) {
         node.removeAttribute(attr.name);
         return;
       }
