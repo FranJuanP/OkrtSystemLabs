@@ -458,12 +458,30 @@ function formatTime(d){
 }
 
 function buildTicker(){
-  if(!allSignals.length) return;
+  const ti = document.getElementById('ticker-inner');
+  if(!ti) return;
+
+  // T1: antes esta funcion hacia `if(!allSignals.length) return;`, de modo
+  // que sin senales el ticker se quedaba para siempre con los dos items de
+  // relleno del HTML ("Cargando senales en tiempo real...", "Conectando con
+  // fuentes globales..."), dando a entender que seguia intentandolo. Ahora,
+  // tras el primer intento, dice el estado real.
+  if(!allSignals.length){
+    const anyStored = Object.keys(SOURCE_LABELS).some(id => loadLastReading(id).length);
+    const msg = anyStored
+      ? 'Sin conexión con las fuentes · no hay lecturas recientes guardadas'
+      : 'Sin conexión con las fuentes · sin eventos que mostrar';
+    ti.style.animation = 'none';
+    ti.innerHTML = `<span class="ticker-item"><div class="t-dot" style="background:var(--red)"></div>${esc(msg)}</span>`;
+    return;
+  }
+
+  ti.style.animation = '';
   const items = allSignals.slice(0,30).map(s=>{
     const col = CAT_COLOR[s.cat]||'#888';
-    return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${esc(String(s.title||'').slice(0,70))}<span class="ticker-sep">·</span></span>`;
+    const prefix = s.stale ? 'última lectura · ' : '';
+    return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${esc(prefix + String(s.title||'').slice(0,70))}<span class="ticker-sep">·</span></span>`;
   }).join('');
-  const ti = document.getElementById('ticker-inner');
   ti.innerHTML = items + items; // double for seamless loop
 }
 
@@ -478,10 +496,22 @@ setInterval(loadAll, 300000);
  * la ultima lectura guardada, no datos del momento.
  */
 function updateFeedState(){
-  const dot = document.getElementById('feed-state-dot');
-  const label = document.getElementById('feed-state-label');
-  if(!label) return;
+  // ¿Hay alguna fuente que haya respondido en esta carga? Las señales
+  // marcadas como `stale` vienen de una lectura guardada, no de ahora.
   const live = allSignals.some(s => s && !s.stale);
-  label.textContent = live ? 'FEED EN VIVO' : 'SIN CONEXIÓN';
-  if(dot) dot.style.animation = live ? '' : 'none';
+
+  const badge = document.getElementById('feed-state');
+  const dot   = document.getElementById('feed-state-dot');
+  const label = document.getElementById('feed-state-label');
+  if(label) label.textContent = live ? 'FEED EN VIVO' : 'SIN CONEXIÓN';
+  // El punto pasa a rojo y sin pulso, como los puntos de fuente caída.
+  if(dot)   dot.classList.toggle('offline', !live);
+  if(badge) badge.classList.toggle('offline', !live);
+
+  // La etiqueta del ticker decía "⬡ LIVE" pasara lo que pasara.
+  const tickerLabel = document.getElementById('ticker-state-label');
+  if(tickerLabel){
+    tickerLabel.textContent = live ? '⬡ LIVE' : '⬡ SIN CONEXIÓN';
+    tickerLabel.classList.toggle('offline', !live);
+  }
 }
