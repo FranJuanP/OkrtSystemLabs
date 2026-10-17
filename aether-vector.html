@@ -4,9 +4,20 @@
 <!-- © OkrtSystem Labs · AETHER Global Intelligence System · Unauthorized reproduction prohibited · franjuanp.github.io/OkrtSystemLabs -->
 
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: https:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<!-- T4 · Politica de seguridad de contenido.
+     - script-src sin 'unsafe-inline': no queda ningun <script> inline ni
+       ningun manejador on*= en estas paginas.
+     - connect-src con la lista exacta de origenes que se consultan.
+     - style-src mantiene 'unsafe-inline' porque el maquetado usa atributos
+       style= por todas partes; sacarlos es trabajo de la Fase 2.
+     - Sin frame-ancestors: el navegador la ignora en <meta>. La sustituye
+       assets/js/frame-buster.js.
+     - Sin upgrade-insecure-requests: convertiria http://localhost:11434 en
+       https y romperia la IA local. Todos los demas origenes ya son https. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://flagcdn.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https://earthquake.usgs.gov https://eonet.gsfc.nasa.gov https://api.reliefweb.int https://api.gdeltproject.org https://api.worldbank.org http://localhost:11434 http://127.0.0.1:11434; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()">
+<!-- T4: Permissions-Policy retirada. Solo es valida como cabecera HTTP;
+     en <meta> el navegador la descarta por completo. -->
 <meta http-equiv="X-DNS-Prefetch-Control" content="off">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

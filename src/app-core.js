@@ -1673,18 +1673,16 @@ function renderEvents(d){
   feed.innerHTML=picked.map(e=>`
     <div class="ev" style="flex-direction:column;gap:4px;padding:8px;background:rgba(5,10,16,.4);border-radius:6px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="ev-badge ${e.b}">${e.t}</span>
-        <a href="${e.url}" target="_blank" rel="noopener"
+        <span class="ev-badge ${esc(e.b)}">${esc(e.t)}</span>
+        <a href="${safeHref(e.url)}" target="_blank" rel="noopener noreferrer" class="ev-src-link"
           style="margin-left:auto;font-size:9px;font-family:'Share Tech Mono',monospace;
           color:var(--cyan);background:rgba(0,255,200,.06);border:1px solid rgba(0,255,200,.2);
           padding:2px 7px;border-radius:3px;text-decoration:none;white-space:nowrap;
-          transition:background .2s"
-          onmouseover="this.style.background='rgba(0,255,200,.15)'"
-          onmouseout="this.style.background='rgba(0,255,200,.06)'">
-          ${e.src} ↗
+          transition:background .2s" rel="noopener noreferrer">
+          ${esc(e.src)} ↗
         </a>
       </div>
-      <div class="ev-text">${e.tx}</div>
+      <div class="ev-text">${esc(e.tx)}</div>
     </div>`).join('');
   document.getElementById('ev-count').textContent=picked.length+' TEMAS';
 }
@@ -3258,7 +3256,7 @@ function renderRanking(){
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
     const hasDetail=DATA[r.code]?.eco?.inds?.length>0;
     return `<div class="rank-row" style="cursor:${hasDetail?'pointer':'default'}" 
-      onclick="${hasDetail?`document.getElementById('region-sel').value='${r.code}';loadRegion();`:''}"
+      ${hasDetail?`data-rank-code="${esc(r.code)}"`:''}
       title="${hasDetail?'Click para cargar región':''}">
       <div class="rank-pos" style="color:${col};font-size:${medal?'14px':'12px'}">${medal||'#'+(i+1)}</div>
       <div class="rank-flag">${r.flag}</div>
@@ -4212,7 +4210,7 @@ function renderShockPreview() {
         <div style="font-size:11px;color:var(--dim);font-family:'Share Tech Mono',monospace">IMPACTO</div>
         <div style="font-size:22px;font-weight:700;font-family:'Rajdhani',sans-serif;color:${col}">${delta>0?'+':''}${delta}</div>
       </div>
-      <button onclick="runShockCascade()" class="btn sec" style="margin-left:auto;padding:8px 16px;background:rgba(255,51,85,.12);border-color:var(--red);color:var(--red)">
+      <button data-action="run-shock-cascade" class="btn sec" style="margin-left:auto;padding:8px 16px;background:rgba(255,51,85,.12);border-color:var(--red);color:var(--red)">
         ⚡ SIMULAR CASCADA
       </button>
     </div>
@@ -4442,9 +4440,34 @@ function initShockSimulator() {
         </div>
         <input type="range" id="shock-sl-${k}" min="-50" max="50" value="0" step="1"
           style="width:100%;height:3px;accent-color:${CAT_COLORS[i]};cursor:pointer"
-          oninput="onShockSlider('${k}',this.value)">
+          data-shock-cat="${esc(k)}">
       </div>`
     ).join('');
   }
 }
 
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   T4 · Delegacion de eventos
+   Sustituye a los manejadores onclick/onmouseover que se generaban dentro de
+   cadenas de HTML. Sin ellos se puede quitar 'unsafe-inline' de script-src.
+   Un unico listener en document sobrevive a cualquier repintado.
+   ────────────────────────────────────────────────────────────────────────── */
+document.addEventListener('input', function(ev){
+  const slider = ev.target.closest && ev.target.closest('[data-shock-cat]');
+  if(slider && typeof onShockSlider === 'function'){
+    onShockSlider(slider.getAttribute('data-shock-cat'), slider.value);
+  }
+});
+
+document.addEventListener('click', function(ev){
+  const rankRow = ev.target.closest && ev.target.closest('[data-rank-code]');
+  if(rankRow){
+    const sel = document.getElementById('region-sel');
+    if(sel){ sel.value = rankRow.getAttribute('data-rank-code'); loadRegion(); }
+    return;
+  }
+  const action = ev.target.closest && ev.target.closest('[data-action="run-shock-cascade"]');
+  if(action && typeof runShockCascade === 'function'){ runShockCascade(); }
+});
