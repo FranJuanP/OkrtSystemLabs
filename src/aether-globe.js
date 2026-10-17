@@ -10,7 +10,7 @@
  */
 // ═══════════════════════════════════════════════════════════════
 //  AETHER · GLOBAL INTELLIGENCE GLOBE v4
-//  195 Countries — OkrtSystem Labs
+//  Tabla propia del globo (T23 la sustituye por data/latest.json)
 // ═══════════════════════════════════════════════════════════════
 
 const COUNTRIES = [
@@ -375,7 +375,10 @@ function updateStats() {
   document.getElementById('sm').textContent = cnt.MEDIUM;
   document.getElementById('sl2').textContent = cnt.LOW;
   document.getElementById('countLabel').textContent =
-    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} PAÍSES · 16 CATEGORÍAS`;
+    // T9: la cifra de referencia es la cobertura real del motor (201). El
+    // globo dibuja hoy menos marcadores, asi que se dicen las dos: lo que
+    // pinta y sobre cuantos. T23 unifica las dos tablas y esto se simplifica.
+    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} DE ${(window.AETHER_COVERAGE||{}).countries||201} PAÍSES · 16 CATEGORÍAS`;
 }
 
 // ── RENDERER ──

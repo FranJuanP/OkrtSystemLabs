@@ -10,7 +10,8 @@
     "smoke:compare": "node tests/compare.mjs",
     "test:xss": "node tests/xss.mjs",
     "test:watchlist": "node tests/watchlist.mjs",
-    "test": "node tests/xss.mjs && node tests/watchlist.mjs"
+    "test": "node tests/xss.mjs && node tests/watchlist.mjs && node tests/coverage.mjs",
+    "test:coverage": "node tests/coverage.mjs"
   },
   "devDependencies": {
     "pixelmatch": "^7.1.0",

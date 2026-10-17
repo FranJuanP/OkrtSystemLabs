@@ -6,13 +6,13 @@
 **by [OkrtSystem Labs](https://github.com/franjuanp)**
 
 [![Version](https://img.shields.io/badge/version-2.0-00FFC8?style=flat-square&labelColor=0D1B2E)]()
-[![Countries](https://img.shields.io/badge/countries-202-FF8C00?style=flat-square&labelColor=0D1B2E)]()
+[![Countries](https://img.shields.io/badge/countries-201-FF8C00?style=flat-square&labelColor=0D1B2E)]()
 [![Categories](https://img.shields.io/badge/risk_categories-16-FF3355?style=flat-square&labelColor=0D1B2E)]()
 [![Modules](https://img.shields.io/badge/modules-4-A259FF?style=flat-square&labelColor=0D1B2E)]()
 [![No Server](https://img.shields.io/badge/backend-none-00FF88?style=flat-square&labelColor=0D1B2E)]()
 [![AI](https://img.shields.io/badge/AI-Ollama%20%2F%20Mistral-FFD700?style=flat-square&labelColor=0D1B2E)]()
 
-*Sistema de inteligencia predictiva de riesgos globales. 202 países. 16 categorías. Globo 3D interactivo. Feed de alertas en tiempo real. Análisis de flujos financieros globales. Todo en archivos HTML independientes, sin servidor, sin backend.*
+*Sistema de inteligencia predictiva de riesgos globales. 201 países. 16 categorías. Globo 3D interactivo. Feed de alertas en tiempo real. Análisis de flujos financieros globales. Todo en archivos HTML independientes, sin servidor, sin backend.*
 
 **[→ Ver en vivo](https://franjuanp.github.io/OkrtSystemLabs/)**
 
@@ -31,7 +31,7 @@ AETHER es un ecosistema modular de inteligencia de riesgos globales que corre **
 ```
 OkrtSystem Labs — AETHER v2.0
 │
-├── index.html              — Dashboard principal (202 países · 16 categorías)
+├── index.html              — Dashboard principal (201 países · 16 categorías)
 ├── aether-globe-v3.html    — Globo 3D interactivo con datos de riesgo
 ├── aether-signal.html      — Feed de alertas en tiempo real
 └── aether-vector.html      — Análisis de flujos financieros globales
@@ -47,7 +47,7 @@ Todos los módulos se abren desde los botones del **header del dashboard** (⬡ 
 
 El núcleo analítico del sistema. Motor completo de inteligencia de riesgos con:
 
-- **202 países** con scoring en **16 categorías** de riesgo
+- **201 países** con scoring en **16 categorías** de riesgo
 - **Motor de propagación en cascada** con simulación Monte Carlo (400 iteraciones)
 - **Shock Simulator** — 8 escenarios predefinidos + sliders manuales por categoría
 - **Mapa mundial D3.js** — coropletas en 7 niveles, filtrable por categoría, con arcos de tensión geopolítica
