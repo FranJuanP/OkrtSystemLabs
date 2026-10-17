@@ -59,8 +59,11 @@
       <div class="logo-sub">Global Intelligence Feed · Live Signal Monitor</div>
     </div>
     <div class="header-right">
-      <div id="signal-count">— señales activas</div>
-      <div class="live-badge" id="feed-state"><div class="live-dot" id="feed-state-dot"></div><span id="feed-state-label">FEED EN VIVO</span></div>
+      <div id="signal-count">consultando fuentes…</div>
+      <!-- El estado inicial NO afirma estar en vivo: hasta que termina el primer
+           intento, el punto va en gris y la etiqueta dice CONECTANDO. Lo cambia
+           updateFeedState() del motor. -->
+      <div class="live-badge cargando" id="feed-state"><div class="live-dot cargando" id="feed-state-dot"></div><span id="feed-state-label">CONECTANDO…</span></div>
       <div id="clock">--:--:-- UTC</div>
     </div>
   </div>
@@ -156,7 +159,7 @@
 
   <!-- TICKER -->
   <div id="ticker">
-    <div class="ticker-label" id="ticker-state-label">⬡ LIVE</div>
+    <div class="ticker-label cargando" id="ticker-state-label">⬡ CONECTANDO</div>
     <div class="ticker-track">
       <div class="ticker-inner" id="ticker-inner">
         <span class="ticker-item"><div class="t-dot" style="background:#FFB020"></div>Consultando fuentes...</span>

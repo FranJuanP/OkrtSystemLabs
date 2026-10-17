@@ -36,68 +36,25 @@ registerRoute(new NavigationRoute(
   },
 ));
 
-/**
- * Las cuatro fuentes de datos de Signal: red primero, con caída explícita a
- * la última respuesta guardada.
- *
- * El matiz importante, y que costó ver: si el service worker devuelve lo que
- * tiene en caché, la página no puede distinguirlo de una respuesta recién
- * traída, porque a nivel de `fetch` son idénticas. Signal pintaría datos
- * viejos con el punto de la fuente en verde, que es exactamente lo que T1
- * quitó. Para que no pase, la respuesta servida de caché se devuelve con dos
- * cabeceras propias, y el motor de Signal las mira para marcar esas señales
- * como última lectura.
- *
- * El `timeoutSeconds` también importa: sin él, una red que acepta la
- * conexión pero no responde deja la página esperando en vez de usar lo que
- * ya tiene.
- */
-const FUENTES = /^(earthquake\.usgs\.gov|eonet\.gsfc\.nasa\.gov|api\.reliefweb\.int|api\.gdeltproject\.org|api\.worldbank\.org)$/;
-const CACHE_FUENTES = 'aether-fuentes';
-const TIMEOUT_FUENTES_MS = 4000;
+/* El service worker ya NO intercepta las peticiones a otros origenes.
 
-/** Copia una respuesta añadiéndole las cabeceras que la marcan como caché. */
-async function marcarComoCache(response, fechaGuardado) {
-  const headers = new Headers(response.headers);
-  headers.set('X-AETHER-Cache', 'hit');
-  if (fechaGuardado) headers.set('X-AETHER-Cached-At', fechaGuardado);
-  return new Response(await response.blob(), {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
+   Interceptarlas tenia un coste que no compensaba: cuando la fuente responde
+   410, 429 o 403, este manejador lo trataba como un fallo y devolvia
+   Response.error(). Desde la pagina eso es indistinguible de una caida de
+   red -Chrome ademas lo redacta como un bloqueo de CORS-, de modo que la
+   interfaz no podia decir "ReliefWeb ha retirado su API" ni "GDELT ha
+   limitado las consultas": solo podia decir "sin conexion".
 
-registerRoute(
-  ({ url }) => FUENTES.test(url.hostname),
-  async ({ request }) => {
-    const cache = await caches.open(CACHE_FUENTES);
+   Dejandolas pasar, la pagina recibe la respuesta real y puede leer el
+   codigo de estado cuando la fuente envia cabeceras de CORS, que es lo que
+   permite distinguir un limite de consultas de una caida.
 
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), TIMEOUT_FUENTES_MS);
-      const fresh = await fetch(request, { signal: controller.signal });
-      clearTimeout(t);
-      if (fresh && fresh.ok) {
-        // Se guarda con la fecha, para poder decir luego de cuándo es.
-        const headers = new Headers(fresh.headers);
-        headers.set('X-AETHER-Cached-At', new Date().toISOString());
-        const guardable = new Response(await fresh.clone().blob(), {
-          status: fresh.status, statusText: fresh.statusText, headers,
-        });
-        await cache.put(request, guardable);
-        return fresh;
-      }
-      throw new Error('respuesta no utilizable: ' + (fresh && fresh.status));
-    } catch (err) {
-      const cached = await cache.match(request);
-      if (cached) return marcarComoCache(cached, cached.headers.get('X-AETHER-Cached-At'));
-      // Sin red y sin copia: que la página lo vea como un fallo, no como
-      // una respuesta vacía que parecería un feed sin eventos.
-      return Response.error();
-    }
-  },
-);
+   Lo que se pierde: la copia en cache de las respuestas de las fuentes. A
+   cambio, Signal guarda su ultima lectura en localStorage y marca esas
+   senales como tales, que es lo que ya hacia.
+
+   Las peticiones al propio origen se siguen sirviendo del precache, asi que
+   el sitio funciona offline igual que antes. */
 
 /** Datos propios (data/*.json, que trae la Fase 3): red primero. */
 registerRoute(

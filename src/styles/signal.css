@@ -158,3 +158,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(0,255,200,.15)}
+
+/* Estado "todavia no se sabe": gris y sin pulso. Se usa mientras el primer
+   intento esta en curso, para no afirmar que hay feed en vivo antes de
+   haber consultado nada. */
+.live-dot.cargando{background:var(--dim);box-shadow:none;animation:none}
+.live-badge.cargando{color:var(--dim)}
+.ticker-label.cargando{color:var(--dim)}
+
+/* Fuente que no se consulta porque no se puede: ni verde ni roja, gris.
+   Rojo diria "ha fallado, vuelve a intentarlo", y no hay nada que
+   reintentar hasta que ReliefWeb apruebe un appname. */
+.source-status.pendiente{background:var(--dim);box-shadow:none;animation:none}

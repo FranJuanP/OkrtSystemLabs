@@ -74,20 +74,52 @@ const CAT_LABEL = {
 const SOURCE_LABELS = {
   usgs:   { name: 'USGS',           row: 'USGS Seismic' },
   gdelt:  { name: 'GDELT',          row: 'GDELT Project' },
-  relief: { name: 'ReliefWeb',      row: 'ReliefWeb OCHA' },
+  /* ReliefWeb no se consulta.
+     Su API v1, que es la que esta pagina usaba, devuelve 410 Gone ("The API
+     version 'v1' has been decommissioned"), y la v2 responde 403 a cualquier
+     appname que ReliefWeb no haya aprobado antes. Seguir llamandola solo
+     servia para llenar la consola de errores y pintar un punto rojo que
+     invita a esperar algo que no va a llegar por si solo.
+
+     Se queda en la lista, en gris, como PENDIENTE DE AUTORIZACION, que es lo
+     que de verdad ocurre: hace falta solicitar un appname en
+     https://apidoc.reliefweb.int/ y ponerlo aqui. */
+  relief: {
+    name: 'ReliefWeb',
+    row: 'ReliefWeb OCHA',
+    pendiente: 'Pendiente de autorización de ReliefWeb',
+    motivo: 'La API v1 está retirada (410) y la v2 exige un «appname» aprobado por ReliefWeb. '
+          + 'Se solicita en https://apidoc.reliefweb.int/ y se pone en fetchReliefWeb().',
+  },
   nasa:   { name: 'NASA EONET',     row: 'NASA EONET Events' },
 };
+
+/** Fuentes que no se consultan porque no se puede, con su motivo. */
+const FUENTES_PENDIENTES = Object.entries(SOURCE_LABELS)
+  .filter(([, m]) => m.pendiente)
+  .map(([id]) => id);
 
 const LAST_READING_PREFIX = 'aether.signal.lastReading.';
 const LAST_READING_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
 
-function setSrc(id, st) {
+/**
+ * Estado de una fuente: 'load' en vuelo, 'ok' respondió, 'err' falló,
+ * 'pendiente' no se consulta porque no se puede.
+ *
+ * `detalle` permite decir algo más concreto que "sin conexión": el límite de
+ * consultas de GDELT, por ejemplo, no es lo mismo que una caída.
+ */
+function setSrc(id, st, detalle) {
   const el = document.getElementById('src-'+id);
   if(el){ el.className = 'source-status ' + st; }
   const label = document.getElementById('srclbl-'+id);
   const meta = SOURCE_LABELS[id];
   if(label && meta){
-    label.textContent = st === 'err' ? ('Sin conexión con ' + meta.name) : meta.row;
+    if(detalle) label.textContent = detalle;
+    else if(st === 'pendiente') label.textContent = meta.pendiente || (meta.name + ' · pendiente');
+    else if(st === 'err') label.textContent = 'Sin conexión con ' + meta.name;
+    else label.textContent = meta.row;
+    label.title = (st === 'pendiente' && meta.motivo) ? meta.motivo : '';
   }
 }
 
@@ -137,6 +169,12 @@ function sourceFailed(id){
 /**
  * Marca la fuente como viva, guarda la lectura y la devuelve.
  *
+ * NOTA (correccion posterior): el service worker ya NO intercepta las
+ * peticiones a otros origenes, asi que hoy nadie pone estas cabeceras y la
+ * comprobacion no se dispara. Se mantiene a proposito: es la forma correcta
+ * de tratar una respuesta servida de cache, y si algun dia se vuelve a
+ * cachear una fuente, el feed seguira sin presentarla como recien traida.
+ *
  * T18: el service worker puede servir una respuesta de su cache cuando la
  * red falla, y a nivel de `fetch` eso es indistinguible de una respuesta
  * recien traida. Si no se mirara, el feed pintaria datos viejos con el
@@ -153,6 +191,7 @@ function sourceOk(id, signals, response){
   if(!fromCache){
     setSrc(id, 'ok');
     saveLastReading(id, signals);
+    fuentesVivasEnEstaCarga++;
     return signals;
   }
 
@@ -203,7 +242,8 @@ function updateSignalCount(){
   const live = total - stale;
   let text = live + ' señales activas';
   if(stale) text += ' · ' + stale + ' de última lectura';
-  if(!total) text = 'sin señales disponibles';
+  // Mientras se consulta no se dice "sin señales": todavia no se sabe.
+  if(!total) text = faseDeCarga === 'cargando' ? 'consultando fuentes…' : 'sin señales disponibles';
   el.textContent = text;
 }
 
@@ -274,79 +314,136 @@ async function fetchNASA() {
 
 // ── FETCH: ReliefWeb Humanitarian ──
 async function fetchReliefWeb() {
-  try {
-    const url = 'https://api.reliefweb.int/v1/reports?appname=aethersignal&filter[field]=status&filter[value]=published&limit=20&sort[]=date:desc&fields[include][]=title&fields[include][]=date&fields[include][]=country&fields[include][]=disaster_type&fields[include][]=url_alias';
-    const r = await fetch(url);
-    const d = await r.json();
-    const typeMap = { 'Conflict':'conflict', 'Epidemic':'health', 'Drought':'climate',
-                      'Flood':'climate','Earthquake':'seismic','Cyclone / Typhoon / Hurricane':'climate',
-                      'Famine':'humanitarian' };
-    const out = (d.data||[]).map((item,i)=>{
-      const f = item.fields;
-      const dtype = f.disaster_type?.[0]?.name || '';
-      const cat = typeMap[dtype] || 'humanitarian';
-      const country = f.country?.[0]?.name || 'Global';
-      return {
-        id: 'relief_' + item.id,
-        source: 'ReliefWeb OCHA',
-        cat,
-        title: f.title || 'Alerta humanitaria',
-        location: country,
-        time: new Date(f.date?.created || Date.now()),
-        severity: i < 3 ? 'HIGH' : 'MEDIUM',
-        url: f.url_alias ? 'https://reliefweb.int'+f.url_alias : 'https://reliefweb.int',
-        detail: `Informe humanitario publicado por OCHA ReliefWeb. País afectado: ${country}. Tipo de emergencia: ${dtype||'humanitaria'}. Acceder al informe completo para datos operacionales.`,
-        impacts: { 'PAÍS': country.slice(0,12), 'TIPO': (dtype||'HUMANIT.').slice(0,10), 'ESTADO': 'ACTIVO', 'FUENTE': 'OCHA' },
-        isNew: (Date.now() - new Date(f.date?.created||0).getTime()) < 86400000
-      };
-    });
-    return sourceOk('relief', out, r);
-  } catch(e) { return sourceFailed('relief'); }
+  /* No se hace ninguna petición: ver el comentario de SOURCE_LABELS.relief.
+     Se devuelve la última lectura guardada si la hay, que son eventos reales
+     que ReliefWeb sirvió cuando todavía respondía, marcados como tales. */
+  setSrc('relief', 'pendiente');
+  return loadLastReading('relief');
 }
 
 // ── FETCH: GDELT via RSS proxy ──
-async function fetchGDELT() {
-  // Use GDELT DOC 2.0 API for geopolitical events
-  try {
-    const queries = [
-      'conflict+war+military',
-      'sanctions+geopolitical+crisis',
-      'economic+recession+market+crash'
-    ];
-    const cats   = ['conflict','geo','eco'];
-    const sevs   = ['HIGH','MEDIUM','MEDIUM'];
-    let results  = [];
-    let gdeltResponse = null;
+/* GDELT pide una consulta cada cinco segundos.
 
-    for(let qi=0; qi<queries.length; qi++){
-      const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${queries[qi]}&mode=artlist&maxrecords=8&format=json&timespan=1d`;
-      try {
-        const r = await fetch(url);
-        // Si cualquiera de las tres consultas vino de la cache del service
-        // worker, el bloque entero cuenta como ultima lectura.
-        if(r.headers && r.headers.get('X-AETHER-Cache') === 'hit') gdeltResponse = r;
-        const d = await r.json();
-        (d.articles||[]).forEach((art,i)=>{
-          results.push({
-            id: 'gdelt_' + qi + '_' + i,
-            source: 'GDELT',
-            cat: cats[qi],
-            title: art.title || 'Evento geopolítico detectado',
-            location: art.sourcecountry || art.domain || 'Global',
-            time: art.seendate ? new Date(art.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')) : new Date(),
-            severity: i === 0 ? sevs[qi] : 'MEDIUM',
-            url: art.url || '',
-            detail: `Evento detectado por sistema GDELT en tiempo real. Fuente: ${art.domain||'múltiples medios'}. Tono analítico: ${art.tone ? parseFloat(art.tone).toFixed(2) : '—'}. Cobertura: ${art.sourcecountry||'global'}.`,
-            impacts: { 'TONO': art.tone ? parseFloat(art.tone).toFixed(1) : '—', 'FUENTE': (art.domain||'—').slice(0,12),
-                       'PAÍS': (art.sourcecountry||'GLOBAL').slice(0,10), 'GDELT': 'ACTIVO' },
-            isNew: true
-          });
-        });
-      } catch(e2){ /* individual query fail is ok */ }
+   Se hacian las tres seguidas, sin esperar, y GDELT respondia 429:
+
+     "Please limit requests to one every 5 seconds or contact ... for larger
+      queries."
+
+   Es decir, no era una caida de GDELT: era esta pagina pidiendo demasiado
+   deprisa. Y el 429 de GDELT NO lleva Access-Control-Allow-Origin, asi que
+   desde el navegador la peticion ni siquiera se puede leer: el fetch falla y
+   lo unico que se sabe es que fallo.
+
+   Ahora las tres consultas van espaciadas 5 s. Si una responde 429 -o falla
+   justo despues de otra, que es como se manifiesta el limite cuando no se
+   puede leer la respuesta-, se dice "limite de consultas, reintentando" y se
+   reintenta UNA sola vez pasados 10 s. */
+const GDELT_ESPERA_MS = 5000;
+const GDELT_REINTENTO_MS = 10000;
+
+const CONSULTAS_GDELT = [
+  { q: 'conflict+war+military',            cat: 'conflict', sev: 'HIGH' },
+  { q: 'sanctions+geopolitical+crisis',    cat: 'geo',      sev: 'MEDIUM' },
+  { q: 'economic+recession+market+crash',  cat: 'eco',      sev: 'MEDIUM' },
+];
+
+const esperar = (ms) => new Promise(r => setTimeout(r, ms));
+
+const urlGDELT = (q) =>
+  `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=8&format=json&timespan=1d`;
+
+/** Convierte los articulos de una consulta en senales. */
+function senalesGDELT(d, qi){
+  const { cat, sev } = CONSULTAS_GDELT[qi];
+  return (d.articles||[]).map((art,i)=>({
+    id: 'gdelt_' + qi + '_' + i,
+    source: 'GDELT',
+    cat,
+    title: art.title || 'Evento geopolítico detectado',
+    location: art.sourcecountry || art.domain || 'Global',
+    time: art.seendate ? new Date(art.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')) : new Date(),
+    severity: i === 0 ? sev : 'MEDIUM',
+    url: art.url || '',
+    detail: `Evento detectado por sistema GDELT en tiempo real. Fuente: ${art.domain||'múltiples medios'}. Tono analítico: ${art.tone ? parseFloat(art.tone).toFixed(2) : '—'}. Cobertura: ${art.sourcecountry||'global'}.`,
+    impacts: { 'TONO': art.tone ? parseFloat(art.tone).toFixed(1) : '—', 'FUENTE': (art.domain||'—').slice(0,12),
+               'PAÍS': (art.sourcecountry||'GLOBAL').slice(0,10), 'GDELT': 'ACTIVO' },
+    isNew: true
+  }));
+}
+
+/**
+ * Una consulta. Devuelve {senales} si fue bien, o {limite:true} si GDELT
+ * dijo que no por exceso de peticiones.
+ */
+async function consultaGDELT(qi){
+  try {
+    const r = await fetch(urlGDELT(CONSULTAS_GDELT[qi].q));
+    if(r.status === 429) return { limite: true };
+    if(!r.ok) return { fallo: 'HTTP ' + r.status };
+    const cacheada = r.headers && r.headers.get('X-AETHER-Cache') === 'hit';
+    return { senales: senalesGDELT(await r.json(), qi), respuesta: cacheada ? r : null };
+  } catch(e) {
+    /* No se puede leer la respuesta. El 429 de GDELT no lleva cabecera de
+       CORS, asi que este es el aspecto que tiene su limite de consultas
+       desde un navegador; tambien lo tendria una caida de red. No se afirma
+       cual de las dos es: lo dice quien llama, segun el contexto. */
+    return { ilegible: true };
+  }
+}
+
+async function fetchGDELT() {
+  let results = [];
+  let gdeltResponse = null;
+  let limitado = false;
+  let ilegible = false;
+
+  for(let qi=0; qi<CONSULTAS_GDELT.length; qi++){
+    if(qi > 0) await esperar(GDELT_ESPERA_MS);
+    const r = await consultaGDELT(qi);
+    if(r.senales){
+      results = results.concat(r.senales);
+      if(r.respuesta) gdeltResponse = r.respuesta;
+      continue;
     }
-    if(!results.length) return sourceFailed('gdelt');
-    return sourceOk('gdelt', results, gdeltResponse);
-  } catch(e) { return sourceFailed('gdelt'); }
+    /* Si una consulta no sale bien, no se insiste con las siguientes: o nos
+       estan limitando -y pedir mas lo empeora- o no se llega a GDELT, y en
+       ese caso esperar otros cinco segundos solo retrasa la pagina. */
+    if(r.limite) limitado = true;
+    else ilegible = true;
+    break;
+  }
+
+  /* El 429 de GDELT no lleva cabecera de CORS, asi que desde el navegador un
+     limite de consultas y una caida de red se ven igual: un fetch que falla.
+     No se afirma cual es sin saberlo. Si el navegador dice que no hay red,
+     es una caida; si dice que si la hay, lo mas probable con GDELT es el
+     limite, y se reintenta UNA vez. */
+  const sinRed = (typeof navigator !== 'undefined' && navigator.onLine === false);
+
+  /* Si la peticion fallo sin poder leerse, antes de decidir el motivo se
+     espera un momento a ver si las otras fuentes responden. GDELT puede
+     fallar en el primer segundo, cuando USGS y EONET todavia estan en vuelo,
+     y entonces "no ha respondido ninguna otra" no significa todavia nada. */
+  if(ilegible && !sinRed && fuentesVivasEnEstaCarga === 0) await esperar(1500);
+
+  // Si ninguna otra fuente ha respondido, lo que falla es la red, no GDELT:
+  // decir "limite de consultas" ahi seria inventarse el motivo.
+  const pareceLimite = limitado || (ilegible && !sinRed && fuentesVivasEnEstaCarga > 0);
+
+  if(!results.length && pareceLimite){
+    setSrc('gdelt', 'load', 'GDELT: límite de consultas, reintentando');
+    await esperar(GDELT_REINTENTO_MS);
+    const r = await consultaGDELT(0);
+    if(r.senales){
+      results = r.senales;
+    } else {
+      setSrc('gdelt', 'err', 'GDELT: límite de consultas alcanzado');
+      return loadLastReading('gdelt');
+    }
+  }
+
+  if(!results.length) return sourceFailed('gdelt');
+  return sourceOk('gdelt', results, gdeltResponse);
 }
 
 // ── SYNTHETIC WHO-style health signals (real WHO RSS is CORS-blocked) ──
@@ -359,35 +456,97 @@ async function fetchGDELT() {
    ReliefWeb (disaster_type 'Epidemic'), que si es una fuente real. */
 
 // ── LOAD ALL ──
+/* Fase de la carga, que es lo que faltaba.
+
+   El HTML venia con "FEED EN VIVO" y "LIVE" escritos como estado inicial, y
+   updateFeedState() solo se llamaba AL FINAL de loadAll(). Entre que se abria
+   la pagina y respondian las fuentes -en la web publicada, hasta medio
+   minuto- la cabecera afirmaba estar en vivo sin haber consultado nada y con
+   cero senales. Es el mismo defecto que se quito en T1, un paso mas atras.
+
+   Ahora hay tres fases y la interfaz dice cual es:
+     'cargando'  se esta consultando; punto gris, "CONECTANDO..."
+     'vivo'      al menos una fuente respondio con datos de ahora
+     'sin-red'   el primer intento termino y no hay nada en vivo  */
+let faseDeCarga = 'cargando';
+
+/* Cuanto se puede decir "CONECTANDO..." antes de reconocer que no hay nada.
+
+   GDELT puede tardar hasta medio minuto entre el espaciado de sus consultas
+   y el reintento. Dejar la cabecera en "CONECTANDO" todo ese rato seria otra
+   forma de no decir lo que pasa: a los ocho segundos sin una sola senal en
+   vivo, lo honesto es SIN CONEXION. Si una fuente lenta llega despues, la
+   cabecera pasa a EN VIVO en ese momento. */
+const ESPERA_MAXIMA_MS = 8000;
+let relojDeEspera = null;
+
+/* Cuantas fuentes han respondido con datos en la carga en curso.
+
+   Sirve para una distincion que si no seria imposible: cuando una peticion a
+   GDELT falla sin poder leerse, puede ser su limite de consultas o puede ser
+   que no haya red. Si OTRAS fuentes si han respondido, la red funciona y lo
+   que falla es GDELT; si no ha respondido ninguna, es la red. */
+let fuentesVivasEnEstaCarga = 0;
+
 async function loadAll() {
+  faseDeCarga = 'cargando';
+  allSignals = [];
+  fuentesVivasEnEstaCarga = 0;
+  clearTimeout(relojDeEspera);
+  relojDeEspera = setTimeout(() => {
+    if(faseDeCarga !== 'cargando') return;
+    faseDeCarga = 'sin-red';
+    updateFeedState();
+    updateSignalCount();
+    buildTicker();
+  }, ESPERA_MAXIMA_MS);
+  updateFeedState();
+  updateSignalCount();
   document.getElementById('feed').innerHTML = `<div class="loading-row"><div class="spinner"></div><br>CONECTANDO CON FUENTES GLOBALES...</div>`;
 
-  const [usgs, nasa, relief, gdelt] = await Promise.all([
-    fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT()
-  ]);
+  /* Las cuatro fuentes se consultan a la vez, pero NO se espera a todas para
+     pintar. USGS y NASA contestan en un segundo; GDELT, con sus tres
+     consultas espaciadas cinco segundos, tarda quince. Esperar a la mas
+     lenta era dejar la pagina vacia todo ese rato teniendo ya eventos que
+     mostrar. */
+  const recibidas = [];
+  const pintar = (senales) => {
+    if(Array.isArray(senales) && senales.length) recibidas.push(...senales);
 
-  // Solo eventos reales: lo que devolvio cada fuente, o su ultima lectura
-  // real guardada si la fuente esta caida. Nada generado por la aplicacion.
-  allSignals = [...usgs, ...gdelt, ...relief, ...nasa];
+    /* En cuanto UNA fuente entrega datos de ahora, la carga deja de estar en
+       el aire: ya hay feed en vivo, aunque las demas sigan en camino. Esperar
+       a GDELT -que tarda quince segundos por el espaciado- para decirlo seria
+       volver a dejar la cabecera muda teniendo ya eventos que mostrar. */
+    if(faseDeCarga === 'cargando' && recibidas.some(x => x && !x.stale)) faseDeCarga = 'vivo';
 
-  // deduplicate by title similarity
-  const seen = new Set();
-  allSignals = allSignals.filter(s=>{
-    const key = s.title.slice(0,40).toLowerCase();
-    if(seen.has(key)) return false;
-    seen.add(key); return true;
-  });
+    const vistos = new Set();
+    allSignals = recibidas.filter(x => {
+      const clave = String(x && x.title || '').slice(0,40).toLowerCase();
+      if(!clave || vistos.has(clave)) return false;
+      vistos.add(clave); return true;
+    }).sort((a,b) => b.time - a.time);
 
-  // sort by time desc
-  allSignals.sort((a,b)=>b.time-a.time);
+    applyFilter();
+    updateCounts();
+    buildTicker();
+    updateLastUpdate();
+    updateSignalCount();
+    updateFeedState();
+  };
 
-  applyFilter();
-  updateCounts();
-  buildTicker();
+  const enCurso = [
+    fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT(),
+  ].map(promesa => promesa.then(pintar).catch(err => {
+    console.warn('AETHER Signal: una fuente ha fallado:', err);
+  }));
 
-  updateLastUpdate();
-  updateSignalCount();
-  updateFeedState();
+  await Promise.all(enCurso);
+
+  // El primer intento ha terminado: a partir de aqui el estado ya no puede
+  // ser "cargando", sea cual sea el resultado.
+  clearTimeout(relojDeEspera);
+  faseDeCarga = allSignals.some(x => x && !x.stale) ? 'vivo' : 'sin-red';
+  pintar(null);
 
   for (const hook of afterLoadHooks) {
     try { await hook(); } catch (err) { console.warn('AETHER Signal: hook posterior a la carga fallido:', err); }
@@ -531,6 +690,11 @@ function buildTicker(){
   // fuentes globales..."), dando a entender que seguia intentandolo. Ahora,
   // tras el primer intento, dice el estado real.
   if(!allSignals.length){
+    if(faseDeCarga === 'cargando'){
+      ti.style.animation = 'none';
+      ti.innerHTML = `<span class="ticker-item"><div class="t-dot" style="background:var(--dim)"></div>Consultando fuentes…</span>`;
+      return;
+    }
     const anyStored = Object.keys(SOURCE_LABELS).some(id => loadLastReading(id).length);
     const msg = anyStored
       ? 'Sin conexión con las fuentes · no hay lecturas recientes guardadas'
@@ -559,23 +723,35 @@ function buildTicker(){
  * la ultima lectura guardada, no datos del momento.
  */
 function updateFeedState(){
-  // ¿Hay alguna fuente que haya respondido en esta carga? Las señales
-  // marcadas como `stale` vienen de una lectura guardada, no de ahora.
-  const live = allSignals.some(s => s && !s.stale);
+  /* "FEED EN VIVO" solo si alguna fuente ha respondido CON DATOS en esta
+     carga. Las senales marcadas como `stale` vienen de una lectura guardada,
+     no de ahora, y mientras se esta consultando no se afirma nada. */
+  const hayEnVivo = allSignals.some(s => s && !s.stale);
+  const cargando = faseDeCarga === 'cargando';
 
   const badge = document.getElementById('feed-state');
   const dot   = document.getElementById('feed-state-dot');
   const label = document.getElementById('feed-state-label');
-  if(label) label.textContent = live ? 'FEED EN VIVO' : 'SIN CONEXIÓN';
-  // El punto pasa a rojo y sin pulso, como los puntos de fuente caída.
-  if(dot)   dot.classList.toggle('offline', !live);
-  if(badge) badge.classList.toggle('offline', !live);
 
-  // La etiqueta del ticker decía "⬡ LIVE" pasara lo que pasara.
+  const texto = cargando ? 'CONECTANDO…' : (hayEnVivo ? 'FEED EN VIVO' : 'SIN CONEXIÓN');
+  if(label) label.textContent = texto;
+
+  // Gris mientras se consulta, rojo si el intento acabo sin nada en vivo,
+  // y el verde con pulso solo cuando hay datos de ahora.
+  if(dot){
+    dot.classList.toggle('cargando', cargando);
+    dot.classList.toggle('offline', !cargando && !hayEnVivo);
+  }
+  if(badge){
+    badge.classList.toggle('cargando', cargando);
+    badge.classList.toggle('offline', !cargando && !hayEnVivo);
+  }
+
   const tickerLabel = document.getElementById('ticker-state-label');
   if(tickerLabel){
-    tickerLabel.textContent = live ? '⬡ LIVE' : '⬡ SIN CONEXIÓN';
-    tickerLabel.classList.toggle('offline', !live);
+    tickerLabel.textContent = cargando ? '⬡ CONECTANDO' : (hayEnVivo ? '⬡ LIVE' : '⬡ SIN CONEXIÓN');
+    tickerLabel.classList.toggle('cargando', cargando);
+    tickerLabel.classList.toggle('offline', !cargando && !hayEnVivo);
   }
 }
 
