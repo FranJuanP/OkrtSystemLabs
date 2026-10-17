@@ -1,0 +1,101 @@
+name: Descargar datos
+
+# Descarga los indicadores de sus fuentes oficiales, valida el fichero y lo
+# confirma en main si ha cambiado. Es lo que evita que los datos vuelvan a
+# quedarse congelados: el caso que lo motivó es COFER, cuyo dato trimestral
+# escrito a mano en el código hubo que corregir dos veces en una semana.
+#
+# Qué descarga: Banco Mundial (WDI, WGI, UHC), INFORM Risk del JRC, ND-GAIN,
+# COFER del FMI y TIC del Tesoro de EEUU. Nada de esto necesita clave.
+#
+# Por qué no está ACLED, que también se pidió: su API exige registro con
+# clave y sus condiciones no permiten redistribuir los datos descargados,
+# que es exactamente lo que haría este repositorio al publicarlos en Pages.
+# Está explicado en METHODOLOGY.md.
+
+on:
+  schedule:
+    # Lunes a las 05:17 UTC. A y media en punto es cuando todo el mundo
+    # programa sus trabajos y los servidores públicos van más cargados.
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+# Solo escribir en el repositorio; nada de Pages ni de paquetes.
+permissions:
+  contents: write
+
+concurrency:
+  group: datos
+  cancel-in-progress: false
+
+jobs:
+  descargar:
+    name: Descargar y validar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Descargar los datos
+        # El pipeline aborta por su cuenta si la cobertura cae por debajo del
+        # 60 %: antes que publicar un fichero peor que el que ya hay, se
+        # queda el anterior.
+        run: node tools/fetch-data.mjs
+
+      - name: Validar contra el esquema
+        run: |
+          set -e
+          node tools/validate-data.mjs data/latest.json
+          dia=$(date -u +%Y-%m-%d)
+          node tools/validate-data.mjs "data/aether-$dia.json"
+
+      - name: Comprobar que no ha pasado nada raro
+        # Dos controles que el esquema no hace y que detectan un cambio de
+        # escala o de metodología en el origen: que no se haya desplomado el
+        # número de datos respecto de la copia anterior, y que el fichero
+        # tenga un tamaño razonable.
+        run: |
+          set -e
+          node - <<'JS'
+          const fs = require('fs');
+          const nuevo = JSON.parse(fs.readFileSync('data/latest.json', 'utf8'));
+          const celdas = Object.values(nuevo.paises)
+            .reduce((a, p) => a + Object.keys(p.indicadores).length, 0);
+          console.log(`datos en el fichero nuevo: ${celdas}`);
+          if (celdas < 8000) {
+            console.error('demasiados pocos datos; algo ha ido mal en la descarga');
+            process.exit(1);
+          }
+          if (nuevo.avisos && nuevo.avisos.length > 10) {
+            console.error(`demasiados avisos (${nuevo.avisos.length}):`);
+            for (const a of nuevo.avisos) console.error('  ' + a);
+            process.exit(1);
+          }
+          JS
+
+      - name: Confirmar si ha cambiado
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain data)" ]; then
+            echo "los datos no han cambiado; no se confirma nada"
+            exit 0
+          fi
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data
+          dia=$(date -u +%Y-%m-%d)
+          git commit -m "datos: instantánea del $dia
+
+          Descarga automática de .github/workflows/datos.yml.
+          Fuentes: Banco Mundial (WDI, WGI, UHC), JRC INFORM Risk, ND-GAIN,
+          FMI COFER y Tesoro de EEUU TIC."
+          git push

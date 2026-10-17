@@ -17,9 +17,13 @@
     "preview": "vite preview --port 8080 --strictPort",
     "build:hero": "node tools/capture-hero.mjs",
     "build:flags": "node tools/fetch-flags.mjs",
-    "build:icons": "node tools/build-icons.mjs"
+    "build:icons": "node tools/build-icons.mjs",
+    "datos": "node tools/fetch-data.mjs",
+    "datos:validar": "node tools/validate-data.mjs"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "pixelmatch": "^7.1.0",
     "playwright": "^1.56.0",
     "pngjs": "^7.0.0",
