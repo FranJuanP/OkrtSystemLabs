@@ -139,25 +139,39 @@ const ALL_LINKS = [
   { s:'JPN',  t:'H_RES',   v:1225, type:'reserves', detail:'Japón: 2º en reservas globales. Usadas para estabilizar yen bajo presión.' },
   { s:'KSA',  t:'H_RES',   v:458,  type:'reserves', detail:'Arabia Saudí: reservas del petróleo canalizadas via SAMA y PIF.' },
   { s:'UAE',  t:'H_RES',   v:190,  type:'reserves', detail:'EAU: reservas canalizadas hacia ADIA (Abu Dhabi Investment Authority), 850B AUM.' },
-  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', unit:'B USD', year:'2025 Q4', source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
-    detail:'USD como reserva global dominante: 56,8% de las reservas mundiales (FMI COFER, 2025 Q4). Declive gradual: era el 71% en 2000. El importe del enlace es anterior y sigue sin fuente.' },
-  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', unit:'B USD', year:'2025 Q4', source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
-    detail:'Euro: 20,3% de las reservas mundiales (FMI COFER, 2025 Q4). Segunda moneda de reserva, con cuota estable. El importe del enlace es anterior y sigue sin fuente.' },
-  // VERIFICADO (T10, revision). Antes decia "Reservas -> EMG 890 (yuan,
+  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', unit:'B USD',
+    year:'2026 Q2', published:'30/09/2026',
+    source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    detail:'USD como reserva global dominante: 56,70% de las reservas mundiales (FMI COFER, 2026 Q2). Declive gradual: era el 71% en 2000. El porcentaje viene de la tabla de COFER; el importe de este enlace es anterior y sigue sin fuente (COFER da 7.495 B).' },
+  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', unit:'B USD',
+    year:'2026 Q2', published:'30/09/2026',
+    source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    detail:'Euro: 20,60% de las reservas mundiales (FMI COFER, 2026 Q2), al alza desde el 20,04% del trimestre anterior. Segunda moneda de reserva. El porcentaje viene de la tabla de COFER; el importe de este enlace es anterior y sigue sin fuente (COFER da 2.723 B).' },
+  // VERIFICADO (T10, revision 2). Antes decia "Reservas -> EMG 890 (yuan,
   // rublo, real)", que no corresponde a ninguna serie: COFER no desglosa
   // rublo ni real, caen en "otras monedas". Se sustituye por esa categoria,
   // que es la que el FMI si publica.
-  // IMF COFER, 2025 Q4: reservas totales 13,14 billones USD; la categoria
-  // residual "other currencies" es el 6,13% de ese total (desde 5,61% en
-  // 2025 Q3). 13,14e12 x 0,0613 = 805 B USD.
-  // El porcentaje y el total son cifras publicadas; el importe en dolares es
-  // el producto de ambas, no una cifra publicada por separado.
-  // https://data.imf.org/en/news/imf%20data%20brief%20march%2027
-  { s:'H_RES',  t:'OTHER_CCY', v:805, type:'reserves', unit:'B USD', year:'2025 Q4',
-    source:'FMI · COFER',
+  //
+  // Las cifras salen de la TABLA de COFER, no de la nota de prensa: la nota
+  // del 30/09/2026 solo dice que "other currencies" sigue "por encima del
+  // 6%", sin dar el valor. La tabla si lo da, y ademas en dolares, asi que
+  // no hay que derivar nada multiplicando porcentajes.
+  //
+  // IMF COFER, serie CI_OTHC, trimestre 2026-Q2, publicado el 30/09/2026:
+  //   importe   800.616.200.123,80 USD   -> 801 B
+  //   cuota     6,05756902694702 %       -> 6,06 %
+  //   total     13.216.790.400.307,20 USD -> 13,22 billones
+  // Descargable con:
+  //   https://api.imf.org/external/sdmx/2.1/data/IMF.STA,COFER,+/all?lastNObservations=6
+  // Nota: este valor tiene que actualizarse cada trimestre. T21 mete COFER
+  // en la descarga automatica para que deje de depender de que alguien se
+  // acuerde.
+  { s:'H_RES',  t:'OTHER_CCY', v:801, type:'reserves', unit:'B USD',
+    year:'2026 Q2', published:'30/09/2026',
+    source:'FMI · COFER (serie CI_OTHC)',
     sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
     verified:true,
-    detail:'Reservas en monedas que COFER no identifica por separado: el 6,13% de los 13,14 billones de reservas mundiales (FMI, 2025 Q4), unos 805 B USD. La categoria lleva subiendo desde 2021. El renminbi, que si se identifica aparte, son 256 B, el 1,95%.' },
+    detail:'Reservas en monedas que COFER no identifica por separado: 801 B USD, el 6,06% de los 13,22 billones de reservas mundiales (FMI COFER, 2026 Q2, publicado el 30/09/2026). El renminbi, que si se identifica aparte, son 279 B, el 2,11%, al alza desde el 1,98% del trimestre anterior.' },
 ];
 
 const FLOW_COLORS = {
@@ -309,7 +323,8 @@ function render() {
         [['TIPO', FLOW_LABELS[l.type]||l.type],
          ['VOLUMEN', linkAmount(l)],
          ['UNIDAD', linkUnit(l)],
-         ['AÑO', linkYear(l)],
+         ['PERIODO', linkPeriod(l)],
+         ...(linkPublished(l) ? [['PUBLICADO', linkPublished(l)]] : []),
          ['FUENTE', linkSource(l)],
          ['% DEL TOTAL', (l.v/allVol*100).toFixed(1)+'%']]);
     })
@@ -400,11 +415,18 @@ function getNodeColor(n){
 /** Unidad de un enlace. Por defecto, miles de millones de dolares. */
 function linkUnit(l){ return (l && l.unit) || 'B USD'; }
 
-/** Ano del dato, o la marca de pendiente. */
-function linkYear(l){
+/** Periodo del dato (ano o trimestre), o la marca de pendiente. */
+function linkPeriod(l){
   if(l && l.year) return String(l.year);
   return 'pendiente de verificar';
 }
+
+/**
+ * Fecha en que la fuente publico ese dato, si se sabe.
+ * Para series trimestrales como COFER importa tanto como el periodo: el dato
+ * de 2026 Q2 no existio hasta el 30/09/2026.
+ */
+function linkPublished(l){ return (l && l.published) || null; }
 
 /** Volumen con su unidad. */
 function linkAmount(l){ return '$' + l.v + ' ' + linkUnit(l); }
@@ -470,7 +492,7 @@ function showLinkDetail(l, nodeMap){
     <div class="dp-meta">// AETHER VECTOR · FLUJO</div>
     <div class="dp-title">${esc(nodeMap[l.s]?.label||l.s)} → ${esc(nodeMap[l.t]?.label||l.t)}</div>
     <div class="dp-amount" style="color:${col};text-shadow:0 0 30px ${col}80">$${l.v}${esc(linkUnit(l)).replace(' USD','')}</div>
-    <div class="dp-amount-lbl">${esc(linkUnit(l))} · ${esc(linkYear(l).toUpperCase())}</div>
+    <div class="dp-amount-lbl">${esc(linkUnit(l))} · ${esc(linkPeriod(l).toUpperCase())}${linkPublished(l) ? ` · PUBL. ${esc(linkPublished(l))}` : ''}</div>
     <div class="dp-divider"></div>
     <div class="dp-label">// TIPO DE FLUJO</div>
     <div style="display:inline-block;font-size:9px;letter-spacing:.2em;padding:4px 12px;
