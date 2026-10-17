@@ -19,7 +19,7 @@
  * revision de build y aviso de "Nueva version disponible" en vez de
  * skipWaiting automatico.
  */
-const AETHER_CACHE = 'aether-v20261017-ac664f07';
+const AETHER_CACHE = 'aether-v20261017-fcd0234a';
 
 const AETHER_ASSETS = [
   "./",
@@ -89,6 +89,10 @@ const AETHER_ASSETS = [
   "./src/signal/engine.js",
   "./src/signal/feed-boost.js",
   "./src/signal/mobile-fix.js",
+  "./src/styles/globe.css",
+  "./src/styles/index.css",
+  "./src/styles/signal.css",
+  "./src/styles/vector.css",
   "./src/vector/engine.js",
   "./src/vector/functional-boost.js",
   "./src/vector/mobile-fix.js"

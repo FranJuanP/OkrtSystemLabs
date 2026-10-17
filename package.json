@@ -16,7 +16,8 @@
     "dev": "vite",
     "build": "vite build && node tools/build-sw.mjs",
     "preview": "vite preview --port 8080 --strictPort",
-    "build:hero": "node tools/capture-hero.mjs"
+    "build:hero": "node tools/capture-hero.mjs",
+    "build:flags": "node tools/fetch-flags.mjs"
   },
   "devDependencies": {
     "pixelmatch": "^7.1.0",

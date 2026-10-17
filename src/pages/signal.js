@@ -6,6 +6,7 @@
  * se enganchan aquí con addEventListener.
  */
 import '../core/fonts.js';
+import '../styles/signal.css';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';

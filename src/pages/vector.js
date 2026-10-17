@@ -9,6 +9,7 @@
  * aquí con addEventListener.
  */
 import '../core/fonts.js';
+import '../styles/vector.css';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';

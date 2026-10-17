@@ -6,6 +6,7 @@
  * que hacía globe-module-hardening.js buscando `window.setArcFilter`.
  */
 import '../core/fonts.js';
+import '../styles/globe.css';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';

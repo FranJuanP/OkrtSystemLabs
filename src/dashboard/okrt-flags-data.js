@@ -87,7 +87,10 @@ function cleanLabel(text){ return (text || '').replace(/^(?:[\u{1F1E6}-\u{1F1FF}
 function buildFlag(code, alt){
   const ref = flagRef(code);
   if (ref === '🌍') return '<span class="okrt-flag okrt-globe" aria-hidden="true">🌍</span>';
-  return '<img class="okrt-flag" src="https://flagcdn.com/w20/'+ref+'.png" srcset="https://flagcdn.com/w40/'+ref+'.png 2x" alt="'+(alt || code)+'" loading="lazy" referrerpolicy="no-referrer">';
+  // T17: las banderas estaban en flagcdn.com, 108 peticiones a un tercero
+  // cada vez que se abria el selector. Ahora van en el repositorio, en WebP
+  // (250 banderas, 145 kB en total). Se descargan con npm run build:flags.
+  return '<img class="okrt-flag" src="assets/flags/'+ref+'.webp" srcset="assets/flags/'+ref+'@2x.webp 2x" alt="'+(alt || code)+'" loading="lazy" width="20" height="14">';
 }
 function extractOptions(select){
   const groups = [];

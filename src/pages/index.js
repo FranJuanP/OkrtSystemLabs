@@ -8,6 +8,7 @@
  * los controles del dashboard se enganchan aquí con addEventListener.
  */
 import '../core/fonts.js';
+import '../styles/index.css';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';
