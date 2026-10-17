@@ -1170,9 +1170,9 @@ function showGlobalArcs(){
 // ── Intensidad dinámica desde localStorage (bridge con dashboard) ──
 function applyDashboardIntensity(){
   try {
-    const raw = localStorage.getItem('aether_globe_scores');
-    if(!raw) return;
-    const data = JSON.parse(raw);
+    // T7: a traves del contrato, que valida el esquema antes de devolverlo.
+    // AETHER_STORAGE.get devuelve el valor ya parseado y validado.
+    const data = AETHER_STORAGE.get('aether_globe_scores', null);
     if(!data || !data.scores || Date.now() - data.ts > 30*60*1000) return;
     const scores = data.scores; // { geo: 72, eco: 55, ... }
     // Mapeo: score alto = mayor opacidad y velocidad para arcos relacionados
@@ -1294,10 +1294,8 @@ let dynamicArcObjects = [];
 
 function syncSignalEvents(){
   try {
-    const raw = localStorage.getItem('aether_signal_events');
-    if(!raw) return;
-    const events = JSON.parse(raw);
-    if(!Array.isArray(events)) return;
+    const events = AETHER_STORAGE.get('aether_signal_events', null);
+    if(!Array.isArray(events) || !events.length) return;
     const now = Date.now();
     // Filtrar eventos recientes (<24h) y con país conocido
     const fresh = events.filter(ev =>
@@ -1318,7 +1316,7 @@ function syncSignalEvents(){
 // Arcos más "históricos" o futuros se atenúan
 function applyTimelineHorizon(){
   try {
-    const horizon = localStorage.getItem('aether_horizon') || '12m';
+    const horizon = AETHER_STORAGE.get('aether_horizon', '12m');
     const months = parseInt(horizon) || 12;
     // Arcos ALLIANCE y ENERGY son más "estructurales" → siempre visibles
     // Arcos CRITICAL/PROXY son más inmediatos → visibles en horizontes cortos

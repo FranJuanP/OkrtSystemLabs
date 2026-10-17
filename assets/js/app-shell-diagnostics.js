@@ -30,7 +30,9 @@
 
   function getLegacyHorizonInfo(){
     try {
-      const raw = localStorage.getItem('aether_horizon');
+      const raw = window.AETHER_STORAGE
+        ? window.AETHER_STORAGE.get('aether_horizon', null)
+        : localStorage.getItem('aether_horizon');
       if (raw == null) return { raw:null, normalized:null, status:'empty' };
       const trimmed = String(raw).trim().replace(/^"|"$/g, '');
       const normalized = ({ '0':'6m', '1':'12m', '2':'24m' })[trimmed] || null;

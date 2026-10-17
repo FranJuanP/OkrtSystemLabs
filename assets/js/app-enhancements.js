@@ -9,9 +9,16 @@
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
   function round(v){ return Math.round(Number(v) || 0); }
   function safeJSONParse(v, fallback){ try { return JSON.parse(v); } catch { return fallback; } }
+  function storageSet(key, value){
+    if (window.AETHER_STORAGE) return window.AETHER_STORAGE.set(key, value);
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  }
   function safeStorageGet(key, fallback){
     try {
-      const parsed = safeJSONParse(localStorage.getItem(key), fallback);
+      // T7: a traves del contrato, que valida el esquema de cada clave.
+      const parsed = window.AETHER_STORAGE
+        ? window.AETHER_STORAGE.get(key, fallback)
+        : safeJSONParse(localStorage.getItem(key), fallback);
       return parsed == null ? fallback : parsed;
     } catch { return fallback; }
   }
@@ -19,18 +26,18 @@
     const parsed = safeStorageGet(WATCHLIST_KEY, []);
     return Array.isArray(parsed) ? parsed : [];
   }
-  function saveWatchlist(items){ try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(items) ? items : [])); } catch {} }
+  function saveWatchlist(items){ storageSet(WATCHLIST_KEY, Array.isArray(items) ? items : []); }
   function loadSnapshots(){
     const parsed = safeStorageGet(SNAPSHOT_KEY, {});
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   }
-  function saveSnapshots(obj){ try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(obj && typeof obj === 'object' ? obj : {})); } catch {} }
+  function saveSnapshots(obj){ storageSet(SNAPSHOT_KEY, obj && typeof obj === 'object' ? obj : {}); }
   function saveHistory(item){
     try {
       const hist = safeStorageGet(HISTORY_KEY, []);
       const arr = Array.isArray(hist) ? hist : [];
       arr.unshift(item);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(0, 18)));
+      storageSet(HISTORY_KEY, arr.slice(0, 18));
     } catch {}
   }
   function $(id){ return document.getElementById(id); }
