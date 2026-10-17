@@ -281,3 +281,9 @@ select option{background:#0B1420}
 .cascade-module{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
 @media(max-width:900px){.cascade-module{grid-template-columns:1fr}}
 .resil-badge{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;line-height:1}
+
+/* T4: el hover de los enlaces de fuente del panel de temas lo hacia un
+   onmouseover inline dentro del HTML generado. Se pasa a CSS para poder
+   quitar 'unsafe-inline' de script-src. Mismo aspecto que antes. */
+.ev-src-link{ background:rgba(0,255,200,.06); }
+.ev-src-link:hover{ background:rgba(0,255,200,.15); }

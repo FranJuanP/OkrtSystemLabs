@@ -6,7 +6,17 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: https:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https: http://localhost:11434 ws://localhost:11434 wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests">
+<!-- T4 · Politica de seguridad de contenido.
+     - script-src sin 'unsafe-inline': no queda ningun <script> inline ni
+       ningun manejador on*= en estas paginas.
+     - connect-src con la lista exacta de origenes que se consultan.
+     - style-src mantiene 'unsafe-inline' porque el maquetado usa atributos
+       style= por todas partes; sacarlos es trabajo de la Fase 2.
+     - Sin frame-ancestors: el navegador la ignora en <meta>. La sustituye
+       assets/js/frame-buster.js.
+     - Sin upgrade-insecure-requests: convertiria http://localhost:11434 en
+       https y romperia la IA local. Todos los demas origenes ya son https. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://flagcdn.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https://earthquake.usgs.gov https://eonet.gsfc.nasa.gov https://api.reliefweb.int https://api.gdeltproject.org https://api.worldbank.org http://localhost:11434 http://127.0.0.1:11434; object-src 'none'; base-uri 'self'; form-action 'self'">
 <!-- inline enhancements/robustness build for GitHub Pages -->
 <title>AETHER — Global Intelligence System · OkrtSystem Labs</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -140,6 +150,10 @@
 
 <link rel="stylesheet" href="assets/css/usability-fix.css"/>
 
+<script src="assets/js/aether-escape.js"></script>
+<script src="assets/js/aether-coverage.js"></script>
+<script src="assets/js/frame-buster.js"></script>
+<script src="assets/js/domain-notice.js"></script>
 <script src="assets/js/storage-contract.js"></script>
 <script src="assets/js/background-throttle.js"></script>
 <script src="assets/js/dom-safety-layer.js"></script>
@@ -197,7 +211,7 @@
         <div class="hud-dot" style="bottom:42%;left:18%"></div>
         <div class="hud-label" style="bottom:44%;left:21%">TERMÓMETRO LIVE</div>
         <div class="hud-dot" style="bottom:55%;left:50%;transform:translateX(-50%)"></div>
-        <div class="hud-label" style="bottom:57%;left:53%">MAPA GLOBAL · 202 PAÍSES</div>
+        <div class="hud-label" style="bottom:57%;left:53%">MAPA GLOBAL · 201 PAÍSES</div>
         <div class="hud-dot" style="bottom:42%;right:18%"></div>
         <div class="hud-label" style="bottom:44%;right:22%">RANKING MUNDIAL</div>
       </div>
@@ -283,7 +297,7 @@
       <p><strong>AETHER</strong> es un sistema de inteligencia de riesgos globales que corre completamente en local, sin servidor, sin base de datos, sin dependencias de backend. Un único archivo HTML con todo el motor analítico embebido — e instalable como <strong>PWA</strong> en cualquier dispositivo móvil con soporte offline completo.</p>
       <p>El algoritmo de <strong>cinco capas</strong> combina scores base calibrados con 15+ organismos internacionales, vectores de velocidad por categoría, una matriz de correlación 16×16, propagación de shocks en cascada con lag y decaimiento configurables, y <strong>400 simulaciones Monte Carlo</strong> que generan bandas de confianza p10/p50/p90. Cada shock se propaga generando impactos de segundo y tercer orden. El <strong>Shock Simulator</strong> permite introducir perturbaciones manuales o usar 8 escenarios predefinidos — Pandemia, Recesión Global, Guerra Regional, Colapso Climático y más.</p>
       <p>La visualización es <strong>dual</strong>: mapa coroplético clásico D3.js y <strong>globo 3D interactivo Three.js</strong> con 92 arcos geopolíticos en 5 tipos — alianzas, tensiones, flujos comerciales, rutas energéticas y migraciones masivas. Completamente responsivo con soporte táctil, con puente en tiempo real entre ambas vistas. Las <strong>Señales de Alerta</strong> monitorizan 64 fuentes oficiales — OMS, FAO, ACLED, GDELT, SIPRI, NOAA, IMF — ponderadas dinámicamente por el score activo de cada categoría.</p>
-      <p>La IA no es un chatbot genérico. Es <strong>Mistral corriendo en tu máquina</strong>, con contexto completo de la región activa, generando predicciones estructuradas, escenarios Optimista/Base/Pesimista y análisis sin enviar datos a ningún servidor externo. Once módulos interactivos, 202 países, 16 dimensiones de riesgo.</p>
+      <p>La IA no es un chatbot genérico. Es <strong>Mistral corriendo en tu máquina</strong>, con contexto completo de la región activa, generando predicciones estructuradas, escenarios Optimista/Base/Pesimista y análisis sin enviar datos a ningún servidor externo. Once módulos interactivos, 201 países, 16 dimensiones de riesgo.</p>
       <div class="what-tags">
         <span class="tag">Ollama / Mistral</span>
         <span class="tag">D3.js · TopoJSON</span>
@@ -306,7 +320,7 @@
         <div class="hex-ring"></div>
         <div class="hex-ring"></div>
         <div class="hex-core">
-          <div class="hex-num">202</div>
+          <div class="hex-num">201</div>
           <div class="hex-lbl">PAÍSES · 16 DIMS</div>
         </div>
         <div class="hex-dot"></div>
@@ -375,7 +389,7 @@
   <div class="section-label">03 — Módulos</div>
   <h2 class="section-title">Once módulos<br><em>interactivos</em></h2>
   <div class="feat-grid">
-    <div class="feat-card"><span class="feat-num">01</span><span class="feat-icon">🌍</span><div class="feat-title">Mapa Mundial</div><div class="feat-desc">Coropletas en 7 niveles de riesgo sobre proyección Natural Earth D3.js. Pulso animado en países críticos. Tooltip con top 4 categorías. Click para cargar cualquier país en el dashboard.</div><div class="feat-tag">D3.js · TopoJSON · 202 países</div></div>
+    <div class="feat-card"><span class="feat-num">01</span><span class="feat-icon">🌍</span><div class="feat-title">Mapa Mundial</div><div class="feat-desc">Coropletas en 7 niveles de riesgo sobre proyección Natural Earth D3.js. Pulso animado en países críticos. Tooltip con top 4 categorías. Click para cargar cualquier país en el dashboard.</div><div class="feat-tag">D3.js · TopoJSON · 201 países</div></div>
     <div class="feat-card"><span class="feat-num">02</span><span class="feat-icon">⚡</span><div class="feat-title">Shock Simulator</div><div class="feat-desc">Introduce shocks manuales en cualquier categoría y observa la propagación en cascada. 8 escenarios predefinidos: Pandemia, Recesión global, Guerra regional, Colapso climático...</div><div class="feat-tag">Cascada · Baseline vs Shock</div></div>
     <div class="feat-card"><span class="feat-num">03</span><span class="feat-icon">📈</span><div class="feat-title">Proyección Temporal</div><div class="feat-desc">Gráfica Canvas con bandas de confianza Monte Carlo p10/p50/p90. Trayectoria base y top 4 categorías. Horizonte configurable a 6, 12 o 24 meses con simulación dinámica.</div><div class="feat-tag">Monte Carlo · 400 simulaciones</div></div>
     <div class="feat-card"><span class="feat-num">04</span><span class="feat-icon">🕸️</span><div class="feat-title">Red de Correlaciones</div><div class="feat-desc">Diagrama force-directed D3 con 16 nodos arrastrables. Al hover, se iluminan las conexiones del nodo y se atenúan las demás. Panel con top 5 correlaciones activas y cadenas de riesgo.</div><div class="feat-tag">D3 Force · Arrastrable</div></div>
@@ -442,11 +456,11 @@
       <div class="step-num">02</div>
       <div class="step-body">
         <div class="step-title">Arrancar Ollama con CORS habilitado</div>
-        <div class="step-desc">Necesario para que el navegador pueda conectar con el servidor local.</div>
+        <div class="step-desc">Necesario para que el navegador pueda conectar con el servidor local. No uses <code>OLLAMA_ORIGINS="*"</code> ni <code>OLLAMA_HOST=0.0.0.0</code>: el primero deja que cualquier web que visites hable con tu Ollama desde tu navegador, y el segundo lo expone a toda tu red local, en ambos casos sin autenticación.</div>
         <pre># Windows PowerShell
-$env:OLLAMA_ORIGINS="*"; ollama serve</pre>
+$env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"; ollama serve</pre>
         <pre># Linux / macOS
-OLLAMA_ORIGINS="*" ollama serve</pre>
+OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080" ollama serve</pre>
       </div>
     </div>
 
@@ -482,7 +496,7 @@ python -m http.server 8080</pre>
     <div class="eco-grid">
       <div class="eco-card active">
         <div class="eco-name">AETHER</div>
-        <div class="eco-desc">Inteligencia de riesgos globales. 202 países, 16 categorías, motor de cascada Monte Carlo y Shock Simulator. Este repositorio.</div>
+        <div class="eco-desc">Inteligencia de riesgos globales. 201 países, 16 categorías, motor de cascada Monte Carlo y Shock Simulator. Este repositorio.</div>
         <div class="eco-status">◈ ACTIVO · v1.0 · Este repositorio</div>
       </div>
       <div class="eco-card">
@@ -620,6 +634,16 @@ python -m http.server 8080</pre>
       style="width:180px;background:rgba(5,10,16,.8);color:var(--bright);border:1px solid var(--dim);border-radius:6px;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px"/>
     <button class="btn sec" style="padding:6px 12px;font-size:11px" id="check-ollama-btn">⚡ VERIFICAR</button>
     <span id="api-status" style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:11px">● SIN VERIFICAR</span>
+  </div>
+
+  <!-- T2: aviso permanente sobre la naturaleza de los datos del panel. -->
+  <div id="data-basis-note" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+       margin:0 0 10px;padding:6px 10px;border:1px solid rgba(255,176,32,.25);
+       border-radius:6px;background:rgba(255,176,32,.06);
+       font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(255,255,255,.62)">
+    <span>Estimaciones con datos base ~2023</span>
+    <a href="https://github.com/FranJuanP/OkrtSystemLabs#metodologia" target="_blank" rel="noopener noreferrer"
+       style="color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(0,255,200,.3)">Metodología ↗</a>
   </div>
 
   <!-- CONTROLS -->
@@ -1135,15 +1159,17 @@ python -m http.server 8080</pre>
     <div class="card" style="--acc:var(--cyan)">
       <div class="ctitle">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="9" rx="2" stroke="#00FFC8" stroke-width="1.2"/><circle cx="8" cy="12" r="2.5" stroke="#00FFC8" stroke-width="1.2"/><path d="M8 7v5" stroke="#00FFC8" stroke-width="1.5"/></svg>
-        TERMÓMETRO DE RIESGO EN VIVO
-        <span class="live-badge" style="margin-left:8px">LIVE</span>
+        TERMÓMETRO DE RIESGO
+        <span class="live-badge" style="margin-left:8px">DATOS BASE · 2023</span>
         <span id="thermo-region" style="margin-left:auto;font-size:9px;color:var(--dim)">—</span>
       </div>
       <div id="thermo-wrap"></div>
+      <!-- T2: aqui habia una cuenta atras de 30s y un rotulo "FLUCTUACION +-3pts".
+           Los valores no se recalculaban: se les sumaba ruido aleatorio. Al quitar
+           el ruido no queda nada que refrescar, asi que se indica la base del dato. -->
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">PRÓX. ACTUALIZACIÓN</span>
-        <span id="thermo-countdown" style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:700;color:var(--cyan)">30s</span>
-        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">FLUCTUACIÓN ±<span id="thermo-range">3</span>pts</span>
+        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">BASE DEL DATO</span>
+        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">Estimación ~2023 · sin lectura en vivo</span>
       </div>
     </div>
 
@@ -1324,7 +1350,7 @@ python -m http.server 8080</pre>
       <div id="ai-out">
         <div class="ai-block">
           <div class="ai-tag" style="color:var(--cyan)">SISTEMA ///</div>
-          <div>AETHER v1.0 listo — 195 países activos — 16 categorías · algoritmo multicapa · escenarios predictivos.<br><br>
+          <div>AETHER v1.0 listo — 201 países con datos — 16 categorías · algoritmo multicapa · escenarios predictivos.<br><br>
           · Pulsa <strong style="color:var(--cyan)">⚡ PREDECIR CON IA</strong> para análisis completo.<br>
           · Pulsa <strong style="color:var(--purple)">🔮 ESCENARIOS</strong> para tres futuros posibles.<br>
           · Usa el <strong style="color:var(--green)">CHAT</strong> para preguntas libres.</div>
@@ -1361,13 +1387,13 @@ python -m http.server 8080</pre>
     <div class="ctitle">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v2H2zM2 7h8v2H2zM2 11h10v2H2z" fill="var(--cyan)" opacity=".8"/></svg>
       SEÑALES DE ALERTA GLOBAL
-      <span id="ev-count" style="margin-left:auto;background:rgba(162,89,255,.15);color:var(--purple);padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px">— SEÑALES</span>
+      <span id="ev-count" style="margin-left:auto;background:rgba(162,89,255,.15);color:var(--purple);padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px">— TEMAS</span>
     </div>
     <div id="events-feed" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px"></div>
   </div>
 
   <div style="text-align:center;padding:16px;font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-top:4px">
-    AETHER v2.0 · OKRTSYSTEM LABS · 202 PAÍSES · 16 CATEGORÍAS
+    AETHER v2.0 · OKRTSYSTEM LABS · 201 PAÍSES · 16 CATEGORÍAS
     <br><span style="opacity:.5">Los análisis son estimaciones analíticas orientativas — no constituyen asesoramiento financiero, político ni médico</span>
   </div>
 

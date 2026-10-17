@@ -1,6 +1,10 @@
 (function(){
   function $(id){ return document.getElementById(id); }
-  function safeSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  // T7: escribe a traves del contrato, que valida el esquema de la clave.
+  function safeSet(k,v){
+    if (window.AETHER_STORAGE) { window.AETHER_STORAGE.set(k, v); return; }
+    try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
+  }
   function cleanRegionName(name){
     return String(name || '').replace(/^\s*[🌍🌐🗺️🧭]+\s*/u,'').replace(/^\s*[A-Z]{2}\s+/,'').trim();
   }
@@ -48,7 +52,7 @@
     const ctx = getRegionContext();
     safeSet('aether_globe_context', ctx);
     safeSet('aether_globe_scores', { ts: ctx.ts, code: ctx.code, regionName: ctx.regionName, scores: ctx.scores, overall: ctx.overall, dominant: ctx.dominant, confidence: ctx.confidence });
-    try { localStorage.setItem('aether_horizon', ctx.horizon); } catch(e){}
+    safeSet('aether_horizon', ctx.horizon);
     return ctx;
   };
   window.openAetherGlobe = function(){

@@ -1,0 +1,23 @@
+{
+  "name": "aether-okrtsystemlabs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AETHER — sistema publico de inteligencia de riesgos globales (OkrtSystem Labs)",
+  "type": "module",
+  "scripts": {
+    "serve": "python -m http.server 8080 --bind 127.0.0.1",
+    "smoke": "node tests/smoke.mjs",
+    "smoke:compare": "node tests/compare.mjs",
+    "test:xss": "node tests/xss.mjs",
+    "test:watchlist": "node tests/watchlist.mjs",
+    "test": "node tests/xss.mjs && node tests/watchlist.mjs && node tests/coverage.mjs && node tests/sw.mjs",
+    "test:coverage": "node tests/coverage.mjs",
+    "build:sw": "node tools/build-sw.mjs",
+    "test:sw": "node tests/sw.mjs"
+  },
+  "devDependencies": {
+    "pixelmatch": "^7.1.0",
+    "playwright": "^1.56.0",
+    "pngjs": "^7.0.0"
+  }
+}

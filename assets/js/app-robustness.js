@@ -131,12 +131,15 @@
     window.addEventListener('offline', ()=>{state.offline=true; pushEvent('runtime','Modo offline detectado');});
   }
 
+  /**
+   * T9: la insignia "Robustez premium - fallback elegante activo" iba fija
+   * en una esquina de la portada, visible para cualquier visitante. No le
+   * dice nada a quien entra a mirar riesgos globales y, sobre todo, anuncia
+   * como una caracteristica lo que es un modo degradado. Pasa a consola,
+   * que es donde sirve para algo: para quien esta depurando.
+   */
   function addGentleFallbackLabels(){
-    const tag = document.createElement('div');
-    tag.id = 'aether-robust-topline';
-    tag.style.cssText = 'position:fixed;left:18px;bottom:18px;z-index:9998;padding:8px 12px;border-radius:999px;background:rgba(8,18,28,.88);border:1px solid rgba(0,255,200,.12);color:#8ff7e6;font:10px "Share Tech Mono",monospace;letter-spacing:1px;text-transform:uppercase;box-shadow:0 8px 24px rgba(0,0,0,.28)';
-    tag.textContent = 'Robustez premium · fallback elegante activo';
-    document.body.appendChild(tag);
+    console.info('[AETHER] Capa de robustez activa: fallback elegante para recursos que no cargan.');
   }
 
   function init(){

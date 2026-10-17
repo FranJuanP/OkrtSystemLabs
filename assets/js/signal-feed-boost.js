@@ -2,134 +2,10 @@
   'use strict';
 
   const TARGET_TOTAL = 24;
-  const MIN_PER_CATEGORY = 2;
   const CHECK_INTERVAL_MS = 30000;
   const DUPLICATE_WINDOW_HOURS = 36;
   const severityRank = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-  const sourceStatusMap = {
-    conflict: 'src-gdelt',
-    geo: 'src-gdelt',
-    eco: 'src-gdelt',
-    humanitarian: 'src-relief',
-    climate: 'src-nasa',
-    seismic: 'src-usgs',
-    health: 'src-who'
-  };
 
-  const supplementalSeeds = [
-    {
-      cat: 'conflict', severity: 'HIGH', source: 'AETHER Continuity / Conflict Desk',
-      title: 'Reposicionamiento militar y presión fronteriza en corredor estratégico',
-      location: 'Europa del Este',
-      body: 'Se mantiene la vigilancia sobre reposicionamientos, presión fronteriza y actividad militar en corredor sensible. Señal de continuidad para preservar densidad analítica cuando el flujo abierto llegue fragmentado.',
-      impacts: { Conflict: '84', Stability: '71', Trade: '54', Energy: '63' },
-      hoursAgo: 2
-    },
-    {
-      cat: 'conflict', severity: 'MEDIUM', source: 'AETHER Continuity / Maritime Watch',
-      title: 'Incremento de riesgo marítimo y escolta táctica en ruta crítica',
-      location: 'Mar Rojo',
-      body: 'Persisten indicios de fricción marítima, rutas comerciales sometidas a tensión y necesidad de vigilancia táctica reforzada. La señal se usa como continuidad cuando la cobertura de eventos llega incompleta.',
-      impacts: { Conflict: '72', Stability: '58', Trade: '67', Insurance: '61' },
-      hoursAgo: 5
-    },
-    {
-      cat: 'geo', severity: 'HIGH', source: 'AETHER Continuity / Diplomatic Monitor',
-      title: 'Ronda diplomática extraordinaria tras nuevas medidas de presión estatal',
-      location: 'Indo-Pacífico',
-      body: 'La señal mantiene cobertura sobre presión diplomática, reacciones estatales y reposicionamiento geopolítico cuando el feed de noticias estratégicas llega con baja densidad.',
-      impacts: { Diplomacy: '81', Stability: '68', Trade: '57', Risk: '64' },
-      hoursAgo: 1
-    },
-    {
-      cat: 'geo', severity: 'MEDIUM', source: 'AETHER Continuity / Strategic Affairs',
-      title: 'Alineamientos regionales y discurso de disuasión elevan la tensión política',
-      location: 'Oriente Medio',
-      body: 'Se consolida un patrón de mensajes de disuasión y alineamientos regionales que incrementan sensibilidad política y necesidad de seguimiento.',
-      impacts: { Diplomacy: '74', Stability: '62', Energy: '59', Risk: '60' },
-      hoursAgo: 7
-    },
-    {
-      cat: 'eco', severity: 'HIGH', source: 'AETHER Continuity / Macro Pulse',
-      title: 'Volatilidad de materias primas y presión logística sobre cadenas globales',
-      location: 'Mercados globales',
-      body: 'La señal sostiene la lectura macro sobre volatilidad de materias primas, transporte y sensibilidad de cadenas de suministro ante shocks externos.',
-      impacts: { Inflation: '79', Trade: '73', Energy: '66', Logistics: '82' },
-      hoursAgo: 3
-    },
-    {
-      cat: 'eco', severity: 'MEDIUM', source: 'AETHER Continuity / Market Risk',
-      title: 'Repricing defensivo y aumento de aversión al riesgo en sesiones cruzadas',
-      location: 'Mercados globales',
-      body: 'Continúa el sesgo defensivo y la aversión al riesgo en sesiones cruzadas, con impacto sobre divisas, deuda y materias primas.',
-      impacts: { Markets: '76', Liquidity: '58', Risk: '63', Trade: '51' },
-      hoursAgo: 8
-    },
-    {
-      cat: 'seismic', severity: 'MEDIUM', source: 'AETHER Continuity / Seismic Desk',
-      title: 'Actividad sísmica regional en observación reforzada por acumulación reciente',
-      location: 'Cinturón de Fuego del Pacífico',
-      body: 'Se mantiene cobertura de actividad sísmica regional como señal de continuidad cuando el feed abierto llega con huecos o baja frecuencia.',
-      impacts: { Seismic: '70', Infrastructure: '55', Logistics: '47', Risk: '52' },
-      hoursAgo: 4
-    },
-    {
-      cat: 'seismic', severity: 'LOW', source: 'AETHER Continuity / Seismic Desk',
-      title: 'Microseísmos encadenados mantienen seguimiento preventivo técnico',
-      location: 'Arco Mediterráneo',
-      body: 'La cadena de microseísmos no implica necesariamente un evento mayor, pero justifica continuidad visual y contextual dentro del panel.',
-      impacts: { Seismic: '51', Infrastructure: '33', Risk: '38', Preparedness: '46' },
-      hoursAgo: 11
-    },
-    {
-      cat: 'climate', severity: 'MEDIUM', source: 'AETHER Continuity / Climate Lens',
-      title: 'Incendios y anomalías térmicas sostienen vigilancia ambiental ampliada',
-      location: 'Mediterráneo ampliado',
-      body: 'La señal conserva cobertura sobre incendios, anomalías térmicas y riesgo ambiental cuando los eventos de observación llegan dispersos.',
-      impacts: { Climate: '72', Agriculture: '49', Air: '58', Risk: '53' },
-      hoursAgo: 2
-    },
-    {
-      cat: 'climate', severity: 'MEDIUM', source: 'AETHER Continuity / Climate Lens',
-      title: 'Presión hidrológica y episodios extremos elevan el seguimiento preventivo',
-      location: 'Sudeste Asiático',
-      body: 'Persisten señales de presión hidrológica y eventos extremos con impacto sobre población, infraestructura y logística.',
-      impacts: { Climate: '75', Water: '68', Logistics: '52', Risk: '57' },
-      hoursAgo: 9
-    },
-    {
-      cat: 'humanitarian', severity: 'HIGH', source: 'AETHER Continuity / Relief Monitor',
-      title: 'Desplazamientos y presión sobre corredores humanitarios bajo seguimiento',
-      location: 'Cuerno de África',
-      body: 'Se mantiene una señal humanitaria de continuidad sobre desplazamientos, acceso logístico y presión operativa en corredores sensibles.',
-      impacts: { Humanitarian: '86', Logistics: '71', Food: '63', Health: '58' },
-      hoursAgo: 1
-    },
-    {
-      cat: 'humanitarian', severity: 'MEDIUM', source: 'AETHER Continuity / Relief Monitor',
-      title: 'Fragilidad alimentaria y sanitaria requieren continuidad de observación',
-      location: 'Sahel',
-      body: 'El módulo mantiene cobertura mínima sobre fragilidad alimentaria y sanitaria para evitar vacíos de lectura en la dimensión humanitaria.',
-      impacts: { Humanitarian: '77', Food: '69', Health: '62', Stability: '55' },
-      hoursAgo: 6
-    },
-    {
-      cat: 'health', severity: 'MEDIUM', source: 'AETHER Continuity / Health Sentinel',
-      title: 'Señales epidemiológicas dispersas mantienen vigilancia sanitaria activa',
-      location: 'África Central',
-      body: 'La cobertura sanitaria de continuidad preserva lectura de riesgo epidemiológico cuando el flujo abierto oficial llega fragmentado o con latencia.',
-      impacts: { Health: '74', Surveillance: '67', Travel: '42', Risk: '49' },
-      hoursAgo: 3
-    },
-    {
-      cat: 'health', severity: 'LOW', source: 'AETHER Continuity / Health Sentinel',
-      title: 'Seguimiento preventivo sobre brotes locales y capacidad de respuesta',
-      location: 'Sudamérica tropical',
-      body: 'La señal acompaña escenarios de brotes locales y presión puntual sobre capacidad de respuesta, manteniendo densidad analítica básica.',
-      impacts: { Health: '58', Surveillance: '53', Logistics: '29', Risk: '35' },
-      hoursAgo: 12
-    }
-  ];
 
 
 
@@ -239,6 +115,10 @@
   ];
 
   function setSourceStatus(id, state) {
+    // Delega en el motor de la pagina para que la fila muestre tambien
+    // "Sin conexion con <fuente>" cuando el fetch real ha fallado.
+    const shortId = String(id).replace(/^src-/, '');
+    if (typeof setSrc === 'function') { setSrc(shortId, state); return; }
     const dot = document.getElementById(id);
     if (!dot) return;
     dot.classList.remove('load', 'ok', 'err');
@@ -397,10 +277,6 @@
     });
   }
 
-  function findTemplate(cat) {
-    if (!Array.isArray(allSignals) || !allSignals.length) return null;
-    return allSignals.find(item => item && item.cat === cat) || allSignals[0];
-  }
 
   function findLongTextKey(template) {
     if (!template || typeof template !== 'object') return null;
@@ -430,13 +306,6 @@
     return null;
   }
 
-  function findNewFlagKey(template) {
-    if (!template || typeof template !== 'object') return null;
-    for (const [key, value] of Object.entries(template)) {
-      if (typeof value === 'boolean' && /new|fresh|recent/i.test(key)) return key;
-    }
-    return null;
-  }
 
   function extractLongText(signal) {
     if (!signal || typeof signal !== 'object') return '';
@@ -555,88 +424,28 @@
     return { changed, merged: mergedCount };
   }
 
-  function buildSupplementalSignal(seed) {
-    const template = findTemplate(seed.cat) || findTemplate('all') || {};
-    const signal = cloneDeep(template || {});
-    const textKey = findLongTextKey(template) || 'summary';
-    const impactsKey = findImpactsKey(template) || 'impacts';
-    const newFlagKey = findNewFlagKey(template) || 'isNew';
-    const eventTime = new Date(Date.now() - (seed.hoursAgo || 0) * 3600 * 1000);
 
-    signal.id = `signal_boost_${seed.cat}_${normalizeKey(seed.title).replace(/\s+/g, '_').slice(0, 28)}`;
-    signal.cat = seed.cat;
-    signal.severity = seed.severity;
-    signal.source = seed.source;
-    signal.title = seed.title;
-    signal.location = seed.location;
-    signal.time = eventTime;
-    signal.url = seed.url || '';
-    signal[textKey] = seed.body;
-    signal[impactsKey] = seed.impacts;
-    signal[newFlagKey] = true;
-    signal._mergeCount = 1;
-    signal._mergedSources = [seed.source];
-    return signal;
-  }
 
-  function strengthenSourceStatuses(counts) {
-    for (const [cat, sourceId] of Object.entries(sourceStatusMap)) {
-      if (!counts[cat]) continue;
-      const dot = document.getElementById(sourceId);
-      if (!dot) continue;
-      dot.classList.remove('load', 'err');
-      dot.classList.add('ok');
-    }
-  }
-
-  function annotateUpdate(additionsCount, mergedCount, shadowAdded) {
+  /**
+   * Hora de la ultima actualizacion, en UTC de verdad.
+   * Antes se componia con toLocaleTimeString() sin zona y se le pegaba el
+   * sufijo " UTC", asi que un navegador en Madrid rotulaba las 12:00 UTC
+   * como "14:00 UTC". Ahora se fuerza timeZone: 'UTC'.
+   */
+  function annotateUpdate(mergedCount, shadowAdded) {
     const el = document.getElementById('last-update');
     if (!el) return;
-    const base = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    if (shadowAdded > 0 && additionsCount > 0) {
-      el.textContent = `${base} UTC · cobertura reforzada · shadow feeds activos`;
-    } else if (shadowAdded > 0) {
-      el.textContent = `${base} UTC · shadow feeds activos`;
-    } else if (additionsCount > 0 && mergedCount > 0) {
-      el.textContent = `${base} UTC · cobertura reforzada · duplicados consolidados`;
-    } else if (additionsCount > 0) {
-      el.textContent = `${base} UTC · cobertura reforzada`;
-    } else if (mergedCount > 0) {
-      el.textContent = `${base} UTC · feed consolidado`;
-    } else {
-      el.textContent = `${base} UTC`;
-    }
+    const base = new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false, timeZone: 'UTC'
+    });
+    const notes = [];
+    if (shadowAdded > 0) notes.push(`${shadowAdded} evento${shadowAdded === 1 ? '' : 's'} nuevo${shadowAdded === 1 ? '' : 's'}`);
+    if (mergedCount > 0) notes.push('duplicados consolidados');
+    el.textContent = `${base} UTC${notes.length ? ' · ' + notes.join(' · ') : ''}`;
   }
 
-  function reinforceSignals() {
-    if (!Array.isArray(allSignals) || !allSignals.length) return { changed: false, additions: 0 };
 
-    const existingKeys = new Set(allSignals.map(eventKey));
-    const counts = categoryCounts(allSignals);
-    const additions = [];
-
-    for (const seed of supplementalSeeds) {
-      const key = eventKey(seed);
-      const needsCategoryCoverage = (counts[seed.cat] || 0) < MIN_PER_CATEGORY;
-      const needsOverallCoverage = (allSignals.length + additions.length) < TARGET_TOTAL;
-      if (!needsCategoryCoverage && !needsOverallCoverage) continue;
-      if (existingKeys.has(key)) continue;
-      const built = buildSupplementalSignal(seed);
-      additions.push(built);
-      existingKeys.add(key);
-      counts[seed.cat] = (counts[seed.cat] || 0) + 1;
-    }
-
-    if (!additions.length) {
-      strengthenSourceStatuses(counts);
-      return { changed: false, additions: 0 };
-    }
-
-    allSignals = sortSignalsQuality(allSignals.concat(additions));
-    filtered = allSignals.slice();
-    strengthenSourceStatuses(counts);
-    return { changed: true, additions: additions.length };
-  }
 
   function rerenderSignalModule() {
     try {
@@ -650,19 +459,23 @@
 
   async function processSignals() {
     const consolidated = consolidateSignals();
-    const reinforced = reinforceSignals();
     const shadow = await enrichFromShadowSources();
     allSignals = sortSignalsQuality(allSignals);
     filtered = allSignals.slice();
-    annotateUpdate(reinforced.additions, (consolidated.merged || 0) + (shadow.merged || 0), shadow.added || 0);
+    const merged = (consolidated.merged || 0) + (shadow.merged || 0);
+    annotateUpdate(merged, shadow.added || 0);
+    // El contador de cabecera lo mantiene el motor de la pagina, que ya solo
+    // cuenta eventos reales y separa los que vienen de una ultima lectura.
+    if (typeof updateSignalCount === 'function') updateSignalCount();
+    if (typeof updateFeedState === 'function') updateFeedState();
     return {
-      changed: consolidated.changed || reinforced.changed || (shadow.added || 0) > 0,
-      additions: reinforced.additions,
-      merged: (consolidated.merged || 0) + (shadow.merged || 0),
+      changed: consolidated.changed || (shadow.added || 0) > 0,
+      merged: merged,
       shadowAdded: shadow.added || 0,
       shadowFetched: shadow.fetched || 0
     };
   }
+
 
   function installSignalBoost() {
     if (typeof loadAll !== 'function' || !Array.isArray(allSignals)) return false;

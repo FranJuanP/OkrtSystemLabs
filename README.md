@@ -6,13 +6,13 @@
 **by [OkrtSystem Labs](https://github.com/franjuanp)**
 
 [![Version](https://img.shields.io/badge/version-2.0-00FFC8?style=flat-square&labelColor=0D1B2E)]()
-[![Countries](https://img.shields.io/badge/countries-202-FF8C00?style=flat-square&labelColor=0D1B2E)]()
+[![Countries](https://img.shields.io/badge/countries-201-FF8C00?style=flat-square&labelColor=0D1B2E)]()
 [![Categories](https://img.shields.io/badge/risk_categories-16-FF3355?style=flat-square&labelColor=0D1B2E)]()
 [![Modules](https://img.shields.io/badge/modules-4-A259FF?style=flat-square&labelColor=0D1B2E)]()
 [![No Server](https://img.shields.io/badge/backend-none-00FF88?style=flat-square&labelColor=0D1B2E)]()
 [![AI](https://img.shields.io/badge/AI-Ollama%20%2F%20Mistral-FFD700?style=flat-square&labelColor=0D1B2E)]()
 
-*Sistema de inteligencia predictiva de riesgos globales. 202 países. 16 categorías. Globo 3D interactivo. Feed de alertas en tiempo real. Análisis de flujos financieros globales. Todo en archivos HTML independientes, sin servidor, sin backend.*
+*Sistema de inteligencia predictiva de riesgos globales. 201 países. 16 categorías. Globo 3D interactivo. Feed de alertas en tiempo real. Análisis de flujos financieros globales. Todo en archivos HTML independientes, sin servidor, sin backend.*
 
 **[→ Ver en vivo](https://franjuanp.github.io/OkrtSystemLabs/)**
 
@@ -31,7 +31,7 @@ AETHER es un ecosistema modular de inteligencia de riesgos globales que corre **
 ```
 OkrtSystem Labs — AETHER v2.0
 │
-├── index.html              — Dashboard principal (202 países · 16 categorías)
+├── index.html              — Dashboard principal (201 países · 16 categorías)
 ├── aether-globe-v3.html    — Globo 3D interactivo con datos de riesgo
 ├── aether-signal.html      — Feed de alertas en tiempo real
 └── aether-vector.html      — Análisis de flujos financieros globales
@@ -47,7 +47,7 @@ Todos los módulos se abren desde los botones del **header del dashboard** (⬡ 
 
 El núcleo analítico del sistema. Motor completo de inteligencia de riesgos con:
 
-- **202 países** con scoring en **16 categorías** de riesgo
+- **201 países** con scoring en **16 categorías** de riesgo
 - **Motor de propagación en cascada** con simulación Monte Carlo (400 iteraciones)
 - **Shock Simulator** — 8 escenarios predefinidos + sliders manuales por categoría
 - **Mapa mundial D3.js** — coropletas en 7 niveles, filtrable por categoría, con arcos de tensión geopolítica
@@ -166,10 +166,19 @@ python -m http.server 8080
 ```
 
 ### Uso local (con IA — Ollama/Mistral)
+
+> **Por qué no `OLLAMA_ORIGINS="*"` ni `OLLAMA_HOST=0.0.0.0`:** con `*`
+> cualquier web que visites puede hablar con tu Ollama desde tu propio
+> navegador —leer tus modelos y lanzarles peticiones—, y con `0.0.0.0` lo
+> expones además a toda tu red local, sin autenticación de ningún tipo.
+> Por eso se listan solo los dos orígenes desde los que se sirve AETHER y se
+> deja Ollama escuchando únicamente en `127.0.0.1`, que es lo que hace por
+> defecto.
+
 ```powershell
 # Windows PowerShell
 taskkill /F /IM ollama.exe
-$env:OLLAMA_ORIGINS="*"
+$env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"
 ollama serve
 
 # En otra terminal
@@ -178,7 +187,7 @@ python -m http.server 8080
 
 ```bash
 # Linux / macOS
-OLLAMA_ORIGINS="*" ollama serve &
+OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080" ollama serve &
 python3 -m http.server 8080
 ```
 
@@ -230,14 +239,70 @@ Score final = Base histórico (World Bank, Freedom House, SIPRI, GHS...)
 
 ---
 
-## Protección intelectual
+<a id="metodologia"></a>
 
-Este software está protegido mediante:
-- **Ofuscación de código** — lógica del motor encriptada y transformada
-- **Domain fingerprinting** — vinculado al dominio autorizado `franjuanp.github.io`
-- **Copyright** — © OkrtSystem Labs. Todos los derechos reservados.
+## Metodología y procedencia de los datos
 
-La reproducción, distribución o uso comercial no autorizado está prohibido.
+> **Estado actual: estimaciones con datos base ~2023.** Esta sección es
+> provisional y se sustituirá por `METHODOLOGY.md` y una página de metodología
+> dentro de la web cuando el pipeline de datos esté en marcha.
+
+### Qué son las cifras que ves
+
+Las puntuaciones por país y categoría del dashboard y del globo son
+**estimaciones con base aproximada en 2023**, no lecturas en vivo. Están
+escritas en la tabla `DATA` del motor y no llevan, hoy por hoy, ni año ni
+fuente por indicador.
+
+Lo que sí es dato en vivo:
+
+| Módulo | Qué muestra | Procedencia |
+|---|---|---|
+| Signal | eventos | USGS, NASA EONET, ReliefWeb OCHA y GDELT, consultados desde el navegador |
+| Dashboard · termómetro | estimación por categoría | tabla `DATA`, base ~2023 |
+| Dashboard · panel de temas | temas de seguimiento con enlace a la fuente | lista editorial, sin fecha propia |
+| Globe | niveles de riesgo por país | tabla propia del globo, base ~2023 |
+| Vector | flujos financieros | cifras con fuente anotada caso por caso |
+
+### Cómo se calcula la puntuación
+
+```
+Score final = Base histórico
+            + Ajuste por velocidad de cambio (VELOCITY)
+            + Boost por correlación cruzada entre categorías (CORR_MATRIX)
+            + Propagación en cascada temporal (PROP_MATRIX)
+            ± Shock manual (Shock Simulator)
+```
+
+### Limitaciones conocidas
+
+- La base `DATA` no tiene año ni fuente por indicador.
+- El termómetro no se refresca: muestra la estimación base y no se mueve
+  mientras no haya un dato nuevo medido.
+- El panel de temas no lleva hora, porque sus entradas no tienen fecha propia.
+- Las cifras del globo y del dashboard proceden hoy de tablas distintas.
+
+---
+
+## Autoría y licencia
+
+**© OkrtSystem Labs. Todos los derechos reservados.** La reproducción,
+distribución o uso comercial no autorizado está prohibido.
+
+### Aviso de copia no oficial
+
+Cuando AETHER se abre desde un host que no es `franjuanp.github.io`,
+`localhost` o `127.0.0.1`, muestra un aviso discreto de copyright en una
+esquina. La aplicación sigue funcionando con normalidad.
+
+> **Esto no es una medida de seguridad y no debe tomarse como tal.** Todo el
+> código se ejecuta en el navegador de quien visita la página: cualquiera
+> puede borrar `assets/js/domain-notice.js` de una copia y el aviso
+> desaparece. Es, exactamente, un aviso de autoría. Lo mismo vale para la
+> ofuscación del motor, que dificulta la lectura pero no impide copiar nada.
+
+La protección real de la obra es la legal: el copyright y los términos de
+uso, no el código del navegador.
 
 ---
 

@@ -58,9 +58,22 @@ function getOllamaURL(){
   }catch(e){return 'http://localhost:11434';}
 }
 function getModel(){return document.getElementById('model-sel').value;}
-async function checkOllama(){
+/**
+ * T5 - Comprueba si hay una Ollama local escuchando.
+ *
+ * Se ejecuta sola al cargar la pagina (ver abajo) y tambien al pulsar
+ * VERIFICAR. Si no responde, en vez de soltar un error de CORS ilegible
+ * ("Failed to fetch", "NetworkError") se dice lo que de verdad pasa: no se
+ * ha detectado una IA local, con enlace a las instrucciones de arranque.
+ *
+ * @param {boolean} [silent]  true en la comprobacion automatica de carga:
+ *                            no marca "VERIFICANDO" ni toca el panel si ya
+ *                            hay contenido.
+ * @returns {Promise<boolean>} si hay IA local disponible
+ */
+async function checkOllama(silent){
   const st=document.getElementById('api-status');
-  st.textContent='● VERIFICANDO...';st.style.color='var(--yellow)';
+  if(!silent && st){ st.textContent='● VERIFICANDO...'; st.style.color='var(--yellow)'; }
   try{
     const url=getOllamaURL();
     const r=await fetch(url+'/api/tags',{signal:AbortSignal.timeout(4000)});
@@ -68,14 +81,48 @@ async function checkOllama(){
     const d=await r.json();
     const models=d.models?.map(m=>m.name)||[];
     const sel=document.getElementById('model-sel');
-    if(models.length){
+    if(models.length && sel){
       sel.innerHTML='';
       models.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});
     }
-    st.textContent='● OLLAMA ACTIVO — '+models.length+' modelos';st.style.color='var(--green)';
+    if(st){ st.textContent='● OLLAMA ACTIVO — '+models.length+' modelos'; st.style.color='var(--green)'; }
+    setAiAvailability(true);
+    return true;
   }catch(e){
-    st.textContent='● ERROR: '+e.message;st.style.color='var(--red)';
+    if(st){ st.textContent='● IA local no detectada'; st.style.color='var(--dim)'; }
+    setAiAvailability(false, silent);
+    return false;
   }
+}
+
+/**
+ * T5 - Refleja en el panel de IA si hay o no motor local.
+ * Sin IA, el panel explica que falta y como arrancarla, en vez de esperar a
+ * que el usuario pulse un boton y reciba un error de CORS.
+ */
+function setAiAvailability(available, silent){
+  const btn=document.getElementById('analyze-btn');
+  const out=document.getElementById('ai-out');
+  document.body.classList.toggle('ai-offline', !available);
+  if(available){
+    if(btn) btn.disabled=false;
+    return;
+  }
+  if(btn) btn.disabled=true;
+  if(!out) return;
+  // En la comprobacion automatica no se pisa un analisis que ya este en pantalla.
+  if(silent && out.dataset.aiRendered==='1') return;
+  out.innerHTML=
+    '<div class="ai-block"><div class="ai-tag" style="color:var(--dim)">IA LOCAL ///</div>'+
+    '<div><strong style="color:var(--bright)">IA local no detectada</strong><br/><br/>'+
+    '<span style="color:var(--text)">AETHER funciona sin IA: el motor analitico, el termometro, '+
+    'el ranking y la cascada no la necesitan. El panel de prediccion y el chat si.</span><br/><br/>'+
+    '<a href="#install" class="ai-help-link" style="color:var(--cyan);text-decoration:none;'+
+    'border-bottom:1px solid rgba(0,255,200,.3)">Ver como arrancar Ollama en local &darr;</a>'+
+    '&nbsp;&nbsp;<a href="https://github.com/FranJuanP/OkrtSystemLabs#uso-local-con-ia--ollamamistral" '+
+    'target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:none;'+
+    'border-bottom:1px solid rgba(0,255,200,.3)">Instrucciones completas &nearr;</a>'+
+    '</div></div>';
 }
 
 // ──────────────────────────────────────────
@@ -1666,27 +1713,25 @@ function renderEvents(d){
   });
   const seen=new Set(), uniq=[];
   for(const e of pool){ if(!seen.has(e.tx)){seen.add(e.tx);uniq.push(e);} }
-  const picked=uniq.sort(()=>Math.random()-.5).slice(0,12);
-  const times=['hace 23min','hace 1h','hace 2h','hace 3h','hace 5h','hace 6h','hace 8h','hace 11h','hace 14h','hace 18h','hace 22h','hace 1d'];
+  // T2: sin barajado aleatorio. El orden depende solo de la puntuacion de la
+  // region, asi que dos cargas de la misma region muestran lo mismo.
+  const picked=uniq.slice(0,12);
   const feed=document.getElementById('events-feed');
-  feed.innerHTML=picked.map((e,i)=>`
+  feed.innerHTML=picked.map(e=>`
     <div class="ev" style="flex-direction:column;gap:4px;padding:8px;background:rgba(5,10,16,.4);border-radius:6px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="ev-badge ${e.b}">${e.t}</span>
-        <span class="ev-time" style="margin:0">${times[i]||'hace 1d'}</span>
-        <a href="${e.url}" target="_blank" rel="noopener"
+        <span class="ev-badge ${esc(e.b)}">${esc(e.t)}</span>
+        <a href="${safeHref(e.url)}" target="_blank" rel="noopener noreferrer" class="ev-src-link"
           style="margin-left:auto;font-size:9px;font-family:'Share Tech Mono',monospace;
           color:var(--cyan);background:rgba(0,255,200,.06);border:1px solid rgba(0,255,200,.2);
           padding:2px 7px;border-radius:3px;text-decoration:none;white-space:nowrap;
-          transition:background .2s"
-          onmouseover="this.style.background='rgba(0,255,200,.15)'"
-          onmouseout="this.style.background='rgba(0,255,200,.06)'">
-          ${e.src} ↗
+          transition:background .2s" rel="noopener noreferrer">
+          ${esc(e.src)} ↗
         </a>
       </div>
-      <div class="ev-text">${e.tx}</div>
+      <div class="ev-text">${esc(e.tx)}</div>
     </div>`).join('');
-  document.getElementById('ev-count').textContent=picked.length+' SEÑALES';
+  document.getElementById('ev-count').textContent=picked.length+' TEMAS';
 }
 
 function onRegionChange(){loadRegion();}
@@ -1774,33 +1819,34 @@ Sé específico, técnico y basado en los indicadores reales. Menciona causalida
       const tagTxt=isWarn?'AMENAZA ///':isPred?'PREDICCIÓN ///':isOpp?'OPORTUNIDAD ///':'ANÁLISIS ///';
       const div=document.createElement('div');
       div.className='ai-block '+cls;
-      div.innerHTML=`<div class="ai-tag" style="color:${tagColor}">${tagTxt}</div><div>${
-        b.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--bright)">$1</strong>')
-         .replace(/\n/g,'<br/>')
-      }</div>`;
+      // T3: el texto del modelo se escapa ANTES de aplicar el formato de
+      // negritas, igual que ya hacia el chat. formatBold hace las dos cosas
+      // en el orden correcto, de modo que un <img onerror> del modelo llega
+      // como texto y nunca como etiqueta.
+      div.innerHTML=`<div class="ai-tag" style="color:${tagColor}">${tagTxt}</div><div>${formatBold(b)}</div>`;
       out.appendChild(div);
     });
   }catch(e){
     const isCors=e.message.includes('fetch')||e.message.includes('Failed')||e.message.includes('NetworkError');
     out.innerHTML=`<div class="ai-block warn"><div class="ai-tag" style="color:var(--red)">ERROR — OLLAMA ///</div>
     <div>
-      <strong style="color:var(--orange)">${isCors?'Error CORS / Conexión':'Error: '+e.message}</strong><br/><br/>
+      <strong style="color:var(--orange)">${isCors?'IA local no detectada':'Error: '+esc(e.message)}</strong><br/><br/>
       ${isCors?`<span style="color:var(--text)">Ollama bloquea peticiones desde archivos locales.<br/>
       Debes arrancarlo con permisos de origen abierto:</span>
       <br/><br/>
       <span style="background:rgba(0,0,0,.5);padding:10px 14px;border-radius:6px;display:block;color:var(--cyan);font-size:11px;line-height:2">
         <strong style="color:var(--yellow)">Windows CMD:</strong><br/>
-        set OLLAMA_ORIGINS=*<br/>
+        set OLLAMA_ORIGINS=https://franjuanp.github.io,http://localhost:8080<br/>
         ollama serve<br/>
         <br/>
         <strong style="color:var(--yellow)">PowerShell:</strong><br/>
-        $env:OLLAMA_ORIGINS="*"; ollama serve<br/>
+        $env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"; ollama serve<br/>
         <br/>
         <strong style="color:var(--yellow)">Linux / Mac:</strong><br/>
-        OLLAMA_ORIGINS=* ollama serve
+        OLLAMA_ORIGINS=https://franjuanp.github.io,http://localhost:8080 ollama serve
       </span>
       <br/><span style="color:var(--dim);font-size:11px">Después pulsa ⚡ VERIFICAR y vuelve a intentarlo.</span>`
-      :'<span style="color:var(--dim)">'+e.message+'</span>'}
+      :'<span style="color:var(--dim)">'+esc(e.message)+'</span>'}
     </div></div>`;
   }
   btn.disabled=false;
@@ -3055,51 +3101,7 @@ function updateMapColors(){
 }
 
 // ── LIVE DATA — World Bank API ──
-const WB_LIVE_INDS={
-  'NY.GDP.MKTP.KD.ZG':'eco','FP.CPI.TOTL.ZG':'eco','SL.UEM.TOTL.ZS':'eco',
-  'SP.DYN.LE00.IN':'health','SH.DYN.MORT':'health',
-  'EN.ATM.CO2E.PC':'climate','AG.LND.FRST.ZS':'climate',
-  'PV.EST':'geo','GE.EST':'geo',
-};
-const WB_COUNTRY_MAP={WLD:'WLD',USA:'US',CHN:'CN',ESP:'ES',RUS:'RU',IND:'IN',BRA:'BR',MEX:'MX',JPN:'JP',EUU:'EU'};
 
-async function fetchLiveData(){
-  const btn=document.getElementById('live-btn');
-  const code=document.getElementById('region-sel').value;
-  const wbCode=WB_COUNTRY_MAP[code]||code;
-  btn.textContent='📡 CARGANDO...'; btn.disabled=true;
-  let updated=0;
-  const year=2022;
-
-  try{
-    for(const [ind,cat] of Object.entries(WB_LIVE_INDS)){
-      try{
-        const url=`https://api.worldbank.org/v2/country/${wbCode}/indicator/${ind}?date=${year}&format=json&per_page=1`;
-        const r=await fetch(url);
-        const j=await r.json();
-        if(j[1]?.[0]?.value!=null){
-          const val=j[1][0].value;
-          // Actualizar el primer indicador disponible de esa categoría
-          const inds=DATA[code]?.[cat]?.inds;
-          if(inds?.length){updated++;}
-        }
-      }catch(e){}
-    }
-    // Añadir badge LIVE al título de la región
-    const existing=document.querySelector('.live-badge');
-    if(!existing){
-      const sel=document.getElementById('region-sel');
-      const lbl=document.createElement('span');
-      lbl.className='live-badge'; lbl.textContent='LIVE';
-      sel.parentNode.insertBefore(lbl,sel.nextSibling);
-    }
-    btn.textContent='📡 DATOS LIVE';
-  }catch(e){
-    btn.textContent='📡 ERROR';
-  }
-  btn.disabled=false;
-  setTimeout(()=>btn.textContent='📡 DATOS LIVE',3000);
-}
 
 // ── PDF EXPORT ──
 function exportPDF(){
@@ -3110,6 +3112,15 @@ function exportPDF(){
   window.print();
   document.title=orig;
 }
+
+/* T2 - fetchLiveData eliminada, junto con las dos tablas que solo usaba ella
+   (WB_LIVE_INDS y WB_COUNTRY_MAP). Descargaba nueve indicadores del Banco
+   Mundial y no hacia nada con los valores: solo contaba updated++ y anadia
+   una insignia "LIVE" junto al selector de region. Ademas era codigo muerto:
+   el boton #live-btn del que dependia no existe en ninguna pagina y nadie
+   llamaba a la funcion, asi que de haberse ejecutado habria lanzado excepcion
+   en su primera linea. La Fase 3 trae datos con procedencia de verdad
+   (data/latest.json). */
 
 // ── PATCH loadRegion para usar enhanced scores y actualizar mapa/cadenas ──
 // loadRegion v5 — replaced by unified v6
@@ -3185,27 +3196,33 @@ function initThermo(code){
   });
   renderThermo(code);
   document.getElementById('thermo-region').textContent=(DATA[code]||DATA.WLD).name;
-  if(thermoTimer) clearInterval(thermoTimer);
-  thermoCountdown=30;
-  thermoTimer=setInterval(()=>updateThermo(code),1000);
+  // T2: ya no hay temporizador de "fluctuacion". El termometro muestra la
+  // estimacion de los datos base y no se mueve mientras no haya dato nuevo.
+  if(thermoTimer){ clearInterval(thermoTimer); thermoTimer=null; }
 }
 
-function updateThermo(code){
-  thermoCountdown--;
-  const cd=document.getElementById('thermo-countdown');
-  if(cd) cd.textContent=thermoCountdown+'s';
-  if(thermoCountdown<=0){
-    thermoCountdown=30;
-    // Fluctuación realista: ±1-4 puntos según velocidad
-    const vel=VELOCITY[code]||VELOCITY.WLD;
-    CAT_KEYS.forEach(k=>{
-      const v=vel[k]||0;
-      const bias=v*2; // tendencia positiva/negativa
-      const noise=(Math.random()-0.5)*4+bias;
-      thermoData[k].current=Math.min(100,Math.max(0,Math.round(thermoData[k].current+noise)));
-    });
-    renderThermo(code);
-  }
+/**
+ * T2 - Actualiza el termometro con datos nuevos.
+ *
+ * Antes sumaba ruido aleatorio cada 30 segundos
+ * ((Math.random()-0.5)*4 mas un sesgo por VELOCITY) y repintaba, de modo
+ * que la pantalla parecia recibir lecturas en vivo cuando en realidad
+ * estaba inventando el movimiento. Ahora, si no hay dato nuevo, el valor
+ * no cambia: el parametro `updates` solo trae valores medidos.
+ *
+ * @param {string} code  codigo ISO3 de la region
+ * @param {Object<string,number>} [updates]  valor nuevo por categoria
+ */
+function updateThermo(code, updates){
+  if(!updates || !thermoData) return;
+  let changed=false;
+  CAT_KEYS.forEach(k=>{
+    const v=updates[k];
+    if(typeof v!=='number' || !isFinite(v) || !thermoData[k]) return;
+    const next=Math.min(100,Math.max(0,Math.round(v)));
+    if(next!==thermoData[k].current){ thermoData[k].current=next; changed=true; }
+  });
+  if(changed) renderThermo(code);
 }
 
 function renderThermo(code){
@@ -3286,7 +3303,7 @@ function renderRanking(){
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
     const hasDetail=DATA[r.code]?.eco?.inds?.length>0;
     return `<div class="rank-row" style="cursor:${hasDetail?'pointer':'default'}" 
-      onclick="${hasDetail?`document.getElementById('region-sel').value='${r.code}';loadRegion();`:''}"
+      ${hasDetail?`data-rank-code="${esc(r.code)}"`:''}
       title="${hasDetail?'Click para cargar región':''}">
       <div class="rank-pos" style="color:${col};font-size:${medal?'14px':'12px'}">${medal||'#'+(i+1)}</div>
       <div class="rank-flag">${r.flag}</div>
@@ -3342,7 +3359,7 @@ Las probabilidades deben sumar 100. Sé específico y usa los datos reales.`;
     tabs.style.display='flex';
     showScenario('base',document.querySelector('.stab.base'));
   }catch(e){
-    out.innerHTML=`<div class="ai-block warn"><div class="ai-tag" style="color:var(--red)">ERROR ///</div><div>No se pudieron generar escenarios: ${e.message}</div></div>`;
+    out.innerHTML=`<div class="ai-block warn"><div class="ai-tag" style="color:var(--red)">ERROR ///</div><div>No se pudieron generar escenarios: ${esc(e.message)}</div></div>`;
     tabs.style.display='none';
   }
   btn.disabled=false; btn.textContent='🔮 ESCENARIOS';
@@ -3359,14 +3376,14 @@ function showScenario(type,el){
   const col=colors[type];
   document.getElementById('scenario-prob').style.display='block';
   document.getElementById('scenario-prob').innerHTML=
-    `<span style="color:${col}">${icons[type]} ${sc.titulo||''}</span> &nbsp;·&nbsp; Probabilidad: <strong style="color:${col}">${sc.prob}%</strong>`;
+    `<span style="color:${col}">${icons[type]} ${esc(sc.titulo||'')}</span> &nbsp;·&nbsp; Probabilidad: <strong style="color:${col}">${esc(sc.prob)}%</strong>`;
   const out=document.getElementById('ai-out');
   out.innerHTML=`
     <div class="ai-block ${type==='pes'?'warn':type==='base'?'pred':''}">
-      <div class="ai-tag" style="color:${col}">ESCENARIO ${type==='opt'?'OPTIMISTA':type==='base'?'BASE':'PESIMISTA'} · ${sc.prob}% PROB. ///</div>
-      <div style="margin-bottom:10px">${(sc.resumen||'').replace(/\n/g,'<br/>')}</div>
+      <div class="ai-tag" style="color:${col}">ESCENARIO ${type==='opt'?'OPTIMISTA':type==='base'?'BASE':'PESIMISTA'} · ${esc(sc.prob)}% PROB. ///</div>
+      <div style="margin-bottom:10px">${esc(sc.resumen||'').replace(/\n/g,'<br/>')}</div>
       <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;font-family:'Share Tech Mono',monospace">FACTORES CLAVE:</div>
-      ${(sc.factores||[]).map(f=>`<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;font-family:'Share Tech Mono',monospace">· ${f}</div>`).join('')}
+      ${(sc.factores||[]).map(f=>`<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;font-family:'Share Tech Mono',monospace">· ${esc(f)}</div>`).join('')}
     </div>`;
 }
 
@@ -4240,7 +4257,7 @@ function renderShockPreview() {
         <div style="font-size:11px;color:var(--dim);font-family:'Share Tech Mono',monospace">IMPACTO</div>
         <div style="font-size:22px;font-weight:700;font-family:'Rajdhani',sans-serif;color:${col}">${delta>0?'+':''}${delta}</div>
       </div>
-      <button onclick="runShockCascade()" class="btn sec" style="margin-left:auto;padding:8px 16px;background:rgba(255,51,85,.12);border-color:var(--red);color:var(--red)">
+      <button data-action="run-shock-cascade" class="btn sec" style="margin-left:auto;padding:8px 16px;background:rgba(255,51,85,.12);border-color:var(--red);color:var(--red)">
         ⚡ SIMULAR CASCADA
       </button>
     </div>
@@ -4470,9 +4487,44 @@ function initShockSimulator() {
         </div>
         <input type="range" id="shock-sl-${k}" min="-50" max="50" value="0" step="1"
           style="width:100%;height:3px;accent-color:${CAT_COLORS[i]};cursor:pointer"
-          oninput="onShockSlider('${k}',this.value)">
+          data-shock-cat="${esc(k)}">
       </div>`
     ).join('');
   }
 }
 
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   T4 · Delegacion de eventos
+   Sustituye a los manejadores onclick/onmouseover que se generaban dentro de
+   cadenas de HTML. Sin ellos se puede quitar 'unsafe-inline' de script-src.
+   Un unico listener en document sobrevive a cualquier repintado.
+   ────────────────────────────────────────────────────────────────────────── */
+document.addEventListener('input', function(ev){
+  const slider = ev.target.closest && ev.target.closest('[data-shock-cat]');
+  if(slider && typeof onShockSlider === 'function'){
+    onShockSlider(slider.getAttribute('data-shock-cat'), slider.value);
+  }
+});
+
+document.addEventListener('click', function(ev){
+  const rankRow = ev.target.closest && ev.target.closest('[data-rank-code]');
+  if(rankRow){
+    const sel = document.getElementById('region-sel');
+    if(sel){ sel.value = rankRow.getAttribute('data-rank-code'); loadRegion(); }
+    return;
+  }
+  const action = ev.target.closest && ev.target.closest('[data-action="run-shock-cascade"]');
+  if(action && typeof runShockCascade === 'function'){ runShockCascade(); }
+});
+
+
+/* T5: comprobacion automatica de la IA local al cargar la pagina. Si no hay
+   Ollama escuchando, el panel lo dice desde el principio en vez de esperar a
+   que el usuario pulse y reciba un error de CORS. */
+(function(){
+  function probe(){ if(typeof checkOllama==='function') checkOllama(true); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(probe,1200));
+  else setTimeout(probe,1200);
+})();

@@ -9,9 +9,16 @@
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
   function round(v){ return Math.round(Number(v) || 0); }
   function safeJSONParse(v, fallback){ try { return JSON.parse(v); } catch { return fallback; } }
+  function storageSet(key, value){
+    if (window.AETHER_STORAGE) return window.AETHER_STORAGE.set(key, value);
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  }
   function safeStorageGet(key, fallback){
     try {
-      const parsed = safeJSONParse(localStorage.getItem(key), fallback);
+      // T7: a traves del contrato, que valida el esquema de cada clave.
+      const parsed = window.AETHER_STORAGE
+        ? window.AETHER_STORAGE.get(key, fallback)
+        : safeJSONParse(localStorage.getItem(key), fallback);
       return parsed == null ? fallback : parsed;
     } catch { return fallback; }
   }
@@ -19,18 +26,18 @@
     const parsed = safeStorageGet(WATCHLIST_KEY, []);
     return Array.isArray(parsed) ? parsed : [];
   }
-  function saveWatchlist(items){ try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(items) ? items : [])); } catch {} }
+  function saveWatchlist(items){ storageSet(WATCHLIST_KEY, Array.isArray(items) ? items : []); }
   function loadSnapshots(){
     const parsed = safeStorageGet(SNAPSHOT_KEY, {});
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   }
-  function saveSnapshots(obj){ try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(obj && typeof obj === 'object' ? obj : {})); } catch {} }
+  function saveSnapshots(obj){ storageSet(SNAPSHOT_KEY, obj && typeof obj === 'object' ? obj : {}); }
   function saveHistory(item){
     try {
       const hist = safeStorageGet(HISTORY_KEY, []);
       const arr = Array.isArray(hist) ? hist : [];
       arr.unshift(item);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(0, 18)));
+      storageSet(HISTORY_KEY, arr.slice(0, 18));
     } catch {}
   }
   function $(id){ return document.getElementById(id); }
@@ -358,27 +365,31 @@
       box.innerHTML = `<div class="aether-watch-empty">Añade regiones clave para volver a ellas en un clic, seguir su score, dominante y confianza, y detectar cambios de presión.</div>`;
       return;
     }
+    // T3: la watchlist se lee de localStorage, que es editable por quien
+    // controle el navegador (y por cualquier otro script de la pagina), asi
+    // que todos sus campos se escapan antes de llegar a innerHTML.
+    const e = (typeof window.esc === 'function') ? window.esc : (v => String(v == null ? '' : v));
     box.innerHTML = items.map(item => {
       const tone = deltaTone(item.delta);
       return `
       <div class="aether-watch-item">
         <div class="aether-watch-main">
           <div class="aether-watch-name-row">
-            <div class="aether-watch-name">${item.name}</div>
-            <span class="aether-watch-band">${item.band}</span>
+            <div class="aether-watch-name">${e(item.name)}</div>
+            <span class="aether-watch-band">${e(item.band)}</span>
           </div>
           <div class="aether-watch-sub">
-            <span>${item.code}</span>
-            <span>SCORE ${item.score}</span>
-            <span class="aether-watch-delta ${tone}">${item.delta > 0 ? '+' : ''}${item.delta || 0}</span>
+            <span>${e(item.code)}</span>
+            <span>SCORE ${e(item.score)}</span>
+            <span class="aether-watch-delta ${e(tone)}">${item.delta > 0 ? '+' : ''}${e(item.delta || 0)}</span>
           </div>
-          <div class="aether-watch-dominant"><span style="color:${item.dominantColor}">●</span> ${item.dominant || 'Sin dominante'}</div>
+          <div class="aether-watch-dominant"><span style="color:${e(item.dominantColor)}">●</span> ${e(item.dominant || 'Sin dominante')}</div>
         </div>
         <div class="aether-watch-side">
-          <div class="aether-watch-confidence">${item.confidence}%</div>
+          <div class="aether-watch-confidence">${e(item.confidence)}%</div>
           <div class="aether-watch-actions">
-            <button class="aether-watch-icon" data-open="${item.code}" title="Cargar">↗</button>
-            <button class="aether-watch-icon" data-del="${item.code}" title="Eliminar">✕</button>
+            <button class="aether-watch-icon" data-open="${e(item.code)}" title="Cargar">↗</button>
+            <button class="aether-watch-icon" data-del="${e(item.code)}" title="Eliminar">✕</button>
           </div>
         </div>
       </div>`;

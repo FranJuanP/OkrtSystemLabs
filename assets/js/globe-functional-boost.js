@@ -37,9 +37,12 @@
 
   function readSignalEvents(){
     try{
-      const raw = localStorage.getItem('aether_signal_events');
-      if(!raw) return [];
-      const arr = JSON.parse(raw);
+      // Con contrato llega ya parseado; sin el, hay que parsear la cadena.
+      const stored = window.AETHER_STORAGE
+        ? window.AETHER_STORAGE.get('aether_signal_events', null)
+        : localStorage.getItem('aether_signal_events');
+      if(!stored) return [];
+      const arr = Array.isArray(stored) ? stored : JSON.parse(stored);
       if(!Array.isArray(arr)) return [];
       const now = Date.now();
       return arr.filter(ev => ev && (ev.country || ev.location) && ev.ts && (now - Number(ev.ts)) < 48*60*60*1000)

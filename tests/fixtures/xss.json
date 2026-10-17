@@ -1,0 +1,11 @@
+{
+  "_comment": "Cargas XSS para la prueba de T3. Se inyectan por los mismos campos que llegan de las APIs externas: title, place, location, detail, body, country y url.",
+  "payloads": {
+    "img": "<img src=x onerror=window.__XSS_FIRED__.push('img')>",
+    "svg": "<svg onload=window.__XSS_FIRED__.push('svg')>",
+    "script": "<script>window.__XSS_FIRED__.push('script')<\/script>",
+    "breakout": "\"><img src=x onerror=window.__XSS_FIRED__.push('attr')>",
+    "jsurl": "javascript:window.__XSS_FIRED__.push('jsurl')",
+    "datauri": "data:text/html;base64,PHNjcmlwdD53aW5kb3cuX19YU1NfRklSRURfXy5wdXNoKCdkYXRhJyk8L3NjcmlwdD4="
+  }
+}

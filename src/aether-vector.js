@@ -1,0 +1,510 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   BASELINE LEGIBLE · Fase 0
+   Fuente recuperada sin ofuscar y verificada por AST contra el bloque
+   <script> ofuscado que iba inline en esta pagina. No se cambia el
+   comportamiento: este fichero es el punto de partida de la Fase 1.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* T6: el bloqueo de dominio que habia aqui (comparacion por subcadena y
+   sustitucion de window.fetch) se sustituye por el aviso comun de
+   assets/js/domain-notice.js, que la pagina carga antes que este fichero. */
+
+// ═══════════════════════════════════════════════════════════════
+//  AETHER VECTOR — Financial Flow Intelligence
+//  OkrtSystem Labs — Data: World Bank / IMF / BIS (2022-23)
+// ═══════════════════════════════════════════════════════════════
+
+// ── DATA (B USD, 2022-2023 sourced from World Bank, IMF, BIS) ──
+const NODES = [
+  // SOURCES (column 0)
+  { id:'USA',   label:'EE.UU.',          region:'NA', gdp:25462, col:0 },
+  { id:'EU',    label:'Europa',           region:'EU', gdp:17818, col:0 },
+  { id:'CHN',   label:'China',            region:'AS', gdp:17963, col:0 },
+  { id:'JPN',   label:'Japón',            region:'AS', gdp:4231,  col:0 },
+  { id:'GBR',   label:'Reino Unido',      region:'EU', gdp:3070,  col:0 },
+  { id:'KSA',   label:'Arabia Saudí',     region:'ME', gdp:1108,  col:0 },
+  { id:'UAE',   label:'EAU',              region:'ME', gdp:509,   col:0 },
+  // MIDPOINTS (column 1 — flow type hubs)
+  { id:'H_DEBT',    label:'DEUDA',     region:'HUB', col:1, isHub:true },
+  { id:'H_TRADE',   label:'COMERCIO',  region:'HUB', col:1, isHub:true },
+  { id:'H_FDI',     label:'IED',       region:'HUB', col:1, isHub:true },
+  { id:'H_REMIT',   label:'REMESAS',   region:'HUB', col:1, isHub:true },
+  { id:'H_RES',     label:'RESERVAS',  region:'HUB', col:1, isHub:true },
+  // DESTINATIONS (column 2)
+  { id:'EMG',   label:'Emerg. Asia',     region:'AS', gdp:0, col:2 },
+  // T10 (revision): las salidas de RESERVAS son por moneda, no por region.
+  // La tercera apuntaba a 'Emerg. Asia' por no tener un nodo mejor; ahora
+  // tiene el suyo, que es lo que COFER mide de verdad.
+  { id:'OTHER_CCY', label:'Otras monedas', region:'AS', gdp:0, col:2 },
+  { id:'LAT',   label:'Latam',           region:'LA', gdp:0, col:2 },
+  { id:'AFR',   label:'África',          region:'AF', gdp:0, col:2 },
+  { id:'IND',   label:'India',           region:'AS', gdp:3386, col:2 },
+  { id:'BRA',   label:'Brasil',          region:'LA', gdp:1920, col:2 },
+  { id:'MEX',   label:'México',          region:'LA', gdp:1323, col:2 },
+  { id:'TUR',   label:'Turquía',         region:'EU', gdp:906,  col:2 },
+  { id:'NGA',   label:'Nigeria',         region:'AF', gdp:477,  col:2 },
+];
+
+// Links: source, target, value (B USD), type
+const ALL_LINKS = [
+  // DEBT flows (USA/EU → hubs → destinations)
+  { s:'USA',  t:'H_DEBT',  v:1240, type:'debt',    detail:'Bonos del Tesoro USA en circulación global. Principales tenedores: China (870B), Japón (1.1T), Europa (1.5T).' },
+  { s:'EU',   t:'H_DEBT',  v:890,  type:'debt',    detail:'Deuda soberana EU en manos extranjeras. BCE como comprador de última instancia.' },
+  { s:'CHN',  t:'H_DEBT',  v:680,  type:'debt',    detail:'Deuda pública china parcialmente internacionalizada. Bonos en yuan ganando peso.' },
+  { s:'JPN',  t:'H_DEBT',  v:340,  type:'debt',    detail:'Japón el mayor tenedor extranjero de deuda US. Banco de Japón controla curva de rendimiento.' },
+  { s:'H_DEBT', t:'EMG',   v:820,  type:'debt',    detail:'Flujo neto de deuda soberana hacia mercados emergentes de Asia. China como prestamista dominante.' },
+  { s:'H_DEBT', t:'AFR',   v:380,  type:'debt',    detail:'Deuda soberana africana: 40% en manos chinas, 30% eurobonos, 30% multilateral.' },
+  { s:'H_DEBT', t:'LAT',   v:440,  type:'debt',    detail:'América Latina: USD como moneda de emisión dominante. Riesgo de refinanciación elevado.' },
+  { s:'H_DEBT', t:'TUR',   v:210,  type:'debt',    detail:'Deuda externa turca ~450B USD. Presión sobre lira con tipo real negativo.' },
+  // TRADE flows
+  { s:'CHN',  t:'H_TRADE', v:3210, type:'trade',   detail:'China exportador mundial nº1. Superávit comercial 2023: ~823B USD. Dependencia del mercado US/EU crítica.' },
+  { s:'EU',   t:'H_TRADE', v:2890, type:'trade',   detail:'Unión Europea: zona de libre comercio interna + exportaciones masivas de manufactura y servicios.' },
+  { s:'USA',  t:'H_TRADE', v:2180, type:'trade',   detail:'EEUU mayor economía de consumo. Déficit comercial crónico: ~800B USD. Principal destino de exportaciones globales.' },
+  { s:'JPN',  t:'H_TRADE', v:870,  type:'trade',   detail:'Japón exportador de alto valor añadido: automóvil, electrónica, maquinaria.' },
+  { s:'H_TRADE', t:'EMG',  v:1640, type:'trade',   detail:'Asia emergente: manufactura exportadora hacia UE y EEUU. Vietnam, Bangladesh, Indonesia en ascenso.' },
+  { s:'H_TRADE', t:'IND',  v:660,  type:'trade',   detail:'India: hub tech y servicios en expansión. Exportaciones farmacéuticas y textil como pilares.' },
+  { s:'H_TRADE', t:'BRA',  v:340,  type:'trade',   detail:'Brasil: potencia agroexportadora (soja, carne, maíz). Petróleo como factor emergente.' },
+  { s:'H_TRADE', t:'MEX',  v:590,  type:'trade',   detail:'México: manufactura nearshore. USMCA como ancla. 80% exportaciones hacia EEUU.' },
+  { s:'H_TRADE', t:'AFR',  v:340,  type:'trade',   detail:'África subsahariana: exportaciones de materias primas concentradas. Cadenas de valor cortas.' },
+  // FDI flows
+  { s:'USA',  t:'H_FDI',   v:380,  type:'fdi',     detail:'EEUU primer emisor global de IED. Tech, finanzas y manufactura como sectores principales.' },
+  { s:'CHN',  t:'H_FDI',   v:148,  type:'fdi',     detail:'IED china redistribuyéndose. Restricciones occidentales aceleran Cinturón y Ruta.' },
+  { s:'EU',   t:'H_FDI',   v:312,  type:'fdi',     detail:'Europa: IED concentrada en servicios financieros, farmacéutica y manufactura avanzada.' },
+  { s:'JPN',  t:'H_FDI',   v:168,  type:'fdi',     detail:'IED japonesa en SE Asiático como alternativa a dependencia china.' },
+  { s:'H_FDI',  t:'EMG',   v:312,  type:'fdi',     detail:'Asia emergente como destino prioritario. Vietnam, Indonesia y Tailandia lideran captación.' },
+  // VERIFICADO (T10, revision). Antes decia "India capta IED record 2022-23:
+  // 85B USD". Se quitan "record" y el ejercicio, como pidio John, y se pone
+  // la cifra de una serie oficial abierta de primera mano:
+  // Banco Mundial BX.KLT.DINV.CD.WD, entradas netas de IED (balanza de
+  // pagos): India 49.940 M USD en 2022 (28.086 M en 2023).
+  // https://api.worldbank.org/v2/country/IND/indicator/BX.KLT.DINV.CD.WD?format=json&date=2022
+  // UNCTAD (World Investment Report 2023) publica la misma magnitud, "FDI
+  // flows to India rose by 10% to $49 billion" en 2022, pero su PDF y el
+  // Handbook del RBI estan tras Cloudflare y CAPTCHA y no se han podido
+  // abrir, asi que se cita la serie que si.
+  // Los 85 B que se citaban son otra medida: entradas BRUTAS segun DPIIT, y
+  // del ejercicio 2021-22, no 2022-23.
+  { s:'H_FDI',  t:'IND',   v:50,   type:'fdi', unit:'B USD', year:2022,
+    source:'Banco Mundial · BX.KLT.DINV.CD.WD',
+    sourceUrl:'https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD?locations=IN',
+    verified:true,
+    detail:'India como destino de IED: 49,9 B USD de entradas netas en 2022 (Banco Mundial, balanza de pagos). Tecnologia, manufactura y renovables como sectores clave.' },
+  { s:'H_FDI',  t:'BRA',   v:91,   type:'fdi',     detail:'IED en Brasil: 92B USD 2022. Agronegocio, energía y digital como destinos principales.' },
+  { s:'H_FDI',  t:'AFR',   v:48,   type:'fdi',     detail:'África: IED baja relativamente. Minería y energía como sectores dominantes.' },
+  { s:'H_FDI',  t:'MEX',   v:36,   type:'fdi',     detail:'México nearshoring: IED manufactura en máximos históricos. Tesla, BMW, TSMC en pipeline.' },
+  // REMITTANCES
+  // VERIFICADO (T10). Los 148 B no corresponden a ninguna serie oficial que
+  // se haya podido abrir. Banco Mundial, remesas personales pagadas por
+  // EE. UU. (BM.TRF.PWKR.CD.DT): 2022 = 88.741 M; 2023 = 98.356 M USD.
+  // https://api.worldbank.org/v2/country/USA/indicator/BM.TRF.PWKR.CD.DT?format=json&date=2023
+  // Nota: la matriz bilateral de KNOMAD estima salidas muy superiores
+  // (del orden de 200 B) por una metodologia distinta; aqui se usa la serie
+  // de balanza de pagos, que es la coherente con el resto del panel.
+  { s:'USA',  t:'H_REMIT', v:98,   type:'remit', unit:'B USD', year:2023,
+    source:'Banco Mundial · BM.TRF.PWKR.CD.DT',
+    sourceUrl:'https://data.worldbank.org/indicator/BM.TRF.PWKR.CD.DT?locations=US',
+    verified:true,
+    detail:'EE. UU., primer emisor de remesas: 98 B USD en remesas personales pagadas (Banco Mundial, 2023). Destinos principales: México, India, China y Filipinas.' },
+  { s:'KSA',  t:'H_REMIT', v:43,   type:'remit',   detail:'Arabia Saudí: 43B USD en remesas. Trabajadores de Asia del Sur como principales receptores.' },
+  { s:'UAE',  t:'H_REMIT', v:46,   type:'remit',   detail:'EAU: 46B USD. India y Pakistán como destinos principales.' },
+  { s:'EU',   t:'H_REMIT', v:98,   type:'remit',   detail:'Europa: remesas de diáspora hacia Europa del Este, Magreb y África subsahariana.' },
+  { s:'H_REMIT', t:'IND',  v:125,  type:'remit',   detail:'India: mayor receptor global de remesas, 125B USD 2023. 4% del PIB.' },
+  { s:'H_REMIT', t:'MEX',  v:67,   type:'remit',   detail:'México: remesas superan IED y petróleo. 67B USD 2023. 3.6% PIB.' },
+  { s:'H_REMIT', t:'NGA',  v:21,   type:'remit',   detail:'Nigeria: 21B USD. Mayor receptor de remesas en África subsahariana.' },
+  { s:'H_REMIT', t:'LAT',  v:82,   type:'remit',   detail:'América Latina y Caribe: remesas superan 145B USD. El Salvador 24% PIB.' },
+  { s:'H_REMIT', t:'AFR',  v:48,   type:'remit',   detail:'África: remesas subestimadas por canales informales. Egipto, Marruecos como receptores clave.' },
+  // RESERVES
+  // VERIFICADO (T10). Pregunta del encargo: 3,42 T, ¿solo divisas o con oro?
+  // Respuesta: ninguna de las dos para 2022-23. 3,42 T corresponde a las
+  // reservas TOTALES (oro incluido) de 2021. Para 2023, Banco Mundial:
+  //   FI.RES.XGLD.CD (sin oro)   3.301.319.727.518,98 USD  -> 3.301 B
+  //   FI.RES.TOTL.CD (con oro)   3.449.544.415.518,98 USD  -> 3.450 B
+  // Como el flujo habla de reservas de divisas, se usa la serie sin oro.
+  // https://api.worldbank.org/v2/country/CHN/indicator/FI.RES.XGLD.CD?format=json&date=2023
+  { s:'CHN',  t:'H_RES',   v:3301, type:'reserves', unit:'B USD', year:2023,
+    source:'Banco Mundial · FI.RES.XGLD.CD',
+    sourceUrl:'https://data.worldbank.org/indicator/FI.RES.XGLD.CD?locations=CN',
+    verified:true,
+    detail:'China: 3.301 B USD en reservas de divisas, sin contar oro (Banco Mundial, 2023). Incluyendo oro son 3.450 B. Mayor acumulador global; diversificación en oro activa.' },
+  { s:'JPN',  t:'H_RES',   v:1225, type:'reserves', detail:'Japón: 2º en reservas globales. Usadas para estabilizar yen bajo presión.' },
+  { s:'KSA',  t:'H_RES',   v:458,  type:'reserves', detail:'Arabia Saudí: reservas del petróleo canalizadas via SAMA y PIF.' },
+  { s:'UAE',  t:'H_RES',   v:190,  type:'reserves', detail:'EAU: reservas canalizadas hacia ADIA (Abu Dhabi Investment Authority), 850B AUM.' },
+  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', unit:'B USD', year:'2025 Q4', source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    detail:'USD como reserva global dominante: 56,8% de las reservas mundiales (FMI COFER, 2025 Q4). Declive gradual: era el 71% en 2000. El importe del enlace es anterior y sigue sin fuente.' },
+  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', unit:'B USD', year:'2025 Q4', source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    detail:'Euro: 20,3% de las reservas mundiales (FMI COFER, 2025 Q4). Segunda moneda de reserva, con cuota estable. El importe del enlace es anterior y sigue sin fuente.' },
+  // VERIFICADO (T10, revision). Antes decia "Reservas -> EMG 890 (yuan,
+  // rublo, real)", que no corresponde a ninguna serie: COFER no desglosa
+  // rublo ni real, caen en "otras monedas". Se sustituye por esa categoria,
+  // que es la que el FMI si publica.
+  // IMF COFER, 2025 Q4: reservas totales 13,14 billones USD; la categoria
+  // residual "other currencies" es el 6,13% de ese total (desde 5,61% en
+  // 2025 Q3). 13,14e12 x 0,0613 = 805 B USD.
+  // El porcentaje y el total son cifras publicadas; el importe en dolares es
+  // el producto de ambas, no una cifra publicada por separado.
+  // https://data.imf.org/en/news/imf%20data%20brief%20march%2027
+  { s:'H_RES',  t:'OTHER_CCY', v:805, type:'reserves', unit:'B USD', year:'2025 Q4',
+    source:'FMI · COFER',
+    sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    verified:true,
+    detail:'Reservas en monedas que COFER no identifica por separado: el 6,13% de los 13,14 billones de reservas mundiales (FMI, 2025 Q4), unos 805 B USD. La categoria lleva subiendo desde 2021. El renminbi, que si se identifica aparte, son 256 B, el 1,95%.' },
+];
+
+const FLOW_COLORS = {
+  debt:'#FF4060', trade:'#FFB020', fdi:'#00FFC8',
+  remit:'#A060FF', reserves:'#60BFFF', all:'#00FFC8'
+};
+const FLOW_LABELS = {
+  debt:'DEUDA', trade:'COMERCIO', fdi:'IED', remit:'REMESAS', reserves:'RESERVAS'
+};
+
+let activeFlow = 'all';
+let activeRegion = 'all';
+let threshold = 50;
+
+// Clock
+setInterval(()=>{
+  const n=new Date();
+  document.getElementById('clock').textContent=
+    [n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(v=>String(v).padStart(2,'0')).join(':')+' UTC';
+},1000);
+
+// ── SANKEY LAYOUT ──
+function computeSankey(links, nodes) {
+  const wrap = document.getElementById('chart-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const PAD = { top:40, right:60, bottom:40, left:60 };
+  const cols = [0, 1, 2];
+  const colX = { 0: PAD.left + 80, 1: W/2, 2: W - PAD.right - 80 };
+
+  // assign x to nodes
+  const nodeMap = {};
+  nodes.forEach(n => { nodeMap[n.id] = {...n, inVal:0, outVal:0, links:[] }; });
+  links.forEach(l => {
+    if(nodeMap[l.s]) nodeMap[l.s].outVal += l.v;
+    if(nodeMap[l.t]) nodeMap[l.t].inVal  += l.v;
+  });
+
+  // y positions per column
+  const colNodes = {0:[], 1:[], 2:[]};
+  Object.values(nodeMap).forEach(n => colNodes[n.col].push(n));
+
+  const nodeH = (col, n) => {
+    const total = colNodes[col].reduce((s,x) => s + Math.max(x.inVal, x.outVal, 100), 0);
+    const avail = H - PAD.top - PAD.bottom;
+    return Math.max(12, (Math.max(n.inVal, n.outVal, 100) / Math.max(total,1)) * avail * 0.88);
+  };
+
+  [0,1,2].forEach(col => {
+    let y = PAD.top;
+    const gap = (H - PAD.top - PAD.bottom - colNodes[col].reduce((s,n)=>s+nodeH(col,n),0)) /
+               Math.max(colNodes[col].length - 1, 1);
+    colNodes[col].forEach(n => {
+      n.x = colX[col]; n.y = y; n.h = nodeH(col, n); n.w = 18;
+      y += n.h + Math.max(8, gap);
+    });
+  });
+
+  return { nodeMap, W, H, colX };
+}
+
+// ── RENDER ──
+function render() {
+  const links = ALL_LINKS.filter(l => {
+    if(l.v < threshold) return false;
+    if(activeFlow !== 'all' && l.type !== activeFlow) return false;
+    return true;
+  });
+
+  // filter nodes to only those with active links
+  const activeIds = new Set();
+  links.forEach(l => { activeIds.add(l.s); activeIds.add(l.t); });
+  const nodes = NODES.filter(n => {
+    if(activeRegion !== 'all' && n.region !== 'HUB' && n.region !== activeRegion) return false;
+    return activeIds.has(n.id);
+  });
+
+  const { nodeMap, W, H } = computeSankey(links, nodes);
+
+  // volumes for controls
+  ['debt','trade','fdi','remit','reserves'].forEach(type => {
+    const vol = ALL_LINKS.filter(l=>l.type===type).reduce((s,l)=>s+l.v,0);
+    const el = document.getElementById('vol-'+type);
+    if(el) el.textContent = vol >= 1000 ? (vol/1000).toFixed(1)+'T' : vol+'B';
+  });
+  const allVol = ALL_LINKS.reduce((s,l)=>s+l.v,0);
+  const visVol = links.reduce((s,l)=>s+l.v,0);
+  const elAll = document.getElementById('vol-all');
+  if(elAll) elAll.textContent = (allVol/1000).toFixed(1)+'T';
+  document.getElementById('total-flow').textContent = '$' + (visVol/1000).toFixed(1)+'T';
+  document.getElementById('node-count').textContent = Object.keys(nodeMap).length;
+
+  // build SVG
+  const svg = d3.select('#sankey-svg')
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('preserveAspectRatio','xMidYMid meet');
+  svg.selectAll('*').remove();
+
+  // defs: gradients per link
+  const defs = svg.append('defs');
+  links.forEach((l,i) => {
+    const sn = nodeMap[l.s], tn = nodeMap[l.t];
+    if(!sn || !tn) return;
+    const grad = defs.append('linearGradient')
+      .attr('id','lg'+i).attr('gradientUnits','userSpaceOnUse')
+      .attr('x1',sn.x).attr('x2',tn.x).attr('y1',sn.y).attr('y2',tn.y);
+    const col = FLOW_COLORS[l.type] || '#00FFC8';
+    grad.append('stop').attr('offset','0%').attr('stop-color',col).attr('stop-opacity',.7);
+    grad.append('stop').attr('offset','100%').attr('stop-color',col).attr('stop-opacity',.25);
+  });
+
+  // grid lines
+  svg.append('g').attr('class','grid').selectAll('line')
+    .data(d3.range(0, W, 120)).enter().append('line')
+    .attr('x1',d=>d).attr('x2',d=>d).attr('y1',0).attr('y2',H)
+    .attr('stroke','rgba(0,255,200,0.025)').attr('stroke-width',1);
+
+  // link offset tracker
+  const sOffset = {}, tOffset = {};
+  Object.keys(nodeMap).forEach(id => { sOffset[id]=0; tOffset[id]=0; });
+
+  // links
+  const linkG = svg.append('g');
+  links.forEach((l,i) => {
+    const sn = nodeMap[l.s], tn = nodeMap[l.t];
+    if(!sn || !tn) return;
+    const maxSrc = Math.max(sn.inVal, sn.outVal, 1);
+    const maxTgt = Math.max(tn.inVal, tn.outVal, 1);
+    const sh = (l.v / maxSrc) * sn.h;
+    const th = (l.v / maxTgt) * tn.h;
+    const sy = sn.y + sOffset[l.s];
+    const ty = tn.y + tOffset[l.t];
+    sOffset[l.s] += sh;
+    tOffset[l.t] += th;
+
+    const x0 = sn.x + sn.w, x1 = tn.x;
+    const cx = (x0+x1)/2;
+    const pathD = `M${x0},${sy} C${cx},${sy} ${cx},${ty} ${x1},${ty} L${x1},${ty+th} C${cx},${ty+th} ${cx},${sy+sh} ${x0},${sy+sh} Z`;
+    const col = FLOW_COLORS[l.type] || '#00FFC8';
+
+    const path = linkG.append('path').attr('class','link-path')
+      .attr('d', pathD)
+      .attr('fill', `url(#lg${i})`)
+      .attr('opacity', 0.35)
+      .attr('stroke','none');
+
+    path.on('mouseenter', (ev)=>{
+      path.attr('opacity',0.65);
+      showTooltip(ev, `${nodeMap[l.s]?.label||l.s} → ${nodeMap[l.t]?.label||l.t}`,
+        [['TIPO', FLOW_LABELS[l.type]||l.type],
+         ['VOLUMEN', linkAmount(l)],
+         ['UNIDAD', linkUnit(l)],
+         ['AÑO', linkYear(l)],
+         ['FUENTE', linkSource(l)],
+         ['% DEL TOTAL', (l.v/allVol*100).toFixed(1)+'%']]);
+    })
+    .on('mouseleave', ()=>{
+      path.attr('opacity',0.35);
+      hideTooltip();
+    })
+    .on('click', ()=> showLinkDetail(l, nodeMap));
+  });
+
+  // nodes
+  const nodeG = svg.append('g');
+  Object.values(nodeMap).forEach(n => {
+    const isHub = n.isHub;
+    const col = isHub ? 'rgba(0,255,200,0.15)' : getNodeColor(n);
+    const borderCol = isHub ? 'rgba(0,255,200,0.5)' : getNodeColor(n);
+
+    const g = nodeG.append('g').attr('class','node-group').style('cursor','pointer');
+    g.append('rect').attr('class','node-rect')
+      .attr('x', n.x).attr('y', n.y).attr('width', n.w).attr('height', n.h)
+      .attr('fill', col).attr('stroke', borderCol).attr('stroke-width', 1)
+      .attr('rx', 2);
+
+    // label
+    const labelX = n.col === 0 ? n.x - 6 : (n.col === 1 ? n.x + n.w/2 : n.x + n.w + 6);
+    const anchor = n.col === 0 ? 'end' : (n.col === 1 ? 'middle' : 'start');
+    const labelY = n.col === 1 ? n.y - 8 : n.y + n.h/2 + 4;
+
+    g.append('text').attr('class','node-label')
+      .attr('x', labelX).attr('y', labelY)
+      .attr('text-anchor', anchor)
+      .text(n.label);
+
+    if(!isHub) {
+      const vol = Math.max(n.inVal, n.outVal);
+      g.append('text').attr('class','node-label-val')
+        .attr('x', labelX).attr('y', labelY + 13)
+        .attr('text-anchor', anchor)
+        .text('$' + (vol>=1000?(vol/1000).toFixed(1)+'T':vol+'B'));
+    }
+
+    g.on('mouseenter', (ev)=>{
+      g.select('.node-rect').attr('opacity', 0.7);
+      const vol = Math.max(n.inVal, n.outVal);
+      showTooltip(ev, n.label, [
+        ['VOLUMEN', '$'+(vol>=1000?(vol/1000).toFixed(1)+'T':vol+'B')],
+        ['ENTRADA', '$'+n.inVal+'B'], ['SALIDA', '$'+n.outVal+'B']
+      ]);
+    })
+    .on('mouseleave', ()=>{ g.select('.node-rect').attr('opacity',1); hideTooltip(); })
+    .on('click', ()=> showNodeDetail(n, links, nodeMap));
+  });
+
+  // column headers
+  const headers = [{x: Object.values(nodeMap).find(n=>n.col===0)?.x||80, l:'ORIGEN'},
+                   {x: Object.values(nodeMap).find(n=>n.col===1)?.x||W/2, l:'TIPO DE FLUJO'},
+                   {x: Object.values(nodeMap).find(n=>n.col===2)?.x||(W-80), l:'DESTINO'}];
+  headers.forEach(h=>{
+    svg.append('text').attr('x',h.x).attr('y',22).attr('text-anchor','middle')
+      .attr('fill','rgba(0,255,200,.3)').attr('font-family','Space Mono,monospace')
+      .attr('font-size',9).attr('letter-spacing',3).text(h.l);
+  });
+
+  // top flows list
+  const top5 = [...links].sort((a,b)=>b.v-a.v).slice(0,6);
+  document.getElementById('top-flows-list').innerHTML = top5.map(l=>{
+    const col = FLOW_COLORS[l.type]||'#888';
+    return `<div class="top-row">
+      <span class="pair">${(nodeMap[l.s]?.label||l.s).slice(0,8)} → ${(nodeMap[l.t]?.label||l.t).slice(0,8)}</span>
+      <span class="top-type" style="color:${col};border:1px solid ${col}40;background:${col}10">${FLOW_LABELS[l.type]||l.type}</span>
+      <span class="top-val">$${l.v >= 1000 ? (l.v/1000).toFixed(1)+'T' : l.v+'B'}</span>
+    </div>`;
+  }).join('');
+}
+
+function getNodeColor(n){
+  const regionColor = {NA:'rgba(255,176,32,.7)',EU:'rgba(96,191,255,.7)',AS:'rgba(0,255,200,.7)',
+                        ME:'rgba(255,128,48,.7)',LA:'rgba(160,96,255,.7)',AF:'rgba(255,64,96,.7)'};
+  return regionColor[n.region] || 'rgba(255,255,255,.2)';
+}
+
+/* ── T10 · procedencia por enlace ────────────────────────────────────────
+   Cada enlace puede declarar unit, year, source, sourceUrl y pending. El
+   tooltip y el panel de detalle muestran siempre unidad y ano, y dicen
+   "pendiente de verificar" cuando la cifra no tiene fuente comprobada, en
+   vez de presentarla como si la tuviera. */
+
+/** Unidad de un enlace. Por defecto, miles de millones de dolares. */
+function linkUnit(l){ return (l && l.unit) || 'B USD'; }
+
+/** Ano del dato, o la marca de pendiente. */
+function linkYear(l){
+  if(l && l.year) return String(l.year);
+  return 'pendiente de verificar';
+}
+
+/** Volumen con su unidad. */
+function linkAmount(l){ return '$' + l.v + ' ' + linkUnit(l); }
+
+/** Fuente legible del enlace. */
+function linkSource(l){
+  if(l && l.source) return l.source;
+  if(l && l.pending) return 'sin fuente verificada';
+  return 'sin documentar';
+}
+
+// Tooltip
+function showTooltip(ev, title, rows){
+  const tt = document.getElementById('tooltip');
+  tt.innerHTML = `<div class="tt-title">${esc(title)}</div>` +
+    rows.map(r=>`<div class="tt-row"><span>${esc(r[0])}</span><span class="tt-val">${esc(r[1])}</span></div>`).join('');
+  const wrap = document.getElementById('chart-wrap');
+  const rect = wrap.getBoundingClientRect();
+  let x = ev.clientX - rect.left + 14;
+  let y = ev.clientY - rect.top - 10;
+  if(x + 260 > wrap.clientWidth) x -= 280;
+  tt.style.left = x+'px'; tt.style.top = y+'px'; tt.style.opacity = '1';
+}
+function hideTooltip(){ document.getElementById('tooltip').style.opacity='0'; }
+
+// Detail panels
+function showNodeDetail(n, links, nodeMap){
+  document.getElementById('dp-placeholder').style.display='none';
+  const dc = document.getElementById('dp-content'); dc.style.display='block';
+  const outLinks = links.filter(l=>l.s===n.id).sort((a,b)=>b.v-a.v);
+  const inLinks  = links.filter(l=>l.t===n.id).sort((a,b)=>b.v-a.v);
+  const total    = Math.max(n.inVal, n.outVal);
+  const barMax   = Math.max(...[...outLinks,...inLinks].map(l=>l.v), 1);
+
+  dc.innerHTML = `
+    <div class="dp-meta">// AETHER VECTOR · NODO</div>
+    <div class="dp-title">${n.label}</div>
+    <div class="dp-amount">$${total>=1000?(total/1000).toFixed(1)+'T':total+'B'}</div>
+    <div class="dp-amount-lbl">VOLUMEN TOTAL EN FLUJO</div>
+    <div class="dp-divider"></div>
+    ${outLinks.length?`<div class="dp-label">// FLUJOS DE SALIDA</div>
+    <div class="dp-bars">${outLinks.slice(0,5).map(l=>{
+      const col=FLOW_COLORS[l.type]||'#888';
+      return `<div class="dp-bar-row">
+        <div class="dp-bar-label"><span>${(nodeMap[l.t]?.label||l.t).slice(0,16)} · ${FLOW_LABELS[l.type]||l.type}</span><span style="color:${col}">$${l.v}B</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/barMax*100).toFixed(0)}%;background:${col}"></div></div>
+      </div>`}).join('')}</div><div class="dp-divider"></div>`:'' }
+    ${inLinks.length?`<div class="dp-label">// FLUJOS DE ENTRADA</div>
+    <div class="dp-bars">${inLinks.slice(0,5).map(l=>{
+      const col=FLOW_COLORS[l.type]||'#888';
+      return `<div class="dp-bar-row">
+        <div class="dp-bar-label"><span>${(nodeMap[l.s]?.label||l.s).slice(0,16)} · ${FLOW_LABELS[l.type]||l.type}</span><span style="color:${col}">$${l.v}B</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/barMax*100).toFixed(0)}%;background:${col}"></div></div>
+      </div>`}).join('')}</div>`:'' }`;
+}
+
+function showLinkDetail(l, nodeMap){
+  document.getElementById('dp-placeholder').style.display='none';
+  const dc = document.getElementById('dp-content'); dc.style.display='block';
+  const col = FLOW_COLORS[l.type]||'#888';
+  const allVol = ALL_LINKS.reduce((s,x)=>s+x.v,0);
+  dc.innerHTML=`
+    <div class="dp-meta">// AETHER VECTOR · FLUJO</div>
+    <div class="dp-title">${esc(nodeMap[l.s]?.label||l.s)} → ${esc(nodeMap[l.t]?.label||l.t)}</div>
+    <div class="dp-amount" style="color:${col};text-shadow:0 0 30px ${col}80">$${l.v}${esc(linkUnit(l)).replace(' USD','')}</div>
+    <div class="dp-amount-lbl">${esc(linkUnit(l))} · ${esc(linkYear(l).toUpperCase())}</div>
+    <div class="dp-divider"></div>
+    <div class="dp-label">// TIPO DE FLUJO</div>
+    <div style="display:inline-block;font-size:9px;letter-spacing:.2em;padding:4px 12px;
+      color:${col};background:${col}12;border:1px solid ${col}40;margin-bottom:16px">${FLOW_LABELS[l.type]||l.type}</div>
+    <div class="dp-label">// ANÁLISIS</div>
+    <div class="dp-text">${esc(l.detail)}</div>
+    <div class="dp-divider"></div>
+    <div class="dp-label">// PROCEDENCIA</div>
+    <div class="dp-text" style="font-size:11px">
+      ${l.pending
+        ? `<span style="color:var(--amber)">⚠ Pendiente de verificar.</span> ${esc(l.pending)}`
+        : (l.sourceUrl
+            ? `<a href="${safeHref(l.sourceUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(0,255,200,.3)">${esc(linkSource(l))} ↗</a>`
+            : esc(linkSource(l)))}
+    </div>
+    <div class="dp-divider"></div>
+    <div class="dp-label">// PESO RELATIVO</div>
+    <div class="dp-bars">
+      <div class="dp-bar-row">
+        <div class="dp-bar-label"><span>% del flujo global total</span><span style="color:${col}">${(l.v/allVol*100).toFixed(1)}%</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/allVol*100*5).toFixed(0)}%;background:${col}"></div></div>
+      </div>
+    </div>`;
+}
+
+// Controls
+function setFlow(btn, flow){
+  activeFlow = flow;
+  document.querySelectorAll('.flow-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function setRegion(btn, region){
+  activeRegion = region;
+  document.querySelectorAll('.reg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function setThreshold(val){
+  threshold = parseInt(val);
+  document.getElementById('thresh-val').textContent = val+'B';
+  render();
+}
+
+// Initial render + resize
+render();
+window.addEventListener('resize', render);
