@@ -1,0 +1,66 @@
+{
+  "type": "FeatureCollection",
+  "metadata": { "title": "USGS Magnitude 4.5+ Earthquakes, Past Week", "count": 4 },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "fx_us7000aaaa",
+      "properties": {
+        "mag": 7.1,
+        "place": "120 km SE of Hachinohe, Japan",
+        "time": 1760702400000,
+        "updated": 1760702400000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx_us7000aaaa",
+        "status": "reviewed",
+        "tsunami": 1,
+        "alert": "orange"
+      },
+      "geometry": { "type": "Point", "coordinates": [142.37, 40.12, 35.4] }
+    },
+    {
+      "type": "Feature",
+      "id": "fx_us7000bbbb",
+      "properties": {
+        "mag": 6.2,
+        "place": "45 km W of Valparaiso, Chile",
+        "time": 1760659200000,
+        "updated": 1760659200000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx_us7000bbbb",
+        "status": "reviewed",
+        "tsunami": 0,
+        "alert": "yellow"
+      },
+      "geometry": { "type": "Point", "coordinates": [-72.1, -33.05, 18.2] }
+    },
+    {
+      "type": "Feature",
+      "id": "fx_us7000cccc",
+      "properties": {
+        "mag": 5.4,
+        "place": "Central Turkey",
+        "time": 1760572800000,
+        "updated": 1760572800000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx_us7000cccc",
+        "status": "reviewed",
+        "tsunami": 0,
+        "alert": "green"
+      },
+      "geometry": { "type": "Point", "coordinates": [35.4, 38.7, 9.8] }
+    },
+    {
+      "type": "Feature",
+      "id": "fx_us7000dddd",
+      "properties": {
+        "mag": 4.8,
+        "place": "Banda Sea",
+        "time": 1760486400000,
+        "updated": 1760486400000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx_us7000dddd",
+        "status": "automatic",
+        "tsunami": 0,
+        "alert": null
+      },
+      "geometry": { "type": "Point", "coordinates": [128.9, -6.4, 142.0] }
+    }
+  ]
+}

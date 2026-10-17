@@ -1,0 +1,52 @@
+{
+  "time": 12,
+  "href": "https://api.reliefweb.int/v1/reports",
+  "totalCount": 4,
+  "count": 4,
+  "data": [
+    {
+      "id": "fx4001",
+      "fields": {
+        "title": "Sudan: Humanitarian Situation Report No. 41",
+        "date": { "created": "2026-10-16T09:00:00+00:00" },
+        "country": [{ "name": "Sudan", "iso3": "sdn" }],
+        "disaster_type": [{ "name": "Conflict" }],
+        "url_alias": "/report/sudan/fx4001-humanitarian-situation-report-41",
+        "body": "Escalada del conflicto con desplazamiento masivo en Darfur y Kordofan."
+      }
+    },
+    {
+      "id": "fx4002",
+      "fields": {
+        "title": "Afghanistan: Earthquake Response Flash Update",
+        "date": { "created": "2026-10-15T14:30:00+00:00" },
+        "country": [{ "name": "Afghanistan", "iso3": "afg" }],
+        "disaster_type": [{ "name": "Earthquake" }],
+        "url_alias": "/report/afghanistan/fx4002-earthquake-response-flash-update",
+        "body": "Operaciones de busqueda y rescate en curso tras el sismo."
+      }
+    },
+    {
+      "id": "fx4003",
+      "fields": {
+        "title": "Horn of Africa: Drought Food Security Outlook",
+        "date": { "created": "2026-10-14T08:15:00+00:00" },
+        "country": [{ "name": "Somalia", "iso3": "som" }],
+        "disaster_type": [{ "name": "Drought" }],
+        "url_alias": "/report/somalia/fx4003-drought-food-security-outlook",
+        "body": "Persisten condiciones de sequia con inseguridad alimentaria aguda."
+      }
+    },
+    {
+      "id": "fx4004",
+      "fields": {
+        "title": "Bangladesh: Cholera Outbreak Situation Update",
+        "date": { "created": "2026-10-13T11:45:00+00:00" },
+        "country": [{ "name": "Bangladesh", "iso3": "bgd" }],
+        "disaster_type": [{ "name": "Epidemic" }],
+        "url_alias": "/report/bangladesh/fx4004-cholera-outbreak-situation-update",
+        "body": "Aumento de casos notificados en distritos del sur."
+      }
+    }
+  ]
+}

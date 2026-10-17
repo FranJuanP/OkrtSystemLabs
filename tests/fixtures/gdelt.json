@@ -1,0 +1,48 @@
+{
+  "articles": [
+    {
+      "url": "https://www.example-news.org/fx/defence-posture-review",
+      "url_mobile": "",
+      "title": "Defence posture review announced amid regional tensions",
+      "seendate": "20261016T104500Z",
+      "socialimage": "",
+      "domain": "example-news.org",
+      "language": "English",
+      "sourcecountry": "United Kingdom",
+      "tone": "-3.42"
+    },
+    {
+      "url": "https://www.example-wire.net/fx/sanctions-package-extended",
+      "url_mobile": "",
+      "title": "Sanctions package extended for a further twelve months",
+      "seendate": "20261016T081500Z",
+      "socialimage": "",
+      "domain": "example-wire.net",
+      "language": "English",
+      "sourcecountry": "Belgium",
+      "tone": "-1.87"
+    },
+    {
+      "url": "https://www.example-markets.com/fx/inflation-print-surprises",
+      "url_mobile": "",
+      "title": "Inflation print surprises to the upside, yields climb",
+      "seendate": "20261015T193000Z",
+      "socialimage": "",
+      "domain": "example-markets.com",
+      "language": "English",
+      "sourcecountry": "United States",
+      "tone": "-2.05"
+    },
+    {
+      "url": "https://www.example-daily.info/fx/ceasefire-talks-resume",
+      "url_mobile": "",
+      "title": "Ceasefire talks resume after mediation effort",
+      "seendate": "20261015T120000Z",
+      "socialimage": "",
+      "domain": "example-daily.info",
+      "language": "English",
+      "sourcecountry": "Qatar",
+      "tone": "1.12"
+    }
+  ]
+}
