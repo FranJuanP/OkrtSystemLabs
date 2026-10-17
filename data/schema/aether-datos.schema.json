@@ -52,6 +52,7 @@
           },
           "decimales": { "type": "integer", "minimum": 0, "maximum": 6 },
           "escala": { "enum": ["lineal", "log"] },
+          "nota": { "type": "string", "minLength": 20 },
           "url": { "type": "string", "pattern": "^https://" }
         }
       }

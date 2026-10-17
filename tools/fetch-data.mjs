@@ -192,6 +192,7 @@ async function main() {
       escala: ind.escala || 'lineal',
       url: urlIndicador(ind),
     };
+    if (ind.nota) salida.indicadores[ind.id].nota = ind.nota;
   }
 
   salida.categorias = CATEGORIAS.map((c) => ({ ...c }));

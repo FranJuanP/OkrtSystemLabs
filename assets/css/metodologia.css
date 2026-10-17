@@ -1,0 +1,89 @@
+/* Página de metodología (T22).
+   Usa el mismo chasis que el resto: las variables de aether.css, las mismas
+   tipografías y los mismos bordes. No introduce ni un color nuevo. */
+
+#app{max-width:980px}
+
+.met-head{
+  padding:18px 22px;background:rgba(11,20,32,.92);
+  border:1px solid var(--border);border-radius:14px;margin-bottom:16px;
+  border-left:3px solid var(--cyan);
+}
+.met-head h1{
+  font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;
+  letter-spacing:4px;color:var(--cyan);
+}
+.met-head .sub{
+  font-size:11px;color:var(--dim);letter-spacing:2px;
+  font-family:'Share Tech Mono',monospace;margin-top:4px;
+}
+.met-head .volver{
+  display:inline-block;margin-top:12px;font-size:11px;letter-spacing:2px;
+  font-family:'Share Tech Mono',monospace;color:var(--cyan);
+  text-decoration:none;border:1px solid var(--border);
+  border-radius:8px;padding:6px 12px;
+}
+.met-head .volver:hover{border-color:var(--cyan)}
+
+.met-sec{
+  background:rgba(11,20,32,.85);border:1px solid var(--border);
+  border-radius:12px;padding:18px 22px;margin-bottom:14px;
+}
+.met-sec h2{
+  font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;
+  letter-spacing:3px;color:var(--bright);margin-bottom:4px;
+}
+.met-sec h2 .num{color:var(--cyan);margin-right:8px}
+.met-sec .intro{font-size:13px;line-height:1.65;color:var(--text);margin:10px 0}
+.met-sec .intro strong{color:var(--bright)}
+.met-sec .nota{
+  font-size:12px;line-height:1.6;color:var(--dim);
+  border-left:2px solid var(--border);padding-left:12px;margin:12px 0;
+}
+
+.met-tabla{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.met-tabla th{
+  text-align:left;font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:1.5px;color:var(--dim);font-weight:400;
+  padding:6px 10px 6px 0;border-bottom:1px solid var(--border);
+}
+.met-tabla td{
+  padding:7px 10px 7px 0;border-bottom:1px solid rgba(28,46,72,.45);
+  vertical-align:top;line-height:1.5;
+}
+.met-tabla td.num{font-family:'Share Tech Mono',monospace;color:var(--cyan);white-space:nowrap}
+.met-tabla td.dim{color:var(--dim)}
+.met-tabla a{color:var(--cyan);text-decoration:none}
+.met-tabla a:hover{text-decoration:underline}
+.met-scroll{overflow-x:auto}
+
+.met-badge{
+  display:inline-block;font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:1px;padding:2px 6px;border-radius:4px;
+  border:1px solid var(--border);color:var(--dim);white-space:nowrap;
+}
+.met-badge.sube{color:var(--orange);border-color:rgba(255,140,0,.4)}
+.met-badge.baja{color:var(--cyan);border-color:rgba(0,255,200,.35)}
+.met-badge.ambiguo{color:var(--dim)}
+
+.met-cifras{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px}
+.met-cifra{
+  flex:1 1 140px;background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;
+}
+.met-cifra .v{
+  font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--cyan);
+}
+.met-cifra .l{
+  font-size:9px;letter-spacing:1.5px;color:var(--dim);margin-top:4px;
+  font-family:'Share Tech Mono',monospace;
+}
+
+#met-estado{font-size:12px;color:var(--dim);font-family:'Share Tech Mono',monospace}
+
+@media (max-width:640px){
+  #app{padding:10px}
+  .met-head h1{font-size:20px;letter-spacing:2px}
+  .met-sec{padding:14px 16px}
+  .met-tabla{font-size:11px}
+}

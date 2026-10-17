@@ -22,6 +22,11 @@
  *                'ambiguo'      no es monótono; SE MUESTRA PERO NO PUNTÚA
  *   decimales  redondeo al mostrar
  *   escala     'lineal' (por defecto) o 'log' para magnitudes con colas largas
+ *   nota       límite de comparabilidad del indicador, cuando lo tiene. Se
+ *              muestra junto al dato y se recoge en METHODOLOGY.md. No es
+ *              decoración: «reservas en meses de importaciones» no significa
+ *              lo mismo para España que para Chile, y callarlo sería dar por
+ *              comparable algo que no lo es.
  *
  * Sobre 'ambiguo': la tasa de fecundidad, el saldo migratorio o el porcentaje
  * de población urbana no tienen una dirección de riesgo única. 1,1 hijos por
@@ -139,14 +144,17 @@ export const INDICADORES = [
   { id: 'medicos',           cat: 'health', etiqueta: 'Médicos',             unidad: 'por 1.000 hab.', fuente: 'wb', codigo: 'SH.MED.PHYS.ZS',   dir: 'menos_riesgo', decimales: 2 },
 
   // ── CLIMA ────────────────────────────────────────────────────────────────
-  { id: 'co2_pc',            cat: 'climate', etiqueta: 'Emisiones de CO₂',   unidad: 't/hab.',       fuente: 'wb',  codigo: 'EN.GHG.CO2.PC.CE.AR5', dir: 'mas_riesgo', decimales: 2 },
+  { id: 'co2_pc',            cat: 'climate', etiqueta: 'Emisiones de CO₂',   unidad: 't/hab.',       fuente: 'wb',  codigo: 'EN.GHG.CO2.PC.CE.AR5', dir: 'mas_riesgo', decimales: 2,
+    nota: 'Excluye el uso de la tierra y la silvicultura (LULUCF), que en los países con mucha deforestación es una parte grande de sus emisiones.' },
   { id: 'vulnerabilidad_clima', cat: 'climate', etiqueta: 'Vulnerabilidad climática', unidad: '0–1',  fuente: 'ndgain', codigo: 'vulnerability', dir: 'mas_riesgo',   decimales: 3 },
   { id: 'preparacion_clima', cat: 'climate', etiqueta: 'Preparación climática', unidad: '0–1',        fuente: 'ndgain', codigo: 'readiness',     dir: 'menos_riesgo', decimales: 3 },
   { id: 'estres_hidrico',    cat: 'climate', etiqueta: 'Estrés hídrico',      unidad: '% extracción', fuente: 'wb',  codigo: 'ER.H2O.FWST.ZS',    dir: 'mas_riesgo',   decimales: 1, escala: 'log' },
 
   // ── SOCIAL ───────────────────────────────────────────────────────────────
-  { id: 'gini',              cat: 'social', etiqueta: 'Desigualdad (Gini)',  unidad: 'índice',       fuente: 'wb',  codigo: 'SI.POV.GINI',       dir: 'mas_riesgo',   decimales: 1 },
-  { id: 'pobreza',           cat: 'social', etiqueta: 'Pobreza (3 $/día PPA 2021)', unidad: '% pobl.', fuente: 'wb', codigo: 'SI.POV.DDAY',      dir: 'mas_riesgo',   decimales: 1 },
+  { id: 'gini',              cat: 'social', etiqueta: 'Desigualdad (Gini)',  unidad: 'índice',       fuente: 'wb',  codigo: 'SI.POV.GINI',       dir: 'mas_riesgo',   decimales: 1,
+    nota: 'El año del dato varía mucho de un país a otro, de 1992 a 2025. Comparar países con encuestas de años distintos tiene un margen que no se puede cuantificar aquí.' },
+  { id: 'pobreza',           cat: 'social', etiqueta: 'Pobreza (3 $/día PPA 2021)', unidad: '% pobl.', fuente: 'wb', codigo: 'SI.POV.DDAY',      dir: 'mas_riesgo',   decimales: 1,
+    nota: 'Mismo problema de años dispares que el Gini: sale de encuestas de hogares que no se hacen al mismo tiempo en todas partes.' },
   { id: 'voz_rendicion',     cat: 'social', etiqueta: 'Voz y rendición de cuentas', unidad: '−2,5 a +2,5', fuente: 'wgi', codigo: 'GOV_WGI_VA.EST', dir: 'menos_riesgo', decimales: 2 },
   { id: 'desigualdad_genero', cat: 'social', etiqueta: 'Desigualdad de género (GII)', unidad: '0–1',  fuente: 'inform', codigo: 'VU.SEV.INQ.GII', dir: 'mas_riesgo',   decimales: 3 },
 
@@ -164,15 +172,18 @@ export const INDICADORES = [
   // ── MENTAL ───────────────────────────────────────────────────────────────
   // Solo hay un indicador comparable entre países con fuente oficial. La
   // categoría se queda con confianza baja a propósito: es lo que hay.
-  { id: 'suicidio',          cat: 'mental', etiqueta: 'Mortalidad por suicidio', unidad: 'por 100.000', fuente: 'wb', codigo: 'SH.STA.SUIC.P5', dir: 'mas_riesgo',   decimales: 1 },
+  { id: 'suicidio',          cat: 'mental', etiqueta: 'Mortalidad por suicidio', unidad: 'por 100.000', fuente: 'wb', codigo: 'SH.STA.SUIC.P5', dir: 'mas_riesgo',   decimales: 1,
+    nota: 'Última estimación comparable de la OMS, de 2021. Depende de la calidad del registro de causas de muerte, que varía mucho entre países.' },
 
   // ── ENERGÍA ──────────────────────────────────────────────────────────────
   { id: 'acceso_electricidad', cat: 'energy', etiqueta: 'Acceso a electricidad', unidad: '% pobl.',  fuente: 'wb',  codigo: 'EG.ELC.ACCS.ZS',    dir: 'menos_riesgo', decimales: 1 },
   { id: 'renovables',        cat: 'energy', etiqueta: 'Energía renovable',     unidad: '% consumo',   fuente: 'wb',  codigo: 'EG.FEC.RNEW.ZS',    dir: 'menos_riesgo', decimales: 1 },
-  { id: 'importacion_energia', cat: 'energy', etiqueta: 'Importación neta de energía', unidad: '% uso', fuente: 'wb', codigo: 'EG.IMP.CONS.ZS',  dir: 'mas_riesgo',   decimales: 1 },
+  { id: 'importacion_energia', cat: 'energy', etiqueta: 'Importación neta de energía', unidad: '% uso', fuente: 'wb', codigo: 'EG.IMP.CONS.ZS',  dir: 'mas_riesgo',   decimales: 1,
+    nota: 'Negativo en los exportadores netos. El percentil los sitúa correctamente, pero el número suelto se lee mal sin esta aclaración.' },
 
   // ── DEMO ─────────────────────────────────────────────────────────────────
-  { id: 'mayores_65',        cat: 'demo', etiqueta: 'Población de 65 años o más', unidad: '% pobl.',  fuente: 'wb',  codigo: 'SP.POP.65UP.TO.ZS', dir: 'mas_riesgo',   decimales: 1 },
+  { id: 'mayores_65',        cat: 'demo', etiqueta: 'Población de 65 años o más', unidad: '% pobl.',  fuente: 'wb',  codigo: 'SP.POP.65UP.TO.ZS', dir: 'mas_riesgo',   decimales: 1,
+    nota: 'Único indicador que puntúa en su categoría: la puntuación de DEMO es, en la práctica, el percentil de este dato.' },
   { id: 'crecimiento_poblacion', cat: 'demo', etiqueta: 'Crecimiento de la población', unidad: '% anual', fuente: 'wb', codigo: 'SP.POP.GROW',  dir: 'ambiguo',      decimales: 2 },
   { id: 'fecundidad',        cat: 'demo', etiqueta: 'Tasa de fecundidad',     unidad: 'hijos/mujer',  fuente: 'wb',  codigo: 'SP.DYN.TFRT.IN',    dir: 'ambiguo',      decimales: 2 },
   { id: 'saldo_migratorio',  cat: 'demo', etiqueta: 'Saldo migratorio',       unidad: 'personas',     fuente: 'wb',  codigo: 'SM.POP.NETM',       dir: 'ambiguo',      decimales: 0 },
@@ -196,15 +207,19 @@ export const INDICADORES = [
   { id: 'homicidios',        cat: 'justice', etiqueta: 'Homicidios intencionales', unidad: 'por 100.000', fuente: 'wb', codigo: 'VC.IHR.PSRC.P5', dir: 'mas_riesgo',   decimales: 1, escala: 'log' },
 
   // ── FINANZAS ─────────────────────────────────────────────────────────────
-  { id: 'reservas_meses',    cat: 'finance', etiqueta: 'Reservas',            unidad: 'meses de importaciones', fuente: 'wb', codigo: 'FI.RES.TOTL.MO', dir: 'menos_riesgo', decimales: 1 },
-  { id: 'deuda_externa_pnb', cat: 'finance', etiqueta: 'Deuda externa',       unidad: '% del PNB',    fuente: 'wb',  codigo: 'DT.DOD.DECT.GN.ZS', dir: 'mas_riesgo',   decimales: 1 },
-  { id: 'deuda_publica',     cat: 'finance', etiqueta: 'Deuda pública central', unidad: '% del PIB',  fuente: 'wb',  codigo: 'GC.DOD.TOTL.GD.ZS', dir: 'mas_riesgo',   decimales: 1 },
+  { id: 'reservas_meses',    cat: 'finance', etiqueta: 'Reservas',            unidad: 'meses de importaciones', fuente: 'wb', codigo: 'FI.RES.TOTL.MO', dir: 'menos_riesgo', decimales: 1,
+    nota: 'No es comparable para los miembros de una unión monetaria, cuyas reservas guarda el banco central común, ni para los emisores de moneda de reserva, que no necesitan acumularlas.' },
+  { id: 'deuda_externa_pnb', cat: 'finance', etiqueta: 'Deuda externa',       unidad: '% del PNB',    fuente: 'wb',  codigo: 'DT.DOD.DECT.GN.ZS', dir: 'mas_riesgo',   decimales: 1,
+    nota: 'El Banco Mundial solo lo publica para los países de renta baja y media; falta para los de renta alta, no porque no tengan deuda externa.' },
+  { id: 'deuda_publica',     cat: 'finance', etiqueta: 'Deuda pública central', unidad: '% del PIB',  fuente: 'wb',  codigo: 'GC.DOD.TOTL.GD.ZS', dir: 'mas_riesgo',   decimales: 1,
+    nota: 'Es deuda del gobierno CENTRAL, no del conjunto de las administraciones. En los países con mucho gasto descentralizado queda por debajo de la deuda pública total.' },
   { id: 'remesas_pib',       cat: 'finance', etiqueta: 'Remesas recibidas',   unidad: '% del PIB',    fuente: 'wb',  codigo: 'BX.TRF.PWKR.DT.GD.ZS', dir: 'ambiguo',    decimales: 2 },
 
   // ── OCÉANOS ──────────────────────────────────────────────────────────────
   { id: 'areas_marinas_protegidas', cat: 'ocean', etiqueta: 'Áreas marinas protegidas', unidad: '% aguas terr.', fuente: 'wb', codigo: 'ER.MRN.PTMR.ZS', dir: 'menos_riesgo', decimales: 1 },
   { id: 'peces_amenazados',  cat: 'ocean', etiqueta: 'Especies de peces amenazadas', unidad: 'especies', fuente: 'wb', codigo: 'EN.FSH.THRD.NO',  dir: 'mas_riesgo',   decimales: 0, escala: 'log' },
-  { id: 'produccion_pesquera', cat: 'ocean', etiqueta: 'Producción pesquera', unidad: 't',            fuente: 'wb',  codigo: 'ER.FSH.PROD.MT',    dir: 'ambiguo',      decimales: 0, escala: 'log' },
+  { id: 'produccion_pesquera', cat: 'ocean', etiqueta: 'Producción pesquera', unidad: 't',            fuente: 'wb',  codigo: 'ER.FSH.PROD.MT',    dir: 'ambiguo',      decimales: 0, escala: 'log',
+    nota: 'Volumen absoluto: depende del tamaño del país y de su litoral, no solo de la presión sobre el recurso. Por eso no puntúa.' },
 
   // ── BIOSEG ───────────────────────────────────────────────────────────────
   { id: 'superficie_forestal', cat: 'bio', etiqueta: 'Superficie forestal',   unidad: '% del suelo',  fuente: 'wb',  codigo: 'AG.LND.FRST.ZS',    dir: 'menos_riesgo', decimales: 1 },

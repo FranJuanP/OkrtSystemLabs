@@ -22,6 +22,9 @@ export const PAGES = [
   'aether-globe-v3.html',
   'aether-signal.html',
   'aether-vector.html',
+  // T22: la pagina de metodologia. Entra en la prueba de humo como las
+  // demas: se construye a partir de data/latest.json y puede fallar igual.
+  'metodologia.html',
 ];
 
 export const VIEWPORTS = [

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<!-- © OkrtSystem Labs · AETHER Global Intelligence System · Unauthorized reproduction prohibited · franjuanp.github.io/OkrtSystemLabs -->
+
+<meta charset="UTF-8">
+<!-- T17 · Misma politica que el resto de las paginas. Esta no consulta
+     ninguna fuente externa: solo lee data/latest.json del propio origen,
+     asi que no necesitaria connect-src a terceros, pero se deja identica
+     para que las cuatro paginas tengan una sola politica que revisar. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="X-DNS-Prefetch-Control" content="off">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AETHER — Metodología</title>
+<meta name="description" content="Cómo se obtienen los datos de AETHER, cómo se calculan las puntuaciones de riesgo y qué no se puede concluir de ellas.">
+
+<link rel="stylesheet" href="assets/css/aether.css">
+<link rel="stylesheet" href="assets/css/metodologia.css">
+
+<link rel="manifest" href="manifest.webmanifest?v=okrtv2">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-okrt-v2.png?v=okrtv2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AETHER">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#050A10">
+</head>
+<body>
+
+<div id="app">
+
+  <div class="met-head">
+    <h1>METODOLOGÍA</h1>
+    <div class="sub">Cómo se obtiene cada dato y cómo se calcula cada puntuación</div>
+    <a class="volver" href="index.html">← VOLVER AL PANEL</a>
+  </div>
+
+  <div class="met-sec">
+    <p class="intro">
+      Las puntuaciones de riesgo de AETHER <strong>no son opiniones ni
+      estimaciones propias</strong>: se calculan a partir de datos públicos de
+      cinco instituciones, en el navegador, con el método que describe esta
+      página. Cada dato lleva su fuente, su año y un enlace al original.
+    </p>
+    <p class="nota">
+      Esta página se genera a partir del mismo fichero de datos que usa el
+      panel, de modo que no puede quedarse desfasada respecto de lo que se
+      muestra. El documento largo, con los límites del método, está en
+      <a href="https://github.com/FranJuanP/OkrtSystemLabs/blob/main/METHODOLOGY.md">METHODOLOGY.md</a>.
+    </p>
+    <div id="met-estado">Cargando los datos…</div>
+    <div class="met-cifras" id="met-cifras"></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">01</span>DE DÓNDE SALEN LOS DATOS</h2>
+    <p class="intro">
+      Todas las fuentes son públicas y ninguna requiere clave. El trabajo
+      automático las vuelve a descargar todos los lunes.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-fuentes"></table></div>
+    <p class="nota">
+      <strong>ACLED no está</strong>, aunque es la mejor fuente de datos de
+      conflicto georreferenciados: su API exige clave y sus condiciones no
+      permiten redistribuir los datos descargados, que es exactamente lo que
+      haría esta página al publicarlos.
+    </p>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">02</span>CÓMO SE CALCULA UNA PUNTUACIÓN</h2>
+    <p class="intro">
+      <strong>1.</strong> Cada indicador se convierte en un percentil de riesgo
+      de 0 a 100 comparando el país con todos los que tienen ese dato. Si un
+      valor alto significa menos riesgo, el orden se invierte.
+    </p>
+    <p class="intro">
+      <strong>2.</strong> La puntuación de una categoría es la media de los
+      percentiles de sus indicadores disponibles.
+      <strong>3.</strong> La del país es la media de sus 16 categorías.
+    </p>
+    <p class="nota">
+      Se usan percentiles y no una normalización al rango porque los
+      indicadores no comparten escala: las patentes de residentes van de 1 a
+      más de un millón, y normalizando al rango un solo país quedaría en 100 y
+      el resto por debajo de 2.<br><br>
+      La consecuencia, que conviene tener presente, es que <strong>el percentil
+      solo mira el orden</strong>: si todos los países empeoran a la vez, los
+      percentiles no se mueven. Mide posición relativa, no deterioro absoluto.
+    </p>
+    <p class="intro">
+      Promediar 16 percentiles comprime el resultado hacia el centro: el rango
+      real observado va de <strong id="met-rango">—</strong>, no de 0 a 100.
+      Por eso cada país muestra también su <strong>puesto</strong> y su
+      <strong>categoría de mayor riesgo</strong>, que es lo que distingue a un
+      país en guerra de uno estable.
+    </p>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">03</span>PESOS</h2>
+    <p class="intro">
+      <strong>Las 16 categorías pesan igual, y es una decisión, no un
+      descuido.</strong> Para poner la economía por encima de los océanos hace
+      falta una fuente que justifique cuánto por encima, y no la hay. Antes que
+      inventar una jerarquía con aire técnico, se deja explícito.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-pesos"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">04</span>CONFIANZA</h2>
+    <p class="intro">
+      Cada puntuación lleva una etiqueta de confianza que depende de cuántos
+      indicadores tenía de verdad y de lo viejos que son.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-confianza"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">05</span>LOS INDICADORES</h2>
+    <p class="intro">
+      Los que están marcados <span class="met-badge ambiguo">NO PUNTÚA</span>
+      se muestran con su valor pero se quedan fuera del cálculo, porque no
+      tienen una dirección de riesgo única: 1,1 hijos por mujer es un problema
+      demográfico y 6,8 también, por motivos opuestos.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-indicadores"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">06</span>LÍMITES DE COMPARABILIDAD</h2>
+    <p class="intro">
+      Indicadores que, por cómo los construye la fuente, no significan lo mismo
+      en todos los países. Se publican con la advertencia en lugar de
+      presentarlos como comparables sin más.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-limites"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">07</span>QUÉ NO ES ESTO</h2>
+    <p class="intro">
+      <strong>No es una predicción:</strong> no hay modelo temporal, son los
+      últimos datos publicados y ordenados.<br>
+      <strong>No es una fuente primaria:</strong> todo viene de las
+      instituciones de la tabla 01, y cada dato enlaza a la suya.<br>
+      <strong>No cubre lo que no se mide:</strong> salud mental tiene un solo
+      indicador comparable, y la ciberseguridad no aparece porque no hay serie
+      pública comparable entre países.
+    </p>
+  </div>
+
+</div>
+
+<script type="module" src="/src/pages/metodologia.js"></script>
+
+</body>
+</html>
