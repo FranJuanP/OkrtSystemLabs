@@ -58,9 +58,22 @@ function getOllamaURL(){
   }catch(e){return 'http://localhost:11434';}
 }
 function getModel(){return document.getElementById('model-sel').value;}
-async function checkOllama(){
+/**
+ * T5 - Comprueba si hay una Ollama local escuchando.
+ *
+ * Se ejecuta sola al cargar la pagina (ver abajo) y tambien al pulsar
+ * VERIFICAR. Si no responde, en vez de soltar un error de CORS ilegible
+ * ("Failed to fetch", "NetworkError") se dice lo que de verdad pasa: no se
+ * ha detectado una IA local, con enlace a las instrucciones de arranque.
+ *
+ * @param {boolean} [silent]  true en la comprobacion automatica de carga:
+ *                            no marca "VERIFICANDO" ni toca el panel si ya
+ *                            hay contenido.
+ * @returns {Promise<boolean>} si hay IA local disponible
+ */
+async function checkOllama(silent){
   const st=document.getElementById('api-status');
-  st.textContent='● VERIFICANDO...';st.style.color='var(--yellow)';
+  if(!silent && st){ st.textContent='● VERIFICANDO...'; st.style.color='var(--yellow)'; }
   try{
     const url=getOllamaURL();
     const r=await fetch(url+'/api/tags',{signal:AbortSignal.timeout(4000)});
@@ -68,14 +81,48 @@ async function checkOllama(){
     const d=await r.json();
     const models=d.models?.map(m=>m.name)||[];
     const sel=document.getElementById('model-sel');
-    if(models.length){
+    if(models.length && sel){
       sel.innerHTML='';
       models.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});
     }
-    st.textContent='● OLLAMA ACTIVO — '+models.length+' modelos';st.style.color='var(--green)';
+    if(st){ st.textContent='● OLLAMA ACTIVO — '+models.length+' modelos'; st.style.color='var(--green)'; }
+    setAiAvailability(true);
+    return true;
   }catch(e){
-    st.textContent='● ERROR: '+e.message;st.style.color='var(--red)';
+    if(st){ st.textContent='● IA local no detectada'; st.style.color='var(--dim)'; }
+    setAiAvailability(false, silent);
+    return false;
   }
+}
+
+/**
+ * T5 - Refleja en el panel de IA si hay o no motor local.
+ * Sin IA, el panel explica que falta y como arrancarla, en vez de esperar a
+ * que el usuario pulse un boton y reciba un error de CORS.
+ */
+function setAiAvailability(available, silent){
+  const btn=document.getElementById('analyze-btn');
+  const out=document.getElementById('ai-out');
+  document.body.classList.toggle('ai-offline', !available);
+  if(available){
+    if(btn) btn.disabled=false;
+    return;
+  }
+  if(btn) btn.disabled=true;
+  if(!out) return;
+  // En la comprobacion automatica no se pisa un analisis que ya este en pantalla.
+  if(silent && out.dataset.aiRendered==='1') return;
+  out.innerHTML=
+    '<div class="ai-block"><div class="ai-tag" style="color:var(--dim)">IA LOCAL ///</div>'+
+    '<div><strong style="color:var(--bright)">IA local no detectada</strong><br/><br/>'+
+    '<span style="color:var(--text)">AETHER funciona sin IA: el motor analitico, el termometro, '+
+    'el ranking y la cascada no la necesitan. El panel de prediccion y el chat si.</span><br/><br/>'+
+    '<a href="#install" class="ai-help-link" style="color:var(--cyan);text-decoration:none;'+
+    'border-bottom:1px solid rgba(0,255,200,.3)">Ver como arrancar Ollama en local &darr;</a>'+
+    '&nbsp;&nbsp;<a href="https://github.com/FranJuanP/OkrtSystemLabs#uso-local-con-ia--ollamamistral" '+
+    'target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:none;'+
+    'border-bottom:1px solid rgba(0,255,200,.3)">Instrucciones completas &nearr;</a>'+
+    '</div></div>';
 }
 
 // ──────────────────────────────────────────
@@ -1789,14 +1836,14 @@ Sé específico, técnico y basado en los indicadores reales. Menciona causalida
       <br/><br/>
       <span style="background:rgba(0,0,0,.5);padding:10px 14px;border-radius:6px;display:block;color:var(--cyan);font-size:11px;line-height:2">
         <strong style="color:var(--yellow)">Windows CMD:</strong><br/>
-        set OLLAMA_ORIGINS=*<br/>
+        set OLLAMA_ORIGINS=https://franjuanp.github.io,http://localhost:8080<br/>
         ollama serve<br/>
         <br/>
         <strong style="color:var(--yellow)">PowerShell:</strong><br/>
-        $env:OLLAMA_ORIGINS="*"; ollama serve<br/>
+        $env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"; ollama serve<br/>
         <br/>
         <strong style="color:var(--yellow)">Linux / Mac:</strong><br/>
-        OLLAMA_ORIGINS=* ollama serve
+        OLLAMA_ORIGINS=https://franjuanp.github.io,http://localhost:8080 ollama serve
       </span>
       <br/><span style="color:var(--dim);font-size:11px">Después pulsa ⚡ VERIFICAR y vuelve a intentarlo.</span>`
       :'<span style="color:var(--dim)">'+esc(e.message)+'</span>'}
@@ -4471,3 +4518,13 @@ document.addEventListener('click', function(ev){
   const action = ev.target.closest && ev.target.closest('[data-action="run-shock-cascade"]');
   if(action && typeof runShockCascade === 'function'){ runShockCascade(); }
 });
+
+
+/* T5: comprobacion automatica de la IA local al cargar la pagina. Si no hay
+   Ollama escuchando, el panel lo dice desde el principio en vez de esperar a
+   que el usuario pulse y reciba un error de CORS. */
+(function(){
+  function probe(){ if(typeof checkOllama==='function') checkOllama(true); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(probe,1200));
+  else setTimeout(probe,1200);
+})();

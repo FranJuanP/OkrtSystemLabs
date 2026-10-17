@@ -166,10 +166,19 @@ python -m http.server 8080
 ```
 
 ### Uso local (con IA — Ollama/Mistral)
+
+> **Por qué no `OLLAMA_ORIGINS="*"` ni `OLLAMA_HOST=0.0.0.0`:** con `*`
+> cualquier web que visites puede hablar con tu Ollama desde tu propio
+> navegador —leer tus modelos y lanzarles peticiones—, y con `0.0.0.0` lo
+> expones además a toda tu red local, sin autenticación de ningún tipo.
+> Por eso se listan solo los dos orígenes desde los que se sirve AETHER y se
+> deja Ollama escuchando únicamente en `127.0.0.1`, que es lo que hace por
+> defecto.
+
 ```powershell
 # Windows PowerShell
 taskkill /F /IM ollama.exe
-$env:OLLAMA_ORIGINS="*"
+$env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"
 ollama serve
 
 # En otra terminal
@@ -178,7 +187,7 @@ python -m http.server 8080
 
 ```bash
 # Linux / macOS
-OLLAMA_ORIGINS="*" ollama serve &
+OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080" ollama serve &
 python3 -m http.server 8080
 ```
 

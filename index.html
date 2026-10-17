@@ -453,11 +453,11 @@
       <div class="step-num">02</div>
       <div class="step-body">
         <div class="step-title">Arrancar Ollama con CORS habilitado</div>
-        <div class="step-desc">Necesario para que el navegador pueda conectar con el servidor local.</div>
+        <div class="step-desc">Necesario para que el navegador pueda conectar con el servidor local. No uses <code>OLLAMA_ORIGINS="*"</code> ni <code>OLLAMA_HOST=0.0.0.0</code>: el primero deja que cualquier web que visites hable con tu Ollama desde tu navegador, y el segundo lo expone a toda tu red local, en ambos casos sin autenticación.</div>
         <pre># Windows PowerShell
-$env:OLLAMA_ORIGINS="*"; ollama serve</pre>
+$env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"; ollama serve</pre>
         <pre># Linux / macOS
-OLLAMA_ORIGINS="*" ollama serve</pre>
+OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080" ollama serve</pre>
       </div>
     </div>
 
