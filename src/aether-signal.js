@@ -398,22 +398,28 @@ function renderFeed(){
       ? ('última lectura · ' + formatReadingDate(s.fetchedAt))
       : formatTime(s.time);
     return `
-    <div class="signal-card ${s.id===selectedId?'selected':''}" onclick="selectSignal('${s.id}')"
+    <div class="signal-card ${s.id===selectedId?'selected':''}" data-signal-id="${esc(s.id)}"
          style="border-left-color:${col}">
       <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:${col}"></div>
       <div class="card-top">
-        <span class="card-source">${s.source}</span>
-        <span class="card-category ${sv.cls}" style="background:${col}18;border:1px solid ${col}40">${CAT_LABEL[s.cat]||s.cat.toUpperCase()}</span>
-        <span class="card-time">${timeStr}</span>
+        <span class="card-source">${esc(s.source)}</span>
+        <span class="card-category ${sv.cls}" style="background:${col}18;border:1px solid ${col}40">${esc(CAT_LABEL[s.cat]||String(s.cat).toUpperCase())}</span>
+        <span class="card-time">${esc(timeStr)}</span>
       </div>
-      <div class="card-title">${s.title}</div>
+      <div class="card-title">${esc(s.title)}</div>
       <div class="card-meta">
-        <span class="card-loc">⌖ ${s.location}</span>
-        <span class="card-impact ${sv.cls}">▲ ${s.severity}</span>
+        <span class="card-loc">⌖ ${esc(s.location)}</span>
+        <span class="card-impact ${sv.cls}">▲ ${esc(s.severity)}</span>
       </div>
       ${s.isNew ? '<div class="card-new">NUEVA</div>' : ''}
     </div>`;
   }).join('');
+
+  // T3/T4: sin onclick inline. El id viaja escapado en data-signal-id y el
+  // manejador se engancha aqui, lo que ademas permite quitar 'unsafe-inline'.
+  feed.querySelectorAll('.signal-card').forEach(card=>{
+    card.addEventListener('click', ()=>selectSignal(card.getAttribute('data-signal-id')));
+  });
 }
 
 function selectSignal(id){
@@ -430,30 +436,30 @@ function selectSignal(id){
 
   const impactHTML = Object.entries(s.impacts||{}).map(([k,v])=>`
     <div class="d-impact-cell">
-      <div class="d-impact-cat">${k}</div>
-      <div class="d-impact-val ${sv.cls}" style="font-size:${v.length>6?'16px':'26px'}">${v}</div>
+      <div class="d-impact-cat">${esc(k)}</div>
+      <div class="d-impact-val ${sv.cls}" style="font-size:${String(v).length>6?'16px':'26px'}">${esc(v)}</div>
     </div>`).join('');
 
   dc.innerHTML = `
     <div class="d-meta">// AETHER SIGNAL · ANÁLISIS DE EVENTO</div>
-    <div class="d-title">${s.title}</div>
+    <div class="d-title">${esc(s.title)}</div>
     <div class="d-badge-row">
-      <span class="d-badge ${sv.cls} ${sv.bg}">${s.severity}</span>
-      <span class="d-badge" style="color:${col};background:${col}12;border:1px solid ${col}40">${CAT_LABEL[s.cat]||s.cat.toUpperCase()}</span>
-      <span class="d-badge" style="color:var(--dim);border:1px solid rgba(255,255,255,.08)">${s.source}</span>
+      <span class="d-badge ${sv.cls} ${sv.bg}">${esc(s.severity)}</span>
+      <span class="d-badge" style="color:${col};background:${col}12;border:1px solid ${col}40">${esc(CAT_LABEL[s.cat]||String(s.cat).toUpperCase())}</span>
+      <span class="d-badge" style="color:var(--dim);border:1px solid rgba(255,255,255,.08)">${esc(s.source)}</span>
     </div>
     <div class="d-label">// SEÑAL</div>
-    <div class="d-text">${s.detail}</div>
+    <div class="d-text">${esc(s.detail)}</div>
     <div class="d-divider"></div>
     <div class="d-label">// INDICADORES</div>
     <div class="d-impact-grid">${impactHTML}</div>
     <div class="d-divider"></div>
     <div class="d-label">// LOCALIZACIÓN · TIEMPO</div>
     <div class="d-text" style="font-size:12px">
-      <span style="color:var(--cyan)">⌖</span> ${s.location}<br>
-      <span style="color:var(--dim)">${s.time.toUTCString()}</span>
+      <span style="color:var(--cyan)">⌖</span> ${esc(s.location)}<br>
+      <span style="color:var(--dim)">${esc(s.time instanceof Date && !isNaN(s.time.getTime()) ? s.time.toUTCString() : "—")}</span>
     </div>
-    ${s.url ? `<a class="d-link" href="${s.url}" target="_blank">⬡ VER FUENTE ORIGINAL →</a>` : ''}
+    ${safeUrl(s.url) ? `<a class="d-link" href="${safeHref(s.url)}" target="_blank" rel="noopener noreferrer">⬡ VER FUENTE ORIGINAL →</a>` : ''}
   `;
 }
 
@@ -484,7 +490,7 @@ function buildTicker(){
   if(!allSignals.length) return;
   const items = allSignals.slice(0,30).map(s=>{
     const col = CAT_COLOR[s.cat]||'#888';
-    return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${s.title.slice(0,70)}<span class="ticker-sep">·</span></span>`;
+    return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${esc(String(s.title||'').slice(0,70))}<span class="ticker-sep">·</span></span>`;
   }).join('');
   const ti = document.getElementById('ticker-inner');
   ti.innerHTML = items + items; // double for seamless loop

@@ -358,27 +358,31 @@
       box.innerHTML = `<div class="aether-watch-empty">Añade regiones clave para volver a ellas en un clic, seguir su score, dominante y confianza, y detectar cambios de presión.</div>`;
       return;
     }
+    // T3: la watchlist se lee de localStorage, que es editable por quien
+    // controle el navegador (y por cualquier otro script de la pagina), asi
+    // que todos sus campos se escapan antes de llegar a innerHTML.
+    const e = (typeof window.esc === 'function') ? window.esc : (v => String(v == null ? '' : v));
     box.innerHTML = items.map(item => {
       const tone = deltaTone(item.delta);
       return `
       <div class="aether-watch-item">
         <div class="aether-watch-main">
           <div class="aether-watch-name-row">
-            <div class="aether-watch-name">${item.name}</div>
-            <span class="aether-watch-band">${item.band}</span>
+            <div class="aether-watch-name">${e(item.name)}</div>
+            <span class="aether-watch-band">${e(item.band)}</span>
           </div>
           <div class="aether-watch-sub">
-            <span>${item.code}</span>
-            <span>SCORE ${item.score}</span>
-            <span class="aether-watch-delta ${tone}">${item.delta > 0 ? '+' : ''}${item.delta || 0}</span>
+            <span>${e(item.code)}</span>
+            <span>SCORE ${e(item.score)}</span>
+            <span class="aether-watch-delta ${e(tone)}">${item.delta > 0 ? '+' : ''}${e(item.delta || 0)}</span>
           </div>
-          <div class="aether-watch-dominant"><span style="color:${item.dominantColor}">●</span> ${item.dominant || 'Sin dominante'}</div>
+          <div class="aether-watch-dominant"><span style="color:${e(item.dominantColor)}">●</span> ${e(item.dominant || 'Sin dominante')}</div>
         </div>
         <div class="aether-watch-side">
-          <div class="aether-watch-confidence">${item.confidence}%</div>
+          <div class="aether-watch-confidence">${e(item.confidence)}%</div>
           <div class="aether-watch-actions">
-            <button class="aether-watch-icon" data-open="${item.code}" title="Cargar">↗</button>
-            <button class="aether-watch-icon" data-del="${item.code}" title="Eliminar">✕</button>
+            <button class="aether-watch-icon" data-open="${e(item.code)}" title="Cargar">↗</button>
+            <button class="aether-watch-icon" data-del="${e(item.code)}" title="Eliminar">✕</button>
           </div>
         </div>
       </div>`;

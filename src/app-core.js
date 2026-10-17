@@ -1774,17 +1774,18 @@ Sé específico, técnico y basado en los indicadores reales. Menciona causalida
       const tagTxt=isWarn?'AMENAZA ///':isPred?'PREDICCIÓN ///':isOpp?'OPORTUNIDAD ///':'ANÁLISIS ///';
       const div=document.createElement('div');
       div.className='ai-block '+cls;
-      div.innerHTML=`<div class="ai-tag" style="color:${tagColor}">${tagTxt}</div><div>${
-        b.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--bright)">$1</strong>')
-         .replace(/\n/g,'<br/>')
-      }</div>`;
+      // T3: el texto del modelo se escapa ANTES de aplicar el formato de
+      // negritas, igual que ya hacia el chat. formatBold hace las dos cosas
+      // en el orden correcto, de modo que un <img onerror> del modelo llega
+      // como texto y nunca como etiqueta.
+      div.innerHTML=`<div class="ai-tag" style="color:${tagColor}">${tagTxt}</div><div>${formatBold(b)}</div>`;
       out.appendChild(div);
     });
   }catch(e){
     const isCors=e.message.includes('fetch')||e.message.includes('Failed')||e.message.includes('NetworkError');
     out.innerHTML=`<div class="ai-block warn"><div class="ai-tag" style="color:var(--red)">ERROR — OLLAMA ///</div>
     <div>
-      <strong style="color:var(--orange)">${isCors?'Error CORS / Conexión':'Error: '+e.message}</strong><br/><br/>
+      <strong style="color:var(--orange)">${isCors?'IA local no detectada':'Error: '+esc(e.message)}</strong><br/><br/>
       ${isCors?`<span style="color:var(--text)">Ollama bloquea peticiones desde archivos locales.<br/>
       Debes arrancarlo con permisos de origen abierto:</span>
       <br/><br/>
@@ -1800,7 +1801,7 @@ Sé específico, técnico y basado en los indicadores reales. Menciona causalida
         OLLAMA_ORIGINS=* ollama serve
       </span>
       <br/><span style="color:var(--dim);font-size:11px">Después pulsa ⚡ VERIFICAR y vuelve a intentarlo.</span>`
-      :'<span style="color:var(--dim)">'+e.message+'</span>'}
+      :'<span style="color:var(--dim)">'+esc(e.message)+'</span>'}
     </div></div>`;
   }
   btn.disabled=false;
@@ -3313,7 +3314,7 @@ Las probabilidades deben sumar 100. Sé específico y usa los datos reales.`;
     tabs.style.display='flex';
     showScenario('base',document.querySelector('.stab.base'));
   }catch(e){
-    out.innerHTML=`<div class="ai-block warn"><div class="ai-tag" style="color:var(--red)">ERROR ///</div><div>No se pudieron generar escenarios: ${e.message}</div></div>`;
+    out.innerHTML=`<div class="ai-block warn"><div class="ai-tag" style="color:var(--red)">ERROR ///</div><div>No se pudieron generar escenarios: ${esc(e.message)}</div></div>`;
     tabs.style.display='none';
   }
   btn.disabled=false; btn.textContent='🔮 ESCENARIOS';
@@ -3330,14 +3331,14 @@ function showScenario(type,el){
   const col=colors[type];
   document.getElementById('scenario-prob').style.display='block';
   document.getElementById('scenario-prob').innerHTML=
-    `<span style="color:${col}">${icons[type]} ${sc.titulo||''}</span> &nbsp;·&nbsp; Probabilidad: <strong style="color:${col}">${sc.prob}%</strong>`;
+    `<span style="color:${col}">${icons[type]} ${esc(sc.titulo||'')}</span> &nbsp;·&nbsp; Probabilidad: <strong style="color:${col}">${esc(sc.prob)}%</strong>`;
   const out=document.getElementById('ai-out');
   out.innerHTML=`
     <div class="ai-block ${type==='pes'?'warn':type==='base'?'pred':''}">
-      <div class="ai-tag" style="color:${col}">ESCENARIO ${type==='opt'?'OPTIMISTA':type==='base'?'BASE':'PESIMISTA'} · ${sc.prob}% PROB. ///</div>
-      <div style="margin-bottom:10px">${(sc.resumen||'').replace(/\n/g,'<br/>')}</div>
+      <div class="ai-tag" style="color:${col}">ESCENARIO ${type==='opt'?'OPTIMISTA':type==='base'?'BASE':'PESIMISTA'} · ${esc(sc.prob)}% PROB. ///</div>
+      <div style="margin-bottom:10px">${esc(sc.resumen||'').replace(/\n/g,'<br/>')}</div>
       <div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;font-family:'Share Tech Mono',monospace">FACTORES CLAVE:</div>
-      ${(sc.factores||[]).map(f=>`<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;font-family:'Share Tech Mono',monospace">· ${f}</div>`).join('')}
+      ${(sc.factores||[]).map(f=>`<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;font-family:'Share Tech Mono',monospace">· ${esc(f)}</div>`).join('')}
     </div>`;
 }
 
