@@ -32,6 +32,10 @@ const NODES = [
   { id:'H_RES',     label:'RESERVAS',  region:'HUB', col:1, isHub:true },
   // DESTINATIONS (column 2)
   { id:'EMG',   label:'Emerg. Asia',     region:'AS', gdp:0, col:2 },
+  // T10 (revision): las salidas de RESERVAS son por moneda, no por region.
+  // La tercera apuntaba a 'Emerg. Asia' por no tener un nodo mejor; ahora
+  // tiene el suyo, que es lo que COFER mide de verdad.
+  { id:'OTHER_CCY', label:'Otras monedas', region:'AS', gdp:0, col:2 },
   { id:'LAT',   label:'Latam',           region:'LA', gdp:0, col:2 },
   { id:'AFR',   label:'África',          region:'AF', gdp:0, col:2 },
   { id:'IND',   label:'India',           region:'AS', gdp:3386, col:2 },
@@ -68,22 +72,23 @@ const ALL_LINKS = [
   { s:'EU',   t:'H_FDI',   v:312,  type:'fdi',     detail:'Europa: IED concentrada en servicios financieros, farmacéutica y manufactura avanzada.' },
   { s:'JPN',  t:'H_FDI',   v:168,  type:'fdi',     detail:'IED japonesa en SE Asiático como alternativa a dependencia china.' },
   { s:'H_FDI',  t:'EMG',   v:312,  type:'fdi',     detail:'Asia emergente como destino prioritario. Vietnam, Indonesia y Tailandia lideran captación.' },
-  // PENDIENTE DE VERIFICAR (T10). Dos problemas distintos:
-  //  a) El ejercicio. El record de IED de India es el FY 2021-22, no 2022-23.
-  //     Lo sostienen DPIIT y PIB (83,57 B de IED en capital y 84,84 B de
-  //     entrada total), pero sus URL devuelven 403 y no se han podido abrir,
-  //     asi que no se corrige la etiqueta sin fuente de primera mano.
-  //  b) La magnitud. La unica serie oficial abierta, Banco Mundial
-  //     BX.KLT.DINV.CD.WD (entradas netas de IED, balanza de pagos), da para
-  //     India 49.940 M en 2022 y 28.086 M en 2023; su maximo del periodo es
-  //     64.362 M en 2020. Ninguna cifra se acerca a 85 B, porque DPIIT mide
-  //     entradas brutas y el Banco Mundial netas.
-  //     https://api.worldbank.org/v2/country/IND/indicator/BX.KLT.DINV.CD.WD?format=json&date=2015:2024
-  //  c) Ademas, v:180 no coincide con ninguna de las dos y no tiene fuente.
-  // No se sustituye ninguna cifra: se deja como estaba y se marca.
-  { s:'H_FDI',  t:'IND',   v:180,  type:'fdi', unit:'B USD', year:null,
-    pending:'Ejercicio y magnitud sin fuente de primera mano; ver comentario.',
-    detail:'India como destino de IED. Cifra y ejercicio pendientes de verificar: el récord que suele citarse (84,8 B) es del ejercicio 2021-22 según DPIIT, no de 2022-23, y no coincide con las entradas netas del Banco Mundial (49,9 B en 2022).' },
+  // VERIFICADO (T10, revision). Antes decia "India capta IED record 2022-23:
+  // 85B USD". Se quitan "record" y el ejercicio, como pidio John, y se pone
+  // la cifra de una serie oficial abierta de primera mano:
+  // Banco Mundial BX.KLT.DINV.CD.WD, entradas netas de IED (balanza de
+  // pagos): India 49.940 M USD en 2022 (28.086 M en 2023).
+  // https://api.worldbank.org/v2/country/IND/indicator/BX.KLT.DINV.CD.WD?format=json&date=2022
+  // UNCTAD (World Investment Report 2023) publica la misma magnitud, "FDI
+  // flows to India rose by 10% to $49 billion" en 2022, pero su PDF y el
+  // Handbook del RBI estan tras Cloudflare y CAPTCHA y no se han podido
+  // abrir, asi que se cita la serie que si.
+  // Los 85 B que se citaban son otra medida: entradas BRUTAS segun DPIIT, y
+  // del ejercicio 2021-22, no 2022-23.
+  { s:'H_FDI',  t:'IND',   v:50,   type:'fdi', unit:'B USD', year:2022,
+    source:'Banco Mundial · BX.KLT.DINV.CD.WD',
+    sourceUrl:'https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD?locations=IN',
+    verified:true,
+    detail:'India como destino de IED: 49,9 B USD de entradas netas en 2022 (Banco Mundial, balanza de pagos). Tecnologia, manufactura y renovables como sectores clave.' },
   { s:'H_FDI',  t:'BRA',   v:91,   type:'fdi',     detail:'IED en Brasil: 92B USD 2022. Agronegocio, energía y digital como destinos principales.' },
   { s:'H_FDI',  t:'AFR',   v:48,   type:'fdi',     detail:'África: IED baja relativamente. Minería y energía como sectores dominantes.' },
   { s:'H_FDI',  t:'MEX',   v:36,   type:'fdi',     detail:'México nearshoring: IED manufactura en máximos históricos. Tesla, BMW, TSMC en pipeline.' },
@@ -124,21 +129,25 @@ const ALL_LINKS = [
   { s:'JPN',  t:'H_RES',   v:1225, type:'reserves', detail:'Japón: 2º en reservas globales. Usadas para estabilizar yen bajo presión.' },
   { s:'KSA',  t:'H_RES',   v:458,  type:'reserves', detail:'Arabia Saudí: reservas del petróleo canalizadas via SAMA y PIF.' },
   { s:'UAE',  t:'H_RES',   v:190,  type:'reserves', detail:'EAU: reservas canalizadas hacia ADIA (Abu Dhabi Investment Authority), 850B AUM.' },
-  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', detail:'USD como reserva global dominante: 59% del total mundial. Declive gradual desde 71% en 2000.' },
-  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', detail:'Euro: 20% reservas globales. Segunda moneda de reserva con ventaja estable.' },
-  // PENDIENTE DE VERIFICAR (T10). No existe serie oficial que mida esto.
-  // La fuente natural seria COFER (FMI), que desglosa las reservas asignadas
-  // por moneda, pero COFER solo identifica por separado dolar, euro,
-  // renminbi, yen, libra, dolar australiano, dolar canadiense y franco
-  // suizo; el rublo y el real caen dentro de "otras monedas" y no se
-  // publican aparte, asi que la frase "yuan, rublo, real" no es verificable.
-  // Lo unico comprobable de los tres es el renminbi: 255.323 M USD, el
-  // 1,98% de las reservas asignadas (COFER, 2025 Q2), muy lejos de 890 B.
-  // https://data.imf.org/en/datasets/IMF.STA:COFER
-  // No se sustituye la cifra: se marca.
-  { s:'H_RES',  t:'EMG',   v:890,  type:'reserves', unit:'B USD', year:null,
-    pending:'Sin serie oficial equivalente; COFER no desglosa rublo ni real.',
-    detail:'Reservas desplazadas hacia activos de mercados emergentes. Cifra pendiente de verificar: COFER (FMI) solo desglosa el renminbi entre los tres citados —255 B, el 1,98% de las reservas asignadas— y no publica rublo ni real por separado.' },
+  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', unit:'B USD', year:'2025 Q4', source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    detail:'USD como reserva global dominante: 56,8% de las reservas mundiales (FMI COFER, 2025 Q4). Declive gradual: era el 71% en 2000. El importe del enlace es anterior y sigue sin fuente.' },
+  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', unit:'B USD', year:'2025 Q4', source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    detail:'Euro: 20,3% de las reservas mundiales (FMI COFER, 2025 Q4). Segunda moneda de reserva, con cuota estable. El importe del enlace es anterior y sigue sin fuente.' },
+  // VERIFICADO (T10, revision). Antes decia "Reservas -> EMG 890 (yuan,
+  // rublo, real)", que no corresponde a ninguna serie: COFER no desglosa
+  // rublo ni real, caen en "otras monedas". Se sustituye por esa categoria,
+  // que es la que el FMI si publica.
+  // IMF COFER, 2025 Q4: reservas totales 13,14 billones USD; la categoria
+  // residual "other currencies" es el 6,13% de ese total (desde 5,61% en
+  // 2025 Q3). 13,14e12 x 0,0613 = 805 B USD.
+  // El porcentaje y el total son cifras publicadas; el importe en dolares es
+  // el producto de ambas, no una cifra publicada por separado.
+  // https://data.imf.org/en/news/imf%20data%20brief%20march%2027
+  { s:'H_RES',  t:'OTHER_CCY', v:805, type:'reserves', unit:'B USD', year:'2025 Q4',
+    source:'FMI · COFER',
+    sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
+    verified:true,
+    detail:'Reservas en monedas que COFER no identifica por separado: el 6,13% de los 13,14 billones de reservas mundiales (FMI, 2025 Q4), unos 805 B USD. La categoria lleva subiendo desde 2021. El renminbi, que si se identifica aparte, son 256 B, el 1,95%.' },
 ];
 
 const FLOW_COLORS = {
