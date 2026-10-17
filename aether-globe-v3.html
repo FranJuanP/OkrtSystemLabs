@@ -20,7 +20,6 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AETHER — Global Intelligence Globe</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000508; }
@@ -695,9 +694,6 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <!-- T4: el motor del globo iba aqui inline; se externaliza a src/aether-globe.js
      para poder quitar 'unsafe-inline' de script-src. -->
 
@@ -787,8 +783,7 @@
 </style>
 
 
-<!-- T12: una sola entrada de modulo. three.js, d3 y topojson siguen
-     viniendo del CDN hasta T16. -->
+<!-- T16: three.js, d3 y topojson van empaquetados en el bundle. Sin CDN. -->
 <script type="module" src="/src/pages/globe.js"></script>
 </body>
 </html>

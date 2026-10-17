@@ -5,18 +5,17 @@
   "description": "AETHER — sistema publico de inteligencia de riesgos globales (OkrtSystem Labs)",
   "type": "module",
   "scripts": {
-    "serve": "python -m http.server 8080 --bind 127.0.0.1",
-    "smoke": "node tests/smoke.mjs",
+    "smoke": "node tests/smoke.mjs --base http://localhost:8080/OkrtSystemLabs",
     "smoke:compare": "node tests/compare.mjs",
-    "test:xss": "node tests/xss.mjs",
-    "test:watchlist": "node tests/watchlist.mjs",
-    "test": "node tests/xss.mjs && node tests/watchlist.mjs && node tests/coverage.mjs && node tests/sw.mjs",
-    "test:coverage": "node tests/coverage.mjs",
+    "test:xss": "node tests/xss.mjs --base http://localhost:8080/OkrtSystemLabs",
+    "test:watchlist": "node tests/watchlist.mjs --base http://localhost:8080/OkrtSystemLabs",
+    "test": "npm run test:xss && npm run test:watchlist && npm run test:coverage && npm run test:sw",
+    "test:coverage": "node tests/coverage.mjs --base http://localhost:8080/OkrtSystemLabs",
     "build:sw": "node tools/build-sw.mjs",
-    "test:sw": "node tests/sw.mjs",
+    "test:sw": "node tests/sw.mjs --base http://localhost:8080/OkrtSystemLabs",
     "dev": "vite",
     "build": "vite build && node tools/build-sw.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview --port 8080 --strictPort"
   },
   "devDependencies": {
     "pixelmatch": "^7.1.0",
@@ -24,5 +23,23 @@
     "pngjs": "^7.0.0",
     "sharp": "^0.35.5",
     "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "@fontsource/bebas-neue": "^5.3.0",
+    "@fontsource/exo-2": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/orbitron": "^5.3.0",
+    "@fontsource/rajdhani": "^5.3.0",
+    "@fontsource/share-tech-mono": "^5.3.0",
+    "@fontsource/space-mono": "^5.3.0",
+    "d3-array": "^3.2.4",
+    "d3-drag": "^3.0.0",
+    "d3-ease": "^3.0.1",
+    "d3-force": "^3.0.0",
+    "d3-geo": "^3.1.1",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "three": "^0.186.1",
+    "topojson-client": "^3.1.0"
   }
 }

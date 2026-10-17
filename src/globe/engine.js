@@ -10,9 +10,6 @@
  * desde fuera se expone `pointer`, una API explícita con el estado de
  * arrastre y zoom, en vez de dejar que un parche reasigne variables ajenas.
  *
- * three.js y topojson siguen llegando como globales desde el CDN; T16 los
- * sustituye por imports de las versiones empaquetadas.
- *
  * La tabla COUNTRIES que define aquí es la que T23 sustituye por la lectura
  * de data/latest.json, para que el globo y el dashboard dejen de tener dos
  * verdades distintas.
@@ -20,8 +17,23 @@
 import { AETHER_COVERAGE } from '../core/coverage.js';
 import { AETHER_STORAGE } from '../core/storage.js';
 import { onVisibilityChange } from '../core/visibility.js';
+import * as THREE from 'three';
+import { feature as topoFeature, mesh as topoMesh, merge as topoMerge } from 'topojson-client';
 
-const THREE = window.THREE;
+/* ── T16 · three.js r128 -> r186 ──────────────────────────────────────────
+   Se sube a la version actual y se empaqueta en el repositorio, en vez de
+   descargarla del CDN. Dos notas sobre el salto:
+
+   - El globo NO usa luces, asi que no le afecta el cambio al modelo de
+     iluminacion fisica de r155, que es el cambio de ruptura mas grande del
+     periodo. Tampoco usaba outputEncoding ni useLegacyLights.
+   - Desde r152 la gestion de color esta activada por defecto: los colores
+     en hexadecimal se interpretan como sRGB y se convierten a lineal, lo
+     que desplaza TODOS los tonos del globo. Como la regla de trabajo es no
+     cambiar la estetica, se desactiva para reproducir exactamente el
+     comportamiento de r128. Pasar a color gestionado es una decision
+     visible, y por tanto de John, no mia. */
+THREE.ColorManagement.enabled = false;
 
 const COUNTRIES = [
   // ── EUROPA ──
@@ -512,7 +524,7 @@ async function buildTex(world) {
   ctx.beginPath(); path(g10); ctx.strokeStyle='rgba(0,255,200,.05)'; ctx.lineWidth=.7; ctx.stroke();
   const g30 = d3.geoGraticule().step([30,30])();
   ctx.beginPath(); path(g30); ctx.strokeStyle='rgba(0,255,200,.11)'; ctx.lineWidth=1.1; ctx.stroke();
-  const countries = topojson.feature(world, world.objects.countries);
+  const countries = topoFeature(world, world.objects.countries);
   ctx.shadowColor='rgba(0,255,200,.28)'; ctx.shadowBlur=18;
   ctx.fillStyle='rgba(0,85,80,.72)';
   countries.features.forEach(f=>{ctx.beginPath();path(f);ctx.fill();});
@@ -521,9 +533,9 @@ async function buildTex(world) {
   lg.addColorStop(0,'rgba(0,100,95,.5)'); lg.addColorStop(.5,'rgba(0,92,88,.46)'); lg.addColorStop(1,'rgba(0,80,78,.44)');
   ctx.fillStyle=lg;
   countries.features.forEach(f=>{ctx.beginPath();path(f);ctx.fill();});
-  const borders=topojson.mesh(world,world.objects.countries,(a,b)=>a!==b);
+  const borders=topoMesh(world,world.objects.countries,(a,b)=>a!==b);
   ctx.beginPath();path(borders);ctx.strokeStyle='rgba(0,255,200,.35)';ctx.lineWidth=1.4;ctx.stroke();
-  const land=topojson.merge(world,world.objects.countries.geometries);
+  const land=topoMerge(world,world.objects.countries.geometries);
   ctx.beginPath();path(land);ctx.strokeStyle='rgba(0,255,200,.52)';ctx.lineWidth=1.8;ctx.stroke();
   ctx.beginPath();path({type:'LineString',coordinates:[[-180,0],[180,0]]});
   ctx.strokeStyle='rgba(0,255,200,.28)';ctx.lineWidth=1.6;ctx.stroke();
@@ -1035,8 +1047,11 @@ async function init(){
     }, undefined, rej);
   });
 
-  const DAY_URL   = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
-  const NIGHT_URL = 'https://unpkg.com/three-globe/example/img/earth-night.jpg';
+  // T16: texturas autoalojadas. Venian de unpkg.com, que ademas de ser una
+  // dependencia de terceros en el camino critico del render obligaba a abrir
+  // img-src a ese dominio. WebP: dia 1.428 -> 584 KB, noche 698 -> 264 KB.
+  const DAY_URL   = 'assets/img/earth-day.webp';
+  const NIGHT_URL = 'assets/img/earth-night.webp';
   // T15: la textura de nubes iba aqui en base64, 479 kB de texto dentro del
   // JavaScript, duplicando byte a byte assets/img/earth-clouds.png, que ya
   // estaba en el repositorio y en el precache. Ahora se carga del fichero.
