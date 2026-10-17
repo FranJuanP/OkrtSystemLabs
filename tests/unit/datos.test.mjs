@@ -184,17 +184,32 @@ describe('data/vector.json', () => {
   });
 });
 
-describe('data/events.json', () => {
-  const e = leer('data/events.json');
+/* data/events.json ya no vive en el repositorio: se genera en cada
+   despliegue y viaja en el artefacto de Pages. Si esta -porque se ha
+   ejecutado `npm run eventos` en local- se comprueba; si no, estas
+   pruebas se saltan en vez de fallar por un fichero que no tiene por
+   que existir aqui. */
+const HAY_EVENTOS = fs.existsSync(path.join(RAIZ, 'data/events.json'));
+
+describe.skipIf(!HAY_EVENTOS)('data/events.json', () => {
+  const e = HAY_EVENTOS ? leer('data/events.json') : { eventos: [], fuentes: {} };
 
   it('declara el esquema, cuándo se descargó y el estado de cada fuente', () => {
     expect(e.esquema).toBe(1);
     expect(isNaN(new Date(e.descargado).getTime())).toBe(false);
-    for (const f of Object.values(e.fuentes)) expect(['ok', 'error']).toContain(f.estado);
+    // 'pendiente' es una fuente que no se consulta porque no se puede:
+    // ReliefWeb, a la espera de un appname aprobado.
+    for (const f of Object.values(e.fuentes)) expect(['ok', 'error', 'pendiente']).toContain(f.estado);
   });
 
   it('trae eventos con fecha válida, fuente y título', () => {
     expect(e.eventos.length).toBeGreaterThan(9);
+    // Una fuente pendiente tiene que explicar el motivo y como resolverlo.
+    for (const f of Object.values(e.fuentes)) {
+      if (f.estado !== 'pendiente') continue;
+      expect(String(f.motivo || '').length).toBeGreaterThan(20);
+      expect(String(f.como_arreglarlo || '')).toContain('apidoc');
+    }
     for (const ev of e.eventos) {
       expect(isNaN(new Date(ev.time).getTime())).toBe(false);
       expect(typeof ev.fuente).toBe('string');

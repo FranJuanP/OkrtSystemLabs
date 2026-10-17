@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   normalizarUSGS, normalizarEONET, normalizarReliefWeb, normalizarGDELT,
-  CONSULTAS_GDELT, urlGDELT, URLS, rehidratar, FUENTES_RETIRADAS,
+  CONSULTAS_GDELT, urlGDELT, URLS, rehidratar, FUENTES_PENDIENTES, normalizarWHO,
 } from '../../src/signal/normalizar.js';
 
 const FIXTURES = path.join(import.meta.dirname, '..', 'fixtures');
@@ -166,6 +166,51 @@ describe('GDELT', () => {
   });
 });
 
+describe('OMS · Disease Outbreak News', () => {
+  const muestra = {
+    value: [
+      { Id: 'a1', Title: 'Ebola disease - Democratic Republic of the Congo',
+        PublicationDateAndTime: '2026-10-16T12:00:00Z', UrlName: '2026-DON619',
+        Summary: '<p>On 2 October 2026, WHO was informed&nbsp;of a cluster.</p>' },
+      { Id: 'a2', Title: 'Cholera - Global situation',
+        PublicationDateAndTime: '2026-08-01T12:00:00Z', UrlName: '2026-DON600', Summary: '' },
+    ],
+  };
+  const out = normalizarWHO(muestra, AHORA);
+
+  it('convierte los brotes', () => {
+    expect(out).toHaveLength(2);
+    out.forEach(pareceUnEvento);
+  });
+
+  it('los pone en la categoría de salud, que se había quedado sin fuente', () => {
+    for (const ev of out) expect(ev.cat).toBe('health');
+  });
+
+  it('usa la fecha de publicación real, no la de ahora', () => {
+    expect(out[0].time.toISOString()).toBe('2026-10-16T12:00:00.000Z');
+  });
+
+  it('gradúa la gravedad por lo reciente que sea el informe', () => {
+    expect(out[0].severity).toBe('HIGH');   // un día
+    expect(out[1].severity).toBe('LOW');    // dos meses y medio
+  });
+
+  it('construye el enlace al informe de la OMS', () => {
+    expect(out[0].url).toBe('https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON619');
+  });
+
+  it('limpia el HTML y los espacios finos del resumen', () => {
+    expect(out[0].detail).not.toMatch(/<[^>]+>/);
+    expect(out[0].detail).not.toMatch(/&nbsp;|\u00a0/);
+    expect(out[0].detail).toContain('cluster');
+  });
+
+  it('no se cae con una respuesta vacía', () => {
+    expect(normalizarWHO({}, AHORA)).toEqual([]);
+  });
+});
+
 describe('rehidratar', () => {
   it('devuelve la fecha a Date y marca el evento como última lectura', () => {
     const guardado = { id: 'x', title: 'T', time: '2026-10-17T10:00:00.000Z', isNew: true };
@@ -190,13 +235,17 @@ describe('fuentes', () => {
     for (const u of Object.values(URLS)) expect(u).toMatch(/^https:\/\//);
   });
 
-  it('ReliefWeb está declarada como retirada, con el motivo y cómo arreglarlo', () => {
-    expect(FUENTES_RETIRADAS.relief).toBeTruthy();
-    expect(FUENTES_RETIRADAS.relief.motivo).toMatch(/410|v1|appname/i);
-    expect(FUENTES_RETIRADAS.relief.comoArreglarlo).toContain('apidoc.reliefweb.int');
+  it('ReliefWeb está declarada como pendiente, con el motivo y cómo arreglarlo', () => {
+    expect(FUENTES_PENDIENTES.relief).toBeTruthy();
+    expect(FUENTES_PENDIENTES.relief.motivo).toMatch(/410|v1|appname/i);
+    expect(FUENTES_PENDIENTES.relief.comoArreglarlo).toContain('apidoc.reliefweb.int');
   });
 
-  it('las fuentes que sí funcionan no están marcadas como retiradas', () => {
-    for (const id of ['usgs', 'nasa', 'gdelt']) expect(FUENTES_RETIRADAS[id]).toBeUndefined();
+  it('las fuentes que sí funcionan no están marcadas como pendientes', () => {
+    for (const id of ['usgs', 'nasa', 'gdelt', 'who']) expect(FUENTES_PENDIENTES[id]).toBeUndefined();
+  });
+
+  it('no queda ninguna URL de ReliefWeb que se pueda llamar por descuido', () => {
+    expect(URLS.reliefweb).toBeUndefined();
   });
 });

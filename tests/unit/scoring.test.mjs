@@ -9,8 +9,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  percentiles, confianzaDe, nivelDe, calcular,
-  PESOS_CATEGORIA, PESOS_INDICADOR, NIVELES,
+  percentiles, confianzaDe, nivelDe, nivelPorFraccion, calcular,
+  PESOS_CATEGORIA, PESOS_INDICADOR, NIVELES, ETIQUETA_RELATIVA,
+  PESO_CONJUNTO, PESO_PEORES, CUANTAS_PEORES, velocidadDeIndicador,
 } from '../../src/core/scoring.js';
 
 describe('percentiles', () => {
@@ -114,20 +115,52 @@ describe('confianza', () => {
 });
 
 describe('niveles', () => {
-  it('reparte las puntuaciones en los cuatro tramos', () => {
-    expect(nivelDe(10).clave).toBe('LOW');
-    expect(nivelDe(35).clave).toBe('LOW');
-    expect(nivelDe(36).clave).toBe('MEDIUM');
-    expect(nivelDe(55).clave).toBe('MEDIUM');
-    expect(nivelDe(56).clave).toBe('HIGH');
-    expect(nivelDe(75).clave).toBe('HIGH');
-    expect(nivelDe(76).clave).toBe('CRITICAL');
+  it('declara los cuatro tramos y cubren toda la distribución', () => {
+    expect(NIVELES).toHaveLength(4);
+    expect(NIVELES[NIVELES.length - 1].hasta).toBe(1);
+    // Los cortes van en aumento y sin huecos.
+    for (let i = 1; i < NIVELES.length; i++) {
+      expect(NIVELES[i].hasta).toBeGreaterThan(NIVELES[i - 1].hasta);
+    }
   });
 
-  it('no deja huecos entre tramos', () => {
-    for (let s = 0; s <= 100; s++) expect(nivelDe(s)).toBeTruthy();
-    const topes = NIVELES.map((n) => n.max);
-    expect(topes[topes.length - 1]).toBe(Infinity);
+  it('clasifica por posición en la distribución, no por umbral', () => {
+    expect(nivelPorFraccion(0.01).clave).toBe('CRITICAL');
+    expect(nivelPorFraccion(0.05).clave).toBe('CRITICAL');
+    expect(nivelPorFraccion(0.06).clave).toBe('HIGH');
+    expect(nivelPorFraccion(0.20).clave).toBe('HIGH');
+    expect(nivelPorFraccion(0.21).clave).toBe('MEDIUM');
+    expect(nivelPorFraccion(0.50).clave).toBe('MEDIUM');
+    expect(nivelPorFraccion(0.51).clave).toBe('LOW');
+    expect(nivelPorFraccion(1).clave).toBe('LOW');
+  });
+
+  it('sitúa una puntuación frente a una distribución dada', () => {
+    // Cien países de 1 a 100: el 100 está en el 5 % de arriba.
+    const dist = Array.from({ length: 100 }, (_, i) => i + 1);
+    expect(nivelDe(100, dist).clave).toBe('CRITICAL');
+    expect(nivelDe(90, dist).clave).toBe('HIGH');
+    expect(nivelDe(70, dist).clave).toBe('MEDIUM');
+    expect(nivelDe(10, dist).clave).toBe('LOW');
+  });
+
+  it('da el mismo nivel a dos puntuaciones iguales', () => {
+    // El caso que hubo que arreglar: Papua Nueva Guinea y Corea del Norte
+    // empataban a 79 y salían una CRÍTICO y la otra ALTO, porque el corte
+    // caía justo entre las dos posiciones de la lista.
+    const dist = [100, 95, 90, 79, 79, 50, 40, 30, 20, 10];
+    expect(nivelDe(79, dist).clave).toBe(nivelDe(79, dist).clave);
+    const niveles = dist.filter((v) => v === 79).map((v) => nivelDe(v, dist).clave);
+    expect(new Set(niveles).size).toBe(1);
+  });
+
+  it('sin distribución no revienta', () => {
+    expect(nivelDe(50, []).clave).toBe('LOW');
+    expect(nivelDe(50, null).clave).toBe('LOW');
+  });
+
+  it('la etiqueta relativa dice que la clasificación es relativa', () => {
+    expect(ETIQUETA_RELATIVA).toMatch(/relativ/i);
   });
 });
 
@@ -235,6 +268,31 @@ describe('calcular', () => {
 
   it('elige como año de los datos el más frecuente', () => {
     expect(r.anioDatos).toBe(2025);
+  });
+
+  it('el índice es mitad el conjunto y mitad las tres peores', () => {
+    for (const p of Object.values(r.paises)) {
+      if (p.score === null) continue;
+      const esperado = Math.round(PESO_CONJUNTO * p.desglose.media + PESO_PEORES * p.desglose.peores);
+      expect(p.score).toBe(esperado);
+    }
+  });
+
+  it('publica cuáles son las categorías peores que entran en el índice', () => {
+    const esp = r.paises.AAA;
+    expect(esp.desglose.categoriasPeores.length).toBeLessThanOrEqual(CUANTAS_PEORES);
+    // Vienen ordenadas de más a menos riesgo.
+    const scores = esp.desglose.categoriasPeores.map((c) => c.score);
+    expect(scores).toEqual(scores.slice().sort((a, b) => b - a));
+  });
+
+  it('cada categoría lleva su velocidad y de cuántos indicadores sale', () => {
+    for (const p of Object.values(r.paises)) {
+      for (const c of Object.values(p.categorias)) {
+        expect(typeof c.velocidad).toBe('number');
+        expect(Number.isInteger(c.velocidadDe)).toBe(true);
+      }
+    }
   });
 
   it('se queja si el fichero no tiene la forma esperada', () => {
