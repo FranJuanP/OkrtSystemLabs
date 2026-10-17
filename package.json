@@ -24,7 +24,10 @@
     "eventos": "node tools/fetch-events.mjs",
     "vector": "node tools/fetch-vector.mjs",
     "test:vector": "node tests/vector.mjs --base http://localhost:8080/OkrtSystemLabs",
-    "test:rendimiento": "node tests/rendimiento.mjs --base http://localhost:8080/OkrtSystemLabs"
+    "test:rendimiento": "node tests/rendimiento.mjs --base http://localhost:8080/OkrtSystemLabs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:todo": "npm run test:unit && npm run build && npm run smoke && npm test"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
@@ -35,6 +38,7 @@
     "sharp": "^0.35.5",
     "vite": "^8.3.4",
     "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.5",
     "workbox-window": "^7.4.1"
   },
   "dependencies": {

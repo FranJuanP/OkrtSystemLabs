@@ -1,0 +1,101 @@
+name: Pruebas
+
+# Corre las pruebas en cada empujón y en cada pull request.
+#
+# Dos trabajos, y están separados a propósito:
+#
+#   unitarias   src/core/scoring.js, las matrices, el generador con semilla,
+#               la simulación, las conversiones de Signal y los ficheros de
+#               datos. Son 112 pruebas en menos de medio segundo, sin
+#               navegador: si algo de esto falla, no hace falta arrancar
+#               Chromium para saberlo.
+#
+#   navegador   la prueba de humo, XSS, la watchlist, la cobertura, la
+#               paridad entre el panel y el globo, Vector, el rendimiento y
+#               el service worker, contra el build servido con vite preview.
+#               Tarda minutos, pero es lo único que puede comprobar que las
+#               cinco páginas funcionan de verdad.
+
+on:
+  push:
+    branches: [main, 'fase-*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Un empujón nuevo cancela la ejecución anterior de la misma rama: no tiene
+  # sentido esperar el resultado de un commit que ya está sustituido.
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unitarias:
+    name: Unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Vitest
+        run: npm run test:unit
+
+  navegador:
+    name: Navegador
+    runs-on: ubuntu-latest
+    # Si las unitarias fallan, no se gasta un navegador en averiguarlo.
+    needs: unitarias
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Instalar Chromium
+        # Solo Chromium y con sus dependencias del sistema: los tres
+        # navegadores tardarían el triple y las pruebas no los usan.
+        run: npx playwright install --with-deps chromium
+
+      - name: Construir
+        run: npm run build
+
+      - name: Servir el build
+        # Se sirve el BUILD, no el servidor de desarrollo: es lo que se
+        # publica, con su minificación, sus nombres con hash y su service
+        # worker. Probar otra cosa sería probar otra cosa.
+        run: |
+          # nohup + disown para que el servidor sobreviva al final de este
+          # paso: las pruebas corren en los pasos siguientes.
+          nohup npx vite preview --port 8080 --strictPort > preview.log 2>&1 &
+          disown || true
+          for i in $(seq 1 40); do
+            if curl -sf -o /dev/null http://localhost:8080/OkrtSystemLabs/index.html; then
+              echo "el servidor responde"; exit 0
+            fi
+            sleep 1
+          done
+          echo "el servidor no ha arrancado"; cat preview.log; exit 1
+
+      - name: Prueba de humo
+        run: npm run smoke
+
+      - name: Resto de pruebas
+        run: npm test
+
+      - name: Guardar las capturas y el registro si algo falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-y-registro
+          path: |
+            tests/shots/
+            preview.log
+          retention-days: 7
+          if-no-files-found: ignore
