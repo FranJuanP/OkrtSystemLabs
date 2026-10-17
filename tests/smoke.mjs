@@ -127,7 +127,7 @@ async function run() {
             await page.goto(`${BASE}/${pageName}`, { waitUntil: 'load', timeout: 45000 });
             await settle(page);
           } catch { /* el caso real se mide despues */ }
-          await page.unrouteAll();
+          await context.unrouteAll();
         }
 
         const diag = collectDiagnostics(page, BASE);

@@ -134,11 +134,36 @@ function sourceFailed(id){
   return loadLastReading(id);
 }
 
-/** Marca la fuente como viva, guarda la lectura y la devuelve. */
-function sourceOk(id, signals){
-  setSrc(id, 'ok');
-  saveLastReading(id, signals);
-  return signals;
+/**
+ * Marca la fuente como viva, guarda la lectura y la devuelve.
+ *
+ * T18: el service worker puede servir una respuesta de su cache cuando la
+ * red falla, y a nivel de `fetch` eso es indistinguible de una respuesta
+ * recien traida. Si no se mirara, el feed pintaria datos viejos con el
+ * punto de la fuente en verde, que es justo lo que T1 quito. Por eso el
+ * service worker marca esas respuestas con X-AETHER-Cache y aqui se tratan
+ * como lo que son: ultima lectura.
+ *
+ * @param {string} id
+ * @param {Array} signals
+ * @param {Response} [response] la respuesta, para mirar sus cabeceras
+ */
+function sourceOk(id, signals, response){
+  const fromCache = response && response.headers && response.headers.get('X-AETHER-Cache') === 'hit';
+  if(!fromCache){
+    setSrc(id, 'ok');
+    saveLastReading(id, signals);
+    return signals;
+  }
+
+  setSrc(id, 'err');
+  const at = response.headers.get('X-AETHER-Cached-At');
+  const fetchedAt = at ? new Date(at) : new Date();
+  return signals.map(sig => Object.assign({}, sig, {
+    isNew: false,
+    stale: true,
+    fetchedAt: isNaN(fetchedAt.getTime()) ? new Date() : fetchedAt,
+  }));
 }
 
 /** Fecha corta y legible en UTC para la etiqueta "ultima lectura". */
@@ -213,7 +238,7 @@ async function fetchUSGS() {
         isNew: (Date.now() - new Date(p.time).getTime()) < 3600000
       };
     });
-    return sourceOk('usgs', out);
+    return sourceOk('usgs', out, r);
   } catch(e) { return sourceFailed('usgs'); }
 }
 
@@ -243,7 +268,7 @@ async function fetchNASA() {
         isNew: days < 1
       };
     });
-    return sourceOk('nasa', out);
+    return sourceOk('nasa', out, r);
   } catch(e) { return sourceFailed('nasa'); }
 }
 
@@ -275,7 +300,7 @@ async function fetchReliefWeb() {
         isNew: (Date.now() - new Date(f.date?.created||0).getTime()) < 86400000
       };
     });
-    return sourceOk('relief', out);
+    return sourceOk('relief', out, r);
   } catch(e) { return sourceFailed('relief'); }
 }
 
@@ -291,11 +316,15 @@ async function fetchGDELT() {
     const cats   = ['conflict','geo','eco'];
     const sevs   = ['HIGH','MEDIUM','MEDIUM'];
     let results  = [];
+    let gdeltResponse = null;
 
     for(let qi=0; qi<queries.length; qi++){
       const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${queries[qi]}&mode=artlist&maxrecords=8&format=json&timespan=1d`;
       try {
         const r = await fetch(url);
+        // Si cualquiera de las tres consultas vino de la cache del service
+        // worker, el bloque entero cuenta como ultima lectura.
+        if(r.headers && r.headers.get('X-AETHER-Cache') === 'hit') gdeltResponse = r;
         const d = await r.json();
         (d.articles||[]).forEach((art,i)=>{
           results.push({
@@ -316,7 +345,7 @@ async function fetchGDELT() {
       } catch(e2){ /* individual query fail is ok */ }
     }
     if(!results.length) return sourceFailed('gdelt');
-    return sourceOk('gdelt', results);
+    return sourceOk('gdelt', results, gdeltResponse);
   } catch(e) { return sourceFailed('gdelt'); }
 }
 

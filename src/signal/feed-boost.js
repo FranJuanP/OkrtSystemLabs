@@ -150,7 +150,16 @@ async function fetchJsonWithTimeout(url, timeoutMs) {
   try {
     const response = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store', signal: controller ? controller.signal : undefined });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    const data = await response.json();
+    // T18: el service worker marca con X-AETHER-Cache lo que sirve de su
+    // cache cuando la red falla. Hay que mirarlo: si no, estas fuentes
+    // pintarian su punto en verde con datos viejos y pisarian el estado
+    // que el motor acaba de poner bien.
+    return {
+      data,
+      fromCache: response.headers.get('X-AETHER-Cache') === 'hit',
+      cachedAt: response.headers.get('X-AETHER-Cached-At'),
+    };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -163,12 +172,20 @@ async function fetchShadowSource(source) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const bust = url + (url.includes('?') ? '&' : '?') + 'aether_retry=' + attempt + '&t=' + Date.now();
-        const data = await fetchJsonWithTimeout(bust, SHADOW_FETCH_TIMEOUT_MS + (attempt * 1500));
-        const events = source.parse(data).filter(Boolean);
+        const res = await fetchJsonWithTimeout(bust, SHADOW_FETCH_TIMEOUT_MS + (attempt * 1500));
+        const events = source.parse(res.data).filter(Boolean);
         if (events.length) {
-          shadowHealth[source.id] = { ok: true, count: events.length, ts: Date.now(), source: source.name };
-          setSourceStatus(source.id, 'ok');
-          return events;
+          shadowHealth[source.id] = { ok: !res.fromCache, count: events.length, ts: Date.now(), source: source.name };
+          // Si vino de la cache del service worker, la fuente NO esta viva y
+          // sus eventos son ultima lectura, no del momento.
+          setSourceStatus(source.id, res.fromCache ? 'err' : 'ok');
+          if (!res.fromCache) return events;
+          const at = res.cachedAt ? new Date(res.cachedAt) : new Date();
+          return events.map(ev => Object.assign({}, ev, {
+            isNew: false,
+            stale: true,
+            fetchedAt: isNaN(at.getTime()) ? new Date() : at,
+          }));
         }
       } catch (err) {
         lastError = err;
