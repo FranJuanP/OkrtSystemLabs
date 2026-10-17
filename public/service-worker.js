@@ -19,7 +19,7 @@
  * revision de build y aviso de "Nueva version disponible" en vez de
  * skipWaiting automatico.
  */
-const AETHER_CACHE = 'aether-v20261017-81055c07';
+const AETHER_CACHE = 'aether-v20261017-2c3708da';
 
 const AETHER_ASSETS = [
   "./",
