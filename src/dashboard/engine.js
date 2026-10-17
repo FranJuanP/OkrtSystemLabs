@@ -29,6 +29,8 @@ import { construirDATA } from './datos-dashboard.js';
 import { ETIQUETA_RELATIVA } from '../core/scoring.js';
 import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rng.js';
 import { proyectarAPSD, normalizarPesos, comprobarCorrelacion } from './matrices.js';
+import { proyectar, enMemoria, estadisticas as statsSim } from './sim-cliente.js';
+import { simularCascada, monteCarlo as monteCarloLocal } from './sim-core.js';
 
 const d3 = {
   select, zoom, zoomIdentity, drag,
@@ -2852,116 +2854,41 @@ function detectInflections(code) {
  *   PASABA aqui, asi que las 400 simulaciones usaban todas la misma
  *   velocidad y la unica variacion venia del estado inicial. Ahora entran.
  */
-function simulateCascade(code, horizonWeeks, shockOverrides = {}, velOverrides = null) {
+/**
+ * T28 · El modelo de un pais, serializable.
+ *
+ * El worker no puede ver DATA ni las matrices, asi que todo lo que la
+ * simulacion necesita se empaqueta aqui: las puntuaciones del pais, sus
+ * velocidades, su resiliencia ya calculada, la matriz de propagacion y la
+ * dispersion de cada categoria. Son unos pocos kilobytes y se copian con
+ * postMessage sin problema.
+ */
+function modeloDe(code){
   const d = DATA[code] || DATA.WLD;
-  const vel = velOverrides || VELOCITY[code] || VELOCITY.WLD;
-  const resilience = computeResilienceIndex(code);
-
-  // Estado inicial: scores actuales
-  const state = {};
-  CAT_KEYS.forEach(k => { state[k] = d[k]?.score ?? 50; });
-  Object.assign(state, shockOverrides);
-
-  // Historial de scores por semana
-  const history = [{ ...state, week: 0 }];
-
-  // Queue de shocks pendientes: {target, delta, arrivalWeek, decay}
-  const pendingShocks = [];
-
-  /* T26 · Efectos que ya llegaron y siguen decayendo. Cada uno guarda cuanto
-     empuja todavia; su factor de decaimiento lo reduce semana a semana. */
-  const residuos = [];
-
-  // Generar shocks iniciales desde velocidades actuales
-  CAT_KEYS.forEach(srcKey => {
-    const props = PROP_MATRIX[srcKey];
-    if (!props) return;
-    const srcVel = vel[srcKey] || 0;
-    const srcScore = state[srcKey];
-    if (Math.abs(srcVel) < 0.05) return;
-
-    Object.entries(props).forEach(([tgtKey, {s, l, d: dec}]) => {
-      const shockMagnitude = srcScore * srcVel * s * (1 - resilience * 0.6);
-      if (Math.abs(shockMagnitude) < 0.3) return;
-      pendingShocks.push({
-        target: tgtKey,
-        delta: shockMagnitude,
-        arrivalWeek: Math.round(l),
-        decay: dec,
-        source: srcKey,
-      });
-    });
-  });
-
-  // Simular semana a semana
-  for (let week = 1; week <= horizonWeeks; week++) {
-    const newState = { ...state };
-
-    // Aplicar velocidades base (tendencia secular)
-    CAT_KEYS.forEach(k => {
-      const drift = (vel[k] || 0) * 0.4 * (1 - resilience * 0.5);
-      newState[k] = Math.max(0, Math.min(100, newState[k] + drift));
-    });
-
-    /* T26 · Los shocks decaen.
-
-       Cada entrada de PROP_MATRIX trae tres parametros: fuerza (s), latencia
-       (l) y DECAIMIENTO (d). Los dos primeros se usaban; el tercero se
-       leia, se guardaba en el shock y no se miraba nunca, de modo que un
-       shock era un escalon permanente: llegaba en su semana, subia el score
-       y ahi se quedaba hasta el final del horizonte.
-
-       Ahora el efecto de un shock se mantiene como residuo y se reduce cada
-       semana por su factor de decaimiento, que es lo que el parametro dice.
-       Un shock con d = 0,7 conserva el 70 % de su efecto a la semana
-       siguiente, el 49 % a la otra, y a las diez semanas queda en el 2,8 %. */
-    pendingShocks.forEach(shock => {
-      if (shock.arrivalWeek !== week) return;
-      const dampened = shock.delta * (1 - resilience * 0.4);
-      newState[shock.target] = Math.max(0, Math.min(100,
-        newState[shock.target] + dampened
-      ));
-      // Queda vivo para decaer en las semanas siguientes.
-      residuos.push({ target: shock.target, delta: dampened, decay: shock.decay });
-
-      // Propagar en cascada de segundo orden
-      const secondProps = PROP_MATRIX[shock.target];
-      if (secondProps && Math.abs(dampened) > 1.5) {
-        Object.entries(secondProps).forEach(([tgt2, {s, l, d: dec}]) => {
-          if (tgt2 === shock.source) return; // evitar ciclos
-          pendingShocks.push({
-            target: tgt2,
-            delta: dampened * s * 0.5,
-            arrivalWeek: week + Math.round(l * 0.7),
-            decay: dec,
-            source: shock.target,
-          });
-        });
-      }
-    });
-
-    /* T26 · Decaer los residuos de semanas anteriores.
-       El residuo se reduce por su factor y la diferencia se descuenta del
-       score, que es lo que significa que un shock se disipa. */
-    for (let i = residuos.length - 1; i >= 0; i--) {
-      const r = residuos[i];
-      const dec = (typeof r.decay === 'number' && r.decay > 0 && r.decay < 1) ? r.decay : 0.8;
-      const siguiente = r.delta * dec;
-      const disipado = r.delta - siguiente;
-      newState[r.target] = Math.max(0, Math.min(100, newState[r.target] - disipado));
-      r.delta = siguiente;
-      // Por debajo de una decima ya no mueve nada: fuera de la lista.
-      if (Math.abs(r.delta) < 0.1) residuos.splice(i, 1);
-    }
-
-    // Actualizar estado
-    CAT_KEYS.forEach(k => { state[k] = newState[k]; });
-    history.push({ ...state, week });
+  const scores = {};
+  const sigmas = {};
+  for (const k of CAT_KEYS) {
+    scores[k] = (d[k] && typeof d[k].score === 'number') ? d[k].score : 50;
+    sigmas[k] = sigmaDeCategoria(d, k);
   }
-
-  return history;
+  return {
+    catKeys: CAT_KEYS.slice(),
+    scores,
+    sigmas,
+    vel: Object.assign({}, VELOCITY[code] || VELOCITY.WLD),
+    resiliencia: computeResilienceIndex(code),
+    prop: PROP_MATRIX,
+    sigmaVelocidad: SIGMA_VELOCIDAD,
+  };
 }
 
+function simulateCascade(code, horizonWeeks, shockOverrides = {}, velOverrides = null) {
+  /* T28 · El calculo vive en src/dashboard/sim-core.js, que no lee nada de
+     fuera y por tanto puede correr tambien dentro de un Web Worker. Esta
+     funcion se queda como la puerta de entrada que el resto del motor ya
+     usaba: construye el modelo del pais y delega. */
+  return simularCascada(modeloDe(code), horizonWeeks, shockOverrides, velOverrides);
+}
 // ══════════════════════════════════════════════════
 //  MONTE CARLO — 500 simulaciones con ruido
 // ══════════════════════════════════════════════════
@@ -2990,72 +2917,22 @@ function sigmaDeCategoria(d, k) {
 const SIGMA_VELOCIDAD = 0.05;
 
 function runMonteCarlo(code, horizonWeeks, nSims = 400) {
-  const d = DATA[code] || DATA.WLD;
+  /* T28 · Igual que simulateCascade: el calculo esta en sim-core.js para que
+     pueda correr dentro del worker. Esta version sincrona se queda porque la
+     usan la consola, las pruebas y el camino de respaldo cuando no hay
+     Worker; el panel usa proyeccionDe(), que si va por el worker. */
+  return monteCarloLocal(modeloDe(code), horizonWeeks, nSims, semilla());
+}
 
-  // Convertir horizonte a semanas
-  const results = [];
-  const semillaUsada = semilla();
-
-  for (let sim = 0; sim < nSims; sim++) {
-    /* T26 · Generador con semilla, uno por simulacion, derivado de la
-       semilla de la sesion. Antes era Math.random(), que no se puede
-       sembrar: dos ejecuciones seguidas daban bandas distintas y no habia
-       forma de saber si la diferencia venia de un cambio o del azar. */
-    const gaussiana = gaussianaCon(generadorDeSimulacion(sim));
-
-    // Perturbación gaussiana de velocidades y scores iniciales
-    const shockOverrides = {};
-    CAT_KEYS.forEach(k => {
-      const base = d[k]?.score ?? 50;
-      const noise = gaussiana(0, sigmaDeCategoria(d, k));
-      shockOverrides[k] = Math.max(0, Math.min(100, base + noise));
-    });
-
-    // Perturbar también las velocidades en VELOCITY
-    const perturbedVel = {};
-    const vel = VELOCITY[code] || VELOCITY.WLD;
-    CAT_KEYS.forEach(k => {
-      perturbedVel[k] = (vel[k] || 0) + gaussiana(0, SIGMA_VELOCIDAD);
-    });
-
-    /* T26 · ...y ahora SE PASAN. Antes perturbedVel se calculaba y se
-       quedaba sin usar, de modo que las 400 simulaciones compartian las
-       mismas velocidades y la banda era mas estrecha de lo que decia. */
-    const history = simulateCascade(code, horizonWeeks, shockOverrides, perturbedVel);
-    // Solo guardar semanas clave
-    const keyFrames = [0, Math.floor(horizonWeeks*0.25),
-                       Math.floor(horizonWeeks*0.5),
-                       Math.floor(horizonWeeks*0.75), horizonWeeks];
-    const simResult = {};
-    keyFrames.forEach(w => {
-      const frame = history[Math.min(w, history.length-1)];
-      let global = 0;
-      CAT_KEYS.forEach(k => { global += (frame[k] || 50); });
-      simResult[w] = global / CAT_KEYS.length;
-    });
-    results.push(simResult);
-  }
-
-  // Calcular percentiles para cada semana clave
-  const keyFrames = [0, Math.floor(horizonWeeks*0.25),
-                     Math.floor(horizonWeeks*0.5),
-                     Math.floor(horizonWeeks*0.75), horizonWeeks];
-  const bands = {};
-  keyFrames.forEach(w => {
-    const vals = results.map(r => r[w]).sort((a,b) => a-b);
-    bands[w] = {
-      p10: vals[Math.floor(nSims*0.10)],
-      p25: vals[Math.floor(nSims*0.25)],
-      p50: vals[Math.floor(nSims*0.50)],
-      p75: vals[Math.floor(nSims*0.75)],
-      p90: vals[Math.floor(nSims*0.90)],
-    };
-  });
-
-  /* T26 · La semilla viaja con el resultado: el panel la muestra y el enlace
-     "repetir" la pone en la URL, de modo que una proyeccion concreta se
-     puede volver a mirar y comparar. */
-  return { bands, keyFrames, semilla: semillaUsada, simulaciones: nSims };
+/**
+ * T28 · La proyeccion que usa el panel: por el worker y con memoria.
+ *
+ * Devuelve una promesa. El resultado solo depende del pais, del horizonte, del
+ * numero de simulaciones y de la semilla, asi que se puede memorizar: volver a
+ * una region ya vista no recalcula nada.
+ */
+function proyeccionDe(code, horizonWeeks, nSims = 400){
+  return proyectar(modeloDe(code), code, horizonWeeks, nSims, semilla());
 }
 
 /* ── Box-Muller para ruido gaussiano ──
@@ -3081,10 +2958,13 @@ let cascadeChart = null;
    recalculo da bandas distintas. La semilla se muestra junto al grafico y el
    enlace la pone en la URL, de modo que una proyeccion concreta se puede
    compartir y comparar. Con ?seed=N se fija al cargar la pagina. */
-function mostrarSemilla(mc){
+function mostrarSemilla(mc, origen){
   const el = document.getElementById('mc-semilla');
   if(!el || !mc) return;
-  el.textContent = mc.simulaciones + ' simulaciones · semilla ' + mc.semilla;
+  const comoSeCalculo = origen === 'memoria'
+    ? 'memoria'
+    : statsSim.modo + (statsSim.msUltimo != null ? ' · ' + statsSim.msUltimo + ' ms' : '');
+  el.textContent = mc.simulaciones + ' simulaciones · semilla ' + mc.semilla + ' · ' + comoSeCalculo;
   el.title = 'Con ?seed=' + mc.semilla + ' en la URL esta proyección sale idéntica. '
     + 'La dispersión de cada categoría depende de su confianza, no de su puntuación.';
   const enlace = document.getElementById('mc-repetir');
@@ -3115,9 +2995,25 @@ function renderProjectionChart(code, horizonMonths) {
 
   // Correr simulación base + Monte Carlo
   const baseHistory = simulateCascade(code, Math.round(horizonWeeks));
-  const mc = runMonteCarlo(code, Math.round(horizonWeeks));
+  /* T28 · Si el resultado ya esta memorizado se pinta ahora mismo; si no, se
+     pide al worker y se vuelve a pintar cuando llegue. El hilo principal no
+     se queda bloqueado 86 ms calculando 400 simulaciones. */
+  const semanas = Math.round(horizonWeeks);
+  const mc = enMemoria(code, semanas, 400, semilla());
+  if (!mc) {
+    proyeccionDe(code, semanas).then(() => {
+      // Si entre tanto se ha cambiado de region, no se pinta la vieja.
+      const actual = document.getElementById('region-sel');
+      if (!actual || actual.value === code) renderProjectionChart(code, horizonMonths);
+    }).catch((err) => console.warn('AETHER: proyeccion fallida:', err));
+    const esperando = document.getElementById('mc-semilla');
+    if (esperando) esperando.textContent = 'calculando 400 simulaciones…';
+    return;
+  }
   const { bands, keyFrames } = mc;
-  mostrarSemilla(mc);
+  // Venia de la memoria: lo dice la etiqueta, para no atribuirle al worker un
+  // calculo que no ha hecho.
+  mostrarSemilla(mc, 'memoria');
 
   // Semanas para eje X (base history)
   const nWeeks = baseHistory.length;
@@ -3799,7 +3695,7 @@ export {
   EVENT_POOL, ISO_MAP, COUNTRY_FLAGS, REGION_GROUPS, RESILIENCE_WEIGHTS,
   ShockSim, SHOCK_PRESETS, STEPS,
   enhancedScore, enhancedScoreDesglosado, riskLabel, scoreToColor, velLabel,
-  simulateCascade, runMonteCarlo, gaussianRandom,
+  simulateCascade, runMonteCarlo, proyeccionDe, modeloDe, gaussianRandom,
   computeResilienceIndex, detectInflections,
   initAetherApp, initAetherApp2, loadRegion, onRegionChange,
   updateBanner, renderInds, renderEvents, renderRanking, renderChains,
@@ -3821,6 +3717,6 @@ window.__AETHER__ = Object.freeze({
   COVERAGE: AETHER_COVERAGE,
   DATA, CAT_KEYS, CAT_LABELS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
   EVENT_POOL, RESILIENCE_WEIGHTS, RESILIENCE_DECLARADOS, INFORME_CORR, ShockSim,
-  enhancedScore, riskLabel, simulateCascade, runMonteCarlo,
+  enhancedScore, riskLabel, simulateCascade, runMonteCarlo, proyeccionDe, modeloDe,
   computeResilienceIndex, detectInflections,
 });
