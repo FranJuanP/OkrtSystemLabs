@@ -28,6 +28,7 @@ import { cargarDatos, fechaDatos } from '../core/datos.js';
 import { construirDATA } from './datos-dashboard.js';
 import { ETIQUETA_RELATIVA } from '../core/scoring.js';
 import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rng.js';
+import { proyectarAPSD, normalizarPesos, comprobarCorrelacion } from './matrices.js';
 
 const d3 = {
   select, zoom, zoomIdentity, drag,
@@ -820,7 +821,41 @@ if (DATOS_ESTADO.ok && DATOS_ESTADO.calculo) {
   for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.paises)) VELOCITY[iso] = p.velocidades;
   for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.agregados || {})) VELOCITY[iso] = p.velocidades;
 }
-const CORR_MATRIX=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
+/* T27 · CORR_MATRIX no era una matriz de correlacion.
+
+   Es simetrica, tiene unos en la diagonal y todos sus valores estan en
+   [-1, 1], asi que lo parece. Pero una matriz de correlacion tiene que ser
+   ademas SEMIDEFINIDA POSITIVA: si no lo es, describe un conjunto de
+   correlaciones que ningun conjunto de variables reales puede tener a la vez.
+
+   Su espectro tiene un valor propio negativo: -0,1484. Los otros quince son
+   positivos. Mientras haya uno negativo, cualquier calculo que la trate como
+   una correlacion puede producir varianzas negativas.
+
+   La tabla escrita a mano se conserva como CORR_DECLARADA, para poder ver de
+   donde se parte, y CORR_MATRIX es su proyeccion valida: se recorta el valor
+   propio negativo y se devuelve la diagonal a unos. El cambio maximo en un
+   elemento es 0,051 y la correlacion mas alta pasa de 0,80 a 0,7879.
+
+   INFORME_CORR lleva el detalle y window.__AETHER__ lo expone. */
+const CORR_DECLARADA=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
+
+const INFORME_CORR = (() => {
+  const antes = comprobarCorrelacion(CORR_DECLARADA);
+  const r = proyectarAPSD(CORR_DECLARADA);
+  return {
+    antes,
+    despues: comprobarCorrelacion(r.matriz),
+    valoresPropios: r.valoresPropios,
+    minimoOriginal: r.minimoOriginal,
+    recortados: r.recortados,
+    cambioMaximo: r.cambioMaximo,
+    yaEraValida: r.yaEraValida,
+    matriz: r.matriz,
+  };
+})();
+
+const CORR_MATRIX = INFORME_CORR.matriz;
 const ISO_MAP={
   '004':'AFG',
   '008':'ALB',
@@ -1049,7 +1084,20 @@ const ISO_MAP={
 };
 
 // ── ENHANCED SCORE: base + velocidad + boost correlación ──
-function enhancedScore(baseScore, catKey, countryCode){
+/* T27 · El desglose, que antes no se podia ver.
+
+   La tarjeta de cada categoria mostraba un solo numero, el compuesto, con el
+   desglose escondido en el atributo title. Eso mezcla en una cifra tres cosas
+   de naturaleza muy distinta:
+
+     base   el percentil que sale de los datos, con su fuente y su anio
+     vel    un ajuste que depende de VELOCITY, una tabla escrita a mano
+     corr   un ajuste que depende de CORR_MATRIX, otra tabla escrita a mano
+
+   Ahora se devuelven separados y la tarjeta ensena la base como numero
+   principal con el ajuste al lado, para que se vea cuanto del numero viene
+   del dato y cuanto del modelo. */
+function enhancedScoreDesglosado(baseScore, catKey, countryCode){
   const vi = CAT_KEYS.indexOf(catKey);
   const vel = (VELOCITY[countryCode]||VELOCITY.WLD)[catKey]||0;
   const velAdj = Math.round(baseScore * vel * 0.28);
@@ -1063,7 +1111,18 @@ function enhancedScore(baseScore, catKey, countryCode){
     const s2 = d[k2]?.score || 50;
     corrBoost += (c - 0.5) * (s2 - 50) * 0.06;
   });
-  return Math.min(100, Math.max(0, Math.round(baseScore + velAdj + corrBoost)));
+  const total = Math.min(100, Math.max(0, Math.round(baseScore + velAdj + corrBoost)));
+  return {
+    base: baseScore,
+    velocidad: velAdj,
+    correlacion: Math.round(corrBoost * 10) / 10,
+    ajuste: total - baseScore,
+    total,
+  };
+}
+
+function enhancedScore(baseScore, catKey, countryCode){
+  return enhancedScoreDesglosado(baseScore, catKey, countryCode).total;
 }
 
 // ── VELOCIDAD LABEL ──
@@ -2510,20 +2569,28 @@ function loadRegion(){
   CATS_CFG.forEach(({k,g,n,c,i,color})=>{
     const cat=d[k];
     if(!cat) return;
-    // Enhanced score: base + velocidad + correlaciones
-    const eScore=typeof enhancedScore==='function'
-      ? enhancedScore(cat.score,k,code)
-      : cat.score;
+    /* T27 · Base y ajuste, separados.
+       El numero grande es la puntuacion que sale de los datos; el pequeno, lo
+       que le anade el modelo (velocidad y correlaciones, las dos tablas
+       escritas a mano). La aguja sigue marcando el compuesto. */
+    const desg=enhancedScoreDesglosado(cat.score,k,code);
+    const eScore=desg.total;
     const gaugeColor=eScore>=75?'#FF3355':eScore>=55?'#FF8C00':eScore>=35?'#FFD700':'#00CC66';
     drawGauge(g,eScore,gaugeColor);
     const nEl=document.getElementById(n);
     if(nEl){
-      nEl.textContent=eScore;
-      nEl.style.color=eScore>=75?'#FF3355':eScore>=55?'#FF8C00':eScore>=35?'#FFD700':'#00CC66';
-      if(typeof VELOCITY!=='undefined'){
-        const vel=(VELOCITY[code]||VELOCITY.WLD)[k]||0;
-        nEl.title='Base:'+cat.score+' Vel:'+(vel>0?'+':'')+(vel*100).toFixed(0)+'% Compuesto:'+eScore;
-      }
+      const colorBase=desg.base>=75?'#FF3355':desg.base>=55?'#FF8C00':desg.base>=35?'#FFD700':'#00CC66';
+      const signo=desg.ajuste>0?'+':'';
+      nEl.innerHTML=desg.ajuste!==0
+        ? esc(String(desg.base))+'<span class="score-ajuste">'+esc(signo+desg.ajuste)+'</span>'
+        : esc(String(desg.base));
+      nEl.style.color=colorBase;
+      const conf=cat.confianza&&cat.confianza.nivel?cat.confianza.nivel:'—';
+      nEl.title='Dato: '+desg.base+' (confianza '+conf+')'
+        +' · ajuste del modelo: velocidad '+(desg.velocidad>0?'+':'')+desg.velocidad
+        +', correlaciones '+(desg.correlacion>0?'+':'')+desg.correlacion
+        +' · compuesto '+eScore
+        +'. La velocidad y las correlaciones salen de tablas escritas a mano, no de los datos.';
     }
     const[lbl,lc]=riskLabel(eScore);
     const cEl=document.getElementById(c);
@@ -2688,7 +2755,7 @@ const PROP_MATRIX = {
 
 // ── FACTORES DE RESILIENCIA ──
 // Qué categorías amortiguan los shocks entrantes
-const RESILIENCE_WEIGHTS = {
+const RESILIENCE_DECLARADOS = {
   science: 0.18,  // I+D amortigua propagaciones
   eco:     0.15,  // solidez económica
   health:  0.12,  // salud pública fuerte absorbe shocks bio/mental
@@ -2707,6 +2774,21 @@ const RESILIENCE_WEIGHTS = {
   bio:     0.02,
 };
 
+/* T27 · Los pesos de resiliencia sumaban 1,20, no 1.
+
+   El indice de resiliencia es una media ponderada que se usa como un valor de
+   0 a 1: (1 - resilience*0,6) amortigua los shocks y (1 - resilience*0,4) los
+   atenua al llegar. Con pesos que suman 1,20 un pais perfecto habria dado
+   1,20, y el recorte a 0,95 del final estaba tapando el problema: el indice
+   llegaba al techo antes de lo debido y todos los paises buenos quedaban
+   indistinguibles ahi arriba.
+
+   Se dividen por su suma. Los pesos RELATIVOS no cambian -la ciencia sigue
+   pesando nueve veces mas que la alimentacion-; lo que cambia es que ahora el
+   indice vive de verdad entre 0 y 1. */
+const { pesos: RESILIENCE_WEIGHTS, sumaOriginal: RESILIENCE_SUMA_DECLARADA } =
+  normalizarPesos(RESILIENCE_DECLARADOS);
+
 // ══════════════════════════════════════════════════
 //  RESILIENCE INDEX — 0 (frágil) a 1 (muy resiliente)
 // ══════════════════════════════════════════════════
@@ -2717,7 +2799,11 @@ function computeResilienceIndex(code) {
     const score = d[k]?.score ?? 50;
     const riskNorm = score / 100;       // 0=muy bueno, 1=muy malo
     const strength = 1 - riskNorm;      // invertir: bueno = alta resiliencia
-    resilience += strength * (RESILIENCE_WEIGHTS[k] || 0.05);
+    /* T27: el respaldo era 0,05, un peso del orden de los declarados. Con
+       los pesos ya normalizados a 1 ese respaldo estaria fuera de escala, y
+       ademas las 16 categorias estan todas declaradas, asi que nunca entra:
+       se pone a 0 para que, si alguna vez faltara una, no inventara peso. */
+    resilience += strength * (RESILIENCE_WEIGHTS[k] || 0);
   });
   return Math.max(0.05, Math.min(0.95, resilience));
 }
@@ -3712,7 +3798,7 @@ export {
   DATA, CAT_KEYS, CAT_LABELS, CAT_COLORS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
   EVENT_POOL, ISO_MAP, COUNTRY_FLAGS, REGION_GROUPS, RESILIENCE_WEIGHTS,
   ShockSim, SHOCK_PRESETS, STEPS,
-  enhancedScore, riskLabel, scoreToColor, velLabel,
+  enhancedScore, enhancedScoreDesglosado, riskLabel, scoreToColor, velLabel,
   simulateCascade, runMonteCarlo, gaussianRandom,
   computeResilienceIndex, detectInflections,
   initAetherApp, initAetherApp2, loadRegion, onRegionChange,
@@ -3734,7 +3820,7 @@ export {
 window.__AETHER__ = Object.freeze({
   COVERAGE: AETHER_COVERAGE,
   DATA, CAT_KEYS, CAT_LABELS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
-  EVENT_POOL, RESILIENCE_WEIGHTS, ShockSim,
+  EVENT_POOL, RESILIENCE_WEIGHTS, RESILIENCE_DECLARADOS, INFORME_CORR, ShockSim,
   enhancedScore, riskLabel, simulateCascade, runMonteCarlo,
   computeResilienceIndex, detectInflections,
 });
