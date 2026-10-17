@@ -22,6 +22,8 @@ on:
 
 # Solo escribir en el repositorio; nada de Pages ni de paquetes.
 permissions:
+  # contents: write para confirmar latest.json y para publicar la Release
+  # con la instantanea de la semana.
   contents: write
 
 concurrency:
@@ -88,16 +90,45 @@ jobs:
           }
           JS
 
+      - name: Publicar la instantánea como Release
+        # La instantanea con fecha pesa 3,4 MB y cada semana habria otra. En
+        # el repositorio eso es historial que crece sin parar con ficheros que
+        # nadie va a leer en diff; como adjunto de una Release se conserva
+        # igual, se descarga por URL y no entra en el clon de nadie.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          dia=$(date -u +%Y-%m-%d)
+          fichero="data/aether-$dia.json"
+          test -s "$fichero"
+          etiqueta="datos-$dia"
+          # Comprimida ocupa la decima parte y la Release tiene limite de 2 GB
+          # por fichero, pero no hay razon para subir 3,4 MB pudiendo subir 100 KB.
+          gzip -9 -kf "$fichero"
+          if gh release view "$etiqueta" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$etiqueta" "$fichero.gz" --clobber --repo "${{ github.repository }}"
+          else
+            gh release create "$etiqueta" "$fichero.gz"               --repo "${{ github.repository }}"               --title "Datos AETHER · $dia"               --notes "Instantánea semanal de los indicadores, con su fuente, año y enlace en cada dato.
+
+          Generada por .github/workflows/datos.yml con \`node tools/fetch-data.mjs\`.
+          El fichero que usan las páginas es siempre \`data/latest.json\` en main; esto es el archivo histórico."
+          fi
+          rm -f "$fichero.gz"
+          echo "instantánea publicada en la Release $etiqueta"
+
       - name: Confirmar si ha cambiado
         run: |
           set -e
-          if [ -z "$(git status --porcelain data)" ]; then
+          # Solo latest.json entra en main. Las instantaneas con fecha van a
+          # la Release y estan en .gitignore.
+          if [ -z "$(git status --porcelain data/latest.json data/vector.json)" ]; then
             echo "los datos no han cambiado; no se confirma nada"
             exit 0
           fi
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data
+          git add data/latest.json data/vector.json
           dia=$(date -u +%Y-%m-%d)
           git commit -m "datos: instantánea del $dia
 

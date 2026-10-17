@@ -30,10 +30,31 @@ fuente, el enlace y el momento en que se descargó.
 | **ND-GAIN (Notre Dame)** | Vulnerabilidad y preparación climáticas | CC BY-NC-SA 4.0 |
 | **FMI · COFER** | Composición por monedas de las reservas oficiales | Reutilización con atribución |
 | **Tesoro de EEUU · TIC** | Tenedores extranjeros de deuda estadounidense | Dominio público |
+| **OMS · Disease Outbreak News** | Brotes notificados, para el feed de Signal | Reutilización con atribución |
+| **Natural Earth** | Centroides de los territorios sin coordenadas de capital | Dominio público |
 
 El trabajo `.github/workflows/datos.yml` las descarga **todos los lunes**,
 valida el resultado contra `data/schema/aether-datos.schema.json` y lo
 confirma solo si pasa. Se puede reproducir en local con `npm run datos`.
+
+### Por qué no hay una fuente de conflicto armado
+
+Es el hueco más visible del conjunto: la categoría GEO se apoya en la
+estabilidad política de los WGI y en las dimensiones de INFORM, que son
+indicadores compuestos y anuales, no un recuento de eventos.
+
+**UCDP** (Uppsala Conflict Data Program) sería la fuente natural, y es
+gratuita. Pero desde hace un tiempo exige **un token de acceso** que se pide
+por correo:
+
+> *«To use the API, please contact the API maintainer to request an access
+> token. In your email, briefly describe your research project and/or intended
+> use of the data.»* — correo a `mertcan.yilmaz@pcr.uu.se`, asunto
+> «UCDP API Access Request».
+
+El token viaja luego en la cabecera `x-ucdp-access-token`, y cada llamada
+tiene que indicar la versión de los datos (`/api/gedevents/26.1`). **No está
+integrado**: hace falta que alguien solicite ese token.
 
 ### Por qué no está ACLED
 
@@ -49,6 +70,15 @@ Taiwán, el Sáhara Occidental y la Guayana Francesa aparecen en el panel y no
 tienen datos: no son miembros de las instituciones que publican estas series,
 o no se publican por separado. Está anotado en `sin_fuente` dentro del propio
 fichero de datos, con el motivo de cada uno.
+
+**Territorios sin coordenadas de capital.** El globo coloca cada marcador en
+la capital, que publica el Banco Mundial, y seis territorios no la traen:
+Palestina, las Islas del Canal, Curazao, Gibraltar, San Martín y Sint Maarten.
+No se dibujaban. Ahora se colocan con el **centroide de su geometría según
+Natural Earth** —la pieza de mayor área, para que el punto caiga dentro de
+algo real y no entre Cisjordania y Gaza—. Cada país declara en
+`origen_coordenadas` si su punto es una capital o un centroide: no son lo
+mismo.
 
 ---
 
@@ -118,9 +148,27 @@ Los pesos están en `PESOS_INDICADOR`. Todos valen 1 salvo dos:
 Darles el mismo peso que a un dato suelto los diluiría; el doble refleja que
 resumen más información.
 
-### Paso 3 · La puntuación de un país
+### Paso 3 · El índice de un país: mitad el conjunto, mitad lo peor
 
-Media de sus 16 categorías, con los pesos de `PESOS_CATEGORIA`.
+$$\text{índice} = 0{,}5 \times \overline{\text{16 categorías}} \;+\; 0{,}5 \times \overline{\text{las 3 peores}}$$
+
+**Por qué no solo la media.** La media de las 16 esconde justo lo que
+importa. Ucrania tenía GEO en 85 y acababa con 53, porque sus otras quince
+categorías la arrastraban al centro: un país puede estar en una situación
+crítica por un dominio y razonablemente bien en los demás, y promediarlo todo
+lo disuelve.
+
+**Por qué no solo lo peor.** Un país con un problema serio y todo lo demás
+impecable se leería igual que uno con problemas en todas partes. El conjunto
+también dice algo.
+
+Mitad y mitad. Los pesos están en `PESO_CONJUNTO`, `PESO_PEORES` y
+`CUANTAS_PEORES`, en un solo sitio, y cada país publica su desglose: cuánto
+viene de cada mitad y cuáles son sus tres categorías peores.
+
+Con este cambio el rango del índice pasa de 27–74 a **44–85**.
+
+La media de las 16 usa los pesos de `PESOS_CATEGORIA`.
 
 **Todas las categorías pesan 1, y es una decisión, no un descuido.** Para
 poner la economía por encima de los océanos hace falta una fuente que
@@ -130,10 +178,9 @@ para que cambiarla sea un cambio visible en un único sitio del código.
 
 ### Paso 4 · Puesto y categoría destacada
 
-La puntuación compuesta es una media de percentiles, y **eso la comprime
-hacia el centro**: con 16 categorías el rango real observado va de 27 a 74,
-no de 0 a 100. Leer «74» como «74 de 100 de riesgo posible» sería un error.
-Por eso cada país lleva además:
+El índice sigue siendo una combinación de percentiles, así que **sigue
+comprimido**: el rango observado va de 44 a 85, no de 0 a 100. Leer «85» como
+«85 de 100 de riesgo posible» sería un error. Por eso cada país lleva además:
 
 - su **puesto** entre los 217 países con puntuación, que sí es interpretable;
 - su **categoría destacada**: la de mayor riesgo, que es lo que de verdad
@@ -147,19 +194,34 @@ Ucrania salía «salud mental», porque esa categoría tiene un solo indicador
 que una media de cuatro. Con la regla sale «geopolítica», que es lo que miden
 sus datos: amenaza humana 10 sobre 10 y población desarraigada 10 sobre 10.
 
-### Niveles
+### Niveles: una clasificación **relativa**
 
-| Puntuación | Nivel |
-|---|---|
-| ≤ 35 | BAJO |
-| 36–55 | MEDIO |
-| 56–75 | ALTO |
-| > 75 | CRÍTICO |
+Los niveles no son umbrales fijos: son **tramos de la distribución**.
 
-Son los umbrales que ya usaba el globo. Con los datos de octubre de 2026
-**ningún país alcanza CRÍTICO**: el máximo compuesto es 74 (Eritrea). Eso no
-es un fallo del cálculo, es la compresión descrita arriba. El nivel CRÍTICO
-sí aparece en categorías concretas, donde no hay promediado entre dominios.
+| Nivel | Qué significa | Países |
+|---|---|---|
+| **CRÍTICO** | el 5 % con más riesgo | 12 |
+| **ALTO** | entre el 5 % y el 20 % | 31 |
+| **MEDIO** | entre el 20 % y el 50 % | 71 |
+| **BAJO** | la mitad con menos riesgo | 103 |
+
+Antes eran umbrales absolutos heredados del globo (≤35 bajo, ≤55 medio, ≤75
+alto, resto crítico). Con el índice comprimido hacia el centro **CRÍTICO no lo
+alcanzaba nadie**: la escala decía cuatro niveles teniendo tres.
+
+**Esto cambia lo que significa la etiqueta, y conviene decirlo claro:**
+«CRÍTICO» ya no quiere decir «ha superado un listón», quiere decir «está entre
+los doce países con más riesgo medido». **Siempre habrá un 5 % en crítico**,
+incluso si el mundo entero mejorase; y si el mundo entero empeorase, seguiría
+habiendo un 50 % en «bajo». La interfaz lo dice junto a cada nivel.
+
+Dos países con el mismo índice caen siempre en el mismo nivel: la posición se
+calcula con cuántos tienen un índice **mayor**, no con el puesto en la lista.
+Sin eso, Papua Nueva Guinea y Corea del Norte —ambos con 79— salían uno
+CRÍTICO y el otro ALTO porque el corte caía justo entre los dos.
+
+Dónde cae cada corte en puntos de índice se publica en `cortes`, dentro del
+propio cálculo, para quien prefiera leerlo como un número.
 
 ---
 
@@ -178,6 +240,36 @@ qué**, no solo que sea baja. Depende de dos cosas:
 | **baja** | por debajo de eso |
 
 En la primera ejecución: 206 países con confianza alta, 10 media, 1 baja.
+
+---
+
+## 4 bis. Velocidad: hacia dónde se mueve cada categoría
+
+El motor usa una «velocidad» por país y categoría para proyectar y para
+ajustar la puntuación de las tarjetas. Era **una tabla escrita a mano con
+valores para diez países**; los otros 207 usaban los del mundo, de modo que la
+velocidad de Nigeria era la misma que la de Noruega.
+
+Ahora se calcula. Para cada indicador que puntúa y que tiene valor anterior:
+
+$$v = \frac{v_1 - v_0}{|v_0|\,(y_1 - y_0)} \times (\text{+1 si sube el riesgo, −1 si lo baja})$$
+
+y la velocidad de la categoría es la **mediana** de las de sus indicadores.
+
+**Mediana y no media** porque basta un indicador que pase de 0,1 a 0,3 para
+que un cambio relativo del 200 % domine la media de toda la categoría. La
+mediana no se deja arrastrar por un solo denominador pequeño.
+
+Se recorta a ±0,6, que es el rango en el que se movía la tabla anterior y para
+el que está calibrada la aritmética del motor. Cada categoría publica **de
+cuántos indicadores** sale su velocidad: con cero, es un cero declarado y no
+una medición de estabilidad.
+
+**Dos cautelas.** Un hueco de más de diez años entre los dos valores no cuenta
+como tendencia: repartir ese cambio por año da un número que parece una
+velocidad y no lo es. Y las dimensiones de INFORM y ND-GAIN no traen valor
+anterior —vienen de una sola publicación—, así que las categorías que dependen
+mucho de ellas tienen velocidades apoyadas en pocos indicadores.
 
 ---
 

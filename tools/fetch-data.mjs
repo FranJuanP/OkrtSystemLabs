@@ -35,6 +35,7 @@ import * as inform from './data/inform.mjs';
 import * as ndgain from './data/ndgain.mjs';
 import * as cofer from './data/cofer.mjs';
 import * as tic from './data/tic.mjs';
+import { centroidesDe } from './data/centroides.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = path.join(ROOT, 'data');
@@ -221,7 +222,13 @@ async function main() {
     if (p.region) entrada.region = p.region;
     if (p.ingreso) entrada.ingreso = p.ingreso;
     if (p.capital) entrada.capital = p.capital;
-    if (p.lat != null && p.lng != null) { entrada.lat = p.lat; entrada.lng = p.lng; }
+    if (p.lat != null && p.lng != null) {
+      entrada.lat = p.lat;
+      entrada.lng = p.lng;
+      // 'capital' (Banco Mundial) o 'centroide' (Natural Earth). Son cosas
+      // distintas y el que lea el fichero tiene derecho a saber cual es.
+      entrada.origen_coordenadas = p.origenCoordenadas || 'capital';
+    }
 
     for (const ind of INDICADORES) {
       const tabla = datos[ind.fuente] && datos[ind.fuente].get(ind.codigo);
@@ -246,6 +253,30 @@ async function main() {
       if (contarCobertura) cobertura[ind.id] = (cobertura[ind.id] || 0) + 1;
     }
     return entrada;
+  }
+
+  /* Los territorios sin coordenadas de capital se colocan con el centroide de
+     su geometria segun Natural Earth. El globo no los dibujaba, y entre ellos
+     estaba Palestina, que ademas tiene dos arcos de tension. Se marca de donde
+     salen las coordenadas: una capital y un centroide no son lo mismo. */
+  const sinCoordenadas = paises.filter((p) => p.lat == null || p.lng == null).map((p) => p.iso3);
+  let centroides = new Map();
+  if (sinCoordenadas.length) {
+    try {
+      centroides = await centroidesDe(sinCoordenadas);
+      console.log(`  centroides de Natural Earth: ${centroides.size} de ${sinCoordenadas.length} (${sinCoordenadas.join(' ')})`);
+    } catch (err) {
+      avisos.push(`centroides: ${err.message}`);
+      console.log(`  centroides FALLO · ${err.message}`);
+    }
+  }
+  for (const p of paises) {
+    if (p.lat != null && p.lng != null) continue;
+    const c = centroides.get(p.iso3);
+    if (!c) continue;
+    p.lat = c.lat;
+    p.lng = c.lng;
+    p.origenCoordenadas = 'centroide';
   }
 
   for (const p of paises) salida.paises[p.iso3] = montar(p, true);

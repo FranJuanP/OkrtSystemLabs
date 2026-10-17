@@ -1,90 +1,42 @@
-name: Descargar eventos
+name: Refrescar eventos
 
-# Descarga los eventos de Signal (USGS, NASA EONET, ReliefWeb y GDELT) y los
-# deja en data/events.json.
+# Dispara un despliegue cada media hora para que la web publicada lleve los
+# eventos recientes de Signal.
 #
-# Para qué: hasta ahora, si una fuente no respondía desde el navegador —por
-# estar caída, por bloquear la petición desde el origen de la página, o por
-# la red del visitante—, Signal solo tenía la última lectura guardada en ESE
-# navegador. Quien entraba por primera vez con la fuente caída no veía nada.
-# Con este fichero hay una lectura reciente para todo el mundo, marcada con
-# la hora de la descarga y presentada como última lectura, no como si fuera
-# de ahora.
+# Antes este trabajo DESCARGABA los eventos y los CONFIRMABA en main: hasta
+# 48 commits al día de un fichero que cambia constantemente, engordando el
+# historial con datos que caducan en media hora.
 #
-# Sobre la frecuencia: cada media hora son hasta 48 ejecuciones al día, y se
-# confirma un commit solo cuando el contenido cambia de verdad (`git status`
-# decide). Aun así el historial crece; si molesta, subir el intervalo a una
-# hora es cambiar un número aquí. GitHub, además, no garantiza la puntualidad
-# de los trabajos programados y los retrasa cuando hay carga.
+# Ahora no toca el repositorio. `data/events.json` se genera durante el
+# despliegue (ver deploy-pages.yml) y viaja en el artefacto de Pages, que es
+# donde tiene sentido: es un fichero de salida, no código fuente.
 
 on:
   schedule:
-    # Cada media hora, en los minutos 7 y 37: los minutos en punto y y media
-    # son los más cargados en la cola de GitHub.
+    # Cada media hora, en los minutos 7 y 37: en punto y y media es cuando se
+    # acumulan los trabajos programados de todo GitHub.
     - cron: '7,37 * * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  actions: write
+  contents: read
 
 concurrency:
   group: eventos
   cancel-in-progress: false
 
 jobs:
-  eventos:
-    name: Descargar eventos
+  refrescar:
+    name: Lanzar el despliegue
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar el código
-        uses: actions/checkout@v4
-
-      - name: Preparar Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Descargar los eventos
-        # El script aborta por su cuenta si salen menos de 10 eventos: antes
-        # que dejar un fichero vacío que la página mostraría como «no hay
-        # eventos», se conserva el anterior, que es de hace media hora pero
-        # es una lectura real.
-        run: node tools/fetch-events.mjs
-
-      - name: Comprobar el fichero
+      - name: Pedir un despliegue de Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          node - <<'JS'
-          const fs = require('fs');
-          const d = JSON.parse(fs.readFileSync('data/events.json', 'utf8'));
-          if (d.esquema !== 1) { console.error('esquema inesperado'); process.exit(1); }
-          if (!Array.isArray(d.eventos) || d.eventos.length < 10) {
-            console.error('menos de 10 eventos'); process.exit(1);
-          }
-          const sinFecha = d.eventos.filter((e) => isNaN(new Date(e.time).getTime()));
-          if (sinFecha.length) { console.error(`${sinFecha.length} eventos sin fecha válida`); process.exit(1); }
-          const sinFuente = d.eventos.filter((e) => !e.fuente || !e.title);
-          if (sinFuente.length) { console.error(`${sinFuente.length} eventos sin fuente o sin título`); process.exit(1); }
-          const vivas = Object.values(d.fuentes).filter((f) => f.estado === 'ok').length;
-          console.log(`${d.eventos.length} eventos de ${vivas} fuentes vivas`);
-          JS
-
-      - name: Confirmar si ha cambiado
-        run: |
-          set -e
-          if [ -z "$(git status --porcelain data/events.json)" ]; then
-            echo "los eventos no han cambiado; no se confirma nada"
-            exit 0
-          fi
-          git config user.name  'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data/events.json
-          n=$(node -e "console.log(require('./data/events.json').eventos.length)")
-          git commit -m "eventos: $n eventos a las $(date -u +%H:%M) UTC
-
-          Descarga automática de .github/workflows/eventos.yml.
-          Fuentes: USGS, NASA EONET, ReliefWeb (OCHA) y GDELT."
-          # Entre dos ejecuciones puede haber entrado otro commit; se rebasa
-          # antes de empujar en vez de fallar o forzar.
-          git pull --rebase --autostash origin main
-          git push
+          gh workflow run deploy-pages.yml \
+            --repo "${{ github.repository }}" \
+            --ref main
+          echo "despliegue solicitado; los eventos se descargan durante el build"

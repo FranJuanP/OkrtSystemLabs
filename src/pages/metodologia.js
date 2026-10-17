@@ -9,7 +9,7 @@
  * panel, así que no pueden discrepar.
  */
 import { cargarDatos, fechaDatos } from '../core/datos.js';
-import { PESOS_CATEGORIA, PESOS_INDICADOR, NIVELES } from '../core/scoring.js';
+import { PESOS_CATEGORIA, PESOS_INDICADOR } from '../core/scoring.js';
 import { esc, safeHref } from '../core/escape.js';
 
 /** Pone contenido en una tabla por id, si existe. */
@@ -104,6 +104,29 @@ function pintarPesos(datos) {
   pintarTabla('tabla-pesos', ['Categoría', 'Peso', 'Puntúan / total', 'Pesos dentro'], filas);
 }
 
+/**
+ * Los tramos de nivel, con cuántos países caen en cada uno y a partir de qué
+ * índice. Se lee del cálculo, no se escribe aquí: si mañana cambia el
+ * reparto, la página lo refleja sola.
+ */
+function pintarNiveles(calculo) {
+  const cuenta = {};
+  for (const p of Object.values(calculo.paises)) {
+    if (p.score == null || !p.nivel) continue;
+    cuenta[p.nivel.clave] = (cuenta[p.nivel.clave] || 0) + 1;
+  }
+  const filas = (calculo.niveles || []).map((n) => {
+    const corte = calculo.cortes ? calculo.cortes[n.clave] : null;
+    return `<tr>
+      <td>${esc(n.etiqueta)}</td>
+      <td class="dim">${esc(n.descripcion)}</td>
+      <td class="num">${esc(String(cuenta[n.clave] || 0))} países</td>
+      <td class="num">${corte != null ? '≥ ' + esc(String(corte)) : '—'}</td>
+    </tr>`;
+  });
+  pintarTabla('tabla-niveles', ['Nivel', 'Qué significa', 'Cuántos', 'Índice'], filas);
+}
+
 function pintarConfianza(calculo) {
   const cuenta = { alta: 0, media: 0, baja: 0, ninguna: 0 };
   for (const p of Object.values(calculo.paises)) {
@@ -121,14 +144,9 @@ function pintarConfianza(calculo) {
     <td class="num">${esc(String(cuenta[nivel] || 0))} países</td>
   </tr>`);
 
-  // Los umbrales de nivel, leídos del propio módulo de cálculo.
-  const niveles = NIVELES.map((n, i) => {
-    const desde = i === 0 ? 0 : NIVELES[i - 1].max + 1;
-    const hasta = n.max === Infinity ? 'más' : n.max;
-    return `<tr><td>${esc(n.etiqueta)}</td><td class="dim">puntuación</td><td class="num">${esc(String(desde))} – ${esc(String(hasta))}</td></tr>`;
-  });
-
-  pintarTabla('tabla-confianza', ['Nivel', 'Regla', 'Reparto'], filas.concat(niveles));
+  // Los niveles tienen su propia tabla desde que son tramos de la
+  // distribución: mezclarlos aquí daba a entender que eran lo mismo.
+  pintarTabla('tabla-confianza', ['Nivel', 'Regla', 'Reparto'], filas);
 }
 
 function pintarIndicadores(datos, calculo) {
@@ -185,6 +203,7 @@ async function arrancar() {
     pintarCifras(datos, calculo);
     pintarFuentes(datos);
     pintarPesos(datos);
+    pintarNiveles(calculo);
     pintarConfianza(calculo);
     pintarIndicadores(datos, calculo);
     pintarLimites(datos);

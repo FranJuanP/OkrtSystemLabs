@@ -3,3 +3,13 @@ tests/shots/
 dist/
 .DS_Store
 *.local
+
+# Las instantaneas con fecha se publican como adjunto de una Release,
+# no en el repositorio: pesan 3,4 MB cada semana. En main solo esta
+# data/latest.json, que es el que leen las paginas.
+data/aether-*.json
+
+# Los eventos de Signal se descargan en cada despliegue y viajan en el
+# artefacto de Pages. Antes los confirmaba un trabajo cada media hora:
+# 48 commits al dia de un fichero que caduca en media hora.
+data/events.json
