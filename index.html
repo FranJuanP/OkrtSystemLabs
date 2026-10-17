@@ -1148,6 +1148,13 @@ python -m http.server 8080</pre>
           PROYECCIÓN TEMPORAL — SCORE GLOBAL CON BANDAS DE CONFIANZA (p10/p50/p90)
         </div>
         <canvas id="projection-canvas" height="280"></canvas>
+        <!-- T26: la semilla del Monte Carlo, visible y repetible. Sin ella una
+             proyeccion no se puede volver a mirar: cada recalculo daba bandas
+             distintas. El enlace la pone en la URL. -->
+        <div style="display:flex;gap:10px;align-items:center;margin-top:6px;font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">
+          <span id="mc-semilla">—</span>
+          <a id="mc-repetir" href="#" style="color:var(--cyan);text-decoration:none">↻ REPETIR ESTA PROYECCIÓN</a>
+        </div>
         <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace">
             <div style="width:20px;height:2px;background:#00FFC8;border-radius:1px"></div>TRAYECTORIA BASE

@@ -27,6 +27,7 @@ import { feature as topoFeature } from 'topojson-client';
 import { cargarDatos, fechaDatos } from '../core/datos.js';
 import { construirDATA } from './datos-dashboard.js';
 import { ETIQUETA_RELATIVA } from '../core/scoring.js';
+import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rng.js';
 
 const d3 = {
   select, zoom, zoomIdentity, drag,
@@ -2756,9 +2757,18 @@ function detectInflections(code) {
 // ══════════════════════════════════════════════════
 //  CASCADE SIMULATOR — propagación con lag y decay
 // ══════════════════════════════════════════════════
-function simulateCascade(code, horizonWeeks, shockOverrides = {}) {
+/**
+ * @param {string} code
+ * @param {number} horizonWeeks
+ * @param {object} [shockOverrides]  estado inicial alterado por categoria
+ * @param {object} [velOverrides]    T26: velocidades alteradas por categoria.
+ *   El Monte Carlo las perturbaba y las dejaba en una variable que NO SE
+ *   PASABA aqui, asi que las 400 simulaciones usaban todas la misma
+ *   velocidad y la unica variacion venia del estado inicial. Ahora entran.
+ */
+function simulateCascade(code, horizonWeeks, shockOverrides = {}, velOverrides = null) {
   const d = DATA[code] || DATA.WLD;
-  const vel = VELOCITY[code] || VELOCITY.WLD;
+  const vel = velOverrides || VELOCITY[code] || VELOCITY.WLD;
   const resilience = computeResilienceIndex(code);
 
   // Estado inicial: scores actuales
@@ -2771,6 +2781,10 @@ function simulateCascade(code, horizonWeeks, shockOverrides = {}) {
 
   // Queue de shocks pendientes: {target, delta, arrivalWeek, decay}
   const pendingShocks = [];
+
+  /* T26 · Efectos que ya llegaron y siguen decayendo. Cada uno guarda cuanto
+     empuja todavia; su factor de decaimiento lo reduce semana a semana. */
+  const residuos = [];
 
   // Generar shocks iniciales desde velocidades actuales
   CAT_KEYS.forEach(srcKey => {
@@ -2803,13 +2817,26 @@ function simulateCascade(code, horizonWeeks, shockOverrides = {}) {
       newState[k] = Math.max(0, Math.min(100, newState[k] + drift));
     });
 
-    // Aplicar shocks que llegan esta semana
+    /* T26 · Los shocks decaen.
+
+       Cada entrada de PROP_MATRIX trae tres parametros: fuerza (s), latencia
+       (l) y DECAIMIENTO (d). Los dos primeros se usaban; el tercero se
+       leia, se guardaba en el shock y no se miraba nunca, de modo que un
+       shock era un escalon permanente: llegaba en su semana, subia el score
+       y ahi se quedaba hasta el final del horizonte.
+
+       Ahora el efecto de un shock se mantiene como residuo y se reduce cada
+       semana por su factor de decaimiento, que es lo que el parametro dice.
+       Un shock con d = 0,7 conserva el 70 % de su efecto a la semana
+       siguiente, el 49 % a la otra, y a las diez semanas queda en el 2,8 %. */
     pendingShocks.forEach(shock => {
       if (shock.arrivalWeek !== week) return;
       const dampened = shock.delta * (1 - resilience * 0.4);
       newState[shock.target] = Math.max(0, Math.min(100,
         newState[shock.target] + dampened
       ));
+      // Queda vivo para decaer en las semanas siguientes.
+      residuos.push({ target: shock.target, delta: dampened, decay: shock.decay });
 
       // Propagar en cascada de segundo orden
       const secondProps = PROP_MATRIX[shock.target];
@@ -2827,6 +2854,20 @@ function simulateCascade(code, horizonWeeks, shockOverrides = {}) {
       }
     });
 
+    /* T26 · Decaer los residuos de semanas anteriores.
+       El residuo se reduce por su factor y la diferencia se descuenta del
+       score, que es lo que significa que un shock se disipa. */
+    for (let i = residuos.length - 1; i >= 0; i--) {
+      const r = residuos[i];
+      const dec = (typeof r.decay === 'number' && r.decay > 0 && r.decay < 1) ? r.decay : 0.8;
+      const siguiente = r.delta * dec;
+      const disipado = r.delta - siguiente;
+      newState[r.target] = Math.max(0, Math.min(100, newState[r.target] - disipado));
+      r.delta = siguiente;
+      // Por debajo de una decima ya no mueve nada: fuera de la lista.
+      if (Math.abs(r.delta) < 0.1) residuos.splice(i, 1);
+    }
+
     // Actualizar estado
     CAT_KEYS.forEach(k => { state[k] = newState[k]; });
     history.push({ ...state, week });
@@ -2838,18 +2879,49 @@ function simulateCascade(code, horizonWeeks, shockOverrides = {}) {
 // ══════════════════════════════════════════════════
 //  MONTE CARLO — 500 simulaciones con ruido
 // ══════════════════════════════════════════════════
+/**
+ * Incertidumbre de cada categoria, en puntos de score (T26).
+ *
+ * Antes la dispersion era `base * 0,06`: proporcional al propio score, de
+ * modo que un pais con 80 en una categoria tenia mas incertidumbre que uno
+ * con 20 EN LA MISMA CATEGORIA, aunque los dos salieran de los mismos
+ * indicadores y de la misma fuente. Eso no es lo que dice el dato.
+ *
+ * Ahora sale de la CONFIANZA que calcula src/core/scoring.js, que mide dos
+ * cosas reales: cuantos indicadores tenia la categoria y de que anos son.
+ * Una categoria completa y reciente tiene una banda estrecha; una con un
+ * indicador de 2021, ancha.
+ */
+const SIGMA_POR_CONFIANZA = { alta: 3, media: 7, baja: 12, ninguna: 15 };
+
+function sigmaDeCategoria(d, k) {
+  const cat = d && d[k];
+  const conf = cat && cat.confianza && cat.confianza.nivel;
+  return SIGMA_POR_CONFIANZA[conf] != null ? SIGMA_POR_CONFIANZA[conf] : SIGMA_POR_CONFIANZA.media;
+}
+
+/** Dispersion de la velocidad. Fija, porque VELOCITY no tiene confianza. */
+const SIGMA_VELOCIDAD = 0.05;
+
 function runMonteCarlo(code, horizonWeeks, nSims = 400) {
   const d = DATA[code] || DATA.WLD;
 
   // Convertir horizonte a semanas
   const results = [];
+  const semillaUsada = semilla();
 
   for (let sim = 0; sim < nSims; sim++) {
+    /* T26 · Generador con semilla, uno por simulacion, derivado de la
+       semilla de la sesion. Antes era Math.random(), que no se puede
+       sembrar: dos ejecuciones seguidas daban bandas distintas y no habia
+       forma de saber si la diferencia venia de un cambio o del azar. */
+    const gaussiana = gaussianaCon(generadorDeSimulacion(sim));
+
     // Perturbación gaussiana de velocidades y scores iniciales
     const shockOverrides = {};
     CAT_KEYS.forEach(k => {
       const base = d[k]?.score ?? 50;
-      const noise = gaussianRandom(0, base * 0.06);
+      const noise = gaussiana(0, sigmaDeCategoria(d, k));
       shockOverrides[k] = Math.max(0, Math.min(100, base + noise));
     });
 
@@ -2857,10 +2929,13 @@ function runMonteCarlo(code, horizonWeeks, nSims = 400) {
     const perturbedVel = {};
     const vel = VELOCITY[code] || VELOCITY.WLD;
     CAT_KEYS.forEach(k => {
-      perturbedVel[k] = (vel[k] || 0) + gaussianRandom(0, 0.05);
+      perturbedVel[k] = (vel[k] || 0) + gaussiana(0, SIGMA_VELOCIDAD);
     });
 
-    const history = simulateCascade(code, horizonWeeks, shockOverrides);
+    /* T26 · ...y ahora SE PASAN. Antes perturbedVel se calculaba y se
+       quedaba sin usar, de modo que las 400 simulaciones compartian las
+       mismas velocidades y la banda era mas estrecha de lo que decia. */
+    const history = simulateCascade(code, horizonWeeks, shockOverrides, perturbedVel);
     // Solo guardar semanas clave
     const keyFrames = [0, Math.floor(horizonWeeks*0.25),
                        Math.floor(horizonWeeks*0.5),
@@ -2891,10 +2966,17 @@ function runMonteCarlo(code, horizonWeeks, nSims = 400) {
     };
   });
 
-  return { bands, keyFrames };
+  /* T26 · La semilla viaja con el resultado: el panel la muestra y el enlace
+     "repetir" la pone en la URL, de modo que una proyeccion concreta se
+     puede volver a mirar y comparar. */
+  return { bands, keyFrames, semilla: semillaUsada, simulaciones: nSims };
 }
 
-// ── Box-Muller transform para ruido gaussiano ──
+/* ── Box-Muller para ruido gaussiano ──
+   T26: el Monte Carlo ya NO usa esta funcion; usa gaussianaCon() con un
+   generador sembrado, para que sus bandas sean reproducibles. Esta se queda
+   porque la usa el simulador de shocks manual, donde el usuario mueve los
+   deslizadores y no hay nada que reproducir. */
 function gaussianRandom(mean = 0, std = 1) {
   let u = 0, v = 0;
   while (u === 0) u = Math.random();
@@ -2906,6 +2988,28 @@ function gaussianRandom(mean = 0, std = 1) {
 //  RENDER: GRÁFICA DE PROYECCIÓN TEMPORAL
 // ══════════════════════════════════════════════════
 let cascadeChart = null;
+
+/* T26 · La semilla, visible y repetible.
+
+   Una proyeccion Monte Carlo sin semilla no se puede volver a mirar: cada
+   recalculo da bandas distintas. La semilla se muestra junto al grafico y el
+   enlace la pone en la URL, de modo que una proyeccion concreta se puede
+   compartir y comparar. Con ?seed=N se fija al cargar la pagina. */
+function mostrarSemilla(mc){
+  const el = document.getElementById('mc-semilla');
+  if(!el || !mc) return;
+  el.textContent = mc.simulaciones + ' simulaciones · semilla ' + mc.semilla;
+  el.title = 'Con ?seed=' + mc.semilla + ' en la URL esta proyección sale idéntica. '
+    + 'La dispersión de cada categoría depende de su confianza, no de su puntuación.';
+  const enlace = document.getElementById('mc-repetir');
+  if(enlace){
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('seed', String(mc.semilla));
+      enlace.href = u.toString();
+    } catch (err) { /* sin URL valida, el enlace se queda como esté */ }
+  }
+}
 
 function renderProjectionChart(code, horizonMonths) {
   const horizonWeeks = horizonMonths * 4.3;
@@ -2925,7 +3029,9 @@ function renderProjectionChart(code, horizonMonths) {
 
   // Correr simulación base + Monte Carlo
   const baseHistory = simulateCascade(code, Math.round(horizonWeeks));
-  const { bands, keyFrames } = runMonteCarlo(code, Math.round(horizonWeeks));
+  const mc = runMonteCarlo(code, Math.round(horizonWeeks));
+  const { bands, keyFrames } = mc;
+  mostrarSemilla(mc);
 
   // Semanas para eje X (base history)
   const nWeeks = baseHistory.length;
