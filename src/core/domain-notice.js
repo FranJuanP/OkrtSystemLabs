@@ -21,48 +21,47 @@
  *     con una tarjeta a pantalla completa. Queda solo un aviso discreto en
  *     una esquina, y la aplicación sigue funcionando.
  */
-(function () {
-  'use strict';
 
-  var ALLOWED_HOSTS = ['franjuanp.github.io', 'localhost', '127.0.0.1', '[::1]'];
+const ALLOWED_HOSTS = ['franjuanp.github.io', 'localhost', '127.0.0.1', '[::1]'];
 
-  var host = '';
-  try { host = String(window.location.hostname || '').toLowerCase(); } catch (e) { host = ''; }
+function currentHost() {
+  try { return String(window.location.hostname || '').toLowerCase(); } catch (e) { return ''; }
+}
 
-  // Igualdad exacta, nunca subcadena.
-  var authorized = ALLOWED_HOSTS.indexOf(host) !== -1;
+/** Igualdad exacta de host, nunca subcadena. */
+export const isAuthorizedHost = ALLOWED_HOSTS.indexOf(currentHost()) !== -1;
 
-  window.__AETHER_AUTHORIZED_HOST__ = authorized;
-  // Compatibilidad con el nombre que usaba el overlay del globo.
-  window.__AETHER_L2_ALLOWED__ = authorized;
+function mountNotice() {
+  if (document.getElementById('aether-copyright-notice')) return;
+  const el = document.createElement('div');
+  el.id = 'aether-copyright-notice';
+  el.setAttribute('role', 'note');
+  el.style.cssText = [
+    'position:fixed', 'right:10px', 'bottom:10px', 'z-index:99999',
+    'max-width:min(78vw,340px)', 'padding:6px 10px',
+    'font-family:monospace', 'font-size:10px', 'line-height:1.5',
+    'letter-spacing:.06em', 'color:rgba(0,255,200,.55)',
+    'background:rgba(0,5,10,.72)', 'border:1px solid rgba(0,255,200,.22)',
+    'border-radius:4px', 'pointer-events:none', 'user-select:none',
+  ].join(';');
+  el.textContent = '© OkrtSystem Labs · AETHER · copia no oficial';
+  document.body.appendChild(el);
+}
 
-  if (authorized) return;
+/** Instala el aviso si procede. Se llama desde la entrada de cada página. */
+export function installDomainNotice() {
+  if (isAuthorizedHost) return;
 
   console.info(
     '[AETHER] Copia ejecutándose fuera de franjuanp.github.io. ' +
     '© OkrtSystem Labs. La aplicación funciona con normalidad; esto es solo un aviso de autoría.'
   );
 
-  function mountNotice() {
-    if (document.getElementById('aether-copyright-notice')) return;
-    var el = document.createElement('div');
-    el.id = 'aether-copyright-notice';
-    el.setAttribute('role', 'note');
-    el.style.cssText = [
-      'position:fixed', 'right:10px', 'bottom:10px', 'z-index:99999',
-      'max-width:min(78vw,340px)', 'padding:6px 10px',
-      'font-family:monospace', 'font-size:10px', 'line-height:1.5',
-      'letter-spacing:.06em', 'color:rgba(0,255,200,.55)',
-      'background:rgba(0,5,10,.72)', 'border:1px solid rgba(0,255,200,.22)',
-      'border-radius:4px', 'pointer-events:none', 'user-select:none',
-    ].join(';');
-    el.textContent = '© OkrtSystem Labs · AETHER · copia no oficial';
-    document.body.appendChild(el);
-  }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountNotice, { once: true });
   } else {
     mountNotice();
   }
-})();
+}
+
+installDomainNotice();

@@ -1,13 +1,18 @@
-/* ──────────────────────────────────────────────────────────────────────────
-   BASELINE LEGIBLE · Fase 0
-   Fuente recuperada sin ofuscar y verificada por AST contra el bloque
-   <script> ofuscado que iba inline en esta pagina. No se cambia el
-   comportamiento: este fichero es el punto de partida de la Fase 1.
-   ────────────────────────────────────────────────────────────────────────── */
+/**
+ * AETHER VECTOR · motor de flujos financieros
+ *
+ * Fuente legible recuperada en la Fase 0 y verificada por AST contra el
+ * bloque ofuscado que iba inline en aether-vector.html.
+ *
+ * Módulo ES (T12): exporta lo que la página y los módulos de apoyo
+ * necesitan, en vez de dejarlo en el ámbito global.
+ *
+ * d3 sigue llegando como global desde el CDN; T16 lo sustituye por un
+ * import de la build modular empaquetada en el repositorio.
+ */
+import { esc, safeHref, safeUrl } from '../core/escape.js';
 
-/* T6: el bloqueo de dominio que habia aqui (comparacion por subcadena y
-   sustitucion de window.fetch) se sustituye por el aviso comun de
-   assets/js/domain-notice.js, que la pagina carga antes que este fichero. */
+const d3 = window.d3;
 
 // ═══════════════════════════════════════════════════════════════
 //  AETHER VECTOR — Financial Flow Intelligence
@@ -506,5 +511,12 @@ function setThreshold(val){
 }
 
 // Initial render + resize
-render();
-window.addEventListener('resize', render);
+// T12: el arranque lo hace src/pages/vector.js, no el propio motor.
+
+export {
+  NODES, ALL_LINKS, FLOW_COLORS, FLOW_LABELS,
+  computeSankey, render, getNodeColor,
+  showTooltip, hideTooltip, showNodeDetail, showLinkDetail,
+  setFlow, setRegion, setThreshold,
+  threshold,
+};
