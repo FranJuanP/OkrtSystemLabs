@@ -5,13 +5,13 @@
  * llama a nada: los botones de filtro de arco se enganchan aquí, que es lo
  * que hacía globe-module-hardening.js buscando `window.setArcFilter`.
  */
+import '../core/fonts.js';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';
 import '../core/visibility.js';
 import '../core/mobile-viewport-fix.js';
 import '../core/pwa-register.js';
-import '../core/dependency-resilience.js';
 
 import { setArcFilter, toggleGlobalMode } from '../globe/engine.js';
 import '../globe/touch.js';

@@ -22,7 +22,6 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AETHER VECTOR — Financial Flow Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#000508;--panel:rgba(4,10,18,.96);--border:rgba(0,255,200,.1);
@@ -262,8 +261,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:3px;cursor:pointer}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<!-- T12: una sola entrada de modulo. d3 sigue viniendo del CDN hasta T16. -->
+<!-- T16: d3 va empaquetado en el bundle. Sin CDN. -->
 <script type="module" src="/src/pages/vector.js"></script>
 <!-- Fase 0: baseline legible. El motor iba aqui inline y ofuscado; la fuente
      sin ofuscar se recupero del Escritorio y se verifico por AST contra el

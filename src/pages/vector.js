@@ -8,13 +8,13 @@
  * El HTML no llama a ninguna función global: los controles se enganchan
  * aquí con addEventListener.
  */
+import '../core/fonts.js';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';
 import '../core/visibility.js';
 import '../core/mobile-viewport-fix.js';
 import '../core/pwa-register.js';
-import '../core/dependency-resilience.js';
 
 import { setFlow, setRegion, setThreshold, render } from '../vector/engine.js';
 import '../vector/functional-boost.js';

@@ -94,8 +94,8 @@ const assets = new Set([...referencedAssets(), ...EXTRAS]);
 const missing = [];
 const present = [...assets].filter((rel) => {
   if (rel === './') return true;
-  const abs = path.join(ROOT, rel.replace(/^\.\//, ''));
-  if (fs.existsSync(abs)) return true;
+  const name = rel.replace(/^\.\//, '');
+  if (fs.existsSync(path.join(ROOT, name)) || fs.existsSync(path.join(ROOT, 'public', name))) return true;
   missing.push(rel);
   return false;
 }).sort();
@@ -109,8 +109,10 @@ if (missing.length) {
 const hash = crypto.createHash('sha256');
 for (const rel of present) {
   if (rel === './') continue;
+  const name = rel.replace(/^\.\//, '');
+  const abs = fs.existsSync(path.join(ROOT, name)) ? path.join(ROOT, name) : path.join(ROOT, 'public', name);
   hash.update(rel);
-  hash.update(fs.readFileSync(path.join(ROOT, rel.replace(/^\.\//, ''))));
+  hash.update(fs.readFileSync(abs));
 }
 const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 const CACHE_NAME = `aether-v${stamp}-${hash.digest('hex').slice(0, 8)}`;
@@ -228,7 +230,8 @@ self.addEventListener('fetch', (event) => {
 });
 `;
 
-fs.writeFileSync(path.join(ROOT, 'service-worker.js'), sw);
+fs.mkdirSync(path.join(ROOT, 'public'), { recursive: true });
+fs.writeFileSync(path.join(ROOT, 'public', 'service-worker.js'), sw);
 console.log(`service-worker.js generado`);
 console.log(`  cache     : ${CACHE_NAME}`);
 console.log(`  recursos  : ${present.length}`);

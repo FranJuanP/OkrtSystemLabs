@@ -12,7 +12,12 @@
  */
 import { esc, safeHref, safeUrl } from '../core/escape.js';
 
-const d3 = window.d3;
+/* T16: d3 modular. Vector solo usa dos cosas de toda la libreria, asi que
+   se importan esas dos en vez de los 280 kB del paquete completo. */
+import { select } from 'd3-selection';
+import { range } from 'd3-array';
+
+const d3 = { select, range };
 
 // ═══════════════════════════════════════════════════════════════
 //  AETHER VECTOR — Financial Flow Intelligence

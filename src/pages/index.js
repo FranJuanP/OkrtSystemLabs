@@ -7,6 +7,7 @@
  * El HTML no llama a ninguna función global: los botones de la portada y
  * los controles del dashboard se enganchan aquí con addEventListener.
  */
+import '../core/fonts.js';
 import '../core/frame-buster.js';
 import '../core/domain-notice.js';
 import '../core/storage.js';

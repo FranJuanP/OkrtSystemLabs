@@ -11,6 +11,28 @@
 import { esc, safeHref, safeUrl, formatBold } from '../core/escape.js';
 import { AETHER_COVERAGE } from '../core/coverage.js';
 
+/* T16: d3 modular y topojson-client empaquetados. El dashboard usa el mapa
+   coropletico (d3-geo), el grafo de fuerzas (d3-force), el zoom y el
+   arrastre. Se importa solo eso, no el paquete d3 entero. */
+import { select } from 'd3-selection';
+import { zoom, zoomIdentity } from 'd3-zoom';
+import { drag } from 'd3-drag';
+import {
+  forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide,
+} from 'd3-force';
+import { geoNaturalEarth1, geoPath, geoGraticule, geoCentroid } from 'd3-geo';
+import { min } from 'd3-array';
+import { easeCubicInOut, easeQuadOut } from 'd3-ease';
+import { feature as topoFeature } from 'topojson-client';
+
+const d3 = {
+  select, zoom, zoomIdentity, drag,
+  forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide,
+  geoNaturalEarth1, geoPath, geoGraticule, geoCentroid,
+  min, easeCubicInOut, easeQuadOut,
+};
+const topojson = { feature: topoFeature };
+
 // ──────────────────────────────────────────
 // MATRIX RAIN
 // ──────────────────────────────────────────
@@ -3129,18 +3151,14 @@ function exportPDF(){
 
 // ── INIT v5 — convertido a función para llamada desde el router ──
 function initAetherApp(){
+  // T16: antes se inyectaban aqui dos <script> al CDN para cargar d3 y
+  // topojson, con el mapa y el grafo esperando a sus onload. Ahora las dos
+  // van empaquetadas, asi que solo hay que dar tiempo a que el DOM del
+  // dashboard este montado.
   setTimeout(()=>{
-    // Cargar D3 y topojson dinámicamente
-    const s1=document.createElement('script');
-    s1.src='https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js';
-    s1.onload=()=>{
-      const s2=document.createElement('script');
-      s2.src='https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js';
-      s2.onload=()=>{setTimeout(()=>{initWorldMap();setTimeout(initNetworkGraph,400);},200);};
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s1);
-  },3200);
+    initWorldMap();
+    setTimeout(initNetworkGraph, 400);
+  }, 3200);
 }
 
 
