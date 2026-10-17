@@ -19,7 +19,7 @@
  * revision de build y aviso de "Nueva version disponible" en vez de
  * skipWaiting automatico.
  */
-const AETHER_CACHE = 'aether-v20261017-63eed361';
+const AETHER_CACHE = 'aether-v20261017-66aa3a56';
 
 const AETHER_ASSETS = [
   "./",
@@ -45,7 +45,10 @@ const AETHER_ASSETS = [
   "./assets/icons/icon-okrt-192-v2.png",
   "./assets/icons/icon-okrt-512-maskable-v2.png",
   "./assets/icons/icon-okrt-512-v2.png",
+  "./assets/img/aether-hero.png",
   "./assets/img/earth-clouds.png",
+  "./assets/img/globe-loader.png",
+  "./assets/img/okrt-logo.png",
   "./favicon.ico",
   "./index.html",
   "./manifest.webmanifest",
