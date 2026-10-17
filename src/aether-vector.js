@@ -68,12 +68,38 @@ const ALL_LINKS = [
   { s:'EU',   t:'H_FDI',   v:312,  type:'fdi',     detail:'Europa: IED concentrada en servicios financieros, farmacéutica y manufactura avanzada.' },
   { s:'JPN',  t:'H_FDI',   v:168,  type:'fdi',     detail:'IED japonesa en SE Asiático como alternativa a dependencia china.' },
   { s:'H_FDI',  t:'EMG',   v:312,  type:'fdi',     detail:'Asia emergente como destino prioritario. Vietnam, Indonesia y Tailandia lideran captación.' },
-  { s:'H_FDI',  t:'IND',   v:180,  type:'fdi',     detail:'India capta IED récord 2022-23: 85B USD. Tech, manufactura y renovables como sectores clave.' },
+  // PENDIENTE DE VERIFICAR (T10). Dos problemas distintos:
+  //  a) El ejercicio. El record de IED de India es el FY 2021-22, no 2022-23.
+  //     Lo sostienen DPIIT y PIB (83,57 B de IED en capital y 84,84 B de
+  //     entrada total), pero sus URL devuelven 403 y no se han podido abrir,
+  //     asi que no se corrige la etiqueta sin fuente de primera mano.
+  //  b) La magnitud. La unica serie oficial abierta, Banco Mundial
+  //     BX.KLT.DINV.CD.WD (entradas netas de IED, balanza de pagos), da para
+  //     India 49.940 M en 2022 y 28.086 M en 2023; su maximo del periodo es
+  //     64.362 M en 2020. Ninguna cifra se acerca a 85 B, porque DPIIT mide
+  //     entradas brutas y el Banco Mundial netas.
+  //     https://api.worldbank.org/v2/country/IND/indicator/BX.KLT.DINV.CD.WD?format=json&date=2015:2024
+  //  c) Ademas, v:180 no coincide con ninguna de las dos y no tiene fuente.
+  // No se sustituye ninguna cifra: se deja como estaba y se marca.
+  { s:'H_FDI',  t:'IND',   v:180,  type:'fdi', unit:'B USD', year:null,
+    pending:'Ejercicio y magnitud sin fuente de primera mano; ver comentario.',
+    detail:'India como destino de IED. Cifra y ejercicio pendientes de verificar: el récord que suele citarse (84,8 B) es del ejercicio 2021-22 según DPIIT, no de 2022-23, y no coincide con las entradas netas del Banco Mundial (49,9 B en 2022).' },
   { s:'H_FDI',  t:'BRA',   v:91,   type:'fdi',     detail:'IED en Brasil: 92B USD 2022. Agronegocio, energía y digital como destinos principales.' },
   { s:'H_FDI',  t:'AFR',   v:48,   type:'fdi',     detail:'África: IED baja relativamente. Minería y energía como sectores dominantes.' },
   { s:'H_FDI',  t:'MEX',   v:36,   type:'fdi',     detail:'México nearshoring: IED manufactura en máximos históricos. Tesla, BMW, TSMC en pipeline.' },
   // REMITTANCES
-  { s:'USA',  t:'H_REMIT', v:148,  type:'remit',   detail:'EEUU primer emisor de remesas: ~148B USD. Destinos: México, India, China, Filipinas.' },
+  // VERIFICADO (T10). Los 148 B no corresponden a ninguna serie oficial que
+  // se haya podido abrir. Banco Mundial, remesas personales pagadas por
+  // EE. UU. (BM.TRF.PWKR.CD.DT): 2022 = 88.741 M; 2023 = 98.356 M USD.
+  // https://api.worldbank.org/v2/country/USA/indicator/BM.TRF.PWKR.CD.DT?format=json&date=2023
+  // Nota: la matriz bilateral de KNOMAD estima salidas muy superiores
+  // (del orden de 200 B) por una metodologia distinta; aqui se usa la serie
+  // de balanza de pagos, que es la coherente con el resto del panel.
+  { s:'USA',  t:'H_REMIT', v:98,   type:'remit', unit:'B USD', year:2023,
+    source:'Banco Mundial · BM.TRF.PWKR.CD.DT',
+    sourceUrl:'https://data.worldbank.org/indicator/BM.TRF.PWKR.CD.DT?locations=US',
+    verified:true,
+    detail:'EE. UU., primer emisor de remesas: 98 B USD en remesas personales pagadas (Banco Mundial, 2023). Destinos principales: México, India, China y Filipinas.' },
   { s:'KSA',  t:'H_REMIT', v:43,   type:'remit',   detail:'Arabia Saudí: 43B USD en remesas. Trabajadores de Asia del Sur como principales receptores.' },
   { s:'UAE',  t:'H_REMIT', v:46,   type:'remit',   detail:'EAU: 46B USD. India y Pakistán como destinos principales.' },
   { s:'EU',   t:'H_REMIT', v:98,   type:'remit',   detail:'Europa: remesas de diáspora hacia Europa del Este, Magreb y África subsahariana.' },
@@ -83,13 +109,36 @@ const ALL_LINKS = [
   { s:'H_REMIT', t:'LAT',  v:82,   type:'remit',   detail:'América Latina y Caribe: remesas superan 145B USD. El Salvador 24% PIB.' },
   { s:'H_REMIT', t:'AFR',  v:48,   type:'remit',   detail:'África: remesas subestimadas por canales informales. Egipto, Marruecos como receptores clave.' },
   // RESERVES
-  { s:'CHN',  t:'H_RES',   v:3420, type:'reserves', detail:'China: 3.42T USD en reservas de divisas. Mayor acumulador global. Diversificación en oro activa.' },
+  // VERIFICADO (T10). Pregunta del encargo: 3,42 T, ¿solo divisas o con oro?
+  // Respuesta: ninguna de las dos para 2022-23. 3,42 T corresponde a las
+  // reservas TOTALES (oro incluido) de 2021. Para 2023, Banco Mundial:
+  //   FI.RES.XGLD.CD (sin oro)   3.301.319.727.518,98 USD  -> 3.301 B
+  //   FI.RES.TOTL.CD (con oro)   3.449.544.415.518,98 USD  -> 3.450 B
+  // Como el flujo habla de reservas de divisas, se usa la serie sin oro.
+  // https://api.worldbank.org/v2/country/CHN/indicator/FI.RES.XGLD.CD?format=json&date=2023
+  { s:'CHN',  t:'H_RES',   v:3301, type:'reserves', unit:'B USD', year:2023,
+    source:'Banco Mundial · FI.RES.XGLD.CD',
+    sourceUrl:'https://data.worldbank.org/indicator/FI.RES.XGLD.CD?locations=CN',
+    verified:true,
+    detail:'China: 3.301 B USD en reservas de divisas, sin contar oro (Banco Mundial, 2023). Incluyendo oro son 3.450 B. Mayor acumulador global; diversificación en oro activa.' },
   { s:'JPN',  t:'H_RES',   v:1225, type:'reserves', detail:'Japón: 2º en reservas globales. Usadas para estabilizar yen bajo presión.' },
   { s:'KSA',  t:'H_RES',   v:458,  type:'reserves', detail:'Arabia Saudí: reservas del petróleo canalizadas via SAMA y PIF.' },
   { s:'UAE',  t:'H_RES',   v:190,  type:'reserves', detail:'EAU: reservas canalizadas hacia ADIA (Abu Dhabi Investment Authority), 850B AUM.' },
   { s:'H_RES',  t:'USA',   v:2100, type:'reserves', detail:'USD como reserva global dominante: 59% del total mundial. Declive gradual desde 71% en 2000.' },
   { s:'H_RES',  t:'EU',    v:1340, type:'reserves', detail:'Euro: 20% reservas globales. Segunda moneda de reserva con ventaja estable.' },
-  { s:'H_RES',  t:'EMG',   v:890,  type:'reserves', detail:'Reservas en bonos mercados emergentes: yuan, rublo, real. Fragmentación del sistema.' },
+  // PENDIENTE DE VERIFICAR (T10). No existe serie oficial que mida esto.
+  // La fuente natural seria COFER (FMI), que desglosa las reservas asignadas
+  // por moneda, pero COFER solo identifica por separado dolar, euro,
+  // renminbi, yen, libra, dolar australiano, dolar canadiense y franco
+  // suizo; el rublo y el real caen dentro de "otras monedas" y no se
+  // publican aparte, asi que la frase "yuan, rublo, real" no es verificable.
+  // Lo unico comprobable de los tres es el renminbi: 255.323 M USD, el
+  // 1,98% de las reservas asignadas (COFER, 2025 Q2), muy lejos de 890 B.
+  // https://data.imf.org/en/datasets/IMF.STA:COFER
+  // No se sustituye la cifra: se marca.
+  { s:'H_RES',  t:'EMG',   v:890,  type:'reserves', unit:'B USD', year:null,
+    pending:'Sin serie oficial equivalente; COFER no desglosa rublo ni real.',
+    detail:'Reservas desplazadas hacia activos de mercados emergentes. Cifra pendiente de verificar: COFER (FMI) solo desglosa el renminbi entre los tres citados —255 B, el 1,98% de las reservas asignadas— y no publica rublo ni real por separado.' },
 ];
 
 const FLOW_COLORS = {
@@ -239,7 +288,10 @@ function render() {
       path.attr('opacity',0.65);
       showTooltip(ev, `${nodeMap[l.s]?.label||l.s} → ${nodeMap[l.t]?.label||l.t}`,
         [['TIPO', FLOW_LABELS[l.type]||l.type],
-         ['VOLUMEN', '$'+l.v+'B USD'],
+         ['VOLUMEN', linkAmount(l)],
+         ['UNIDAD', linkUnit(l)],
+         ['AÑO', linkYear(l)],
+         ['FUENTE', linkSource(l)],
          ['% DEL TOTAL', (l.v/allVol*100).toFixed(1)+'%']]);
     })
     .on('mouseleave', ()=>{
@@ -320,11 +372,36 @@ function getNodeColor(n){
   return regionColor[n.region] || 'rgba(255,255,255,.2)';
 }
 
+/* ── T10 · procedencia por enlace ────────────────────────────────────────
+   Cada enlace puede declarar unit, year, source, sourceUrl y pending. El
+   tooltip y el panel de detalle muestran siempre unidad y ano, y dicen
+   "pendiente de verificar" cuando la cifra no tiene fuente comprobada, en
+   vez de presentarla como si la tuviera. */
+
+/** Unidad de un enlace. Por defecto, miles de millones de dolares. */
+function linkUnit(l){ return (l && l.unit) || 'B USD'; }
+
+/** Ano del dato, o la marca de pendiente. */
+function linkYear(l){
+  if(l && l.year) return String(l.year);
+  return 'pendiente de verificar';
+}
+
+/** Volumen con su unidad. */
+function linkAmount(l){ return '$' + l.v + ' ' + linkUnit(l); }
+
+/** Fuente legible del enlace. */
+function linkSource(l){
+  if(l && l.source) return l.source;
+  if(l && l.pending) return 'sin fuente verificada';
+  return 'sin documentar';
+}
+
 // Tooltip
 function showTooltip(ev, title, rows){
   const tt = document.getElementById('tooltip');
-  tt.innerHTML = `<div class="tt-title">${title}</div>` +
-    rows.map(r=>`<div class="tt-row"><span>${r[0]}</span><span class="tt-val">${r[1]}</span></div>`).join('');
+  tt.innerHTML = `<div class="tt-title">${esc(title)}</div>` +
+    rows.map(r=>`<div class="tt-row"><span>${esc(r[0])}</span><span class="tt-val">${esc(r[1])}</span></div>`).join('');
   const wrap = document.getElementById('chart-wrap');
   const rect = wrap.getBoundingClientRect();
   let x = ev.clientX - rect.left + 14;
@@ -372,15 +449,24 @@ function showLinkDetail(l, nodeMap){
   const allVol = ALL_LINKS.reduce((s,x)=>s+x.v,0);
   dc.innerHTML=`
     <div class="dp-meta">// AETHER VECTOR · FLUJO</div>
-    <div class="dp-title">${nodeMap[l.s]?.label||l.s} → ${nodeMap[l.t]?.label||l.t}</div>
-    <div class="dp-amount" style="color:${col};text-shadow:0 0 30px ${col}80">$${l.v}B</div>
-    <div class="dp-amount-lbl">USD · ESTIMACIÓN 2022-23</div>
+    <div class="dp-title">${esc(nodeMap[l.s]?.label||l.s)} → ${esc(nodeMap[l.t]?.label||l.t)}</div>
+    <div class="dp-amount" style="color:${col};text-shadow:0 0 30px ${col}80">$${l.v}${esc(linkUnit(l)).replace(' USD','')}</div>
+    <div class="dp-amount-lbl">${esc(linkUnit(l))} · ${esc(linkYear(l).toUpperCase())}</div>
     <div class="dp-divider"></div>
     <div class="dp-label">// TIPO DE FLUJO</div>
     <div style="display:inline-block;font-size:9px;letter-spacing:.2em;padding:4px 12px;
       color:${col};background:${col}12;border:1px solid ${col}40;margin-bottom:16px">${FLOW_LABELS[l.type]||l.type}</div>
     <div class="dp-label">// ANÁLISIS</div>
-    <div class="dp-text">${l.detail}</div>
+    <div class="dp-text">${esc(l.detail)}</div>
+    <div class="dp-divider"></div>
+    <div class="dp-label">// PROCEDENCIA</div>
+    <div class="dp-text" style="font-size:11px">
+      ${l.pending
+        ? `<span style="color:var(--amber)">⚠ Pendiente de verificar.</span> ${esc(l.pending)}`
+        : (l.sourceUrl
+            ? `<a href="${safeHref(l.sourceUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(0,255,200,.3)">${esc(linkSource(l))} ↗</a>`
+            : esc(linkSource(l)))}
+    </div>
     <div class="dp-divider"></div>
     <div class="dp-label">// PESO RELATIVO</div>
     <div class="dp-bars">
