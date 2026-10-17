@@ -280,6 +280,9 @@ Score final = Base histórico
 - El termómetro no se refresca: muestra la estimación base y no se mueve
   mientras no haya un dato nuevo medido.
 - El panel de temas no lleva hora, porque sus entradas no tienen fecha propia.
+- La imagen de portada es una captura real del dashboard, hecha con
+  Playwright sobre la aplicación servida (`npm run build:hero`). Sustituye a
+  un montaje anterior que tenía texto ilegible y un país inexistente.
 - Las cifras del globo y del dashboard proceden hoy de tablas distintas.
 
 ---
