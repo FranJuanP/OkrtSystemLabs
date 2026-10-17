@@ -622,6 +622,16 @@ python -m http.server 8080</pre>
     <span id="api-status" style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:11px">● SIN VERIFICAR</span>
   </div>
 
+  <!-- T2: aviso permanente sobre la naturaleza de los datos del panel. -->
+  <div id="data-basis-note" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+       margin:0 0 10px;padding:6px 10px;border:1px solid rgba(255,176,32,.25);
+       border-radius:6px;background:rgba(255,176,32,.06);
+       font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(255,255,255,.62)">
+    <span>Estimaciones con datos base ~2023</span>
+    <a href="https://github.com/FranJuanP/OkrtSystemLabs#metodologia" target="_blank" rel="noopener noreferrer"
+       style="color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(0,255,200,.3)">Metodología ↗</a>
+  </div>
+
   <!-- CONTROLS -->
   <div class="cbar">
     <span class="clabel">REGIÓN</span>
@@ -1135,15 +1145,17 @@ python -m http.server 8080</pre>
     <div class="card" style="--acc:var(--cyan)">
       <div class="ctitle">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="9" rx="2" stroke="#00FFC8" stroke-width="1.2"/><circle cx="8" cy="12" r="2.5" stroke="#00FFC8" stroke-width="1.2"/><path d="M8 7v5" stroke="#00FFC8" stroke-width="1.5"/></svg>
-        TERMÓMETRO DE RIESGO EN VIVO
-        <span class="live-badge" style="margin-left:8px">LIVE</span>
+        TERMÓMETRO DE RIESGO
+        <span class="live-badge" style="margin-left:8px">DATOS BASE · 2023</span>
         <span id="thermo-region" style="margin-left:auto;font-size:9px;color:var(--dim)">—</span>
       </div>
       <div id="thermo-wrap"></div>
+      <!-- T2: aqui habia una cuenta atras de 30s y un rotulo "FLUCTUACION +-3pts".
+           Los valores no se recalculaban: se les sumaba ruido aleatorio. Al quitar
+           el ruido no queda nada que refrescar, asi que se indica la base del dato. -->
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">PRÓX. ACTUALIZACIÓN</span>
-        <span id="thermo-countdown" style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:700;color:var(--cyan)">30s</span>
-        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">FLUCTUACIÓN ±<span id="thermo-range">3</span>pts</span>
+        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">BASE DEL DATO</span>
+        <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace">Estimación ~2023 · sin lectura en vivo</span>
       </div>
     </div>
 
@@ -1361,7 +1373,7 @@ python -m http.server 8080</pre>
     <div class="ctitle">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v2H2zM2 7h8v2H2zM2 11h10v2H2z" fill="var(--cyan)" opacity=".8"/></svg>
       SEÑALES DE ALERTA GLOBAL
-      <span id="ev-count" style="margin-left:auto;background:rgba(162,89,255,.15);color:var(--purple);padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px">— SEÑALES</span>
+      <span id="ev-count" style="margin-left:auto;background:rgba(162,89,255,.15);color:var(--purple);padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px">— TEMAS</span>
     </div>
     <div id="events-feed" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px"></div>
   </div>

@@ -1666,14 +1666,14 @@ function renderEvents(d){
   });
   const seen=new Set(), uniq=[];
   for(const e of pool){ if(!seen.has(e.tx)){seen.add(e.tx);uniq.push(e);} }
-  const picked=uniq.sort(()=>Math.random()-.5).slice(0,12);
-  const times=['hace 23min','hace 1h','hace 2h','hace 3h','hace 5h','hace 6h','hace 8h','hace 11h','hace 14h','hace 18h','hace 22h','hace 1d'];
+  // T2: sin barajado aleatorio. El orden depende solo de la puntuacion de la
+  // region, asi que dos cargas de la misma region muestran lo mismo.
+  const picked=uniq.slice(0,12);
   const feed=document.getElementById('events-feed');
-  feed.innerHTML=picked.map((e,i)=>`
+  feed.innerHTML=picked.map(e=>`
     <div class="ev" style="flex-direction:column;gap:4px;padding:8px;background:rgba(5,10,16,.4);border-radius:6px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
         <span class="ev-badge ${e.b}">${e.t}</span>
-        <span class="ev-time" style="margin:0">${times[i]||'hace 1d'}</span>
         <a href="${e.url}" target="_blank" rel="noopener"
           style="margin-left:auto;font-size:9px;font-family:'Share Tech Mono',monospace;
           color:var(--cyan);background:rgba(0,255,200,.06);border:1px solid rgba(0,255,200,.2);
@@ -1686,7 +1686,7 @@ function renderEvents(d){
       </div>
       <div class="ev-text">${e.tx}</div>
     </div>`).join('');
-  document.getElementById('ev-count').textContent=picked.length+' SEÑALES';
+  document.getElementById('ev-count').textContent=picked.length+' TEMAS';
 }
 
 function onRegionChange(){loadRegion();}
@@ -3055,51 +3055,7 @@ function updateMapColors(){
 }
 
 // ── LIVE DATA — World Bank API ──
-const WB_LIVE_INDS={
-  'NY.GDP.MKTP.KD.ZG':'eco','FP.CPI.TOTL.ZG':'eco','SL.UEM.TOTL.ZS':'eco',
-  'SP.DYN.LE00.IN':'health','SH.DYN.MORT':'health',
-  'EN.ATM.CO2E.PC':'climate','AG.LND.FRST.ZS':'climate',
-  'PV.EST':'geo','GE.EST':'geo',
-};
-const WB_COUNTRY_MAP={WLD:'WLD',USA:'US',CHN:'CN',ESP:'ES',RUS:'RU',IND:'IN',BRA:'BR',MEX:'MX',JPN:'JP',EUU:'EU'};
 
-async function fetchLiveData(){
-  const btn=document.getElementById('live-btn');
-  const code=document.getElementById('region-sel').value;
-  const wbCode=WB_COUNTRY_MAP[code]||code;
-  btn.textContent='📡 CARGANDO...'; btn.disabled=true;
-  let updated=0;
-  const year=2022;
-
-  try{
-    for(const [ind,cat] of Object.entries(WB_LIVE_INDS)){
-      try{
-        const url=`https://api.worldbank.org/v2/country/${wbCode}/indicator/${ind}?date=${year}&format=json&per_page=1`;
-        const r=await fetch(url);
-        const j=await r.json();
-        if(j[1]?.[0]?.value!=null){
-          const val=j[1][0].value;
-          // Actualizar el primer indicador disponible de esa categoría
-          const inds=DATA[code]?.[cat]?.inds;
-          if(inds?.length){updated++;}
-        }
-      }catch(e){}
-    }
-    // Añadir badge LIVE al título de la región
-    const existing=document.querySelector('.live-badge');
-    if(!existing){
-      const sel=document.getElementById('region-sel');
-      const lbl=document.createElement('span');
-      lbl.className='live-badge'; lbl.textContent='LIVE';
-      sel.parentNode.insertBefore(lbl,sel.nextSibling);
-    }
-    btn.textContent='📡 DATOS LIVE';
-  }catch(e){
-    btn.textContent='📡 ERROR';
-  }
-  btn.disabled=false;
-  setTimeout(()=>btn.textContent='📡 DATOS LIVE',3000);
-}
 
 // ── PDF EXPORT ──
 function exportPDF(){
@@ -3110,6 +3066,15 @@ function exportPDF(){
   window.print();
   document.title=orig;
 }
+
+/* T2 - fetchLiveData eliminada, junto con las dos tablas que solo usaba ella
+   (WB_LIVE_INDS y WB_COUNTRY_MAP). Descargaba nueve indicadores del Banco
+   Mundial y no hacia nada con los valores: solo contaba updated++ y anadia
+   una insignia "LIVE" junto al selector de region. Ademas era codigo muerto:
+   el boton #live-btn del que dependia no existe en ninguna pagina y nadie
+   llamaba a la funcion, asi que de haberse ejecutado habria lanzado excepcion
+   en su primera linea. La Fase 3 trae datos con procedencia de verdad
+   (data/latest.json). */
 
 // ── PATCH loadRegion para usar enhanced scores y actualizar mapa/cadenas ──
 // loadRegion v5 — replaced by unified v6
@@ -3185,27 +3150,33 @@ function initThermo(code){
   });
   renderThermo(code);
   document.getElementById('thermo-region').textContent=(DATA[code]||DATA.WLD).name;
-  if(thermoTimer) clearInterval(thermoTimer);
-  thermoCountdown=30;
-  thermoTimer=setInterval(()=>updateThermo(code),1000);
+  // T2: ya no hay temporizador de "fluctuacion". El termometro muestra la
+  // estimacion de los datos base y no se mueve mientras no haya dato nuevo.
+  if(thermoTimer){ clearInterval(thermoTimer); thermoTimer=null; }
 }
 
-function updateThermo(code){
-  thermoCountdown--;
-  const cd=document.getElementById('thermo-countdown');
-  if(cd) cd.textContent=thermoCountdown+'s';
-  if(thermoCountdown<=0){
-    thermoCountdown=30;
-    // Fluctuación realista: ±1-4 puntos según velocidad
-    const vel=VELOCITY[code]||VELOCITY.WLD;
-    CAT_KEYS.forEach(k=>{
-      const v=vel[k]||0;
-      const bias=v*2; // tendencia positiva/negativa
-      const noise=(Math.random()-0.5)*4+bias;
-      thermoData[k].current=Math.min(100,Math.max(0,Math.round(thermoData[k].current+noise)));
-    });
-    renderThermo(code);
-  }
+/**
+ * T2 - Actualiza el termometro con datos nuevos.
+ *
+ * Antes sumaba ruido aleatorio cada 30 segundos
+ * ((Math.random()-0.5)*4 mas un sesgo por VELOCITY) y repintaba, de modo
+ * que la pantalla parecia recibir lecturas en vivo cuando en realidad
+ * estaba inventando el movimiento. Ahora, si no hay dato nuevo, el valor
+ * no cambia: el parametro `updates` solo trae valores medidos.
+ *
+ * @param {string} code  codigo ISO3 de la region
+ * @param {Object<string,number>} [updates]  valor nuevo por categoria
+ */
+function updateThermo(code, updates){
+  if(!updates || !thermoData) return;
+  let changed=false;
+  CAT_KEYS.forEach(k=>{
+    const v=updates[k];
+    if(typeof v!=='number' || !isFinite(v) || !thermoData[k]) return;
+    const next=Math.min(100,Math.max(0,Math.round(v)));
+    if(next!==thermoData[k].current){ thermoData[k].current=next; changed=true; }
+  });
+  if(changed) renderThermo(code);
 }
 
 function renderThermo(code){

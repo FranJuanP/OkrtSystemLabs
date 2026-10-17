@@ -230,6 +230,51 @@ Score final = Base histórico (World Bank, Freedom House, SIPRI, GHS...)
 
 ---
 
+<a id="metodologia"></a>
+
+## Metodología y procedencia de los datos
+
+> **Estado actual: estimaciones con datos base ~2023.** Esta sección es
+> provisional y se sustituirá por `METHODOLOGY.md` y una página de metodología
+> dentro de la web cuando el pipeline de datos esté en marcha.
+
+### Qué son las cifras que ves
+
+Las puntuaciones por país y categoría del dashboard y del globo son
+**estimaciones con base aproximada en 2023**, no lecturas en vivo. Están
+escritas en la tabla `DATA` del motor y no llevan, hoy por hoy, ni año ni
+fuente por indicador.
+
+Lo que sí es dato en vivo:
+
+| Módulo | Qué muestra | Procedencia |
+|---|---|---|
+| Signal | eventos | USGS, NASA EONET, ReliefWeb OCHA y GDELT, consultados desde el navegador |
+| Dashboard · termómetro | estimación por categoría | tabla `DATA`, base ~2023 |
+| Dashboard · panel de temas | temas de seguimiento con enlace a la fuente | lista editorial, sin fecha propia |
+| Globe | niveles de riesgo por país | tabla propia del globo, base ~2023 |
+| Vector | flujos financieros | cifras con fuente anotada caso por caso |
+
+### Cómo se calcula la puntuación
+
+```
+Score final = Base histórico
+            + Ajuste por velocidad de cambio (VELOCITY)
+            + Boost por correlación cruzada entre categorías (CORR_MATRIX)
+            + Propagación en cascada temporal (PROP_MATRIX)
+            ± Shock manual (Shock Simulator)
+```
+
+### Limitaciones conocidas
+
+- La base `DATA` no tiene año ni fuente por indicador.
+- El termómetro no se refresca: muestra la estimación base y no se mueve
+  mientras no haya un dato nuevo medido.
+- El panel de temas no lleva hora, porque sus entradas no tienen fecha propia.
+- Las cifras del globo y del dashboard proceden hoy de tablas distintas.
+
+---
+
 ## Protección intelectual
 
 Este software está protegido mediante:

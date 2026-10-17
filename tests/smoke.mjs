@@ -39,6 +39,19 @@ const SCENARIOS = [
     note: 'carga previa con fuentes vivas, luego todas caidas' },
 ];
 
+/**
+ * Capturas adicionales por pagina. index.html es una landing larga y el
+ * dashboard queda bajo el pliegue, asi que se fotografia por secciones.
+ */
+const EXTRA_SHOTS = {
+  'index.html': [
+    ['controles', '.cbar'],
+    ['termometro', '#thermo-wrap'],
+    ['eventos', '#events-feed'],
+    ['ia', '#api-status'],
+  ],
+};
+
 /** Sondas en pagina: estado observable que debe mantenerse entre versiones. */
 async function probe(page) {
   return page.evaluate(() => {
@@ -129,6 +142,27 @@ async function run() {
           await page.screenshot({ path: path.join(OUT_DIR, shotName) });
         } catch (err) {
           diag.pageErrors.push(`SCREENSHOT: ${err.message.split('\n')[0]}`);
+        }
+
+        // index.html abre en la portada y el dashboard esta oculto detras del
+        // boton "PROBAR AETHER": hay que entrar antes de fotografiar sus paneles.
+        if ((EXTRA_SHOTS[pageName] || []).length) {
+          try {
+            const cta = await page.$('[data-launch-aether]');
+            if (cta) { await cta.click(); await page.waitForTimeout(2500); }
+          } catch { /* si no se puede entrar, las capturas de seccion se omiten */ }
+        }
+
+        for (const [tag, selector] of EXTRA_SHOTS[pageName] || []) {
+          try {
+            const el = await page.$(selector);
+            if (!el) continue;
+            await el.scrollIntoViewIfNeeded();
+            await page.waitForTimeout(700);
+            await page.screenshot({
+              path: path.join(OUT_DIR, `${scenario.id}__${pageName.replace(/\.html$/, '')}__${tag}__${vp.name}.png`),
+            });
+          } catch { /* seccion ausente en este viewport */ }
         }
 
         report.cases[key] = {
