@@ -1,0 +1,80 @@
+name: Desplegar en GitHub Pages
+
+# Construye el sitio con Vite y publica dist/ en GitHub Pages.
+#
+# IMPORTANTE: para que esto funcione hay que cambiar, una sola vez,
+# Settings > Pages > Build and deployment > Source de "Deploy from a branch"
+# a "GitHub Actions". Ese cambio no lo hace este workflow ni se puede hacer
+# desde el repositorio: es un ajuste del repositorio y lo tiene que tocar
+# una persona con permisos. Hasta entonces el workflow se ejecuta, construye
+# y falla en el paso de despliegue.
+
+on:
+  push:
+    branches: [main]
+  # Permite lanzarlo a mano desde la pestaña Actions.
+  workflow_dispatch:
+
+# Permisos mínimos: leer el código y publicar en Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez. No se cancela el que esté en curso: si dos
+# empujones se solapan, el segundo espera en vez de dejar Pages a medias.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    name: Construir
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Construir
+        run: npm run build
+
+      - name: Comprobar que el build tiene lo que debe
+        # Una red de seguridad barata: si el build sale vacío o sin service
+        # worker, mejor fallar aquí que publicar un sitio roto.
+        run: |
+          set -e
+          for f in dist/index.html dist/aether-globe-v3.html dist/aether-signal.html dist/aether-vector.html dist/sw.js dist/manifest.webmanifest; do
+            test -s "$f" || { echo "falta o está vacío: $f"; exit 1; }
+          done
+          entradas=$(grep -o '"url":' dist/sw.js | wc -l)
+          echo "precache: $entradas entradas"
+          test "$entradas" -gt 50 || { echo "el precache tiene muy pocas entradas"; exit 1; }
+
+      - name: Preparar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir el artefacto
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  desplegar:
+    name: Desplegar
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

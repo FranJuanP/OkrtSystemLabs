@@ -152,6 +152,17 @@ Visualización **Sankey interactiva** de flujos financieros globales con datos r
 - Conexión a internet para cargar librerías CDN y APIs en tiempo real
 - [Ollama](https://ollama.ai) con Mistral instalado *(solo para funciones de IA)*
 
+### Despliegue
+
+El sitio se construye con Vite y se publica desde
+`.github/workflows/deploy-pages.yml` en cada empujón a `main`.
+
+> **Hay que cambiar un ajuste una sola vez:** en
+> *Settings → Pages → Build and deployment → Source*, pasar de
+> «Deploy from a branch» a **«GitHub Actions»**. Ese ajuste no se puede
+> cambiar desde el repositorio; hasta que se haga, el workflow construye
+> correctamente y falla en el paso de publicación.
+
 ### Uso directo en GitHub Pages
 
 ```
