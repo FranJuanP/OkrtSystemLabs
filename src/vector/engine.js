@@ -25,154 +25,54 @@ const d3 = { select, range };
 // ═══════════════════════════════════════════════════════════════
 
 // ── DATA (B USD, 2022-2023 sourced from World Bank, IMF, BIS) ──
-const NODES = [
-  // SOURCES (column 0)
-  { id:'USA',   label:'EE.UU.',          region:'NA', gdp:25462, col:0 },
-  { id:'EU',    label:'Europa',           region:'EU', gdp:17818, col:0 },
-  { id:'CHN',   label:'China',            region:'AS', gdp:17963, col:0 },
-  { id:'JPN',   label:'Japón',            region:'AS', gdp:4231,  col:0 },
-  { id:'GBR',   label:'Reino Unido',      region:'EU', gdp:3070,  col:0 },
-  { id:'KSA',   label:'Arabia Saudí',     region:'ME', gdp:1108,  col:0 },
-  { id:'UAE',   label:'EAU',              region:'ME', gdp:509,   col:0 },
-  // MIDPOINTS (column 1 — flow type hubs)
-  { id:'H_DEBT',    label:'DEUDA',     region:'HUB', col:1, isHub:true },
-  { id:'H_TRADE',   label:'COMERCIO',  region:'HUB', col:1, isHub:true },
-  { id:'H_FDI',     label:'IED',       region:'HUB', col:1, isHub:true },
-  { id:'H_REMIT',   label:'REMESAS',   region:'HUB', col:1, isHub:true },
-  { id:'H_RES',     label:'RESERVAS',  region:'HUB', col:1, isHub:true },
-  // DESTINATIONS (column 2)
-  { id:'EMG',   label:'Emerg. Asia',     region:'AS', gdp:0, col:2 },
-  // T10 (revision): las salidas de RESERVAS son por moneda, no por region.
-  // La tercera apuntaba a 'Emerg. Asia' por no tener un nodo mejor; ahora
-  // tiene el suyo, que es lo que COFER mide de verdad.
-  { id:'OTHER_CCY', label:'Otras monedas', region:'AS', gdp:0, col:2 },
-  { id:'LAT',   label:'Latam',           region:'LA', gdp:0, col:2 },
-  { id:'AFR',   label:'África',          region:'AF', gdp:0, col:2 },
-  { id:'IND',   label:'India',           region:'AS', gdp:3386, col:2 },
-  { id:'BRA',   label:'Brasil',          region:'LA', gdp:1920, col:2 },
-  { id:'MEX',   label:'México',          region:'LA', gdp:1323, col:2 },
-  { id:'TUR',   label:'Turquía',         region:'EU', gdp:906,  col:2 },
-  { id:'NGA',   label:'Nigeria',         region:'AF', gdp:477,  col:2 },
-];
+/* T25 · Los nodos y los enlaces salen de data/vector.json.
 
-// Links: source, target, value (B USD), type
-const ALL_LINKS = [
-  // DEBT flows (USA/EU → hubs → destinations)
-  { s:'USA',  t:'H_DEBT',  v:1240, type:'debt',    detail:'Bonos del Tesoro USA en circulación global. Principales tenedores: China (870B), Japón (1.1T), Europa (1.5T).' },
-  { s:'EU',   t:'H_DEBT',  v:890,  type:'debt',    detail:'Deuda soberana EU en manos extranjeras. BCE como comprador de última instancia.' },
-  { s:'CHN',  t:'H_DEBT',  v:680,  type:'debt',    detail:'Deuda pública china parcialmente internacionalizada. Bonos en yuan ganando peso.' },
-  { s:'JPN',  t:'H_DEBT',  v:340,  type:'debt',    detail:'Japón el mayor tenedor extranjero de deuda US. Banco de Japón controla curva de rendimiento.' },
-  { s:'H_DEBT', t:'EMG',   v:820,  type:'debt',    detail:'Flujo neto de deuda soberana hacia mercados emergentes de Asia. China como prestamista dominante.' },
-  { s:'H_DEBT', t:'AFR',   v:380,  type:'debt',    detail:'Deuda soberana africana: 40% en manos chinas, 30% eurobonos, 30% multilateral.' },
-  { s:'H_DEBT', t:'LAT',   v:440,  type:'debt',    detail:'América Latina: USD como moneda de emisión dominante. Riesgo de refinanciación elevado.' },
-  { s:'H_DEBT', t:'TUR',   v:210,  type:'debt',    detail:'Deuda externa turca ~450B USD. Presión sobre lira con tipo real negativo.' },
-  // TRADE flows
-  { s:'CHN',  t:'H_TRADE', v:3210, type:'trade',   detail:'China exportador mundial nº1. Superávit comercial 2023: ~823B USD. Dependencia del mercado US/EU crítica.' },
-  { s:'EU',   t:'H_TRADE', v:2890, type:'trade',   detail:'Unión Europea: zona de libre comercio interna + exportaciones masivas de manufactura y servicios.' },
-  { s:'USA',  t:'H_TRADE', v:2180, type:'trade',   detail:'EEUU mayor economía de consumo. Déficit comercial crónico: ~800B USD. Principal destino de exportaciones globales.' },
-  { s:'JPN',  t:'H_TRADE', v:870,  type:'trade',   detail:'Japón exportador de alto valor añadido: automóvil, electrónica, maquinaria.' },
-  { s:'H_TRADE', t:'EMG',  v:1640, type:'trade',   detail:'Asia emergente: manufactura exportadora hacia UE y EEUU. Vietnam, Bangladesh, Indonesia en ascenso.' },
-  { s:'H_TRADE', t:'IND',  v:660,  type:'trade',   detail:'India: hub tech y servicios en expansión. Exportaciones farmacéuticas y textil como pilares.' },
-  { s:'H_TRADE', t:'BRA',  v:340,  type:'trade',   detail:'Brasil: potencia agroexportadora (soja, carne, maíz). Petróleo como factor emergente.' },
-  { s:'H_TRADE', t:'MEX',  v:590,  type:'trade',   detail:'México: manufactura nearshore. USMCA como ancla. 80% exportaciones hacia EEUU.' },
-  { s:'H_TRADE', t:'AFR',  v:340,  type:'trade',   detail:'África subsahariana: exportaciones de materias primas concentradas. Cadenas de valor cortas.' },
-  // FDI flows
-  { s:'USA',  t:'H_FDI',   v:380,  type:'fdi',     detail:'EEUU primer emisor global de IED. Tech, finanzas y manufactura como sectores principales.' },
-  { s:'CHN',  t:'H_FDI',   v:148,  type:'fdi',     detail:'IED china redistribuyéndose. Restricciones occidentales aceleran Cinturón y Ruta.' },
-  { s:'EU',   t:'H_FDI',   v:312,  type:'fdi',     detail:'Europa: IED concentrada en servicios financieros, farmacéutica y manufactura avanzada.' },
-  { s:'JPN',  t:'H_FDI',   v:168,  type:'fdi',     detail:'IED japonesa en SE Asiático como alternativa a dependencia china.' },
-  { s:'H_FDI',  t:'EMG',   v:312,  type:'fdi',     detail:'Asia emergente como destino prioritario. Vietnam, Indonesia y Tailandia lideran captación.' },
-  // VERIFICADO (T10, revision). Antes decia "India capta IED record 2022-23:
-  // 85B USD". Se quitan "record" y el ejercicio, como pidio John, y se pone
-  // la cifra de una serie oficial abierta de primera mano:
-  // Banco Mundial BX.KLT.DINV.CD.WD, entradas netas de IED (balanza de
-  // pagos): India 49.940 M USD en 2022 (28.086 M en 2023).
-  // https://api.worldbank.org/v2/country/IND/indicator/BX.KLT.DINV.CD.WD?format=json&date=2022
-  // UNCTAD (World Investment Report 2023) publica la misma magnitud, "FDI
-  // flows to India rose by 10% to $49 billion" en 2022, pero su PDF y el
-  // Handbook del RBI estan tras Cloudflare y CAPTCHA y no se han podido
-  // abrir, asi que se cita la serie que si.
-  // Los 85 B que se citaban son otra medida: entradas BRUTAS segun DPIIT, y
-  // del ejercicio 2021-22, no 2022-23.
-  { s:'H_FDI',  t:'IND',   v:50,   type:'fdi', unit:'B USD', year:2022,
-    source:'Banco Mundial · BX.KLT.DINV.CD.WD',
-    sourceUrl:'https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD?locations=IN',
-    verified:true,
-    detail:'India como destino de IED: 49,9 B USD de entradas netas en 2022 (Banco Mundial, balanza de pagos). Tecnologia, manufactura y renovables como sectores clave.' },
-  { s:'H_FDI',  t:'BRA',   v:91,   type:'fdi',     detail:'IED en Brasil: 92B USD 2022. Agronegocio, energía y digital como destinos principales.' },
-  { s:'H_FDI',  t:'AFR',   v:48,   type:'fdi',     detail:'África: IED baja relativamente. Minería y energía como sectores dominantes.' },
-  { s:'H_FDI',  t:'MEX',   v:36,   type:'fdi',     detail:'México nearshoring: IED manufactura en máximos históricos. Tesla, BMW, TSMC en pipeline.' },
-  // REMITTANCES
-  // VERIFICADO (T10). Los 148 B no corresponden a ninguna serie oficial que
-  // se haya podido abrir. Banco Mundial, remesas personales pagadas por
-  // EE. UU. (BM.TRF.PWKR.CD.DT): 2022 = 88.741 M; 2023 = 98.356 M USD.
-  // https://api.worldbank.org/v2/country/USA/indicator/BM.TRF.PWKR.CD.DT?format=json&date=2023
-  // Nota: la matriz bilateral de KNOMAD estima salidas muy superiores
-  // (del orden de 200 B) por una metodologia distinta; aqui se usa la serie
-  // de balanza de pagos, que es la coherente con el resto del panel.
-  { s:'USA',  t:'H_REMIT', v:98,   type:'remit', unit:'B USD', year:2023,
-    source:'Banco Mundial · BM.TRF.PWKR.CD.DT',
-    sourceUrl:'https://data.worldbank.org/indicator/BM.TRF.PWKR.CD.DT?locations=US',
-    verified:true,
-    detail:'EE. UU., primer emisor de remesas: 98 B USD en remesas personales pagadas (Banco Mundial, 2023). Destinos principales: México, India, China y Filipinas.' },
-  { s:'KSA',  t:'H_REMIT', v:43,   type:'remit',   detail:'Arabia Saudí: 43B USD en remesas. Trabajadores de Asia del Sur como principales receptores.' },
-  { s:'UAE',  t:'H_REMIT', v:46,   type:'remit',   detail:'EAU: 46B USD. India y Pakistán como destinos principales.' },
-  { s:'EU',   t:'H_REMIT', v:98,   type:'remit',   detail:'Europa: remesas de diáspora hacia Europa del Este, Magreb y África subsahariana.' },
-  { s:'H_REMIT', t:'IND',  v:125,  type:'remit',   detail:'India: mayor receptor global de remesas, 125B USD 2023. 4% del PIB.' },
-  { s:'H_REMIT', t:'MEX',  v:67,   type:'remit',   detail:'México: remesas superan IED y petróleo. 67B USD 2023. 3.6% PIB.' },
-  { s:'H_REMIT', t:'NGA',  v:21,   type:'remit',   detail:'Nigeria: 21B USD. Mayor receptor de remesas en África subsahariana.' },
-  { s:'H_REMIT', t:'LAT',  v:82,   type:'remit',   detail:'América Latina y Caribe: remesas superan 145B USD. El Salvador 24% PIB.' },
-  { s:'H_REMIT', t:'AFR',  v:48,   type:'remit',   detail:'África: remesas subestimadas por canales informales. Egipto, Marruecos como receptores clave.' },
-  // RESERVES
-  // VERIFICADO (T10). Pregunta del encargo: 3,42 T, ¿solo divisas o con oro?
-  // Respuesta: ninguna de las dos para 2022-23. 3,42 T corresponde a las
-  // reservas TOTALES (oro incluido) de 2021. Para 2023, Banco Mundial:
-  //   FI.RES.XGLD.CD (sin oro)   3.301.319.727.518,98 USD  -> 3.301 B
-  //   FI.RES.TOTL.CD (con oro)   3.449.544.415.518,98 USD  -> 3.450 B
-  // Como el flujo habla de reservas de divisas, se usa la serie sin oro.
-  // https://api.worldbank.org/v2/country/CHN/indicator/FI.RES.XGLD.CD?format=json&date=2023
-  { s:'CHN',  t:'H_RES',   v:3301, type:'reserves', unit:'B USD', year:2023,
-    source:'Banco Mundial · FI.RES.XGLD.CD',
-    sourceUrl:'https://data.worldbank.org/indicator/FI.RES.XGLD.CD?locations=CN',
-    verified:true,
-    detail:'China: 3.301 B USD en reservas de divisas, sin contar oro (Banco Mundial, 2023). Incluyendo oro son 3.450 B. Mayor acumulador global; diversificación en oro activa.' },
-  { s:'JPN',  t:'H_RES',   v:1225, type:'reserves', detail:'Japón: 2º en reservas globales. Usadas para estabilizar yen bajo presión.' },
-  { s:'KSA',  t:'H_RES',   v:458,  type:'reserves', detail:'Arabia Saudí: reservas del petróleo canalizadas via SAMA y PIF.' },
-  { s:'UAE',  t:'H_RES',   v:190,  type:'reserves', detail:'EAU: reservas canalizadas hacia ADIA (Abu Dhabi Investment Authority), 850B AUM.' },
-  { s:'H_RES',  t:'USA',   v:2100, type:'reserves', unit:'B USD',
-    year:'2026 Q2', published:'30/09/2026',
-    source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
-    detail:'USD como reserva global dominante: 56,70% de las reservas mundiales (FMI COFER, 2026 Q2). Declive gradual: era el 71% en 2000. El porcentaje viene de la tabla de COFER; el importe de este enlace es anterior y sigue sin fuente (COFER da 7.495 B).' },
-  { s:'H_RES',  t:'EU',    v:1340, type:'reserves', unit:'B USD',
-    year:'2026 Q2', published:'30/09/2026',
-    source:'FMI · COFER', sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
-    detail:'Euro: 20,60% de las reservas mundiales (FMI COFER, 2026 Q2), al alza desde el 20,04% del trimestre anterior. Segunda moneda de reserva. El porcentaje viene de la tabla de COFER; el importe de este enlace es anterior y sigue sin fuente (COFER da 2.723 B).' },
-  // VERIFICADO (T10, revision 2). Antes decia "Reservas -> EMG 890 (yuan,
-  // rublo, real)", que no corresponde a ninguna serie: COFER no desglosa
-  // rublo ni real, caen en "otras monedas". Se sustituye por esa categoria,
-  // que es la que el FMI si publica.
-  //
-  // Las cifras salen de la TABLA de COFER, no de la nota de prensa: la nota
-  // del 30/09/2026 solo dice que "other currencies" sigue "por encima del
-  // 6%", sin dar el valor. La tabla si lo da, y ademas en dolares, asi que
-  // no hay que derivar nada multiplicando porcentajes.
-  //
-  // IMF COFER, serie CI_OTHC, trimestre 2026-Q2, publicado el 30/09/2026:
-  //   importe   800.616.200.123,80 USD   -> 801 B
-  //   cuota     6,05756902694702 %       -> 6,06 %
-  //   total     13.216.790.400.307,20 USD -> 13,22 billones
-  // Descargable con:
-  //   https://api.imf.org/external/sdmx/2.1/data/IMF.STA,COFER,+/all?lastNObservations=6
-  // Nota: este valor tiene que actualizarse cada trimestre. T21 mete COFER
-  // en la descarga automatica para que deje de depender de que alguien se
-  // acuerde.
-  { s:'H_RES',  t:'OTHER_CCY', v:801, type:'reserves', unit:'B USD',
-    year:'2026 Q2', published:'30/09/2026',
-    source:'FMI · COFER (serie CI_OTHC)',
-    sourceUrl:'https://data.imf.org/en/datasets/IMF.STA:COFER',
-    verified:true,
-    detail:'Reservas en monedas que COFER no identifica por separado: 801 B USD, el 6,06% de los 13,22 billones de reservas mundiales (FMI COFER, 2026 Q2, publicado el 30/09/2026). El renminbi, que si se identifica aparte, son 279 B, el 2,11%, al alza desde el 1,98% del trimestre anterior.' },
-];
+   Aqui habia 22 nodos y 42 enlaces escritos a mano. El problema no era solo
+   que las cifras no tuvieran fuente: el diagrama MEZCLABA STOCKS CON FLUJOS.
+
+     "RESERVAS 890"   es un saldo: lo que hay acumulado, en un instante.
+     "COMERCIO 3.210" es un flujo: lo que se mueve en un ano.
+
+   Sumar las dos cosas en el mismo diagrama, con la misma unidad y la misma
+   escala, no significa nada: son magnitudes de dimensiones distintas. Un
+   stock se mide en dolares; un flujo, en dolares por ano.
+
+   Ahora van en bloques separados y etiquetados, cada uno con su periodo y su
+   fuente, y cada bloque conserva: lo que entra por un lado sale por el otro,
+   porque el reparto se construye como "los N primeros mas el resto" y el
+   resto sale por diferencia con el total de la propia fuente.
+
+   Lo genera tools/fetch-vector.mjs y lo comprueba tests/vector.mjs. */
+const VECTOR = await (async () => {
+  try {
+    const url = new URL('data/vector.json', document.baseURI).href;
+    const r = await fetch(url, { credentials: 'omit' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (!d || d.esquema !== 1) throw new Error('esquema inesperado');
+    return d;
+  } catch (err) {
+    console.error('AETHER Vector: no se han podido cargar los datos:', err);
+    return { bloques: [], porDefecto: [], conservacion: [], generado: null };
+  }
+})();
+
+/** Bloque por id, y el tipo de flujo al que responde cada boton. */
+const BLOQUES = new Map(VECTOR.bloques.map((b) => [b.id, b]));
+const BLOQUE_DE_TIPO = new Map();
+for (const b of VECTOR.bloques) {
+  // Si dos bloques comparten tipo (reservas por moneda y por pais), gana el
+  // primero; el otro sigue accesible por su id.
+  if (!BLOQUE_DE_TIPO.has(b.tipo)) BLOQUE_DE_TIPO.set(b.tipo, b);
+}
+
+/** Todos los nodos y enlaces, con el bloque al que pertenece cada uno. */
+const NODES = [];
+const ALL_LINKS = [];
+for (const b of VECTOR.bloques) {
+  for (const n of b.nodos) NODES.push(Object.assign({}, n, { bloque: b.id }));
+  for (const l of b.enlaces) ALL_LINKS.push(Object.assign({}, l, { bloque: b.id, clase: b.clase }));
+}
 
 const FLOW_COLORS = {
   debt:'#FF4060', trade:'#FFB020', fdi:'#00FFC8',
@@ -184,7 +84,11 @@ const FLOW_LABELS = {
 
 let activeFlow = 'all';
 let activeRegion = 'all';
-let threshold = 50;
+/* T25: el umbral arranca en 0. Con los datos de verdad los bloques tienen
+   escalas muy distintas (33 billones las exportaciones, 991 mil millones las
+   remesas), asi que un umbral fijo de 50 mil millones ocultaba casi todo el
+   bloque de remesas desde el principio. Filtrar es del usuario. */
+let threshold = 0;
 
 // Clock
 setInterval(()=>{
@@ -194,6 +98,19 @@ setInterval(()=>{
 },1000);
 
 // ── SANKEY LAYOUT ──
+/* T25 · El porcentaje de un enlace se calcula sobre el total DE SU BLOQUE.
+   Antes se dividia por la suma de los 42 enlaces, que sumaba stocks con
+   flujos: un "% del flujo global total" que no era ni un flujo ni un total
+   de nada. */
+function totalDelBloque(l){
+  const b = BLOQUES.get(l && l.bloque);
+  return (b && b.total) || 0;
+}
+function porcentajeEnSuBloque(l){
+  const t = totalDelBloque(l);
+  return t ? (l.v / t * 100) : 0;
+}
+
 function computeSankey(links, nodes) {
   const wrap = document.getElementById('chart-wrap');
   const W = wrap.clientWidth, H = wrap.clientHeight;
@@ -233,10 +150,43 @@ function computeSankey(links, nodes) {
 }
 
 // ── RENDER ──
+
+/* T25 · La barra inferior dice de que es el diagrama: si es un saldo o un
+   flujo anual, de que periodo, de quien, y si el bloque conserva. */
+function actualizarPieDeVector(links){
+  const el = document.getElementById('vector-pie');
+  if(!el) return;
+  const ids = [...new Set(links.map(l => l.bloque))];
+  if(!ids.length){
+    el.textContent = VECTOR.generado ? 'SIN ENLACES POR ENCIMA DEL UMBRAL' : 'SIN DATOS: no se ha podido cargar data/vector.json';
+    return;
+  }
+  const partes = ids.map(id => {
+    const b = BLOQUES.get(id);
+    if(!b) return id;
+    const cons = (VECTOR.conservacion || []).find(c => c.bloque === id);
+    const marca = cons ? (cons.ok ? 'cuadra' : 'residuo ' + cons.residuo) : '';
+    return (b.clase === 'stock' ? 'SALDO' : 'FLUJO ANUAL') + ' · ' + b.titulo
+      + ' · ' + b.periodo + ' · ' + b.source + (marca ? ' · ' + marca : '');
+  });
+  el.textContent = partes.join('   ·   ');
+  el.title = ids.map(id => (BLOQUES.get(id) || {}).nota).filter(Boolean).join(' ');
+}
+
 function render() {
+  /* T25 · Que bloques se muestran.
+
+     'all' muestra SOLO los flujos anuales, nunca mezclados con los stocks:
+     mezclarlos es el error que esta tarea viene a corregir. Cada boton de
+     tipo muestra su bloque, con su clase (STOCK o FLUJO), su periodo y su
+     fuente escritos en la barra inferior. */
+  const visibles = activeFlow === 'all'
+    ? new Set(VECTOR.porDefecto || [])
+    : new Set([(BLOQUE_DE_TIPO.get(activeFlow) || {}).id].filter(Boolean));
+
   const links = ALL_LINKS.filter(l => {
+    if(!visibles.has(l.bloque)) return false;
     if(l.v < threshold) return false;
-    if(activeFlow !== 'all' && l.type !== activeFlow) return false;
     return true;
   });
 
@@ -244,7 +194,8 @@ function render() {
   const activeIds = new Set();
   links.forEach(l => { activeIds.add(l.s); activeIds.add(l.t); });
   const nodes = NODES.filter(n => {
-    if(activeRegion !== 'all' && n.region !== 'HUB' && n.region !== activeRegion) return false;
+    if(!visibles.has(n.bloque)) return false;
+    if(activeRegion !== 'all' && !n.isHub && n.region !== activeRegion) return false;
     return activeIds.has(n.id);
   });
 
@@ -252,16 +203,35 @@ function render() {
 
   // volumes for controls
   ['debt','trade','fdi','remit','reserves'].forEach(type => {
-    const vol = ALL_LINKS.filter(l=>l.type===type).reduce((s,l)=>s+l.v,0);
+    const b = BLOQUE_DE_TIPO.get(type);
     const el = document.getElementById('vol-'+type);
-    if(el) el.textContent = vol >= 1000 ? (vol/1000).toFixed(1)+'T' : vol+'B';
+    if(!el) return;
+    if(!b){ el.textContent = '—'; el.title = 'sin datos'; return; }
+    const vol = b.total;
+    el.textContent = vol >= 1000 ? (vol/1000).toFixed(1)+'T' : Math.round(vol)+'B';
+    // El periodo y la clase, en el title: un saldo y un flujo anual no se
+    // comparan, y el boton tiene que decir cual es cual.
+    el.title = (b.clase === 'stock' ? 'Saldo' : 'Flujo anual') + ' · ' + b.periodo + ' · ' + b.source;
   });
-  const allVol = ALL_LINKS.reduce((s,l)=>s+l.v,0);
+  /* El boton "todos" solo agrega FLUJOS, que si son sumables entre si
+     (todos son miles de millones de dolares al ano). Los stocks no se suman
+     a nada: cada uno es un saldo con su propio instante. */
+  const volFlujos = (VECTOR.porDefecto || [])
+    .map(id => (BLOQUES.get(id) || {}).total || 0)
+    .reduce((a,b)=>a+b, 0);
   const visVol = links.reduce((s,l)=>s+l.v,0);
   const elAll = document.getElementById('vol-all');
-  if(elAll) elAll.textContent = (allVol/1000).toFixed(1)+'T';
+  if(elAll){
+    elAll.textContent = (volFlujos/1000).toFixed(1)+'T';
+    elAll.title = 'Suma de los flujos anuales. Los saldos no se suman a esto.';
+  }
+  const clases = new Set(links.map(l => l.clase));
+  const etiquetaClase = clases.size === 1 ? (clases.has('stock') ? 'SALDO VISIBLE' : 'FLUJO ANUAL VISIBLE') : 'VISIBLE';
   document.getElementById('total-flow').textContent = '$' + (visVol/1000).toFixed(1)+'T';
+  const lblTotal = document.querySelector('#total-flow')?.parentElement?.querySelector('.lbl');
+  if(lblTotal) lblTotal.textContent = etiquetaClase;
   document.getElementById('node-count').textContent = Object.keys(nodeMap).length;
+  actualizarPieDeVector(links);
 
   // build SVG
   const svg = d3.select('#sankey-svg')
@@ -326,7 +296,7 @@ function render() {
          ['PERIODO', linkPeriod(l)],
          ...(linkPublished(l) ? [['PUBLICADO', linkPublished(l)]] : []),
          ['FUENTE', linkSource(l)],
-         ['% DEL TOTAL', (l.v/allVol*100).toFixed(1)+'%']]);
+         ['% DE SU BLOQUE', porcentajeEnSuBloque(l).toFixed(1)+'%']]);
     })
     .on('mouseleave', ()=>{
       path.attr('opacity',0.35);
@@ -487,7 +457,7 @@ function showLinkDetail(l, nodeMap){
   document.getElementById('dp-placeholder').style.display='none';
   const dc = document.getElementById('dp-content'); dc.style.display='block';
   const col = FLOW_COLORS[l.type]||'#888';
-  const allVol = ALL_LINKS.reduce((s,x)=>s+x.v,0);
+  const pct = porcentajeEnSuBloque(l);
   dc.innerHTML=`
     <div class="dp-meta">// AETHER VECTOR · FLUJO</div>
     <div class="dp-title">${esc(nodeMap[l.s]?.label||l.s)} → ${esc(nodeMap[l.t]?.label||l.t)}</div>
@@ -512,8 +482,8 @@ function showLinkDetail(l, nodeMap){
     <div class="dp-label">// PESO RELATIVO</div>
     <div class="dp-bars">
       <div class="dp-bar-row">
-        <div class="dp-bar-label"><span>% del flujo global total</span><span style="color:${col}">${(l.v/allVol*100).toFixed(1)}%</span></div>
-        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${(l.v/allVol*100*5).toFixed(0)}%;background:${col}"></div></div>
+        <div class="dp-bar-label"><span>% de ${esc((BLOQUES.get(l.bloque)||{}).titulo || 'su bloque')}</span><span style="color:${col}">${pct.toFixed(1)}%</span></div>
+        <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${Math.min(100, pct).toFixed(0)}%;background:${col}"></div></div>
       </div>
     </div>`;
 }

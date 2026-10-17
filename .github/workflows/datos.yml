@@ -51,6 +51,12 @@ jobs:
         # queda el anterior.
         run: node tools/fetch-data.mjs
 
+      - name: Descargar los datos de Vector
+        # Los flujos y saldos financieros que dibuja Vector: COFER, TIC y
+        # cuatro series del Banco Mundial. El script aborta si algun bloque
+        # no conserva, antes que publicar un diagrama que no cuadra.
+        run: node tools/fetch-vector.mjs
+
       - name: Validar contra el esquema
         run: |
           set -e

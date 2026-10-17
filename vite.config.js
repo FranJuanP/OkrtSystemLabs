@@ -20,7 +20,7 @@ function datosEnElBuild() {
   // `latest.json` lo escribe el trabajo semanal y `events.json` el de cada
   // media hora. Las instantáneas con fecha NO se publican: son varios megas
   // cada una y solo sirven para comparar.
-  const ficheros = ['data/latest.json', 'data/events.json'];
+  const ficheros = ['data/latest.json', 'data/events.json', 'data/vector.json'];
   return {
     name: 'aether-datos',
     generateBundle() {
