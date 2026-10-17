@@ -22,7 +22,9 @@ export default defineConfig({
     // y sin mangling agresivo de nombres: el objetivo es peso, no esconder el
     // código. La fuente que se versiona sigue siendo legible.
     minify: true,
-    sourcemap: true,
+    // Sin sourcemaps en el publicado: son 5 MB y la fuente ya es legible
+    // y esta en el repositorio. Para depurar: npm run build -- --sourcemap
+    sourcemap: false,
     rollupOptions: {
       input: {
         index: resolve(import.meta.dirname, 'index.html'),
