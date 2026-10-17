@@ -1,3 +1,16 @@
+/**
+ * AETHER · motor analítico del dashboard
+ *
+ * Fuente legible recuperada en la Fase 0 del monolito del 26/03/2026 y
+ * verificada por AST contra el assets/js/app-core.js publicado: 61
+ * funciones, 40 constantes y los datos idénticos valor a valor.
+ *
+ * Módulo ES (T12): exporta lo que el resto del dashboard necesita, en vez
+ * de dejar 59 funciones y 40 constantes sueltas en el ámbito global.
+ */
+import { esc, safeHref, safeUrl, formatBold } from '../core/escape.js';
+import { AETHER_COVERAGE } from '../core/coverage.js';
+
 // ──────────────────────────────────────────
 // MATRIX RAIN
 // ──────────────────────────────────────────
@@ -1573,30 +1586,6 @@ function toggleGlobeArcs() {
 }
 
 
-function updateBanner(d){
-  const scores=[d.eco.score,d.geo.score,d.health.score,d.climate.score,d.social.score,d.tech.score,d.food.score,d.mental.score,d.energy.score,d.demo.score,d.urban.score,d.science.score,d.justice.score,d.finance.score,d.ocean.score,d.bio.score];
-  const global=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
-  const[lbl,col]=riskLabel(global);
-  document.getElementById('gnum').textContent=global;
-  document.getElementById('gnum').style.color=col;
-  document.getElementById('gstatus').textContent=lbl;
-  document.getElementById('gstatus').style.color=col;
-  ["gs0","gs1","gs2","gs3","gs4","gs5","gs6","gs7","gs8","gs9","gs10","gs11","gs12","gs13","gs14","gs15"].forEach((id,i)=>{
-    const el=document.getElementById(id);
-    if(!el) return;
-    el.textContent=scores[i];
-    const s=scores[i];
-    el.style.color=s>=75?'#FF3355':s>=55?'#FF8C00':s>=35?'#FFD700':'#00CC66';
-  });
-  // threat segments
-  const seg=document.getElementById('tsegs');
-  const n=Math.ceil((global/100)*10);
-  seg.innerHTML=Array.from({length:10},(_,i)=>{
-    const pct=(i+1)/10;
-    const sc=pct<.35?'var(--green)':pct<.6?'var(--yellow)':pct<.8?'var(--orange)':'var(--red)';
-    return`<div class="tseg${i<n?' on':''}" style="background:${sc}"></div>`;
-  }).join('');
-}
 
 // ──────────────────────────────────────────
 // LOAD REGION
@@ -2620,6 +2609,12 @@ let arcsVisible = true;
 let arcGroup = null;
 let arcAnimTick = 0;
 
+/**
+ * Controles de zoom del mapa. initWorldMap() los rellena cuando el mapa
+ * existe; antes de eso son null y los botones no hacen nada.
+ */
+export const mapControls = { zoomIn: null, zoomOut: null, reset: null };
+
 function initWorldMap(){
   const wrap=document.getElementById('world-map-wrap');
   if(!wrap||typeof d3==='undefined'||typeof topojson==='undefined') return;
@@ -2778,13 +2773,18 @@ function initWorldMap(){
     }
     window._zoomToCountry = zoomToCountry;
 
-    // ── FUNCIONES PÚBLICAS DE ZOOM (llamadas desde botones) ───────────────
-    window.mapZoomIn  = ()=> svg.transition().duration(350)
+    // ── CONTROLES DE ZOOM ─────────────────────────────────────────────────
+    // T12: antes se colgaban de window (mapZoomIn, mapZoomOut, mapZoomReset)
+    // porque se crean aqui dentro, al inicializar el mapa, y los botones los
+    // buscaban por nombre. Ahora se registran en `mapControls`, que el modulo
+    // exporta vacio y esta funcion rellena.
+    mapControls.zoomIn  = ()=> svg.transition().duration(350)
       .call(zoom.scaleBy, 1.6);
-    window.mapZoomOut = ()=> svg.transition().duration(350)
+    mapControls.zoomOut = ()=> svg.transition().duration(350)
       .call(zoom.scaleBy, 0.65);
-    window.mapZoomReset = ()=> svg.transition().duration(600).ease(d3.easeCubicInOut)
+    mapControls.reset   = ()=> svg.transition().duration(600).ease(d3.easeCubicInOut)
       .call(zoom.transform, d3.zoomIdentity);
+    const mapZoomReset = mapControls.reset;
     window._mapZoom = zoom;
     window._mapSvgRef = svg;
     // Exponer zoomToCountry por código ISO para llamarla desde loadRegion
@@ -3126,31 +3126,6 @@ function exportPDF(){
 // loadRegion v5 — replaced by unified v6
 
 // ── PATCH updateBanner para enhanced scores ──
-function updateBanner(d,code){
-  code=code||document.getElementById('region-sel').value;
-  const scores=CAT_KEYS.map(k=>enhancedScore(d[k]?.score||50,k,code));
-  const global=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
-  const[lbl,col]=riskLabel(global);
-  document.getElementById('gnum').textContent=global;
-  document.getElementById('gnum').style.color=col;
-  document.getElementById('gstatus').textContent=lbl;
-  document.getElementById('gstatus').style.color=col;
-  for(let i=0;i<16;i++){
-    const el=document.getElementById('gs'+i);
-    if(el){
-      el.textContent=scores[i];
-      const s=scores[i];
-      el.style.color=s>=75?'#FF3355':s>=55?'#FF8C00':s>=35?'#FFD700':'#00CC66';
-    }
-  }
-  const seg=document.getElementById('tsegs');
-  const n=Math.ceil((global/100)*10);
-  seg.innerHTML=Array.from({length:10},(_,i)=>{
-    const pct=(i+1)/10;
-    const sc=pct<.35?'var(--green)':pct<.6?'var(--yellow)':pct<.8?'var(--orange)':'var(--red)';
-    return`<div class="tseg${i<n?' on':''}" style="background:${sc}"></div>`;
-  }).join('');
-}
 
 // ── INIT v5 — convertido a función para llamada desde el router ──
 function initAetherApp(){
@@ -3560,6 +3535,11 @@ function loadRegion(){
 }
 
 // ── updateBanner también como alias ──
+/* T12/T13: updateBanner estaba declarada tres veces en el ambito global.
+   Por hoisting ganaba la ultima, asi que las dos primeras no se ejecutaban
+   nunca. En un modulo ES eso es un error de sintaxis, de modo que la
+   migracion lo ha destapado. Se conservan solo la que gana hoy. */
+
 function updateBanner(d,code){
   code=code||document.getElementById('region-sel').value;
   loadRegion();
@@ -4528,3 +4508,34 @@ document.addEventListener('click', function(ev){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(probe,1200));
   else setTimeout(probe,1200);
 })();
+
+export {
+  DATA, CAT_KEYS, CAT_LABELS, CAT_COLORS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
+  EVENT_POOL, ISO_MAP, COUNTRY_FLAGS, REGION_GROUPS, RESILIENCE_WEIGHTS,
+  ShockSim, SHOCK_PRESETS, STEPS,
+  enhancedScore, riskLabel, scoreToColor, velLabel,
+  simulateCascade, runMonteCarlo, gaussianRandom,
+  computeResilienceIndex, detectInflections,
+  initAetherApp, initAetherApp2, loadRegion, onRegionChange,
+  updateBanner, renderInds, renderEvents, renderRanking, renderChains,
+  initThermo, updateThermo, renderThermo,
+  initWorldMap, updateMapColors, setMapCat, getMapScore,
+  initNetworkGraph, showArcDetail, hideArcDetail, filterArcType, toggleGlobeArcs,
+  runAnalysis, runScenarios, showScenario, sendChat, checkOllama,
+  getOllamaURL, getModel, setHorizon, exportPDF,
+  initShockSimulator, runShockCascade, applyPreset, resetShocks, onShockSlider,
+  toggleShockSimulator, updateCascadeModule,
+};
+
+/* T12 · Asa de depuracion.
+   Al pasar a modulos, DATA y las matrices dejan de estar en el ambito global,
+   que es justo lo que se buscaba. Pero las pruebas y la consola del navegador
+   necesitan poder consultarlas, asi que se expone una referencia explicita y
+   claramente marcada como tal. Ningun modulo la usa. */
+window.__AETHER__ = Object.freeze({
+  COVERAGE: AETHER_COVERAGE,
+  DATA, CAT_KEYS, CAT_LABELS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
+  EVENT_POOL, RESILIENCE_WEIGHTS, ShockSim,
+  enhancedScore, riskLabel, simulateCascade, runMonteCarlo,
+  computeResilienceIndex, detectInflections,
+});

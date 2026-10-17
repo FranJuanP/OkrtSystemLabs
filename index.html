@@ -150,16 +150,7 @@
 
 <link rel="stylesheet" href="assets/css/usability-fix.css"/>
 
-<script src="assets/js/aether-escape.js"></script>
-<script src="assets/js/aether-coverage.js"></script>
-<script src="assets/js/frame-buster.js"></script>
-<script src="assets/js/domain-notice.js"></script>
-<script src="assets/js/storage-contract.js"></script>
-<script src="assets/js/background-throttle.js"></script>
-<script src="assets/js/dom-safety-layer.js"></script>
 <link rel="stylesheet" href="assets/css/mobile-responsive.css">
-<script src="assets/js/mobile-viewport-fix.js"></script>
-<script defer src="assets/js/pwa-register.js"></script>
 
 <link rel="manifest" href="manifest.webmanifest?v=okrtv2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-okrt-v2.png?v=okrtv2">
@@ -548,7 +539,6 @@ python -m http.server 8080</pre>
   <div class="footer-copy">© 2025 <span>OkrtSystem Labs</span> · MIT License · AETHER v2.0</div>
 </footer>
 
-<script src="assets/js/runtime-guard.js"></script>
 
 </div>
 
@@ -1403,34 +1393,19 @@ python -m http.server 8080</pre>
      (bloque <script> inline nº2) y verificada por AST contra assets/js/app-core.js ofuscado:
      61 funciones y 40 constantes identicas, 0 diferencias reales.
      El ofuscado se conserva en assets/js/app-core.js hasta la Fase 2. -->
-<script src="src/app-core.js"></script>
 </div>
 
 <!-- ═══ PHASE IV: SHELL CONFIG + LABELS ═══ -->
-<script src="assets/js/app-shell-config.js"></script>
-<script src="assets/js/app-shell-bindings.js"></script>
 
 <!-- ═══ PHASE III: CONFIG + ROUTER LAYER ═══ -->
-<script src="assets/js/app-config.js"></script>
-<script src="assets/js/app-dom.js"></script>
-<script src="assets/js/app-router-legacy.js"></script>
-<script src="assets/js/app-aux.js"></script>
 
 <!-- ═══ PHASE VI: RUNTIME HARDENING ═══ -->
-<script src="assets/js/app-shell-errors.js"></script>
-<script src="assets/js/app-shell-health.js"></script>
 
 <!-- ═══ FINAL PHASES VII–X: SAFE PERIMETER COMPLETION ═══ -->
-<script src="assets/js/app-shell-panels.js"></script>
-<script src="assets/js/app-shell-session.js"></script>
-<script src="assets/js/app-shell-telemetry.js"></script>
-<script src="assets/js/app-shell-diagnostics.js"></script>
 
 <!-- ═══ ENHANCEMENTS V1: BRIEF + EXPLAINABILITY + WATCHLIST ═══ -->
 <!-- ═══ ROBUSTNESS PREMIUM: HEALTH + FALLBACK + DEPENDENCY VISIBILITY ═══ -->
 
-<script src="assets/js/app-enhancements.js"></script>
-<script src="assets/js/app-robustness.js"></script>
 
 <style id="okrt-flags-data-style">
 #region-sel{visibility:hidden;position:absolute;pointer-events:none}
@@ -1480,12 +1455,11 @@ python -m http.server 8080</pre>
 </style>
 
 
-<script src="assets/js/okrt-flags-data.js"></script>
 
 
-<script src="assets/js/globe-bridge.js"></script>
 
 
-<script src="assets/js/inline-handlers-migration-1.js"></script>
+<!-- T12: una sola entrada de modulo. -->
+<script type="module" src="/src/pages/index.js"></script>
 </body>
 </html>

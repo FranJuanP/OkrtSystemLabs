@@ -53,10 +53,12 @@ function countryFiguresIn(file) {
 
   // 1. La constante contra el recuento real del motor.
   const real = await page.evaluate(() => {
-    const cov = window.AETHER_COVERAGE;
-    let data = null;
-    try { data = eval('DATA'); } catch (e) { data = null; }
-    if (!cov || !data) return { error: 'falta AETHER_COVERAGE o DATA' };
+    // Desde T12 el motor es un módulo: ni AETHER_COVERAGE ni DATA son
+    // globales. El asa window.__AETHER__ existe para las pruebas y la consola.
+    const handle = window.__AETHER__ || {};
+    const cov = handle.COVERAGE || window.AETHER_COVERAGE;
+    const data = handle.DATA;
+    if (!cov || !data) return { error: 'falta __AETHER__.COVERAGE o __AETHER__.DATA' };
     const keys = Object.keys(data);
     const excluded = cov.nonCountryKeys || [];
     return {

@@ -1,17 +1,26 @@
 /**
  * AETHER · Global Intelligence Globe
  *
- * T4: este codigo iba inline en aether-globe-v3.html. Se externaliza para
- * poder quitar 'unsafe-inline' de script-src. No se cambia nada mas.
+ * T4 lo sacó de aether-globe-v3.html, donde iba inline (596 kB), para poder
+ * quitar 'unsafe-inline' de script-src.
  *
- * La tabla COUNTRIES que define aqui es la que T23 sustituye por la lectura
+ * T12: módulo ES. Lo que antes compartía por variables globales con
+ * touch.js, functional-boost.js y module-hardening.js ahora se exporta.
+ * Las lecturas funcionan con los bindings vivos de ESM; para las escrituras
+ * desde fuera se expone `pointer`, una API explícita con el estado de
+ * arrastre y zoom, en vez de dejar que un parche reasigne variables ajenas.
+ *
+ * three.js y topojson siguen llegando como globales desde el CDN; T16 los
+ * sustituye por imports de las versiones empaquetadas.
+ *
+ * La tabla COUNTRIES que define aquí es la que T23 sustituye por la lectura
  * de data/latest.json, para que el globo y el dashboard dejen de tener dos
  * verdades distintas.
  */
-// ═══════════════════════════════════════════════════════════════
-//  AETHER · GLOBAL INTELLIGENCE GLOBE v4
-//  Tabla propia del globo (T23 la sustituye por data/latest.json)
-// ═══════════════════════════════════════════════════════════════
+import { AETHER_COVERAGE } from '../core/coverage.js';
+import { AETHER_STORAGE } from '../core/storage.js';
+
+const THREE = window.THREE;
 
 const COUNTRIES = [
   // ── EUROPA ──
@@ -378,7 +387,7 @@ function updateStats() {
     // T9: la cifra de referencia es la cobertura real del motor (201). El
     // globo dibuja hoy menos marcadores, asi que se dicen las dos: lo que
     // pinta y sobre cuantos. T23 unifica las dos tablas y esto se simplifica.
-    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} DE ${(window.AETHER_COVERAGE||{}).countries||201} PAÍSES · 16 CATEGORÍAS`;
+    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} DE ${AETHER_COVERAGE.countries} PAÍSES · 16 CATEGORÍAS`;
 }
 
 // ── RENDERER ──
@@ -685,44 +694,13 @@ function activateArcsForCountry(name){
   });
 }
 
-function updateArcs(dt){
-  arcObjects.forEach(ao=>{
-    if(!ao.animating && ao.progress===0) return;
-    if(ao.progress < ao.targetProgress) ao.progress=Math.min(ao.targetProgress,ao.progress+dt*1.8);
-    else if(ao.progress > ao.targetProgress){
-      ao.progress=Math.max(ao.targetProgress,ao.progress-dt*2.5);
-      if(ao.progress===0){
-        ao.line.visible=false; ao.glow.visible=false;
-        ao.convoy.forEach(p=>{ p.mesh.visible=false; }); ao.animating=false; return;
-      }
-    }
-    const count=Math.floor(ao.progress*ao.pts.length);
-    ao.line.geometry.setDrawRange(0,count); ao.glow.geometry.setDrawRange(0,count);
+/* T12/T13: aqui habia una primera definicion de updateArcs(dt).
+   Mas abajo se declaraba otra con el mismo nombre, que por hoisting es la
+   que gana en tiempo de ejecucion, asi que esta nunca llegaba a usarse.
+   En un modulo ES dos declaraciones con el mismo nombre son un error de
+   sintaxis, de modo que la migracion la ha destapado. Se conserva la que
+   gana hoy, que es la que aplica la intensidad del dashboard. */
 
-    // Opacidades diferenciadas por tipo
-    const cfg = ao.cfg || ARC_CFG_DEFAULT;
-    ao.line.material.opacity = ao.progress * cfg.lineOp;
-    ao.glow.material.opacity = ao.progress * cfg.glowOp;
-
-    // ── CONVOY PARTICLES — con soporte bidireccional ──
-    if(ao.progress>.08){
-      ao.convoy.forEach(p=>{
-        // Bidireccional: dir=1 avanza, dir=-1 retrocede
-        p.t = p.dir===1
-          ? (p.t + dt*p.speed) % 1.0
-          : ((p.t - dt*p.speed) + 1.0) % 1.0;
-        const tCapped = p.dir===1
-          ? Math.min(p.t, ao.progress)
-          : Math.max(p.t, 1.0 - ao.progress);
-        const pos = ao.curve.getPoint(tCapped);
-        p.trail.push(pos.clone());
-        if(p.trail.length>p.trailLen) p.trail.shift();
-        p.mesh.position.copy(pos);
-        p.mesh.material.opacity = Math.sin(tCapped*Math.PI)*ao.progress*.9;
-      });
-    }
-  });
-}
 
 // ── SCREEN PROJECTION ──
 function w2s(localPos){
@@ -875,6 +853,13 @@ function drawLabels(){
 
 // ── PANEL ──
 function showPanel(c){
+  showPanelBase(c);
+  for (const hook of afterShowPanelHooks) {
+    try { hook(c); } catch (err) { console.warn('AETHER Globe: hook de panel fallido:', err); }
+  }
+}
+
+function showPanelBase(c){
   selectedCountry=c.name;
   // activate reticle
   reticle.active=true; reticle.scanT=0; reticle.alpha=0;
@@ -997,6 +982,9 @@ const sunDir = new THREE.Vector3(1, 0.3, 0).normalize();
 
 
 function animate(){
+  for (const hook of beforeFrameHooks) {
+    try { hook(); } catch (err) { /* un hook no debe tumbar el bucle */ }
+  }
   requestAnimationFrame(animate);
   const dt=clock3.getDelta(), t=clock3.elapsedTime;
   if(globeMat) {
@@ -1119,7 +1107,7 @@ const TYPE_COLORS = {
 };
 
 // ── Filtro por tipo ──
-window.setArcFilter = function(type){
+function setArcFilter(type){
   currentArcFilter = (type === 'ALL') ? null : type;
   // Reactivar globalArcMode: filtrar siempre implica mostrar arcos globalmente
   globalArcMode = true;
@@ -1137,7 +1125,7 @@ window.setArcFilter = function(type){
 }
 
 // ── Modo global: todos los arcos visibles ──
-window.toggleGlobalMode = function(){
+function toggleGlobalMode(){
   globalArcMode = !globalArcMode;
   const btn = document.querySelector('.arc-fbtn[data-type="GLOBAL"]');
   if(btn) btn.classList.toggle('active', globalArcMode);
@@ -1154,6 +1142,7 @@ window.toggleGlobalMode = function(){
 }
 
 function showGlobalArcs(){
+  if (globalArcsStrategy) { globalArcsStrategy(); return; }
   deactivateAllArcs();
   const filtered = arcObjects.filter(ao =>
     !currentArcFilter || ao.data.type === currentArcFilter
@@ -1189,8 +1178,9 @@ function applyDashboardIntensity(){
   } catch(e){}
 }
 
-// Aplicar intensidad en el loop de animación (patch updateArcs)
-const _origUpdateArcs = updateArcs;
+// Aplica la intensidad que publica el dashboard en el bucle de animacion.
+// (Antes habia aqui un `const _origUpdateArcs = updateArcs;` que, por
+//  hoisting, apuntaba a esta misma funcion y no se usaba en ninguna parte.)
 function updateArcs(dt){
   arcObjects.forEach(ao=>{
     if(!ao.animating && ao.progress===0) return;
@@ -1428,3 +1418,64 @@ renderDesktopHotspots();
 bindArcControlButtons();
 init();
 initArcControls();
+
+
+/* ── T12 · Puntos de extension ────────────────────────────────────────────
+   functional-boost.js sustituia showGlobalArcs y envolvia showPanel y
+   animate reasignando las variables del motor. En un modulo ES eso no es
+   posible, y ademas era fragil: dependia del orden de carga y de marcas
+   como __gfPatched. Ahora el motor ofrece estos tres puntos. */
+
+/** Estrategia alternativa para desplegar los arcos globales. */
+let globalArcsStrategy = null;
+/** Sustituye por completo el despliegue de arcos globales. */
+export function setGlobalArcsStrategy(fn){ globalArcsStrategy = typeof fn === 'function' ? fn : null; }
+
+/** Hooks que corren despues de pintar el panel de un pais. */
+const afterShowPanelHooks = [];
+export function registerAfterShowPanel(fn){ if (typeof fn === 'function') afterShowPanelHooks.push(fn); }
+
+/** Hooks que corren al principio de cada fotograma. */
+const beforeFrameHooks = [];
+export function registerBeforeFrame(fn){ if (typeof fn === 'function') beforeFrameHooks.push(fn); }
+
+/* ── T12 · API de puntero ──────────────────────────────────────────────────
+   touch.js necesitaba escribir el estado de arrastre del motor. Antes lo
+   hacia reasignando variables globales ajenas (autoRot, isDrag, prevX...).
+   Ahora pasa por aqui, que es la unica puerta de escritura. */
+export const pointer = {
+  stopAutoRotate(){ autoRot = false; },
+  startAutoRotate(){ autoRot = true; },
+  setDragging(v){ isDrag = !!v; },
+  isDragging(){ return isDrag; },
+  setLast(x, y){ prevX = x; prevY = y; },
+  lastX(){ return prevX; },
+  lastY(){ return prevY; },
+  rotateBy(dx, dy){
+    tRotY += dx;
+    tRotX = Math.max(-1.35, Math.min(1.35, tRotX + dy));
+  },
+  setDidDrag(v){ didDrag = !!v; },
+  hideTooltip(){
+    if (arcTooltip) arcTooltip.classList.remove('show');
+    tooltipActive = false;
+  },
+  zoomBy(delta){
+    if (camera && camera.position) {
+      camera.position.z = Math.max(1.55, Math.min(6.0, camera.position.z + delta));
+    }
+  },
+  pointAt(clientX, clientY){
+    if (!mouse) return;
+    mouse.x =  (clientX / window.innerWidth)  * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+  },
+};
+
+export {
+  COUNTRIES, COUNTRIES_DEDUP, TENSION_ARCS,
+  arcObjects, pulseMeshes, markerData, activationTimers,
+  animate, showPanel, showGlobalArcs, deactivateAllArcs,
+  setArcFilter, toggleGlobalMode,
+  currentArcFilter,
+};

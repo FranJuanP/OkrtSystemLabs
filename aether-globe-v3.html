@@ -588,23 +588,14 @@
     word-break:break-word;
   }
 </style>
-<script src="assets/js/aether-escape.js"></script>
-<script src="assets/js/aether-coverage.js"></script>
-<script src="assets/js/frame-buster.js"></script>
-<script src="assets/js/domain-notice.js"></script>
 
 
-<script src="assets/js/security-hardening.js"></script>
 
-<script src="assets/js/storage-contract.js"></script>
-<script src="assets/js/background-throttle.js"></script>
   <link rel="stylesheet" href="assets/css/globe-hardening.css">
   <link rel="stylesheet" href="assets/css/globe-functional-boost.css">
 <link rel="stylesheet" href="assets/css/mobile-responsive.css">
 <link rel="stylesheet" href="assets/css/globe-mobile-hotspots-off.css">
 <link rel="stylesheet" href="assets/css/globe-tablet-portrait-cleanup.css">
-<script src="assets/js/mobile-viewport-fix.js"></script>
-<script defer src="assets/js/pwa-register.js"></script>
 
 <link rel="manifest" href="manifest.webmanifest?v=okrtv2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-okrt-v2.png?v=okrtv2">
@@ -707,10 +698,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
-<script src="assets/js/dependency-resilience.js"></script>
 <!-- T4: el motor del globo iba aqui inline; se externaliza a src/aether-globe.js
      para poder quitar 'unsafe-inline' de script-src. -->
-<script src="src/aether-globe.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════════
      AETHER MOBILE PATCH — Touch & Responsive Fixes
@@ -797,9 +786,9 @@
 }
 </style>
 
-  <script src="assets/js/globe-module-hardening.js"></script>
-  <script src="assets/js/globe-touch-patch.js"></script>
-  <script src="assets/js/globe-functional-boost.js"></script>
 
+<!-- T12: una sola entrada de modulo. three.js, d3 y topojson siguen
+     viniendo del CDN hasta T16. -->
+<script type="module" src="/src/pages/globe.js"></script>
 </body>
 </html>

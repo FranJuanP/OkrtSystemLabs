@@ -1,13 +1,21 @@
-/* ──────────────────────────────────────────────────────────────────────────
-   BASELINE LEGIBLE · Fase 0
-   Fuente recuperada sin ofuscar y verificada por AST contra el bloque
-   <script> ofuscado que iba inline en esta pagina. No se cambia el
-   comportamiento: este fichero es el punto de partida de la Fase 1.
-   ────────────────────────────────────────────────────────────────────────── */
-
-/* T6: el bloqueo de dominio que habia aqui (comparacion por subcadena y
-   sustitucion de window.fetch) se sustituye por el aviso comun de
-   assets/js/domain-notice.js, que la pagina carga antes que este fichero. */
+/**
+ * AETHER SIGNAL · motor del feed
+ *
+ * Fuente legible recuperada en la Fase 0 y verificada por AST contra el
+ * bloque ofuscado que iba inline en aether-signal.html.
+ *
+ * Módulo ES (T12). Dos piezas merecen explicación, porque sustituyen a dos
+ * acoplamientos que antes se hacían por variables globales:
+ *
+ *  - `allSignals` y `filtered` eran globales que feed-boost.js leía y
+ *    reescribía. En un módulo, un binding importado es de solo lectura, así
+ *    que el estado se expone con accesores: getAllSignals/setAllSignals y
+ *    getFiltered/setFiltered.
+ *  - feed-boost.js sustituía `loadAll` por una versión envuelta. Ahora el
+ *    motor expone `registerAfterLoad(fn)` y llama a los hooks al terminar,
+ *    que es lo mismo pero explícito y sin parchear nada.
+ */
+import { esc, safeHref, safeUrl } from '../core/escape.js';
 
 // ═══════════════════════════════════════════════
 //  AETHER SIGNAL — OkrtSystem Labs
@@ -16,6 +24,25 @@
 
 let allSignals = [];
 let filtered   = [];
+
+/** @returns {Array} las señales actuales. */
+export function getAllSignals(){ return allSignals; }
+/** Sustituye la lista de señales. */
+export function setAllSignals(next){ allSignals = Array.isArray(next) ? next : []; }
+/** @returns {Array} la lista filtrada que se está pintando. */
+export function getFiltered(){ return filtered; }
+/** Sustituye la lista filtrada. */
+export function setFiltered(next){ filtered = Array.isArray(next) ? next : []; }
+
+/** Hooks que corren al terminar cada loadAll(). Ver feed-boost.js. */
+const afterLoadHooks = [];
+/** Registra un hook posterior a la carga. Sustituye al parcheo de loadAll. */
+export function registerAfterLoad(fn){ if (typeof fn === 'function') afterLoadHooks.push(fn); }
+
+/** Hooks que corren tras seleccionar una señal. Ver mobile-fix.js. */
+const afterSelectHooks = [];
+/** Registra un hook posterior a la selección. Sustituye al parcheo de selectSignal. */
+export function registerAfterSelect(fn){ if (typeof fn === 'function') afterSelectHooks.push(fn); }
 let activeCat  = 'all';
 let activeSort = 'time';
 let selectedId = null;
@@ -332,6 +359,10 @@ async function loadAll() {
   updateLastUpdate();
   updateSignalCount();
   updateFeedState();
+
+  for (const hook of afterLoadHooks) {
+    try { await hook(); } catch (err) { console.warn('AETHER Signal: hook posterior a la carga fallido:', err); }
+  }
 }
 
 function applyFilter(){
@@ -432,6 +463,10 @@ function selectSignal(id){
     </div>
     ${safeUrl(s.url) ? `<a class="d-link" href="${safeHref(s.url)}" target="_blank" rel="noopener noreferrer">⬡ VER FUENTE ORIGINAL →</a>` : ''}
   `;
+
+  for (const hook of afterSelectHooks) {
+    try { hook(s); } catch (err) { console.warn('AETHER Signal: hook de selección fallido:', err); }
+  }
 }
 
 function filterCat(btn, cat){
@@ -486,8 +521,7 @@ function buildTicker(){
 }
 
 // Auto-refresh every 5 minutes
-loadAll();
-setInterval(loadAll, 300000);
+// T12: el arranque y el temporizador los monta src/pages/signal.js.
 
 /**
  * T1 · La insignia de cabecera refleja el estado real del feed.
@@ -515,3 +549,11 @@ function updateFeedState(){
     tickerLabel.classList.toggle('offline', !live);
   }
 }
+
+export {
+  SEV, CAT_COLOR, CAT_LABEL, SOURCE_LABELS,
+  setSrc, loadAll, applyFilter, updateCounts, renderFeed, selectSignal,
+  filterCat, sortBy, formatTime, buildTicker,
+  updateLastUpdate, updateSignalCount, updateFeedState,
+  saveLastReading, loadLastReading,
+};

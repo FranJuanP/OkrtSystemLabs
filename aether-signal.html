@@ -187,17 +187,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
 ::-webkit-scrollbar-thumb{background:rgba(0,255,200,.15)}
 </style>
 
-<script src="assets/js/aether-escape.js"></script>
-<script src="assets/js/aether-coverage.js"></script>
-<script src="assets/js/frame-buster.js"></script>
-<script src="assets/js/domain-notice.js"></script>
-<script src="assets/js/security-hardening.js"></script>
 
-<script src="assets/js/storage-contract.js"></script>
-<script src="assets/js/background-throttle.js"></script>
 <link rel="stylesheet" href="assets/css/mobile-responsive.css">
-<script src="assets/js/mobile-viewport-fix.js"></script>
-<script defer src="assets/js/pwa-register.js"></script>
 <link rel="stylesheet" href="assets/css/signal-mobile-fix.css">
 
 <link rel="manifest" href="manifest.webmanifest?v=okrtv2">
@@ -330,10 +321,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
      sin ofuscar se recupero del Escritorio y se verifico por AST contra el
      publicado desofuscado con webcrack. El original ofuscado se conserva en
      assets/js/*.inline*.js hasta la Fase 2. -->
-<script src="src/aether-signal.js"></script>
 
-<script src="assets/js/module-handlers-migration-2.js"></script>
-<script src="assets/js/signal-feed-boost.js"></script>
-<script src="assets/js/signal-mobile-fix.js"></script>
+<!-- T12: una sola entrada de modulo. -->
+<script type="module" src="/src/pages/signal.js"></script>
 </body>
 </html>
