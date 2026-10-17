@@ -221,6 +221,55 @@ va en el fichero, en la interfaz y en este documento.
 
 ---
 
+## 5 bis. Los otros dos ficheros de datos
+
+Además de los indicadores de riesgo, hay dos conjuntos que se descargan solos
+y que conviene no confundir con ellos.
+
+### `data/events.json` — los eventos de Signal
+
+Lo escribe un trabajo cada media hora con las cuatro fuentes de Signal: USGS
+(sismos), NASA EONET (eventos naturales abiertos), ReliefWeb (informes
+humanitarios) y GDELT (prensa geopolítica). Sirve de respaldo: cuando una
+fuente no responde desde el navegador, Signal muestra esta lectura **marcada
+como última lectura y con la hora de la descarga**, en lugar de no mostrar
+nada.
+
+**ReliefWeb no funciona.** Su API v1, que es la que la página consultaba,
+devuelve `410 Gone` («The API version 'v1' has been decommissioned»), y la v2
+responde `403` a cualquier *appname* que ReliefWeb no haya aprobado
+previamente. La fuente aparece como «fuente retirada», no como «sin
+conexión», porque no hay nada que reintentar. Para recuperarla hay que
+solicitar un appname en <https://apidoc.reliefweb.int/> y ponerlo en
+`URLS.reliefweb`. Mientras tanto, la categoría SALUD del feed se queda sin
+fuente: era la única que la alimentaba.
+
+### `data/vector.json` — flujos y saldos financieros
+
+Aquí la distinción que importa es **saldo frente a flujo**:
+
+- Un **saldo** (*stock*) es lo que hay acumulado en un instante: las reservas
+  oficiales, la deuda del Tesoro en manos extranjeras.
+- Un **flujo** es lo que se mueve en un periodo: las remesas de un año, las
+  entradas de inversión directa, las exportaciones.
+
+Se miden en unidades distintas —dólares frente a dólares por año— y **no se
+suman ni se comparan**. El diagrama anterior las mezclaba en la misma escala
+y calculaba porcentajes «del total» sobre la suma de ambas.
+
+Ahora son seis bloques separados y etiquetados, tres saldos y tres flujos,
+cada uno con su periodo y su fuente. Y cada bloque **conserva**: el reparto
+se construye como «los N primeros más el resto», y el resto sale *por
+diferencia* con el total de la propia fuente, no estimado. Los residuos se
+publican en el propio fichero y `tests/vector.mjs` los comprueba.
+
+Dos totales que parecen contradecirse y no lo son: las reservas por país
+(17,9 billones, Banco Mundial) y las reservas por moneda (13,2 billones,
+COFER) miden cosas distintas —la primera incluye oro y todas las reservas; la
+segunda, solo las divisas cuya moneda declara el país tenedor—.
+
+---
+
 ## 6. Qué no es esto
 
 - **No es una predicción.** No hay modelo temporal: son los últimos datos
