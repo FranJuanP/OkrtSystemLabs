@@ -29,7 +29,8 @@
     "test:unit:watch": "vitest",
     "test:todo": "npm run test:unit && npm run build && npm run smoke && npm test",
     "test:navegacion": "node tests/navegacion.mjs --base http://localhost:8080/OkrtSystemLabs",
-    "build:globo": "node tools/capture-globo.mjs"
+    "build:globo": "node tools/capture-globo.mjs",
+    "test:despliegue": "node tests/despliegue.mjs --dist dist"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

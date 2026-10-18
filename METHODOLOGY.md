@@ -623,6 +623,45 @@ comprobación de versión no pase nunca por la caché HTTP. En GitHub Pages no s
 pueden fijar cabeceras, así que es lo único que se puede controlar desde el
 código.
 
+#### Qué ve quien vuelve tras un despliegue
+
+Durante un tiempo, pulsar GLOBE abría el globo de la **versión anterior**, y
+había que recargar a mano. La causa eran dos decisiones que por separado
+parecían prudentes y juntas dejaban al visitante una versión por detrás de
+forma indefinida:
+
+1. **El service worker nuevo se quedaba esperando.** No había `skipWaiting()`:
+   la página mostraba «Nueva versión disponible · Recargar» y, hasta que
+   alguien pulsara ese aviso, el worker **anterior** seguía sirviendo.
+2. **Las páginas se servían del precache**, que es «caché primero». Y aunque se
+   declarase una ruta de red primero, no servía de nada: Workbox recorre las
+   rutas en el orden en que se registran, y `precacheAndRoute()` iba antes, así
+   que atrapaba `index.html` y la otra ruta no se ejecutaba nunca.
+
+Lo que **no** era: los ficheros de datos nunca estuvieron en el precache
+—`globPatterns` no incluye `json`— así que los despliegues de eventos, que
+ocurren cada media hora, no generaban un worker nuevo. Comprobado: dos builds
+sin cambios de código producen un `sw.js` idéntico, byte a byte.
+
+Ahora:
+
+- La **ruta de navegación va antes del precache** y pide a la red con tres
+  segundos de margen. Si no contesta, sirve la copia precacheada **de esa
+  página**, así que offline funciona igual.
+- Los **datos** siguen fuera del precache, por red primero con los mismos tres
+  segundos y caída a la última copia.
+- El worker **se activa y toma el control** (`skipWaiting` + `clientsClaim`).
+  Las páginas abiertas se recargan **una vez**, y el aviso de «Recargar»
+  desaparece.
+
+Esa recarga tenía un riesgo que hubo que resolver antes: la región y el
+horizonte **se guardan** en `localStorage`, pero nadie los volvía a leer al
+arrancar —el panel empieza siempre en Global y 6 meses—, así que la recarga se
+los habría llevado por delante. Se guardan en `sessionStorage` justo antes de
+recargar y se reponen al montar el panel. Dura lo que dura la recarga: no
+convierte el panel en algo que recuerde tu última región para siempre, que es
+otra decisión y no la que tocaba aquí.
+
 #### El mapa 2D, y por qué ya no está
 
 El panel tenía un bloque «MAPA DE RIESGO GLOBAL»: un mapa coroplético de D3

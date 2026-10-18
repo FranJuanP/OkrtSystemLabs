@@ -1,60 +1,67 @@
 /**
- * AETHER · registro del service worker y aviso de versión nueva (T18)
+ * AETHER · registro del service worker y recarga tras una versión nueva.
  *
- * Antes se registraba el service worker y punto, y el propio worker hacía
- * `skipWaiting()` en cuanto se instalaba: se activaba solo y le cambiaba el
- * código a quien estuviera usando la página en ese momento.
+ * Hubo tres políticas aquí, y conviene saber por qué estamos en la tercera.
  *
- * Ahora el worker nuevo se queda esperando y esta capa avisa: «Nueva versión
- * disponible · Recargar». Solo al pulsar se le manda `SKIP_WAITING` y se
- * recarga, así que el cambio ocurre cuando la persona decide.
+ * 1. Al principio el worker hacía `skipWaiting()` nada más instalarse: se
+ *    activaba solo y le cambiaba el código a quien estuviera usando la página
+ *    en ese momento, sin avisar y sin recargar. Mezcla de versiones.
+ *
+ * 2. Luego se quedaba esperando y esta capa mostraba «Nueva versión
+ *    disponible · Recargar». Suena más prudente. Era peor: mientras nadie
+ *    pulsara ese aviso, el worker ANTERIOR seguía sirviendo su HTML y su JS
+ *    desde el precache, que es «caché primero». El visitante se quedaba una
+ *    versión por detrás de forma indefinida, y pulsar GLOBE abría el globo de
+ *    la versión de antes. El aviso, además, es fácil de no ver.
+ *
+ * 3. Ahora el worker se activa y toma el control, y esta capa recarga la
+ *    página UNA vez, conservando lo que estuviera elegido. El cambio de
+ *    versión ocurre en un parpadeo y la siguiente navegación ya es la nueva.
  */
 import { Workbox } from 'workbox-window';
 
-/** Id del aviso, para no montarlo dos veces. */
-const NOTICE_ID = 'aether-update-notice';
+/** Lo que no se puede perder en la recarga, mientras dura la recarga. */
+const CLAVE_ESTADO = 'aether_estado_recarga';
 
-function mountNotice(onReload) {
-  if (document.getElementById(NOTICE_ID)) return;
+/**
+ * Guarda la región y el horizonte elegidos.
+ *
+ * Los dos se escriben ya en `localStorage` —lo hace el puente del globo— pero
+ * NADIE los vuelve a leer al arrancar: el panel siempre empieza en Global y
+ * 6 meses. Si la recarga se llevara por delante lo que la persona había
+ * elegido, el remedio sería peor que la enfermedad.
+ *
+ * Va en `sessionStorage` a propósito: dura lo que dura esta recarga. No se
+ * convierte en «el panel recuerda tu última región para siempre», que es otra
+ * decisión y no la que toca aquí.
+ */
+function guardarAntesDeRecargar() {
+  try {
+    const sel = document.getElementById('region-sel');
+    const activo = document.querySelector('.horizon .hbtn.active');
+    if (!sel && !activo) return;
+    window.sessionStorage.setItem(CLAVE_ESTADO, JSON.stringify({
+      region: sel ? sel.value : '',
+      horizonte: activo ? (activo.dataset.horizon || '') : '',
+    }));
+  } catch (e) { /* almacenamiento bloqueado: se recarga igual */ }
+}
 
-  const el = document.createElement('div');
-  el.id = NOTICE_ID;
-  el.setAttribute('role', 'status');
-  el.style.cssText = [
-    'position:fixed', 'left:50%', 'bottom:18px', 'transform:translateX(-50%)',
-    'z-index:2147483000', 'display:flex', 'align-items:center', 'gap:12px',
-    'padding:9px 14px', 'border-radius:999px',
-    'font-family:"Share Tech Mono",monospace', 'font-size:11px',
-    'letter-spacing:.12em', 'color:rgba(0,255,200,.9)',
-    'background:rgba(4,10,18,.94)', 'border:1px solid rgba(0,255,200,.35)',
-    'box-shadow:0 8px 28px rgba(0,0,0,.45)',
-  ].join(';');
-
-  const text = document.createElement('span');
-  text.textContent = 'Nueva versión disponible';
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = 'Recargar';
-  button.style.cssText = [
-    'font:inherit', 'letter-spacing:.14em', 'cursor:pointer',
-    'padding:4px 12px', 'border-radius:999px',
-    'color:#041018', 'background:rgba(0,255,200,.9)', 'border:0',
-  ].join(';');
-  button.addEventListener('click', onReload, { once: true });
-
-  const dismiss = document.createElement('button');
-  dismiss.type = 'button';
-  dismiss.textContent = '✕';
-  dismiss.setAttribute('aria-label', 'Descartar el aviso');
-  dismiss.style.cssText = [
-    'font:inherit', 'cursor:pointer', 'color:rgba(0,255,200,.5)',
-    'background:transparent', 'border:0', 'padding:0 2px',
-  ].join(';');
-  dismiss.addEventListener('click', () => el.remove(), { once: true });
-
-  el.append(text, button, dismiss);
-  document.body.appendChild(el);
+/**
+ * Devuelve lo guardado antes de la recarga, y lo borra.
+ * Lo consume `src/pages/index.js` cuando el panel ya está montado.
+ * @returns {{region:string, horizonte:string}|null}
+ */
+export function estadoTrasRecarga() {
+  try {
+    const crudo = window.sessionStorage.getItem(CLAVE_ESTADO);
+    if (!crudo) return null;
+    window.sessionStorage.removeItem(CLAVE_ESTADO);
+    const d = JSON.parse(crudo);
+    return d && typeof d === 'object' ? d : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function register() {
@@ -62,29 +69,29 @@ function register() {
   if (!window.isSecureContext) return;
   if (!/^https?:$/i.test(location.protocol)) return;
 
+  /* ¿Había ya un worker controlando esta página?
+     Importa para no recargar en la PRIMERA visita: ahí `clientsClaim()`
+     también dispara `controllerchange`, pero no hay ninguna versión anterior
+     que sustituir y recargar sería un parpadeo gratuito. */
+  const habiaControlador = !!navigator.serviceWorker.controller;
+  let recargando = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!habiaControlador) return;   // primera instalación
+    if (recargando) return;          // una sola vez
+    recargando = true;
+    guardarAntesDeRecargar();
+    window.location.reload();
+  });
+
   // `import.meta.env.BASE_URL` es '/OkrtSystemLabs/' en el build, así que el
   // worker se registra con el ámbito correcto en GitHub Pages.
   const base = (import.meta.env && import.meta.env.BASE_URL) || '/';
   /* `updateViaCache: 'none'` para que el navegador NO use su caché HTTP al
      comprobar si hay un worker nuevo, ni para el script ni para sus imports.
-
-     Importa porque en GitHub Pages no se pueden fijar cabeceras: sirve los
-     ficheros con su propio `Cache-Control`, y sin esto una copia guardada
-     podía retrasar la llegada de una versión nueva del worker. Con 'none' la
-     comprobación va siempre a la red.
-
-     El valor por defecto es 'imports', que ya salta la caché para el script
-     principal pero no para lo que importe. Aquí no importa nada, así que es
-     sobre todo un seguro para el día que lo haga. */
+     En GitHub Pages no se pueden fijar cabeceras, así que es lo único que se
+     puede controlar desde aquí. */
   const wb = new Workbox(`${base}sw.js`, { scope: base, updateViaCache: 'none' });
-
-  wb.addEventListener('waiting', () => {
-    mountNotice(() => {
-      // Cuando el worker nuevo tome el control, recargar una sola vez.
-      wb.addEventListener('controlling', () => window.location.reload(), { once: true });
-      wb.messageSkipWaiting();
-    });
-  });
 
   wb.register().catch((err) => {
     console.warn('[AETHER PWA] no se pudo registrar el service worker:', err);

@@ -43,6 +43,7 @@ import '../dashboard/app-robustness.js';
 import '../dashboard/okrt-flags-data.js';
 import { openAetherGlobe } from '../dashboard/globe-bridge.js';
 import { abrirPagina } from '../core/navegar.js';
+import { estadoTrasRecarga } from '../core/pwa-register.js';
 
 /**
  * Que el panel estaba abierto, para poder VOLVER a él.
@@ -116,6 +117,30 @@ function bindActions() {
   /* Y si en esta sesión ya se había entrado, se entra directamente: es la
      vuelta desde el globo, Signal o Vector. */
   if (seVeniaDelPanel()) launchAether();
+
+  /* Lo que estuviera elegido antes de que el service worker nuevo recargara
+     la página. El panel arranca siempre en Global y 6 meses, así que sin esto
+     la actualización automática se llevaría por delante lo que la persona
+     había seleccionado. */
+  const previo = estadoTrasRecarga();
+  if (previo) {
+    // El panel tarda en montarse; se aplica cuando sus controles existen.
+    setTimeout(() => {
+      try {
+        if (previo.horizonte) {
+          const hb = document.querySelector(`.horizon .hbtn[data-horizon="${previo.horizonte}"]`);
+          if (hb) hb.click();
+        }
+        const sel = document.getElementById('region-sel');
+        if (previo.region && sel && sel.value !== previo.region) {
+          sel.value = previo.region;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } catch (e) {
+        console.warn('[AETHER] no se pudo restaurar la selección tras la recarga:', e);
+      }
+    }, 3600);
+  }
 
   document.querySelectorAll('[data-action]').forEach((el) => {
     const action = ACTIONS[el.getAttribute('data-action')];
