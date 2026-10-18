@@ -28,6 +28,8 @@ import earthNightUrl from '../../assets/img/earth-night.webp?url';
 import earthCloudsUrl from '../../assets/img/earth-clouds.webp?url';
 import * as THREE from 'three';
 import { cargarDatos } from '../core/datos.js';
+// Las etiquetas de nivel salen de la misma tabla que el resto de la app.
+import { NIVELES } from '../core/scoring.js';
 import { construirPaisesGlobo, ISO_DE_ARCO } from './datos-globo.js';
 
 /* ── T16 · three.js r128 -> r186 ──────────────────────────────────────────
@@ -1365,37 +1367,41 @@ function initArcControls(){
 }
 
 
+/** La etiqueta en español de un nivel, de la tabla del motor. */
+const ETIQUETA_NIVEL = new Map(NIVELES.map(n => [n.clave, n.etiqueta]));
+
 function renderDesktopHotspots(){
   const list = document.getElementById('desktopHotspotsList');
   if(!list || !Array.isArray(COUNTRIES)) return;
 
   const priorityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-  const labelMap = { CRITICAL: 'CRITICAL', HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' };
-  /* T23: los cinco destacados se eligen por ISO3; antes era por nombre, y
-     el nombre lo pone ahora el Banco Mundial. */
-  const preferidos = ['RUS', 'CHN', 'USA', 'IRN', 'ISR'];
 
-  const porIso = new Map(COUNTRIES.map(c => [c.iso, c]));
-  let selected = preferidos.map(i => porIso.get(i)).filter(Boolean);
+  /* Los cinco con MÁS riesgo medido, no una lista escrita a mano.
 
-  if(selected.length < 5){
-    const extras = COUNTRIES
-      .filter(c => !selected.some(s => s.iso === c.iso))
-      .sort((a,b) => {
-        const ra = priorityOrder[a.risk] ?? 99;
-        const rb = priorityOrder[b.risk] ?? 99;
-        if(ra !== rb) return ra - rb;
-        return a.name.localeCompare(b.name, 'es');
-      })
-      .slice(0, 5 - selected.length);
-    selected = selected.concat(extras);
-  }
+     Antes eran fijos —Rusia, China, EE. UU., Irán, Israel—, elegidos por
+     interés geopolítico. El panel se llama PRIORITARIOS y enseñaba a China,
+     que con los datos de hoy está en el puesto 181 de 217 y es BAJO: la lista
+     se contradecía a sí misma y, de paso, hacía parecer roto el cálculo.
 
-  list.innerHTML = selected.slice(0,5).map((c, idx) => `
+     Se ordena igual que el ranking del panel: por nivel y, dentro de cada
+     nivel, por índice. Los países vienen de latest.json, que es de donde
+     venían ya sus datos; lo escrito a mano era QUIÉNES salían. */
+  const selected = COUNTRIES
+    .slice()
+    .sort((a,b) => {
+      const ra = priorityOrder[a.risk] ?? 99;
+      const rb = priorityOrder[b.risk] ?? 99;
+      if(ra !== rb) return ra - rb;
+      if(b.score !== a.score) return b.score - a.score;
+      return a.name.localeCompare(b.name, 'es');
+    })
+    .slice(0, 5);
+
+  list.innerHTML = selected.map((c, idx) => `
     <button class="dh-item" type="button" data-country="${c.iso}" aria-label="Abrir detalle de ${c.name}">
       <div class="dh-rank">${String(idx + 1).padStart(2,'0')}</div>
       <div class="dh-name">${c.name}</div>
-      <div class="dh-risk">${labelMap[c.risk] || c.risk}</div>
+      <div class="dh-risk">${ETIQUETA_NIVEL.get(c.risk) || c.risk}</div>
     </button>
   `).join('');
 

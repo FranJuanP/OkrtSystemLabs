@@ -14,6 +14,12 @@
  * se activa solo puede cambiarle el código a alguien a mitad de uso. Este se
  * queda esperando y avisa a la página, que muestra «Nueva versión disponible
  * · Recargar»; solo al pulsar se le manda SKIP_WAITING.
+ *
+ * Con UNA excepción, al final del fichero: si detecta las cachés del service
+ * worker anterior a la Fase 2 —que precacheaba rutas de `src/` y no sabe
+ * servir este build— se activa sin esperar. Entre dos versiones que se
+ * entienden, esperar es cortés; con una que ya está rota, es dejar a alguien
+ * con la página a medias sin decírselo.
  */
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
@@ -106,4 +112,54 @@ registerRoute(
  */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+/* ── La excepción: un predecesor incompatible ─────────────────────────────
+ *
+ * Esperar al «Recargar» es lo correcto entre dos versiones que se entienden.
+ * No lo es cuando quien está sirviendo es el service worker ANTERIOR a la
+ * Fase 2, porque ese no precacheaba el build: precacheaba rutas de `src/`,
+ * que ya no existen, y servía CSS y datos con «caché primero». Un visitante
+ * que vuelva se queda con una mezcla de las dos versiones hasta que a alguien
+ * se le ocurra pulsar un aviso, y mientras tanto le fallan cosas sueltas sin
+ * un solo error que lo explique: el botón GLOBE fue una de ellas.
+ *
+ * Se reconoce por sus cachés, que llevan una firma inconfundible:
+ * `aether-v20261017-fcd0234a`. Workbox no las toca —`cleanupOutdatedCaches()`
+ * solo limpia precachés suyos— así que además se quedaban ahí para siempre.
+ *
+ * Cuando aparece esa firma, este worker se activa SIN esperar y toma el
+ * control de las pestañas abiertas. Es exactamente lo que el aviso evita en
+ * el caso normal, y aquí es lo que hay que hacer: el código que está
+ * sirviendo ya está roto.
+ */
+const FIRMA_HEREDADA = /^aether-v\d{8}-[0-9a-f]+$/;
+
+/** Las cachés del service worker anterior a la Fase 2, si quedan. */
+async function cachesHeredadas() {
+  const claves = await caches.keys();
+  return claves.filter((k) => FIRMA_HEREDADA.test(k));
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const heredadas = await cachesHeredadas();
+    if (heredadas.length) {
+      console.warn('[AETHER SW] predecesor incompatible (' + heredadas.join(', ')
+        + '): se fuerza la actualización sin esperar.');
+      await self.skipWaiting();
+    }
+  })());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const heredadas = await cachesHeredadas();
+    if (!heredadas.length) return;
+    // Se borran: su contenido son rutas de `src/` que este build no sirve.
+    await Promise.all(heredadas.map((k) => caches.delete(k)));
+    // Y se toman las pestañas que estaba sirviendo el anterior.
+    await self.clients.claim();
+    console.warn('[AETHER SW] cachés heredadas borradas y control tomado.');
+  })());
 });
