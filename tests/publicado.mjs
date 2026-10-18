@@ -73,7 +73,16 @@ function diagnosticos(page) {
     }
     if (/Content Security Policy|Refused to/i.test(texto)) csp.push(texto);
   });
-  page.on('pageerror', (err) => pageErrors.push((err && err.message) || String(err)));
+  page.on('pageerror', (err) => {
+    const texto = (err && err.message) || String(err);
+    /* WebKit eleva a error de pagina el bloqueo de una peticion a un tercero;
+       Chromium lo deja en la consola. Es el mismo suceso y la misma causa
+       -el sondeo de Ollama en localhost, que falla a proposito cuando no hay
+       IA local- y se clasifica igual en los dos: como ruido de terceros, no
+       como un error de la aplicacion. */
+    if (TERCEROS.test(texto)) terceros.push(texto);
+    else pageErrors.push(texto);
+  });
   page.on('requestfailed', (req) => {
     peticionesFallidas.push(`${req.url()} :: ${(req.failure() || {}).errorText}`);
   });
@@ -260,9 +269,14 @@ const TERCEROS = /earthquake\.usgs\.gov|eonet\.gsfc\.nasa\.gov|api\.reliefweb\.i
       const ctxSw = await nav.newContext({ viewport: { width: v.width, height: v.height } });
       const inicio = await ctxSw.newPage();
       await inicio.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 90000 });
-      await inicio.waitForTimeout(7000);
+      /* Esperar a `ready` y al controlador, no un rato fijo: contra GitHub
+         Pages la instalación tarda bastante más que contra localhost. */
+      await inicio.evaluate(() => navigator.serviceWorker.ready).catch(() => {});
+      await inicio.waitForTimeout(1500);
       await inicio.reload({ waitUntil: 'load', timeout: 90000 });
-      await inicio.waitForTimeout(5000);
+      await inicio.waitForFunction(() => !!navigator.serviceWorker.controller, null,
+        { timeout: 30000 }).catch(() => {});
+      await inicio.waitForTimeout(2500);
       const controlando = await inicio.evaluate(() => !!navigator.serviceWorker.controller);
       if (!controlando) {
         mal(`${nombreMotor} ${v.nombre}: el service worker no llegó a controlar la página`);

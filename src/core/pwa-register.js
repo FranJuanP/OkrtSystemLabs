@@ -65,7 +65,18 @@ function register() {
   // `import.meta.env.BASE_URL` es '/OkrtSystemLabs/' en el build, así que el
   // worker se registra con el ámbito correcto en GitHub Pages.
   const base = (import.meta.env && import.meta.env.BASE_URL) || '/';
-  const wb = new Workbox(`${base}sw.js`, { scope: base });
+  /* `updateViaCache: 'none'` para que el navegador NO use su caché HTTP al
+     comprobar si hay un worker nuevo, ni para el script ni para sus imports.
+
+     Importa porque en GitHub Pages no se pueden fijar cabeceras: sirve los
+     ficheros con su propio `Cache-Control`, y sin esto una copia guardada
+     podía retrasar la llegada de una versión nueva del worker. Con 'none' la
+     comprobación va siempre a la red.
+
+     El valor por defecto es 'imports', que ya salta la caché para el script
+     principal pero no para lo que importe. Aquí no importa nada, así que es
+     sobre todo un seguro para el día que lo haga. */
+  const wb = new Workbox(`${base}sw.js`, { scope: base, updateViaCache: 'none' });
 
   wb.addEventListener('waiting', () => {
     mountNotice(() => {

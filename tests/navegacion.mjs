@@ -43,12 +43,22 @@ const PAGINAS = [
   ['metodologia.html', 'Metodología'],
 ];
 
-/** Deja la página con el service worker YA controlando. */
+/**
+ * Deja la página con el service worker YA controlando.
+ *
+ * Se espera a `serviceWorker.ready` y luego al controlador, en vez de dormir
+ * un rato fijo: contra GitHub Pages la instalación tarda bastante más que
+ * contra localhost, y una espera a ojo daba falsos fallos.
+ */
 async function conWorkerControlando(page) {
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 90000 });
-  await esperar(6000);
+  // La registra `pwa-register.js` en el evento `load`.
+  await page.evaluate(() => navigator.serviceWorker.ready).catch(() => {});
+  await esperar(1500);
   await page.reload({ waitUntil: 'load', timeout: 90000 });
-  await esperar(5000);
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null,
+    { timeout: 30000 }).catch(() => {});
+  await esperar(2500);
   return page.evaluate(() => !!navigator.serviceWorker.controller);
 }
 

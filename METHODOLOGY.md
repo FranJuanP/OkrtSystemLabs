@@ -591,6 +591,38 @@ Ahora salen los cinco primeros del mismo orden que el ranking, con las mismas
 etiquetas. Los datos ya venían de `latest.json`; lo escrito a mano era **quiénes
 aparecían**.
 
+#### El service worker anterior, y por qué `service-worker.js` no se borra
+
+Hasta la Fase 2 el sitio registraba su service worker en `service-worker.js`.
+La Fase 2 lo sustituyó por `sw.js` y dejó de publicar esa ruta. Eso **dejó
+atrapados** a los navegadores que ya habían visitado el sitio.
+
+Un service worker registrado no desaparece porque su fichero deje de existir:
+el navegador comprueba si hay versión nueva, recibe un **404**, da la
+comprobación por fallida y **sigue usando el que tiene**. Y el que tenían
+servía CSS y datos con «caché primero», así que esos visitantes veían el sitio
+actual sin estilos y con los datos de antes: el globo decía **201 países**
+—la tabla escrita a mano de entonces— donde hoy son 217.
+
+La detección de cachés heredadas que lleva `sw.js` no ayudaba, porque para
+detectar algo hay que llegar a instalarse: si el HTML servido es el antiguo,
+carga `/src/…`, que este build ya no publica, y el módulo que registra `sw.js`
+no se ejecuta nunca.
+
+La salida es volver a publicar esa ruta con un worker **que solo sabe
+retirarse**: se activa sin esperar, borra todas las cachés del origen, se da de
+baja y recarga las ventanas abiertas. No tiene manejador de `fetch`, así que
+mientras está activo todo pasa directo a la red.
+
+**`public/service-worker.js` no se puede borrar durante meses.** Un navegador
+que no vuelva hasta dentro de medio año seguirá teniendo el registro antiguo
+apuntando ahí; si para entonces no existe, vuelve a quedarse atrapado igual.
+
+El registro del actual usa además `updateViaCache: 'none'`, para que la
+comprobación de versión no pase nunca por la caché HTTP. En GitHub Pages no se
+pueden fijar cabeceras, así que es lo único que se puede controlar desde el
+código.
+
 #### Cómo se pasa de una página a otra
 
 En un escritorio, GLOBE, SIGNAL y VECTOR abren una pestaña nueva: el panel se
