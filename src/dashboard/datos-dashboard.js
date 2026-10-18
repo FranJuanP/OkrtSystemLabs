@@ -65,6 +65,10 @@ export function construirDATA(datos, calculo) {
       deTotal: p.deTotal || null,
       confianza: p.confianza,
       peorCategoria: p.peorCategoria || null,
+      // Si el nivel lo impone el umbral de conflicto del UCDP, la ficha
+      // tiene que decirlo: el numero del indice no lo explica por si solo.
+      elevadoPorConflicto: p.elevadoPorConflicto || null,
+      conflicto: p.conflicto || null,
       lat: p.lat,
       lng: p.lng,
     };

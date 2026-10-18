@@ -27,6 +27,7 @@ fuente, el enlace y el momento en que se descargó.
 | **Banco Mundial · WGI** | 5 de gobernanza (estabilidad, estado de derecho, corrupción, eficacia, rendición de cuentas) | CC BY 4.0 |
 | **OMS / Banco Mundial · UHC** | Índice de cobertura sanitaria universal | CC BY 4.0 |
 | **Comisión Europea · JRC · INFORM Risk** | 11 dimensiones ya normalizadas de 0 a 10, comparables entre países | Reutilización con atribución (Decisión 2011/833/UE) |
+| **UCDP** (Uppsala) | Muertos por violencia organizada: 12 meses y media de 3 años | CC BY 4.0 |
 | **ND-GAIN (Notre Dame)** | Vulnerabilidad y preparación climáticas | CC BY-NC-SA 4.0 |
 | **FMI · COFER** | Composición por monedas de las reservas oficiales | Reutilización con atribución |
 | **Tesoro de EEUU · TIC** | Tenedores extranjeros de deuda estadounidense | Dominio público |
@@ -37,26 +38,73 @@ El trabajo `.github/workflows/datos.yml` las descarga **todos los lunes**,
 valida el resultado contra `data/schema/aether-datos.schema.json` y lo
 confirma solo si pasa. Se puede reproducir en local con `npm run datos`.
 
-### Por qué no hay una fuente de conflicto armado
+### Conflicto armado: UCDP, por descarga directa
 
-Es el hueco más visible del conjunto: la categoría GEO se apoya en la
-estabilidad política de los WGI y en las dimensiones de INFORM, que son
-indicadores compuestos y anuales, no un recuento de eventos.
+Era el hueco más visible del conjunto, y se notaba en el resultado: antes de
+incorporarlo, Ucrania salía en el puesto 57 de 217 e Israel en el 194.
 
-**UCDP** (Uppsala Conflict Data Program) sería la fuente natural, y es
-gratuita. Pero desde hace un tiempo exige **un token de acceso** que se pide
-por correo:
+**No se usa la API del UCDP**, que exige un token que hay que pedir por
+correo. Se usan sus **descargas directas**, que son CC BY 4.0 y no piden
+registro:
 
-> *«To use the API, please contact the API maintainer to request an access
-> token. In your email, briefly describe your research project and/or intended
-> use of the data.»* — correo a `mertcan.yilmaz@pcr.uu.se`, asunto
-> «UCDP API Access Request».
+| Conjunto | Qué cubre | Cadencia |
+|---|---|---|
+| **GED Global** | años completos, 1989 hasta el último cerrado | anual |
+| **Candidate Events** | el año en curso | mensual |
 
-El token viaja luego en la cabecera `x-ucdp-access-token`, y cada llamada
-tiene que indicar la versión de los datos (`/api/gedevents/26.1`). **No está
-integrado**: hace falta que alguien solicite ese token.
+**Las versiones no están escritas en el código.** Se leen de la página de
+descargas en cada ejecución: UCDP publica una versión de GED al año y una de
+Candidate al mes, y fijar `ged261` aquí sería garantizar que esto se queda
+desfasado sin que nadie se entere.
 
-### Por qué no está ACLED
+Dos medidas por país:
+
+- **Muertos en los últimos 12 meses.** Se cuentan hacia atrás desde la última
+  fecha que trae Candidate, no desde hoy: si el fichero va con un mes de
+  retraso, «hoy» metería un mes vacío y bajaría el recuento artificialmente.
+  Como Candidate solo cubre el año en curso, el tramo anterior sale de GED.
+- **Media de los tres últimos años completos**, de GED. Junto a la anterior
+  distingue una violencia reciente de una sostenida: un país puede tener un
+  año tranquilo tras una guerra larga, y al revés.
+
+Las dos suman los **tres tipos de violencia organizada** que distingue el
+UCDP: estatal, no estatal y unilateral contra civiles.
+
+**Un cero es un cero.** Que el UCDP no registre eventos en Noruega es
+información, no una laguna, así que los 217 países llevan dato y no solo los
+113 que aparecen en sus ficheros.
+
+#### Gaza y Cisjordania
+
+El UCDP **no tiene «Palestina» como país**: codifica los eventos por el
+territorio donde ocurren y los de Gaza y Cisjordania salen bajo
+`country = "Israel"`. Dejarlo así diría que Israel tuvo 27.535 muertos por
+violencia organizada en 2023 sin aclarar que la inmensa mayoría son
+palestinos muertos en Gaza, y que Palestina tuvo cero. Las dos cosas serían
+engañosas.
+
+No hace falta inventar nada para separarlos: **el propio UCDP etiqueta la
+provincia** en `adm_1`, y dice «Gaza Strip» y «West Bank». Esos eventos se
+asignan a PSE, que es justo lo que el Banco Mundial llama «Ribera Occidental
+y Gaza». De los 36.185 muertos que el UCDP sitúa en Israel en 2024-2025,
+**36.068 están etiquetados como Gaza o Cisjordania**.
+
+Es la única reasignación que se hace, usa la geografía del propio dato y no
+un criterio propio.
+
+#### Citación
+
+La licencia CC BY 4.0 obliga a citar, y la cita aparece también en la página
+de metodología:
+
+> Davies, Shawn, Garoun Engström, Therese Pettersson & Magnus Öberg (2024).
+> *Organized violence 1989-2023, and the prevalence of organized crime
+> groups.* Journal of Peace Research 61(4).
+>
+> Sundberg, Ralph & Erik Melander (2013). *Introducing the UCDP Georeferenced
+> Event Dataset.* Journal of Peace Research 50(4).
+
+### Por qué no está ACLED### Por qué no está ACLED
 
 Se planteó incluirlo, porque es la mejor fuente de datos de conflicto
 georreferenciados. Queda fuera por la licencia: su API exige registro con
@@ -222,6 +270,34 @@ CRÍTICO y el otro ALTO porque el corte caía justo entre los dos.
 
 Dónde cae cada corte en puntos de índice se publica en `cortes`, dentro del
 propio cálculo, para quien prefiera leerlo como un número.
+
+#### Nivel mínimo por conflicto activo
+
+Una clasificación relativa tiene un punto ciego: un país en guerra cuyos demás
+indicadores sean razonables puede acabar en mitad de la tabla. Eso es
+literalmente lo que pasaba antes de incorporar al UCDP.
+
+Se usan **los dos umbrales del propio UCDP**, que son el estándar del campo
+desde hace décadas:
+
+| Muertos en 12 meses | UCDP lo llama | Nivel mínimo |
+|---|---|---|
+| **1.000 o más** | guerra | **CRÍTICO** |
+| **de 25 a 999** | conflicto menor | **ALTO** |
+
+**Es un suelo, no un techo:** si el percentil ya sitúa al país más arriba,
+manda el percentil. Y se aplica a la **etiqueta**, no al índice: el número
+sigue siendo la combinación de las categorías y se puede seguir explicando
+como tal.
+
+Cuando se aplica, la ficha del país lo dice con la cifra —*«nivel elevado por
+conflicto activo (UCDP): 47.686 muertos en 12 meses»*— y muestra además dónde
+caería por percentil. Sin eso, un CRÍTICO junto a un índice de 71 no habría
+forma de entenderlo.
+
+Con los datos de octubre de 2026 se eleva el nivel de **19 países**, y el
+reparto deja de ser exactamente 5/15/30/50: los tramos pasan a ser un mínimo,
+no una cuota.
 
 ---
 

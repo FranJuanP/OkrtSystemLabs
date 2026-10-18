@@ -280,11 +280,30 @@ const NIVEL_INFO = {
 /** La linea que recuerda que la clasificacion es relativa. */
 function actualizarPieDeNivel(d){
   const el = document.getElementById('nivel-relativo');
+  const elConf = document.getElementById('nivel-conflicto');
+  if(elConf) elConf.textContent = '';
   if(!el) return;
   if(!d || !d.nivel){ el.textContent = ''; return; }
+  /* Si el nivel viene del umbral de conflicto, la descripcion del tramo NO
+     corresponde: decir "el 5 % con mas riesgo - puesto 53 de 217" seria
+     contradecirse en la misma linea. En ese caso se ensena donde cae por
+     percentil, y la linea de abajo explica por que esta mas arriba. */
   const info = NIVEL_INFO[d.nivel];
-  el.textContent = (info ? info.descripcion : '') + (d.puesto ? ' · puesto ' + d.puesto + ' de ' + d.deTotal : '');
+  const puesto = d.puesto ? ' · puesto ' + d.puesto + ' de ' + d.deTotal : '';
+  el.textContent = d.elevadoPorConflicto
+    ? 'Por percentil: ' + d.elevadoPorConflicto.desde + puesto
+    : (info ? info.descripcion : '') + puesto;
   el.title = ETIQUETA_RELATIVA;
+
+  /* Cuando el nivel no sale del percentil sino del umbral de conflicto del
+     UCDP, hay que decirlo con la cifra: si no, el usuario ve CRITICO junto a
+     un indice de 70 y no hay forma de entender de donde sale. */
+  if(elConf && d.elevadoPorConflicto){
+    const e = d.elevadoPorConflicto;
+    elConf.textContent = '⚠ ' + e.motivo;
+    elConf.title = 'Umbral del UCDP: ' + e.umbral.toLocaleString('es-ES')
+      + ' muertos en 12 meses (' + e.clase + '). Por percentil le correspondería ' + e.desde + '.';
+  }
 }
 
 /* riskLabel se queda para las CATEGORIAS, que si se leen contra una escala

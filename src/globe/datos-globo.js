@@ -141,6 +141,12 @@ function resumen(p, peor, nombresCat) {
     }
   }
 
+  if (p.elevadoPorConflicto) {
+    partes.push(`Nivel elevado por conflicto activo (UCDP): ${p.elevadoPorConflicto.muertos.toLocaleString('es-ES')} muertos por violencia organizada en 12 meses.`);
+  } else if (p.conflicto && p.conflicto.muertos >= 25) {
+    partes.push(`Conflicto activo (UCDP): ${p.conflicto.muertos.toLocaleString('es-ES')} muertos por violencia organizada en 12 meses.`);
+  }
+
   if (p.confianza && p.confianza.nivel !== 'alta') {
     partes.push(`Confianza ${p.confianza.nivel}: ${p.confianza.motivo}.`);
   }

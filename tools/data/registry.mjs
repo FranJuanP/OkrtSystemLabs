@@ -101,6 +101,17 @@ export const FUENTES = {
     licencia: 'Reutilización con atribución',
     licenciaUrl: 'https://www.imf.org/external/terms.htm',
   },
+  ucdp: {
+    nombre: 'Uppsala Conflict Data Program · UCDP',
+    corto: 'UCDP',
+    url: 'https://ucdp.uu.se/downloads/',
+    licencia: 'CC BY 4.0',
+    licenciaUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    cita: 'Davies, Engström, Pettersson y Öberg (2024), «Organized violence 1989-2023, and the '
+        + 'prevalence of organized crime groups», Journal of Peace Research 61(4); Sundberg y '
+        + 'Melander (2013), «Introducing the UCDP Georeferenced Event Dataset», Journal of Peace '
+        + 'Research 50(4).',
+  },
   tic: {
     nombre: 'US Treasury · Treasury International Capital',
     corto: 'Tesoro de EEUU · TIC',
@@ -120,6 +131,7 @@ export function urlIndicador(ind) {
     return 'https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk/Results-and-data';
   }
   if (ind.fuente === 'ndgain') return 'https://gain.nd.edu/our-work/country-index/rankings/';
+  if (ind.fuente === 'ucdp') return 'https://ucdp.uu.se/downloads/';
   return FUENTES[ind.fuente] ? FUENTES[ind.fuente].url : '';
 }
 
@@ -135,6 +147,10 @@ export const INDICADORES = [
   { id: 'inform_riesgo',     cat: 'geo', etiqueta: 'Riesgo INFORM',          unidad: '0–10',         fuente: 'inform', codigo: 'INFORM',         dir: 'mas_riesgo',   decimales: 1 },
   { id: 'inform_conflicto',  cat: 'geo', etiqueta: 'Amenaza humana',         unidad: '0–10',         fuente: 'inform', codigo: 'HA.HUM',         dir: 'mas_riesgo',   decimales: 1 },
   { id: 'desplazados',       cat: 'geo', etiqueta: 'Población desarraigada', unidad: '0–10',         fuente: 'inform', codigo: 'VU.VGR.UP',      dir: 'mas_riesgo',   decimales: 1 },
+  { id: 'muertes_conflicto', cat: 'geo', etiqueta: 'Muertos por violencia organizada (12 meses)', unidad: 'muertos', fuente: 'ucdp', codigo: 'ged+candidate', dir: 'mas_riesgo', decimales: 0, escala: 'log',
+    nota: 'Suma de los tres tipos de violencia organizada que distingue el UCDP: estatal, no estatal y unilateral contra civiles. Un cero significa que el UCDP no registró ningún evento, no que falte el dato.' },
+  { id: 'muertes_conflicto_media', cat: 'geo', etiqueta: 'Muertos por conflicto (media de 3 años)', unidad: 'muertos/año', fuente: 'ucdp', codigo: 'ged', dir: 'mas_riesgo', decimales: 0, escala: 'log',
+    nota: 'Media de los tres últimos años completos. Junto al dato de doce meses distingue una violencia reciente de una sostenida; un país puede tener un año tranquilo tras una guerra larga, y al revés.' },
 
   // ── SALUD ────────────────────────────────────────────────────────────────
   { id: 'esperanza_vida',    cat: 'health', etiqueta: 'Esperanza de vida',   unidad: 'años',         fuente: 'wb',  codigo: 'SP.DYN.LE00.IN',    dir: 'menos_riesgo', decimales: 1 },

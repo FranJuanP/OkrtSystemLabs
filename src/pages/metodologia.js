@@ -9,7 +9,7 @@
  * panel, así que no pueden discrepar.
  */
 import { cargarDatos, fechaDatos } from '../core/datos.js';
-import { PESOS_CATEGORIA, PESOS_INDICADOR } from '../core/scoring.js';
+import { PESOS_CATEGORIA, PESOS_INDICADOR, UMBRALES_UCDP } from '../core/scoring.js';
 import { esc, safeHref } from '../core/escape.js';
 
 /** Pone contenido en una tabla por id, si existe. */
@@ -127,6 +127,22 @@ function pintarNiveles(calculo) {
   pintarTabla('tabla-niveles', ['Nivel', 'Qué significa', 'Cuántos', 'Índice'], filas);
 }
 
+/** Los umbrales del UCDP y a cuantos paises se les aplica hoy. */
+function pintarConflicto(calculo) {
+  const elevados = Object.values(calculo.paises).filter((p) => p.elevadoPorConflicto);
+  const porNivel = {};
+  for (const p of elevados) porNivel[p.nivel.clave] = (porNivel[p.nivel.clave] || 0) + 1;
+
+  const filas = (UMBRALES_UCDP || []).map((u) => `<tr>
+    <td class="num">${u.desde === 1000 ? '≥ 1.000' : '25 – 999'}</td>
+    <td class="dim">${esc(u.etiqueta)}</td>
+    <td>${esc(u.nivel === 'CRITICAL' ? 'CRÍTICO' : 'ALTO')}</td>
+    <td class="num">${esc(String(porNivel[u.nivel] || 0))} países hoy</td>
+  </tr>`);
+  pintarTabla('tabla-conflicto',
+    ['Muertos en 12 meses', 'UCDP lo llama', 'Nivel mínimo', 'Se aplica a'], filas);
+}
+
 function pintarConfianza(calculo) {
   const cuenta = { alta: 0, media: 0, baja: 0, ninguna: 0 };
   for (const p of Object.values(calculo.paises)) {
@@ -204,6 +220,7 @@ async function arrancar() {
     pintarFuentes(datos);
     pintarPesos(datos);
     pintarNiveles(calculo);
+    pintarConflicto(calculo);
     pintarConfianza(calculo);
     pintarIndicadores(datos, calculo);
     pintarLimites(datos);

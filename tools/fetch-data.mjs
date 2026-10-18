@@ -36,6 +36,7 @@ import * as ndgain from './data/ndgain.mjs';
 import * as cofer from './data/cofer.mjs';
 import * as tic from './data/tic.mjs';
 import { centroidesDe } from './data/centroides.mjs';
+import * as ucdp from './data/ucdp.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = path.join(ROOT, 'data');
@@ -149,6 +150,21 @@ async function main() {
     }
   }
 
+  // UCDP: muertos por violencia organizada.
+  let datosUcdp = null;
+  if (usa('ucdp') && INDICADORES.some((i) => i.fuente === 'ucdp')) {
+    try {
+      datosUcdp = await ucdp.descargar(iso3);
+      versiones.ucdp = datosUcdp.version;
+      avisos.push(...datosUcdp.avisos);
+      console.log(`  ucdp   GED ${datosUcdp.version.ged} + Candidate ${datosUcdp.version.candidate} · `
+        + `${datosUcdp.version.desde} a ${datosUcdp.version.hasta} · ${datosUcdp.porPais.size} países con eventos`);
+    } catch (err) {
+      avisos.push(`UCDP: ${err.message}`);
+      console.log(`  ucdp   FALLO · ${err.message}`);
+    }
+  }
+
   // ── Agregados globales: COFER y TIC ──────────────────────────────────────
   let coferDatos = null;
   if (usa('cofer')) {
@@ -231,6 +247,29 @@ async function main() {
     }
 
     for (const ind of INDICADORES) {
+      /* UCDP no viene de la misma maquinaria que el resto: son dos cifras
+         calculadas de sus ficheros de eventos. Y un pais sin eventos vale
+         CERO, no «sin dato»: que el UCDP no registre violencia organizada en
+         Noruega es información, no una laguna. Por eso se rellenan los 217 y
+         no solo los 113 que aparecen en sus ficheros. */
+      if (ind.fuente === 'ucdp') {
+        if (!datosUcdp || !p.iso3) continue;
+        const u = datosUcdp.porPais.get(p.iso3);
+        const valor = ind.id === 'muertes_conflicto'
+          ? (u ? u.muertos12m : 0)
+          : (u ? u.media3anios : 0);
+        entrada.indicadores[ind.id] = {
+          value: valor,
+          unit: ind.unidad,
+          year: Number(datosUcdp.version.hasta.slice(0, 4)),
+          source: FUENTES.ucdp.corto,
+          url: urlIndicador(ind),
+          fetched_at: ahora,
+        };
+        if (contarCobertura) cobertura[ind.id] = (cobertura[ind.id] || 0) + 1;
+        continue;
+      }
+
       const tabla = datos[ind.fuente] && datos[ind.fuente].get(ind.codigo);
       const v = tabla && tabla.get(codigoFuente);
       if (!v) continue;

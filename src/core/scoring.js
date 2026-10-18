@@ -113,6 +113,38 @@ export const NIVELES = [
   { hasta: 1.00, clave: 'LOW',      etiqueta: 'BAJO',    descripcion: 'la mitad con menos riesgo' },
 ];
 
+/**
+ * Nivel mínimo por conflicto activo, con los umbrales del propio UCDP.
+ *
+ * Los niveles por percentil tienen un punto ciego: son relativos. Un país en
+ * guerra cuyos demás indicadores sean razonables puede acabar en mitad de la
+ * tabla, y eso fue literalmente lo que pasó antes de incorporar al UCDP:
+ * Ucrania salía en el puesto 57 de 217 e Israel en el 194.
+ *
+ * El UCDP tiene desde hace décadas dos umbrales que son el estándar del
+ * campo, y se usan tal cual:
+ *
+ *   1.000 o más muertos en 12 meses   guerra           → al menos CRÍTICO
+ *   de 25 a 999 muertos               conflicto menor  → al menos ALTO
+ *
+ * **Es un suelo, no un techo**: si el percentil ya sitúa al país más arriba,
+ * manda el percentil. Y la ficha del país dice cuándo se ha aplicado, con la
+ * cifra, para que no parezca que el número sale de donde no sale.
+ */
+export const UMBRALES_UCDP = [
+  { desde: 1000, nivel: 'CRITICAL', etiqueta: 'guerra' },
+  { desde: 25, nivel: 'HIGH', etiqueta: 'conflicto menor' },
+];
+
+/** El suelo que impone el conflicto, o null si no llega a los umbrales. */
+export function suelosPorConflicto(muertos12m) {
+  if (!Number.isFinite(muertos12m)) return null;
+  for (const u of UMBRALES_UCDP) {
+    if (muertos12m >= u.desde) return u;
+  }
+  return null;
+}
+
 /** Lo que la interfaz tiene que decir junto a cualquier nivel. */
 export const ETIQUETA_RELATIVA =
   'Clasificación relativa: cada país se compara con los demás, no con un umbral fijo.';
@@ -497,6 +529,32 @@ export function calcular(datos) {
     paises[iso].fraccion = (conMas + 0.5) / ordenados.length;
     paises[iso].nivel = nivelPorFraccion(paises[iso].fraccion);
   });
+
+  /* El suelo por conflicto activo, aplicado despues del percentil.
+
+     Se hace aqui y no dentro del indice a proposito: el indice sigue
+     midiendo lo que mide, y lo que cambia es la ETIQUETA. Mezclarlo en el
+     numero habria dado un indice que ya no se puede explicar como la
+     combinacion de sus categorias. */
+  const ordenNiveles = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+  for (const [iso, p] of conScore) {
+    const dato = (datos.paises[iso].indicadores || {}).muertes_conflicto;
+    const muertos = dato ? dato.value : null;
+    const suelo = suelosPorConflicto(muertos);
+    if (!suelo) continue;
+    p.conflicto = { muertos, umbral: suelo.desde, clase: suelo.etiqueta };
+    if (ordenNiveles[p.nivel.clave] <= ordenNiveles[suelo.nivel]) continue;
+    // El percentil lo dejaba mas abajo: manda el umbral del UCDP.
+    p.nivelPorPercentil = p.nivel;
+    p.nivel = NIVELES.find((n) => n.clave === suelo.nivel);
+    p.elevadoPorConflicto = {
+      muertos,
+      umbral: suelo.desde,
+      clase: suelo.etiqueta,
+      desde: p.nivelPorPercentil.etiqueta,
+      motivo: `nivel elevado por conflicto activo (UCDP): ${muertos.toLocaleString('es-ES')} muertos en 12 meses`,
+    };
+  }
 
   /* Los agregados se situan frente a los paises sin contarse entre ellos:
      el mundo es la media de todos y meterlo en la muestra desplazaria los
