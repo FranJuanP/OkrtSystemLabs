@@ -166,35 +166,99 @@ describe('niveles', () => {
 });
 
 describe('nivel mínimo por conflicto (UCDP)', () => {
-  it('usa los dos umbrales del UCDP', () => {
-    expect(UMBRALES_UCDP).toHaveLength(2);
-    expect(UMBRALES_UCDP[0].desde).toBe(1000);
-    expect(UMBRALES_UCDP[0].nivel).toBe('CRITICAL');
-    expect(UMBRALES_UCDP[1].desde).toBe(25);
-    expect(UMBRALES_UCDP[1].nivel).toBe('HIGH');
+  /** El bloque `conflicto` de un país, con lo que no se diga a cero. */
+  const conf = (o) => ({
+    territorio_12m: 0, estatal_12m: 0, no_estatal_12m: 0, civiles_12m: 0,
+    parte_12m: 0, media_3anios: 0, ...o,
   });
 
-  it('1.000 o más muertos en 12 meses es guerra', () => {
-    expect(suelosPorConflicto(1000).nivel).toBe('CRITICAL');
-    expect(suelosPorConflicto(47686).nivel).toBe('CRITICAL');
-    expect(suelosPorConflicto(1000).etiqueta).toBe('guerra');
+  it('tiene las cinco reglas, y solo la estatal llega a CRÍTICO', () => {
+    expect(UMBRALES_UCDP).toHaveLength(5);
+    const criticas = UMBRALES_UCDP.filter((u) => u.nivel === 'CRITICAL');
+    expect(criticas).toHaveLength(1);
+    expect(criticas[0].id).toBe('estatal');
+    expect(criticas[0].desde).toBe(1000);
+    // Todas las reglas traen ámbito y las dos descripciones que usa la interfaz.
+    for (const u of UMBRALES_UCDP) {
+      expect(['territorio', 'parte']).toContain(u.ambito);
+      expect(typeof u.tipo).toBe('string');
+      expect(typeof u.descripcion).toBe('string');
+    }
   });
 
-  it('de 25 a 999 es conflicto menor', () => {
-    expect(suelosPorConflicto(25).nivel).toBe('HIGH');
-    expect(suelosPorConflicto(999).nivel).toBe('HIGH');
-    expect(suelosPorConflicto(999).etiqueta).toBe('conflicto menor');
+  it('1.000 muertos de violencia estatal en el territorio es guerra', () => {
+    const r = suelosPorConflicto(conf({ territorio_12m: 1000, estatal_12m: 1000 }));
+    expect(r.nivel).toBe('CRITICAL');
+    expect(r.etiqueta).toBe('guerra');
+    expect(r.ambito).toBe('territorio');
+    expect(suelosPorConflicto(conf({ estatal_12m: 47667 })).nivel).toBe('CRITICAL');
+  });
+
+  it('la misma cifra en violencia no estatal se queda en ALTO', () => {
+    // Es el caso de México: 4.404 muertos entre grupos criminales no son una
+    // guerra, y con un umbral sobre el total salía CRÍTICO.
+    const r = suelosPorConflicto(conf({ territorio_12m: 4432, no_estatal_12m: 4404, estatal_12m: 4, civiles_12m: 24 }));
+    expect(r.nivel).toBe('HIGH');
+    expect(r.id).toBe('no_estatal');
+    expect(r.muertos).toBe(4404);
+  });
+
+  it('la violencia contra civiles también se queda en ALTO', () => {
+    const r = suelosPorConflicto(conf({ territorio_12m: 61926, civiles_12m: 59863 }));
+    expect(r.nivel).toBe('HIGH');
+    expect(r.id).toBe('civiles');
+  });
+
+  it('ser parte en un conflicto estatal de 1.000 o más da ALTO', () => {
+    // Rusia: 266 muertos en su territorio, 47.931 en la guerra en la que es parte.
+    const r = suelosPorConflicto(conf({ territorio_12m: 266, estatal_12m: 264, parte_12m: 47931 }));
+    expect(r.nivel).toBe('HIGH');
+    expect(r.id).toBe('parte');
+    expect(r.ambito).toBe('parte');
+    expect(r.muertos).toBe(47931);
+  });
+
+  it('ser parte de menos de 1.000 no impone nada por sí solo', () => {
+    expect(suelosPorConflicto(conf({ parte_12m: 999 }))).toBeNull();
+  });
+
+  it('gana la regla más severa cuando se cumplen varias', () => {
+    // Ucrania cumple «estatal» y «parte»; manda la primera, que es CRÍTICO.
+    const r = suelosPorConflicto(conf({ territorio_12m: 47686, estatal_12m: 47667, parte_12m: 47928 }));
+    expect(r.nivel).toBe('CRITICAL');
+    expect(r.id).toBe('estatal');
+  });
+
+  it('a igual nivel gana la de más muertos', () => {
+    const r = suelosPorConflicto(conf({ territorio_12m: 3000, no_estatal_12m: 1200, civiles_12m: 1800 }));
+    expect(r.nivel).toBe('HIGH');
+    expect(r.id).toBe('civiles');
+    expect(r.muertos).toBe(1800);
+  });
+
+  it('de 25 a 999 de cualquier tipo es conflicto menor', () => {
+    expect(suelosPorConflicto(conf({ territorio_12m: 25, civiles_12m: 25 })).nivel).toBe('HIGH');
+    const r = suelosPorConflicto(conf({ territorio_12m: 999, estatal_12m: 999 }));
+    expect(r.nivel).toBe('HIGH');
+    expect(r.etiqueta).toBe('conflicto menor');
+  });
+
+  it('«conflicto menor» no se aplica a partir de mil: lo describen las reglas por tipo', () => {
+    const r = suelosPorConflicto(conf({ territorio_12m: 1500, estatal_12m: 1500 }));
+    expect(r.id).toBe('estatal');
+    expect(r.etiqueta).toBe('guerra');
   });
 
   it('por debajo de 25 no impone nada', () => {
-    expect(suelosPorConflicto(24)).toBeNull();
-    expect(suelosPorConflicto(0)).toBeNull();
+    expect(suelosPorConflicto(conf({ territorio_12m: 24, estatal_12m: 24 }))).toBeNull();
+    expect(suelosPorConflicto(conf({}))).toBeNull();
   });
 
   it('no revienta sin dato', () => {
     expect(suelosPorConflicto(null)).toBeNull();
     expect(suelosPorConflicto(undefined)).toBeNull();
-    expect(suelosPorConflicto(NaN)).toBeNull();
+    expect(suelosPorConflicto({})).toBeNull();
+    expect(suelosPorConflicto(conf({ estatal_12m: NaN }))).toBeNull();
   });
 });
 
@@ -329,20 +393,21 @@ describe('calcular', () => {
     }
   });
 
+  /** El bloque que escribe tools/fetch-data.mjs por país. */
+  const bloqueConflicto = (o) => ({
+    territorio_12m: 0, estatal_12m: 0, no_estatal_12m: 0, civiles_12m: 0,
+    parte_12m: 0, parte_conflictos: [], media_3anios: 0,
+    desde: '2025-09-09', hasta: '2026-09-09',
+    source: 'UCDP', url: 'https://ucdp.uu.se/downloads/', version: 'GED 26.1',
+    ...o,
+  });
+
   it('el conflicto eleva el nivel pero nunca lo baja', () => {
     const d = datosDePrueba();
-    // Un indicador de conflicto con el id que el calculo busca.
-    d.indicadores.muertes_conflicto = {
-      categoria: 'geo', etiqueta: 'Muertos por conflicto', unidad: 'muertos',
-      fuente: 'prueba', codigo: 'x', direccion: 'mas_riesgo', decimales: 0,
-      escala: 'log', url: 'https://ejemplo.org',
-    };
-    const dato = (v) => ({ value: v, unit: 'muertos', year: 2026, source: 'UCDP',
-      url: 'https://ucdp.uu.se/downloads/', fetched_at: '2026-10-18T00:00:00Z' });
     // AAA es el de MENOS riesgo del fichero de prueba, y aun asi esta en guerra.
-    d.paises.AAA.indicadores.muertes_conflicto = dato(5000);
+    d.paises.AAA.conflicto = bloqueConflicto({ territorio_12m: 5000, estatal_12m: 5000 });
     // CCC es el de MAS riesgo y no tiene conflicto: no debe bajar de nivel.
-    d.paises.CCC.indicadores.muertes_conflicto = dato(0);
+    d.paises.CCC.conflicto = bloqueConflicto({});
     const calc = calcular(d);
 
     expect(calc.paises.AAA.nivel.clave).toBe('CRITICAL');
@@ -353,6 +418,41 @@ describe('calcular', () => {
 
     // El que ya estaba arriba no se toca.
     expect(calc.paises.CCC.elevadoPorConflicto).toBeUndefined();
+  });
+
+  it('las dos cifras llegan a la ficha aunque el suelo no ate', () => {
+    const d = datosDePrueba();
+    d.paises.AAA.conflicto = bloqueConflicto({ territorio_12m: 10, estatal_12m: 10, parte_12m: 7 });
+    const calc = calcular(d);
+    // Sin elevacion: 10 muertos no llegan a ningun umbral.
+    expect(calc.paises.AAA.elevadoPorConflicto).toBeUndefined();
+    // Pero el bloque va igual, porque la ficha ensena las dos cifras siempre.
+    expect(calc.paises.AAA.conflicto.territorio).toBe(10);
+    expect(calc.paises.AAA.conflicto.parte).toBe(7);
+  });
+
+  it('ser parte eleva a ALTO y lo dice con su propio motivo', () => {
+    const d = datosDePrueba();
+    // Rusia: casi nada en su territorio, una guerra entera como parte.
+    d.paises.AAA.conflicto = bloqueConflicto({
+      territorio_12m: 266, estatal_12m: 264, parte_12m: 47931,
+      parte_conflictos: ['Russia - Ukraine'],
+    });
+    const calc = calcular(d);
+    expect(calc.paises.AAA.nivel.clave).toBe('HIGH');
+    expect(calc.paises.AAA.elevadoPorConflicto.regla).toBe('parte');
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/^parte en conflicto armado activo \(UCDP\)/);
+    expect(calc.paises.AAA.conflicto.conflictos).toEqual(['Russia - Ukraine']);
+  });
+
+  it('el tipo decide el techo del suelo: no estatal no llega a CRÍTICO', () => {
+    const d = datosDePrueba();
+    d.paises.AAA.conflicto = bloqueConflicto({
+      territorio_12m: 4432, estatal_12m: 4, no_estatal_12m: 4404, civiles_12m: 24,
+    });
+    const calc = calcular(d);
+    expect(calc.paises.AAA.nivel.clave).toBe('HIGH');
+    expect(calc.paises.AAA.elevadoPorConflicto.regla).toBe('no_estatal');
   });
 
   it('se queja si el fichero no tiene la forma esperada', () => {
