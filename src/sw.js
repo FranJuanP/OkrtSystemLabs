@@ -10,19 +10,18 @@
  * Qué se precachea: HTML, JS, CSS, imágenes, tipografías y texturas. Todo lo
  * que el build emite, sin listas escritas a mano que se queden atrás.
  *
- * Actualizaciones: NO hay `skipWaiting()` automático. Un service worker que
- * se activa solo puede cambiarle el código a alguien a mitad de uso. Este se
- * queda esperando y avisa a la página, que muestra «Nueva versión disponible
- * · Recargar»; solo al pulsar se le manda SKIP_WAITING.
+ * Actualizaciones: `skipWaiting()` y `clientsClaim()`. Este worker se activa
+ * en cuanto se instala y toma el control de las páginas abiertas, que se
+ * recargan una vez conservando lo que estuviera elegido.
  *
- * Con UNA excepción, al final del fichero: si detecta las cachés del service
- * worker anterior a la Fase 2 —que precacheaba rutas de `src/` y no sabe
- * servir este build— se activa sin esperar. Entre dos versiones que se
- * entienden, esperar es cortés; con una que ya está rota, es dejar a alguien
- * con la página a medias sin decírselo.
+ * Hubo un tiempo en que esperaba a que el usuario pulsara «Recargar». Suena
+ * más prudente y era peor: mientras nadie pulsara, el worker anterior seguía
+ * sirviendo su HTML y su JS desde el precache, y el visitante se quedaba una
+ * versión por detrás de forma indefinida.
  */
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { clientsClaim } from 'workbox-core';
 import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
@@ -49,17 +48,52 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
  */
 const PARAMETROS_IGNORABLES = [/^utm_/, /^fbclid$/, /^ctx$/, /^source$/, /^icon$/];
 
+/**
+ * Las páginas, por RED PRIMERO.
+ *
+ * Y registrada ANTES del precache, que es la mitad que faltaba. Workbox
+ * recorre las rutas en el orden en que se registran y se queda con la
+ * primera que case: con `precacheAndRoute()` declarado antes, su ruta
+ * —«caché primero»— atrapaba `index.html` y esta no llegaba a ejecutarse
+ * nunca. Por eso una versión nueva no se veía hasta recargar a mano.
+ *
+ * Se pide a la red con tres segundos de margen. Si no contesta, se sirve la
+ * copia del precache, así que offline funciona igual que antes.
+ */
+const PAGES = [
+  'index.html', 'aether-globe-v3.html', 'aether-signal.html',
+  'aether-vector.html', 'metodologia.html',
+];
+
+const paginasPorRed = new NetworkFirst({
+  cacheName: 'aether-paginas',
+  networkTimeoutSeconds: 3,
+  plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+});
+
+registerRoute(new NavigationRoute(async (opciones) => {
+  try {
+    const respuesta = await paginasPorRed.handle(opciones);
+    if (respuesta && respuesta.ok) return respuesta;
+  } catch (e) {
+    // Sin red, o la red tardó más de tres segundos.
+  }
+  /* Respaldo: la copia precacheada de ESA página, no la portada. Servir
+     index.html en lugar de la página pedida fue justo el fallo anterior.
+     `matchPrecache` se resuelve en el momento de la petición, así que no
+     necesita que el precache esté ya declarado. */
+  const ruta = new URL(opciones.request.url).pathname;
+  const cual = PAGES.find((p) => ruta.endsWith(p)) || 'index.html';
+  const copia = await matchPrecache(cual);
+  return copia || Response.error();
+}));
+
 /** Lista inyectada por Vite: cada recurso del build con su revisión. */
 precacheAndRoute(self.__WB_MANIFEST, {
   ignoreURLParametersMatching: PARAMETROS_IGNORABLES,
 });
 cleanupOutdatedCaches();
 
-/** Las páginas que el sitio publica, cada una con su entrada en el precache. */
-const PAGES = [
-  'index.html', 'aether-globe-v3.html', 'aether-signal.html',
-  'aether-vector.html', 'metodologia.html',
-];
 
 /**
  * El respaldo de navegación, acotado.
@@ -74,12 +108,6 @@ const PAGES = [
  * faltaba `metodologia.html`, que se libraba solo porque su URL sin
  * parámetros sí casa con el precache.
  */
-registerRoute(new NavigationRoute(
-  createHandlerBoundToURL('index.html'),
-  {
-    denylist: PAGES.map((p) => new RegExp(p.replace(/\./g, '\\.') + '(\\?|$)')),
-  },
-));
 
 /* El service worker ya NO intercepta las peticiones a otros origenes.
 
@@ -106,7 +134,9 @@ registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.includes('/data/') && url.pathname.endsWith('.json'),
   new NetworkFirst({
     cacheName: 'aether-datos',
-    networkTimeoutSeconds: 6,
+    // Tres segundos: pasado ese margen vale más un dato de hace media hora
+    // que una pantalla en blanco.
+    networkTimeoutSeconds: 3,
     plugins: [new CacheableResponsePlugin({ statuses: [200] })],
   }),
 );
@@ -145,10 +175,24 @@ registerRoute(
 );
 
 /**
- * Activación controlada por la página. Hasta que el usuario pulse
- * «Recargar», este service worker se queda en espera y el anterior sigue
- * sirviendo: nadie se queda a medias con dos versiones mezcladas.
+ * Activación automática.
+ *
+ * Antes este worker se quedaba esperando y la página mostraba «Nueva versión
+ * disponible · Recargar». La intención era buena —no cambiarle el código a
+ * alguien a mitad de uso— pero el resultado era peor que el problema que
+ * evitaba: mientras nadie pulsara ese aviso, el worker anterior seguía
+ * sirviendo su HTML y su JS, y el visitante se quedaba una versión por detrás
+ * indefinidamente. Pulsar GLOBE abría el globo de la versión de antes.
+ *
+ * Ahora se activa y toma el control. Las páginas abiertas se recargan una
+ * sola vez, conservando la región y el horizonte elegidos; de eso se encarga
+ * `src/core/pwa-register.js`.
  */
+self.skipWaiting();
+clientsClaim();
+
+// Se mantiene por compatibilidad con pestañas que sigan abiertas con la
+// versión anterior de la página, que todavía envían este mensaje.
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
