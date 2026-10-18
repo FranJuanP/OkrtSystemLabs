@@ -66,6 +66,21 @@ Candidate, y no de forma uniforme: Colombia perdía el 61 %, Nigeria el 23 %,
 Costa de Marfil y Tailandia el 100 %. Ahora el lector lleva la cuenta de las
 comillas y un salto solo termina el registro si está fuera de una.
 
+#### Qué número es cada muerto
+
+El UCDP no publica una cifra por evento, sino **tres**: `low`, `best` y `high`.
+Son el suelo, la estimación más probable y el techo de lo que sus codificadores
+consideran defendible con las fuentes que tienen.
+
+**Aquí se usa siempre `best`, la estimación central del UCDP, y nunca `low` ni
+`high`.** No es un detalle: la horquilla puede ser enorme. En los doce meses de
+la ventana actual, Sudán va de **13.044** (`low`) a **66.816** (`best`) y a
+**82.181** (`high`); Irán, de 23.618 a 23.623 y a 40.124. Elegir el techo
+convertiría el panel en un alegato, y elegir el suelo, en una minimización.
+
+La estimación central es además la que usa el propio UCDP en sus publicaciones,
+así que las cifras de aquí son comparables con las suyas sin convertir nada.
+
 Tres medidas por país:
 
 - **Muertos en el territorio**, desglosados además por los **tres tipos de

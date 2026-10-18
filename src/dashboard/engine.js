@@ -292,6 +292,15 @@ function etiquetaPeriodo(c){
   return '12 meses, cobertura ' + c.coberturaMeses.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + '/12';
 }
 
+/**
+ * Qué cifra del UCDP es la que se enseña.
+ *
+ * Publica tres por evento —`low`, `best` y `high`— y aquí se suma siempre la
+ * central. Sin decirlo, el número se lee como un recuento cerrado cuando es
+ * una estimación con una horquilla que a veces es de seis veces.
+ */
+const ESTIMACION_UCDP = 'Cifras: estimación central de UCDP (columna «best»), nunca la mínima ni la máxima. ';
+
 /** La explicacion de por que se ha usado ese periodo, para el tooltip. */
 function porQueEstePeriodo(c){
   if(!c) return '';
@@ -375,6 +384,10 @@ function actualizarPieDeNivel(d){
       elCifras.title = (tipos.length ? 'En el territorio, por tipo: ' + tipos.join(', ') + '. ' : '')
         + (c.conflictos && c.conflictos.length
           ? 'Parte en: ' + c.conflictos.slice(0, 6).join('; ') + '. ' : '')
+        /* El UCDP da tres cifras por evento (low, best, high) y la horquilla
+           puede ser enorme: Sudán va de 13.044 a 82.181. Decir cuál se usa
+           evita que la cifra se lea como un recuento cerrado. */
+        + ESTIMACION_UCDP
         + porQueEstePeriodo(c)
         + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
     }
