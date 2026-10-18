@@ -904,113 +904,48 @@ python -m http.server 8080</pre>
   </div>
 
 
-  <!-- WORLD MAP -->
-  <div class="card" style="--acc:var(--cyan);margin-bottom:16px">
-    <div class="ctitle">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#00FFC8" stroke-width="1.2"/><path d="M1 8h14M8 1a11 11 0 0 1 0 14M8 1a11 11 0 0 0 0 14" stroke="#00FFC8" stroke-width=".9"/></svg>
-      MAPA DE RIESGO GLOBAL
-      <span id="map-cat-label" style="margin-left:8px;color:var(--cyan);font-size:10px">ÍNDICE GLOBAL</span>
-      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap" id="map-cat-btns">
-        <button class="hbtn active" data-map-cat="global">Global</button>
-        <button class="hbtn" data-map-cat="eco">Eco</button>
-        <button class="hbtn" data-map-cat="geo">Geo</button>
-        <button class="hbtn" data-map-cat="climate">Clima</button>
-        <button class="hbtn" data-map-cat="bio">Bio</button>
-        <button class="hbtn" data-map-cat="finance">Fin.</button>
+  <!-- TARJETA DE ACCESO AL GLOBO 3D
+
+       Sustituye al bloque «MAPA DE RIESGO GLOBAL», un mapa coroplético de D3
+       que llevaba vacío desde que el panel pasó a módulos ES: la función que
+       lo montaba, initWorldMap(), se llamaba desde initAetherApp(), y el
+       router la buscaba como variable global (`typeof initAetherApp ===
+       "function"`), que con módulos ya no existe. Nunca se ejecutó.
+
+       El fondo es una captura REAL del globo, hecha con Playwright en el
+       build (tools/capture-globo.mjs), con el reloj fijado y la red externa
+       cortada para que sea reproducible. -->
+  <a class="card globo-tarjeta" href="aether-globe-v3.html"
+     data-action="open-globe"
+     aria-label="Abrir el globo de riesgo 3D con los 217 países"
+     style="--acc:var(--cyan);margin-bottom:16px">
+    <picture>
+      <source srcset="assets/img/globo-tarjeta.avif" type="image/avif">
+      <img class="gt-fondo" src="assets/img/globo-tarjeta.webp" alt=""
+           width="1400" height="600" loading="lazy" decoding="async">
+    </picture>
+
+    <div class="gt-contenido">
+      <div class="gt-cabecera">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="7" stroke="#00FFC8" stroke-width="1.2"/><path d="M1 8h14M8 1a11 11 0 0 1 0 14M8 1a11 11 0 0 0 0 14" stroke="#00FFC8" stroke-width=".9"/></svg>
+        <span class="gt-titulo">GLOBO DE RIESGO 3D</span>
+      </div>
+
+      <!-- El reparto por niveles sale de data/latest.json, igual que el
+           ranking y la ficha: lo rellena actualizarTarjetaGlobo(). -->
+      <div class="gt-niveles" id="gt-niveles">
+        <div class="gt-nivel"><span class="gt-n" id="gt-critico" style="color:var(--red)">—</span><span class="gt-l">CRÍTICO</span></div>
+        <div class="gt-nivel"><span class="gt-n" id="gt-alto" style="color:var(--orange)">—</span><span class="gt-l">ALTO</span></div>
+        <div class="gt-nivel"><span class="gt-n" id="gt-medio" style="color:var(--yellow)">—</span><span class="gt-l">MEDIO</span></div>
+        <div class="gt-nivel"><span class="gt-n" id="gt-bajo" style="color:var(--green)">—</span><span class="gt-l">BAJO</span></div>
+      </div>
+
+      <div class="gt-pie">
+        <span class="gt-boton">ABRIR GLOBE 3D →</span>
+        <span class="gt-fecha" id="gt-fecha">DATOS: cargando…</span>
       </div>
     </div>
-    <div id="world-map-wrap" style="position:relative">
-      <div class="map-tooltip" id="map-tip"></div>
-      <!-- Controles del mapa -->
-      <div style="position:absolute;top:10px;right:10px;z-index:20;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
-        <button id="arc-toggle-btn" class="active"
-          data-action="toggle-globe-arcs">⬡ CONEXIONES</button>
-        <button data-action="open-globe" class="aether-hover-cyan-btn-strong"
-          style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;
-                 color:#00FFC8;background:rgba(0,255,200,.08);
-                 border:1px solid rgba(0,255,200,.45);padding:5px 12px;
-                 cursor:pointer;text-transform:uppercase;
-                 transition:background .2s,border-color .2s">🌐 GLOBE 3D</button>
-        <div style="display:flex;gap:4px;align-items:center">
-          <button data-action="map-zoom-in" title="Acercar"
-            style="font-family:'Share Tech Mono',monospace;font-size:14px;font-weight:700;
-                   background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.25);
-                   color:rgba(0,255,200,.85);padding:2px 10px;border-radius:4px;cursor:pointer;
-                   line-height:1.4">+</button>
-          <button data-action="map-zoom-out" title="Alejar"
-            style="font-family:'Share Tech Mono',monospace;font-size:14px;font-weight:700;
-                   background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.25);
-                   color:rgba(0,255,200,.85);padding:2px 10px;border-radius:4px;cursor:pointer;
-                   line-height:1.4">−</button>
-          <button id="map-zoom-reset" data-action="map-zoom-reset" title="Vista global"
-            style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;
-                   background:rgba(0,255,200,.07);border:1px solid rgba(0,255,200,.25);
-                   color:rgba(0,255,200,.65);padding:3px 9px;border-radius:4px;cursor:pointer;
-                   display:none">⌂ GLOBAL</button>
-        </div>
-      </div>
-      <!-- Leyenda de arcos -->
-      <div id="arc-legend" class="visible">
-        <div class="arc-leg-item" data-arc-type="WAR" style="cursor:pointer" title="Click para filtrar">
-          <div class="arc-leg-dot" style="background:#FF1A1A;box-shadow:0 0 5px #FF1A1A"></div>
-          <span style="color:rgba(255,255,255,.7);font-weight:700">CONFLICTO ARMADO</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="PROXY" style="cursor:pointer">
-          <div class="arc-leg-dot" style="background:#E74C3C;box-shadow:0 0 5px #E74C3C"></div>
-          <span style="color:rgba(255,255,255,.65)">CONFLICTO PROXY</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="NUKE" style="cursor:pointer">
-          <div class="arc-leg-dot" style="background:#00FFFF;box-shadow:0 0 5px #00FFFF"></div>
-          <span style="color:rgba(255,255,255,.65)">AMENAZA NUCLEAR</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="CRISIS" style="cursor:pointer">
-          <div class="arc-leg-dot" style="background:#FF6600;box-shadow:0 0 5px #FF6600"></div>
-          <span style="color:rgba(255,255,255,.65)">CRISIS ACTIVA</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="TENSION" style="cursor:pointer">
-          <div class="arc-leg-dot" style="background:#FFB300;box-shadow:0 0 5px #FFB300"></div>
-          <span style="color:rgba(255,255,255,.55)">TENSIÓN GRAVE</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="SANCTION" style="cursor:pointer">
-          <div class="arc-leg-dot" style="background:#9B59B6;box-shadow:0 0 5px #9B59B6"></div>
-          <span style="color:rgba(255,255,255,.55)">SANCIONES</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="INFLUENCE" style="cursor:pointer">
-          <div class="arc-leg-dot" style="background:#3498DB;box-shadow:0 0 5px #3498DB"></div>
-          <span style="color:rgba(255,255,255,.5)">INFLUENCIA</span>
-        </div>
-        <div class="arc-leg-item" data-arc-type="ALL" style="cursor:pointer;margin-top:3px">
-          <div class="arc-leg-dot" style="background:rgba(255,255,255,.2)"></div>
-          <span style="color:rgba(255,255,255,.35);font-size:7px">MOSTRAR TODO</span>
-        </div>
-      </div>
-      <!-- Panel de detalle de conflicto -->
-      <div id="arc-detail-panel" style="
-        display:none;position:absolute;bottom:10px;left:10px;
-        background:rgba(5,10,16,.92);border:1px solid var(--border);
-        border-radius:8px;padding:10px 14px;max-width:280px;z-index:20;
-        font-family:'Share Tech Mono',monospace;
-        backdrop-filter:blur(8px);
-        transition:opacity .2s;
-      ">
-        <div id="arc-detail-type" style="font-size:9px;letter-spacing:2px;margin-bottom:6px;font-weight:700"></div>
-        <div id="arc-detail-title" style="font-size:12px;color:var(--bright);margin-bottom:4px;font-weight:600"></div>
-        <div id="arc-detail-desc" style="font-size:10px;color:var(--text);line-height:1.5;margin-bottom:6px"></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div id="arc-detail-intensity" style="font-size:9px;letter-spacing:1px;color:var(--dim)"></div>
-          <div id="arc-detail-trend" style="font-size:10px;font-weight:700"></div>
-        </div>
-      </div>
-    </div>
-    <div class="map-legend">
-      <span style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-right:4px">RIESGO:</span>
-      <div class="map-leg-item"><div class="map-leg-color" style="background:#00FF88"></div>BAJO (0-30)</div>
-      <div class="map-leg-item"><div class="map-leg-color" style="background:rgba(0,255,200,.08)"></div>MODERADO (31-50)</div>
-      <div class="map-leg-item"><div class="map-leg-color" style="background:#FF8C00"></div>ELEVADO (51-70)</div>
-      <div class="map-leg-item"><div class="map-leg-color" style="background:rgba(255,51,85,.08)"></div>CRÍTICO (71-100)</div>
-      <div class="map-leg-item"><div class="map-leg-color" style="background:#1A2A44"></div>SIN DATOS</div>
-    </div>
-  </div>
+  </a>
 
   <!-- RED DE CORRELACIONES + CADENAS -->
   <div class="card" style="--acc:var(--purple);margin-bottom:16px">

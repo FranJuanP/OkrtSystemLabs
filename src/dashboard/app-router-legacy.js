@@ -67,7 +67,6 @@ function launchAether(e) {
             const loader=document.getElementById('loader');
             if(loader){loader.style.opacity='0';setTimeout(()=>{loader.style.display='none';},500);}
             if(typeof loadRegion==='function') loadRegion();
-          if(typeof window._drawGlobeArcs==='function') setTimeout(window._drawGlobeArcs,200);
             if(typeof initClock==='function') initClock();
           }, 600);
         }

@@ -94,6 +94,63 @@ async function paginasConParametros(page, etiqueta) {
   ok(`${etiqueta}: las ${PAGINAS.length} páginas se sirven a sí mismas navegando, con y sin parámetros`);
 }
 
+/**
+ * La tarjeta de acceso al globo: existe, dice lo que debe y no desborda.
+ *
+ * Sustituyó al mapa coroplético de D3, que llevaba vacío desde que el panel
+ * pasó a módulos ES. Las cifras salen de data/latest.json, igual que el
+ * ranking, así que si se separan es que algo dejó de leer la misma fuente.
+ */
+async function tarjetaDelGlobo(page, etiqueta) {
+  const t = await page.evaluate(() => {
+    const el = document.querySelector('.globo-tarjeta');
+    if (!el) return null;
+    const caja = el.getBoundingClientRect();
+    const n = [...el.querySelectorAll('.gt-n')].map((x) => x.textContent.trim());
+    return {
+      tag: el.tagName,
+      href: el.getAttribute('href'),
+      accion: el.getAttribute('data-action'),
+      aria: el.getAttribute('aria-label') || '',
+      titulo: (el.querySelector('.gt-titulo') || {}).textContent || '',
+      boton: ((el.querySelector('.gt-boton') || {}).textContent || '').trim(),
+      niveles: n,
+      fecha: (document.getElementById('gt-fecha') || {}).textContent || '',
+      ancho: Math.round(caja.width),
+      desborda: document.documentElement.scrollWidth > window.innerWidth + 1,
+      imagen: !!el.querySelector('img.gt-fondo'),
+    };
+  });
+
+  if (!t) { mal(`${etiqueta}: no existe la tarjeta del globo`); return; }
+  if (!/GLOBO DE RIESGO 3D/.test(t.titulo)) mal(`${etiqueta}: título «${t.titulo}»`);
+  else if (t.accion !== 'open-globe') mal(`${etiqueta}: data-action «${t.accion}»`);
+  else if (t.tag !== 'A' || !t.href) mal(`${etiqueta}: no es un enlace (${t.tag})`);
+  else if (!t.aria) mal(`${etiqueta}: sin aria-label`);
+  else if (!t.imagen) mal(`${etiqueta}: sin la captura de fondo`);
+  else if (!/ABRIR GLOBE 3D/.test(t.boton)) mal(`${etiqueta}: botón «${t.boton}»`);
+  else if (t.niveles.length !== 4 || t.niveles.some((x) => !/^\d+$/.test(x))) {
+    mal(`${etiqueta}: el reparto por niveles no llegó (${t.niveles.join('/')})`);
+  } else if (!/\d{4}/.test(t.fecha)) {
+    mal(`${etiqueta}: sin fecha de los datos («${t.fecha}»)`);
+  } else if (t.desborda) {
+    mal(`${etiqueta}: la página desborda a lo ancho con la tarjeta`);
+  } else {
+    ok(`${etiqueta}: la tarjeta dice ${t.niveles.join('/')} y ${t.fecha.replace('DATOS: ', '')}`);
+  }
+
+  /* Con el teclado. Es un <a href>, asi que basta con que pueda recibir el
+     foco: Enter sobre un enlace enfocado lo activa de forma nativa. */
+  const conTeclado = await page.evaluate(() => {
+    const el = document.querySelector('.globo-tarjeta');
+    if (!el) return { ok: false, motivo: 'no existe' };
+    el.focus();
+    return { ok: document.activeElement === el, motivo: (document.activeElement || {}).tagName };
+  });
+  if (!conTeclado.ok) mal(`${etiqueta}: la tarjeta no recibe el foco (${conTeclado.motivo})`);
+  else ok(`${etiqueta}: la tarjeta recibe el foco del teclado`);
+}
+
 /** Pulsa un botón del panel y dice a dónde se llega. */
 async function pulsar(ctx, page, accion) {
   const antes = ctx.pages().length;
@@ -130,6 +187,7 @@ async function enEscritorio(motor, nombre) {
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 60000 });
   await esperar(3500);
   await entrarAlPanel(page);
+  await tarjetaDelGlobo(page, `${nombre} · escritorio`);
 
   for (const [accion, archivo, trozo] of BOTONES) {
     const r = await pulsar(ctx, page, accion);
@@ -159,6 +217,7 @@ async function enMovil(motor, nombre) {
   console.log(`\n--- ${nombre} · iPhone · service worker ${controlando ? 'CONTROLANDO' : 'sin controlar'} ---`);
   if (!controlando) mal(`${nombre} iPhone: el service worker no llegó a controlar la página`);
   await entrarAlPanel(page);
+  await tarjetaDelGlobo(page, `${nombre} iPhone`);
 
   for (const [accion, , trozo] of BOTONES) {
     const r = await pulsar(ctx, page, accion);

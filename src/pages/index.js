@@ -23,9 +23,9 @@ import '../dashboard/runtime-guard.js';
 import {
   onRegionChange, setHorizon,
   runAnalysis, runScenarios, showScenario, sendChat, checkOllama,
-  exportPDF, setMapCat, filterArcType, toggleGlobeArcs,
+  exportPDF,
   toggleShockSimulator, runShockCascade, resetShocks, applyPreset,
-  renderRanking, updateCascadeModule, mapControls,
+  renderRanking, updateCascadeModule,
 } from '../dashboard/engine.js';
 
 import '../dashboard/app-shell-bindings.js';
@@ -81,14 +81,21 @@ const ACTIONS = {
   'run-scenarios':     { on: 'click',   fn: () => runScenarios() },
   'send-chat':         { on: 'click',   fn: () => sendChat() },
   'export-pdf':        { on: 'click',   fn: () => exportPDF() },
-  'toggle-globe-arcs': { on: 'click',   fn: () => toggleGlobeArcs() },
   'toggle-shock-sim':  { on: 'click',   fn: () => toggleShockSimulator() },
   'update-cascade':    { on: 'click',   fn: () => updateCascadeModule() },
   'reset-shocks':      { on: 'click',   fn: () => resetShocks() },
-  'map-zoom-in':       { on: 'click',   fn: () => mapControls.zoomIn && mapControls.zoomIn() },
-  'map-zoom-out':      { on: 'click',   fn: () => mapControls.zoomOut && mapControls.zoomOut() },
-  'map-zoom-reset':    { on: 'click',   fn: () => mapControls.reset && mapControls.reset() },
-  'open-globe':        { on: 'click',   fn: () => openAetherGlobe() },
+  /* La tarjeta del globo es un <a href>, para que funcione sin JavaScript y
+     para que el teclado la active con Enter como cualquier enlace. Por eso
+     hay que frenar la navegacion por defecto: sin esto el navegador seguiria
+     el href ADEMAS de abrir la pestaña, y se abririan dos.
+
+     Con Ctrl, Cmd, Shift o el boton central no se frena nada: ahi la persona
+     esta pidiendo explicitamente al navegador que haga lo suyo. */
+  'open-globe':        { on: 'click',   fn: (ev) => {
+      if (ev && (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1)) return;
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      openAetherGlobe();
+    } },
   /* Por `abrirPagina`, igual que GLOBE: con `'noopener'` en las opciones
      `window.open` devuelve null siempre y no habia forma de saber si el
      navegador habia bloqueado la ventana. Cuando la bloqueaba, estos dos
@@ -126,17 +133,7 @@ function bindActions() {
   });
 
   // Categoría del mapa.
-  document.querySelectorAll('[data-map-cat]').forEach((btn) => {
-    btn.addEventListener('click', () => setMapCat(btn, btn.dataset.mapCat));
-  });
 
-  // Filtros de tipo de arco en el mapa. 'ALL' significa sin filtro.
-  document.querySelectorAll('[data-arc-type]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const v = el.dataset.arcType;
-      filterArcType(v === 'ALL' ? null : v);
-    });
-  });
 
   // Escenarios del panel de IA.
   document.querySelectorAll('[data-scenario]').forEach((tab) => {
