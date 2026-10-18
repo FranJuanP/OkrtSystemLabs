@@ -397,6 +397,7 @@ describe('calcular', () => {
   const bloqueConflicto = (o) => ({
     territorio_12m: 0, estatal_12m: 0, no_estatal_12m: 0, civiles_12m: 0,
     parte_12m: 0, parte_conflictos: [], media_3anios: 0,
+    base: 'ventana_12m', anio_base: null, ventana_12m: 0, ultimo_anio_completo: 0,
     desde: '2025-09-09', hasta: '2026-09-09',
     source: 'UCDP', url: 'https://ucdp.uu.se/downloads/', version: 'GED 26.1',
     ...o,
@@ -443,6 +444,35 @@ describe('calcular', () => {
     expect(calc.paises.AAA.elevadoPorConflicto.regla).toBe('parte');
     expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/^parte en conflicto armado activo \(UCDP\)/);
     expect(calc.paises.AAA.conflicto.conflictos).toEqual(['Russia - Ukraine']);
+  });
+
+  it('el motivo nombra el periodo del que sale la cifra', () => {
+    /* No siempre son doce meses: cuando el último año natural cerrado da más
+       muertos que la ventana, se publica ese año. Decir «en 12 meses» con la
+       cifra de 2025 sería mentir sobre el periodo. */
+    const d = datosDePrueba();
+    d.paises.AAA.conflicto = bloqueConflicto({
+      territorio_12m: 5000, estatal_12m: 5000,
+      base: 'anio_completo', anio_base: 2025,
+      ventana_12m: 900, ultimo_anio_completo: 5000,
+      desde: '2025-01-01', hasta: '2025-12-31',
+    });
+    const calc = calcular(d);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/muertos en 2025 \(guerra\)/);
+    expect(calc.paises.AAA.conflicto.periodo).toBe('en 2025');
+    expect(calc.paises.AAA.conflicto.anioBase).toBe(2025);
+    expect(calc.paises.AAA.conflicto.ventana12m).toBe(900);
+  });
+
+  it('con la ventana de 12 meses el motivo lo dice así', () => {
+    const d = datosDePrueba();
+    d.paises.AAA.conflicto = bloqueConflicto({
+      territorio_12m: 5000, estatal_12m: 5000,
+      base: 'ventana_12m', ventana_12m: 5000, ultimo_anio_completo: 10,
+    });
+    const calc = calcular(d);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/muertos en 12 meses/);
+    expect(calc.paises.AAA.conflicto.periodo).toBe('en 12 meses');
   });
 
   it('el tipo decide el techo del suelo: no estatal no llega a CRÍTICO', () => {

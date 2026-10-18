@@ -147,6 +147,67 @@ describe('data/latest.json contra el registro', () => {
   });
 });
 
+describe('el bloque de conflicto del UCDP', () => {
+  const datos = leer('data/latest.json');
+  const paises = Object.entries(datos.paises);
+
+  it('lo llevan los 217 países: un cero es un cero', () => {
+    const sin = paises.filter(([, p]) => !p.conflicto).map(([iso]) => iso);
+    expect(sin).toEqual([]);
+  });
+
+  it('publica el tramo con más muertos, y dice cuál es', () => {
+    /* Candidate no es acumulativo, así que la ventana de 12 meses puede
+       quedarse corta. La regla es el máximo entre la ventana y el último año
+       natural cerrado; esto comprueba que se aplicó país por país. */
+    for (const [iso, p] of paises) {
+      const c = p.conflicto;
+      const mayor = Math.max(c.ventana_12m, c.ultimo_anio_completo);
+      expect(c.territorio_12m, iso).toBe(mayor);
+      expect(c.base, iso).toBe(c.ultimo_anio_completo > c.ventana_12m ? 'anio_completo' : 'ventana_12m');
+    }
+  });
+
+  it('el año base acompaña siempre al tramo anual, y solo a él', () => {
+    for (const [iso, p] of paises) {
+      const c = p.conflicto;
+      if (c.base === 'anio_completo') expect(typeof c.anio_base, iso).toBe('number');
+      else expect(c.anio_base, iso).toBeNull();
+    }
+  });
+
+  it('el desglose por tipo no supera su propio total', () => {
+    // Es «no supera» y no «suma exacto» porque un evento sin tipo utilizable
+    // cuenta en el total y en ningún tipo.
+    for (const [iso, p] of paises) {
+      const c = p.conflicto;
+      const suma = c.estatal_12m + c.no_estatal_12m + c.civiles_12m;
+      expect(suma, iso).toBeLessThanOrEqual(c.territorio_12m);
+    }
+  });
+
+  it('ningún nombre de conflicto es un marcador interno del UCDP', () => {
+    // Candidate trae «XXX475» para conflictos aún sin nombre; eso en la ficha
+    // parece un error.
+    const malos = [];
+    for (const [iso, p] of paises) {
+      for (const n of p.conflicto.parte_conflictos || []) if (/^XXX/i.test(n)) malos.push(iso + ':' + n);
+    }
+    expect(malos).toEqual([]);
+  });
+
+  it('los tres indicadores del UCDP son tres cosas distintas', () => {
+    /* `muertes_conflicto_parte` llegó a escribir la media de tres años, con
+       lo que el indicador que entra en GEO era un duplicado del otro. */
+    const rus = datos.paises.RUS;
+    expect(rus.indicadores.muertes_conflicto.value).toBe(rus.conflicto.territorio_12m);
+    expect(rus.indicadores.muertes_conflicto_parte.value).toBe(rus.conflicto.parte_12m);
+    expect(rus.indicadores.muertes_conflicto_media.value).toBe(rus.conflicto.media_3anios);
+    expect(rus.indicadores.muertes_conflicto_parte.value)
+      .not.toBe(rus.indicadores.muertes_conflicto_media.value);
+  });
+});
+
 describe('data/vector.json', () => {
   const v = leer('data/vector.json');
 
