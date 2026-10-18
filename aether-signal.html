@@ -120,12 +120,25 @@
         <div class="source-item"><span id="srclbl-relief">ReliefWeb OCHA</span><div class="source-status load" id="src-relief"></div></div>
         <div class="source-item"><span id="srclbl-nasa">NASA EONET Events</span><div class="source-status load" id="src-nasa"></div></div>
         <div class="source-item"><span id="srclbl-who">OMS · Brotes (DON)</span><div class="source-status load" id="src-who"></div></div>
+        <!-- GDACS ocupa el hueco de ReliefWeb en HUMANITARIA. La descarga el
+             proceso periodico, no esta pagina. -->
+        <div class="source-item"><span id="srclbl-gdacs">GDACS · Alertas (ONU/CE)</span><div class="source-status load" id="src-gdacs"></div></div>
       </div>
 
       <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
         <div style="font-size:7.5px;letter-spacing:.2em;color:var(--dim);line-height:1.8">
           Actualización automática<br>cada 5 minutos.<br>
           <span style="color:rgba(0,255,200,.3)" id="last-update">Cargando...</span>
+        </div>
+        <!-- Atribucion de GDACS. No exigen una formula de credito en sus
+             terminos, pero si advierten de que sus alertas son automaticas;
+             las dos cosas van aqui, que es donde se leen sus eventos. -->
+        <div style="font-size:7px;letter-spacing:.15em;color:var(--dim);line-height:1.9;margin-top:12px;opacity:.85">
+          Alertas de desastre:
+          <a href="https://www.gdacs.org/" target="_blank" rel="noopener noreferrer"
+             style="color:#C060FF;text-decoration:none">GDACS</a>,
+          marco de cooperación de Naciones Unidas (OCHA, UNOSAT) y la Comisión
+          Europea (JRC, ECHO). Alertas automáticas, sin revisión humana previa.
         </div>
       </div>
     </div>
