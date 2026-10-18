@@ -74,6 +74,14 @@ export default defineConfig({
       manifest: false,                 // el manifest se mantiene a mano
       injectManifest: {
         globPatterns: ['**/*.{html,js,css,webp,avif,png,jpg,svg,ico,woff2}'],
+        /* El interruptor de apagado del worker antiguo NO se precachea.
+
+           Es un fichero que solo piden los navegadores que siguen
+           registrados en esa ruta, y lo piden por el canal de actualización
+           del propio worker, que no pasa por aquí. Meterlo en el precache
+           sería guardar una copia que nadie va a leer, y arriesgarse a
+           servirla desde la caché el día que haya que cambiarlo. */
+        globIgnores: ['service-worker.js'],
         // El globo y su textura son grandes; sin esto quedarian fuera.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         /**
