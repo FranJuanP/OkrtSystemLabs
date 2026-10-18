@@ -283,13 +283,23 @@ function drawGauge(svgId, score, color){
  * año entero, y entonces la ficha tiene que decir «año 2025» y no «12 meses».
  */
 function etiquetaPeriodo(c){
-  return c && c.base === 'anio_completo' && c.anioBase ? 'año ' + c.anioBase : '12 meses';
+  if(!c) return '12 meses';
+  if(c.base === 'anio_completo' && c.anioBase) return 'año ' + c.anioBase;
+  /* La cobertura va a la vista y no solo al tooltip: «12 meses» con cinco
+     meses de datos detrás es la clase de medio dato que hay que mirar dos
+     veces, y nadie abre un tooltip que no sabe que tiene que abrir. */
+  if(c.coberturaMeses == null) return '12 meses';
+  return '12 meses, cobertura ' + c.coberturaMeses.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + '/12';
 }
 
 /** La explicacion de por que se ha usado ese periodo, para el tooltip. */
 function porQueEstePeriodo(c){
   if(!c) return '';
-  if(c.base !== 'anio_completo') return 'Ventana de 12 meses: ';
+  if(c.base !== 'anio_completo'){
+    return 'Ventana de 12 meses con '
+      + (c.coberturaMeses == null ? '?' : c.coberturaMeses.toLocaleString('es-ES', { maximumFractionDigits: 1 }))
+      + ' meses cubiertos por los ficheros del UCDP: ';
+  }
   return 'Se usa el año ' + c.anioBase + ' completo (' + Number(c.ultimoAnioCompleto || 0).toLocaleString('es-ES')
     + ' muertos) y no la ventana de 12 meses (' + Number(c.ventana12m || 0).toLocaleString('es-ES')
     + '), porque el fichero del año en curso del UCDP no es acumulativo y deja la ventana incompleta. Periodo publicado: ';

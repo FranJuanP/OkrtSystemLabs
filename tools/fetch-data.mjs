@@ -326,9 +326,12 @@ async function main() {
         desde: periodo.desde,
         hasta: periodo.hasta,
         candidate_desde: datosUcdp.version.candidateDesde,
+        // Cuántos meses de la ventana están realmente cubiertos por los dos
+        // ficheros. Doce quiere decir doce; menos, que hay un hueco.
+        cobertura_meses: datosUcdp.version.coberturaMeses,
         source: FUENTES.ucdp.corto,
         url: FUENTES.ucdp.url,
-        version: `GED ${datosUcdp.version.ged} · Candidate ${datosUcdp.version.candidate}`,
+        version: `GED ${datosUcdp.version.ged} · Candidate ${datosUcdp.version.candidateRango || datosUcdp.version.candidate}`,
       };
     }
 

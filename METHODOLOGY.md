@@ -57,6 +57,15 @@ descargas en cada ejecución: UCDP publica una versión de GED al año y una de
 Candidate al mes, y fijar `ged261` aquí sería garantizar que esto se queda
 desfasado sin que nadie se entere.
 
+**Un CSV no se parte por los saltos de línea.** El campo `source_article` lleva
+el texto de la noticia y trae saltos dentro, entrecomillados. El lector los
+trataba como fin de registro, y como `country`, `best` y las fechas van
+**después** de ese campo en el orden de columnas del UCDP, el trozo de delante
+se quedaba sin ellos y no sumaba. Se perdía el **6,9 % de los muertos** de
+Candidate, y no de forma uniforme: Colombia perdía el 61 %, Nigeria el 23 %,
+Costa de Marfil y Tailandia el 100 %. Ahora el lector lleva la cuenta de las
+comillas y un salto solo termina el registro si está fuera de una.
+
 Tres medidas por país:
 
 - **Muertos en el territorio**, desglosados además por los **tres tipos de
@@ -78,38 +87,54 @@ desde la última fecha que trae Candidate y no desde hoy: si el fichero va con u
 mes de retraso, «hoy» metería un mes vacío y bajaría el recuento
 artificialmente.
 
-El problema es que **Candidate no es acumulativo**. La documentación invita a
-leerlo como «el año en curso», pero la versión 26.0.8 trae **2.275 eventos de
-seis semanas** —del 31 de julio al 9 de septiembre de 2026—, no de los nueve
-meses transcurridos. Cada entrega mensual es un incremento, no el año entero.
+El problema fue que **Candidate no es acumulativo**. La documentación invita a
+leerlo como «el año en curso», pero la versión 26.0.8 trae **1.806 eventos de
+seis semanas** —del 31 de julio al 10 de septiembre de 2026—, no de los nueve
+meses transcurridos. Cada entrega mensual es un **lote**, no el año entero.
 
-Con GED cerrando en el 31 de diciembre de 2025, la ventana de 12 meses quedaba
-así:
+Leyendo solo la última, la ventana de 12 meses quedaba así:
 
 ```
 2025-09-09 ────── GED ──────▶ 2025-12-31    3,7 meses con datos
-2026-01-01 ─── sin datos ───▶ 2026-07-30    7 meses vacíos
+2026-01-01 ─── sin datos ───▶ 2026-07-30    7 MESES VACÍOS
 2026-07-31 ─ Candidate ─────▶ 2026-09-09    1,3 meses con datos
 ```
 
-Cinco meses de cobertura presentados como doce. El efecto es sistemático y de
+Cinco meses de cobertura presentados como doce. El efecto era sistemático y de
 un solo signo: **16 de los 18 países que se desviaban más del 50 % de su media
 de tres años lo hacían a la baja**, entre un −53 % y un −95 %. Rusia aparecía
 con 266 muertos, Siria con 173, el Líbano con 127. No se habían calmado: les
 faltaban siete meses.
 
-Así que la cifra que se publica es **el máximo entre la ventana de 12 meses y el
-último año natural cerrado de GED**, y se publica el bloque **entero** del tramo
-que gana —total, desglose por tipo y cifra de parte—, porque mezclar tramos
-daría un desglose que no suma su propio total.
+**La solución es leerlas todas.** Las entregas del año en curso se descargan de
+la primera a la última, se juntan y se quitan los eventos repetidos por su `id`,
+quedándose con la versión más reciente de cada uno —que es la que lleva la
+corrección—. Hoy son ocho entregas, 13.512 eventos distintos y **90 repetidos**
+entre lotes.
 
-Hoy eso significa que **53 de los 217 países** llevan el año 2025 completo y los
-164 restantes la ventana. La ficha del país **dice cuál**: «muertos (año 2025)»
-frente a «muertos (12 meses)», y el *tooltip* da las dos cifras y el motivo.
+La página de descargas solo enlaza **las dos últimas**, así que el resto se
+deducen del patrón del nombre (`GEDEvent_v26_0_1.csv` … `_8`) y se piden; las
+que no existan devuelven 404 y se descartan sin ruido. Es lo que permite que
+esto siga funcionando el mes que viene, cuando salga la 26.0.9.
 
-Es un arreglo, no una solución elegante. La solución elegante sería una ventana
-de 12 meses de verdad, y no la hay mientras el hueco exista: lo único honesto es
-publicar el periodo mejor cubierto y **decir cuál es**.
+Con eso la ventana cubre **12 meses de 12**, y el fichero publica esa cobertura
+(`conflicto.cobertura_meses`) para que se pueda comprobar. La ficha del país la
+enseña: *«muertos (12 meses, cobertura 12/12)»*.
+
+#### El respaldo, que ahora casi nunca hace falta
+
+Queda la regla anterior como red: si a la ventana le faltan **más de catorce
+días**, se publica el mayor entre la ventana y el último año natural cerrado de
+GED, y se publica el bloque **entero** del tramo que gana —total, desglose por
+tipo y cifra de parte—, porque mezclar tramos daría un desglose que no suma su
+propio total. La ficha diría entonces «muertos (año 2025)».
+
+Hoy no se aplica a **ningún país**, y esa es exactamente la diferencia entre un
+respaldo y un parche. Mientras estuvo activo sobre la ventana coja llegó a
+afectar a 53 de los 217, y producía un sesgo al alza del que conviene acordarse:
+coger el año anterior porque fue peor mezcla dos periodos y describe el pasado,
+no el presente. Rusia publicaba 4.433 muertos en su territorio (2025) cuando en
+los doce meses reales son **404**.
 
 **Un cero es un cero.** Que el UCDP no registre eventos en Noruega es
 información, no una laguna, así que los 217 países llevan dato y no solo los
@@ -140,6 +165,15 @@ invasión de Irak sale como «Government of Australia, Government of United
 Kingdom, Government of United States of America». Sin partir esa cadena no
 empareja con ningún país y la coalición entera se pierde, así que el campo se
 divide por comas y cada trozo se resuelve por separado.
+
+Y hay un detalle que costó encontrar: **en las coaliciones, `gwnoa`/`gwnob`
+vienen vacíos**. Exigir el número Gleditsch-Ward para contar un lado —que era lo
+que se hacía— descartaba entera la guerra de Irán contra Israel y Estados
+Unidos, codificada como «Government of Iran» contra «Government of Israel,
+Government of United States of America». El filtro de verdad es el nombre, no el
+número: solo cuenta un trozo que diga «Government of X» y que X resuelva a un
+país. Se comprobó que **los únicos actores con ese patrón y sin número desde
+2020 son las cuatro coaliciones que existen** en el conjunto.
 
 Dos consecuencias que conviene decir en voz alta:
 
@@ -428,11 +462,21 @@ manda el percentil. Y se aplica a la **etiqueta**, no al índice: el número
 sigue siendo la combinación de las categorías y se puede seguir explicando
 como tal.
 
-Cuando se aplica, la ficha del país lo dice con la cifra —*«nivel elevado por
-conflicto activo (UCDP): 89.413 muertos en 2025 (guerra)»*, o *«parte en
-conflicto armado activo (UCDP): 15.271 muertos en 2025»*— y muestra además
-dónde caería por percentil. Sin eso, un CRÍTICO junto a un índice de 71 no
-habría forma de entenderlo.
+Cuando se aplica, la ficha del país lo dice con la cifra y muestra además dónde
+caería por percentil. Sin eso, un CRÍTICO junto a un índice de 71 no habría
+forma de entenderlo.
+
+Y lo dice con **todas las reglas que el país cumple**, de más grave a menos, no
+solo con la que decide el nivel:
+
+> ⚠ nivel elevado por conflicto activo (UCDP, 12 meses) — **parte en conflicto
+> armado: 90.671 · conflicto menor en su territorio: 402**
+
+Es Rusia. Enseñar solo la regla que manda la describía mal en los dos sentidos
+posibles: con la de parte se callaba que en su propio territorio apenas pasa
+nada, y con la del territorio —cuando fue la que mandó— se callaba la guerra
+entera. **El nivel sigue saliendo de la primera**, la más severa; esto solo
+cambia lo que se cuenta.
 
 Con los datos de octubre de 2026 se eleva el nivel de **25 países**, y el
 reparto deja de ser exactamente 5/15/30/50 —queda en 20/45/53/99—: los tramos
