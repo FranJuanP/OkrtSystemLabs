@@ -12,6 +12,7 @@ import {
   percentiles, confianzaDe, nivelDe, nivelPorFraccion, calcular,
   PESOS_CATEGORIA, PESOS_INDICADOR, NIVELES, ETIQUETA_RELATIVA,
   PESO_CONJUNTO, PESO_PEORES, CUANTAS_PEORES, velocidadDeIndicador,
+  UMBRALES_UCDP, suelosPorConflicto,
 } from '../../src/core/scoring.js';
 
 describe('percentiles', () => {
@@ -164,6 +165,39 @@ describe('niveles', () => {
   });
 });
 
+describe('nivel mínimo por conflicto (UCDP)', () => {
+  it('usa los dos umbrales del UCDP', () => {
+    expect(UMBRALES_UCDP).toHaveLength(2);
+    expect(UMBRALES_UCDP[0].desde).toBe(1000);
+    expect(UMBRALES_UCDP[0].nivel).toBe('CRITICAL');
+    expect(UMBRALES_UCDP[1].desde).toBe(25);
+    expect(UMBRALES_UCDP[1].nivel).toBe('HIGH');
+  });
+
+  it('1.000 o más muertos en 12 meses es guerra', () => {
+    expect(suelosPorConflicto(1000).nivel).toBe('CRITICAL');
+    expect(suelosPorConflicto(47686).nivel).toBe('CRITICAL');
+    expect(suelosPorConflicto(1000).etiqueta).toBe('guerra');
+  });
+
+  it('de 25 a 999 es conflicto menor', () => {
+    expect(suelosPorConflicto(25).nivel).toBe('HIGH');
+    expect(suelosPorConflicto(999).nivel).toBe('HIGH');
+    expect(suelosPorConflicto(999).etiqueta).toBe('conflicto menor');
+  });
+
+  it('por debajo de 25 no impone nada', () => {
+    expect(suelosPorConflicto(24)).toBeNull();
+    expect(suelosPorConflicto(0)).toBeNull();
+  });
+
+  it('no revienta sin dato', () => {
+    expect(suelosPorConflicto(null)).toBeNull();
+    expect(suelosPorConflicto(undefined)).toBeNull();
+    expect(suelosPorConflicto(NaN)).toBeNull();
+  });
+});
+
 describe('pesos', () => {
   it('declara las 16 categorías', () => {
     expect(Object.keys(PESOS_CATEGORIA)).toHaveLength(16);
@@ -293,6 +327,32 @@ describe('calcular', () => {
         expect(Number.isInteger(c.velocidadDe)).toBe(true);
       }
     }
+  });
+
+  it('el conflicto eleva el nivel pero nunca lo baja', () => {
+    const d = datosDePrueba();
+    // Un indicador de conflicto con el id que el calculo busca.
+    d.indicadores.muertes_conflicto = {
+      categoria: 'geo', etiqueta: 'Muertos por conflicto', unidad: 'muertos',
+      fuente: 'prueba', codigo: 'x', direccion: 'mas_riesgo', decimales: 0,
+      escala: 'log', url: 'https://ejemplo.org',
+    };
+    const dato = (v) => ({ value: v, unit: 'muertos', year: 2026, source: 'UCDP',
+      url: 'https://ucdp.uu.se/downloads/', fetched_at: '2026-10-18T00:00:00Z' });
+    // AAA es el de MENOS riesgo del fichero de prueba, y aun asi esta en guerra.
+    d.paises.AAA.indicadores.muertes_conflicto = dato(5000);
+    // CCC es el de MAS riesgo y no tiene conflicto: no debe bajar de nivel.
+    d.paises.CCC.indicadores.muertes_conflicto = dato(0);
+    const calc = calcular(d);
+
+    expect(calc.paises.AAA.nivel.clave).toBe('CRITICAL');
+    expect(calc.paises.AAA.elevadoPorConflicto).toBeTruthy();
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/conflicto activo \(UCDP\)/);
+    // Y guarda donde caia por percentil, para poder ensenarlo.
+    expect(calc.paises.AAA.nivelPorPercentil).toBeTruthy();
+
+    // El que ya estaba arriba no se toca.
+    expect(calc.paises.CCC.elevadoPorConflicto).toBeUndefined();
   });
 
   it('se queja si el fichero no tiene la forma esperada', () => {
