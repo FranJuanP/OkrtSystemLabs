@@ -154,7 +154,9 @@ async function run() {
         if ((EXTRA_SHOTS[pageName] || []).length) {
           try {
             const cta = await page.$('[data-launch-aether]');
-            if (cta) { await cta.click(); await page.waitForTimeout(2500); }
+            // Puede estar ya abierto: el panel se recuerda en sessionStorage.
+            if (cta && await cta.isVisible().catch(() => false)) { await cta.click(); }
+            await page.waitForTimeout(2500);
           } catch { /* si no se puede entrar, las capturas de seccion se omiten */ }
         }
 

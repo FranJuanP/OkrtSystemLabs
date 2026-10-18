@@ -28,8 +28,15 @@ const bad = (m) => { failures++; console.log(`   FALLO ${m}`); };
 async function openDashboard(page) {
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 45000 });
   await page.waitForTimeout(2000);
+  /* La portada puede no estar: desde que el panel se recuerda en
+     `sessionStorage`, una segunda carga en el mismo contexto entra sola. */
   const cta = await page.$('[data-launch-aether]');
-  if (cta) { await cta.click(); await page.waitForTimeout(3000); }
+  if (cta && await cta.isVisible().catch(() => false)) {
+    await cta.click();
+    await page.waitForTimeout(3000);
+  } else {
+    await page.waitForTimeout(3000);
+  }
 }
 
 (async () => {

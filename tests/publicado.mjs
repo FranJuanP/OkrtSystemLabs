@@ -19,7 +19,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { chromium, webkit, devices } from 'playwright';
 
 const args = process.argv.slice(2);
 const argOf = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
@@ -31,6 +31,15 @@ const SALIDA = argOf('out', path.join(import.meta.dirname, 'shots', 'publicado')
    panel sigue pintando números que ya no hay forma de auditar. */
 const PAGINAS = ['index.html', 'aether-globe-v3.html', 'aether-signal.html',
   'aether-vector.html', 'metodologia.html'];
+
+/** Cada página con un trozo de su <title>, para saber si se sirvió ELLA. */
+const PAGINAS_TITULO = [
+  ['index.html', 'Global Intelligence System'],
+  ['aether-globe-v3.html', 'Global Intelligence Globe'],
+  ['aether-signal.html', 'AETHER SIGNAL'],
+  ['aether-vector.html', 'AETHER VECTOR'],
+  ['metodologia.html', 'Metodología'],
+];
 const VENTANAS = [
   { nombre: '1440x900', width: 1440, height: 900 },
   { nombre: '390x844', width: 390, height: 844 },
@@ -232,6 +241,68 @@ const TERCEROS = /earthquake\.usgs\.gov|eonet\.gsfc\.nasa\.gov|api\.reliefweb\.i
      ninguna prueba se enterase: `syncAetherGlobeBridge()` lanzaba antes de
      `window.open` y la pestaña no llegaba a abrirse. Aquí se pulsa y se
      comprueba que el globo RENDERIZA, no solo que la URL cambió. */
+  /* ── SEGUNDA VISITA: con el service worker YA controlando ──────────────
+   *
+   * Todo lo de arriba se mide en la PRIMERA visita, cuando el worker se está
+   * instalando y todavía no decide qué se sirve. Esa diferencia escondió un
+   * fallo durante una versión entera: `aether-globe-v3.html?ctx=<marca>` no
+   * casaba con el precache, la navegación caía al respaldo y el respaldo
+   * servía `index.html`. El botón GLOBE llevaba a la portada, y solo a quien
+   * ya había estado antes.
+   *
+   * Se repite en los dos motores porque el aviso llegó de un iPhone, y el
+   * motor de iPhone es WebKit.
+   */
+  console.log('\n--- segunda visita, con el service worker controlando ---');
+  for (const [motor, nombreMotor] of [[chromium, 'Chromium'], [webkit, 'WebKit']]) {
+    const nav = await motor.launch();
+    for (const v of VENTANAS) {
+      const ctxSw = await nav.newContext({ viewport: { width: v.width, height: v.height } });
+      const inicio = await ctxSw.newPage();
+      await inicio.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 90000 });
+      await inicio.waitForTimeout(7000);
+      await inicio.reload({ waitUntil: 'load', timeout: 90000 });
+      await inicio.waitForTimeout(5000);
+      const controlando = await inicio.evaluate(() => !!navigator.serviceWorker.controller);
+      if (!controlando) {
+        mal(`${nombreMotor} ${v.nombre}: el service worker no llegó a controlar la página`);
+        await ctxSw.close();
+        continue;
+      }
+
+      let bien = 0;
+      for (const [pagina, trozo] of PAGINAS_TITULO) {
+        /* Con parámetros y sin ellos: el fallo no era del `?ctx=` en
+           concreto, era que CUALQUIER parámetro rompía la correspondencia.
+           `source` e `icon` son los del `start_url` del manifiesto. */
+        for (const query of ['', '?ctx=' + Date.now(), '?source=pwa&icon=okrtv2']) {
+          const page = await ctxSw.newPage();
+          const d = diagnosticos(page);
+          await page.goto(`${BASE}/${pagina}${query}`, { waitUntil: 'load', timeout: 90000 });
+          await page.waitForTimeout(pagina.includes('globe') ? 9000 : 2500);
+          const titulo = await page.title();
+          if (!titulo.includes(trozo)) {
+            mal(`${nombreMotor} ${v.nombre}: ${pagina}${query} muestra «${titulo}» (esperaba «${trozo}»)`);
+          } else if (d.pageErrors.length) {
+            mal(`${nombreMotor} ${v.nombre}: ${pagina}${query} da ${d.pageErrors.length} pageerror · ${d.pageErrors[0]}`);
+          } else if (d.csp.length) {
+            mal(`${nombreMotor} ${v.nombre}: ${pagina}${query} viola la CSP · ${d.csp[0]}`);
+          } else if (pagina.includes('globe')) {
+            const c = await page.evaluate(() => document.querySelectorAll('canvas').length);
+            if (c >= 2) bien++;
+            else mal(`${nombreMotor} ${v.nombre}: el globo no renderiza en la segunda visita (${c} canvas)`);
+          } else {
+            bien++;
+          }
+          await page.close();
+        }
+      }
+      if (bien) ok(`${nombreMotor} ${v.nombre}: ${bien} navegaciones correctas con el worker controlando`);
+      await ctxSw.close();
+    }
+    await nav.close();
+  }
+
   console.log('\n--- el botón GLOBE abre el globo ---');
   {
     const ctxBoton = await browser.newContext({ viewport: { width: 1440, height: 900 } });

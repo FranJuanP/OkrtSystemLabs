@@ -42,6 +42,31 @@ import '../dashboard/app-enhancements.js';
 import '../dashboard/app-robustness.js';
 import '../dashboard/okrt-flags-data.js';
 import { openAetherGlobe } from '../dashboard/globe-bridge.js';
+import { abrirPagina } from '../core/navegar.js';
+
+/**
+ * Que el panel estaba abierto, para poder VOLVER a él.
+ *
+ * `launchAether()` es una transición del DOM: esconde la portada y enseña el
+ * panel, sin dejar entrada en el historial ni rastro en ninguna parte. Eso
+ * estaba bien mientras el panel y el globo vivían en pestañas distintas, pero
+ * en un teléfono —donde ahora el globo se abre en la misma ventana— el botón
+ * «volver» aterrizaba en la PORTADA, con su animación de entrada, y había que
+ * pulsar otra vez para llegar al sitio del que se venía.
+ *
+ * Se recuerda en `sessionStorage`, no en `localStorage`, a propósito: dura lo
+ * que dura la sesión de la pestaña o de la app instalada. Quien entra nuevo
+ * sigue viendo la portada, que es lo que tiene que ver; quien vuelve del globo
+ * aterriza donde estaba.
+ */
+const CLAVE_PANEL = 'aether_panel_abierto';
+
+function recuerdaPanelAbierto() {
+  try { window.sessionStorage.setItem(CLAVE_PANEL, '1'); } catch (e) { /* bloqueado */ }
+}
+function seVeniaDelPanel() {
+  try { return window.sessionStorage.getItem(CLAVE_PANEL) === '1'; } catch (e) { return false; }
+}
 
 /**
  * Acciones del dashboard que se declaran en el HTML con `data-action`.
@@ -49,7 +74,7 @@ import { openAetherGlobe } from '../dashboard/globe-bridge.js';
  * `window.<nombre>` y fallaba en silencio si el motor aún no había cargado.
  */
 const ACTIONS = {
-  'launch-aether':     { on: 'click',   fn: (ev) => { ev.preventDefault(); launchAether(ev); } },
+  'launch-aether':     { on: 'click',   fn: (ev) => { ev.preventDefault(); recuerdaPanelAbierto(); launchAether(ev); } },
   'region-change':     { on: 'change',  fn: () => onRegionChange() },
   'render-ranking':    { on: 'change',  fn: () => renderRanking() },
   'run-analysis':      { on: 'click',   fn: () => runAnalysis() },
@@ -64,8 +89,12 @@ const ACTIONS = {
   'map-zoom-out':      { on: 'click',   fn: () => mapControls.zoomOut && mapControls.zoomOut() },
   'map-zoom-reset':    { on: 'click',   fn: () => mapControls.reset && mapControls.reset() },
   'open-globe':        { on: 'click',   fn: () => openAetherGlobe() },
-  'open-signal':       { on: 'click',   fn: () => window.open('aether-signal.html', '_blank', 'noopener') },
-  'open-vector':       { on: 'click',   fn: () => window.open('aether-vector.html', '_blank', 'noopener') },
+  /* Por `abrirPagina`, igual que GLOBE: con `'noopener'` en las opciones
+     `window.open` devuelve null siempre y no habia forma de saber si el
+     navegador habia bloqueado la ventana. Cuando la bloqueaba, estos dos
+     botones tampoco hacian nada. */
+  'open-signal':       { on: 'click',   fn: () => abrirPagina('aether-signal.html') },
+  'open-vector':       { on: 'click',   fn: () => abrirPagina('aether-vector.html') },
   'chat-keydown':      { on: 'keydown', fn: (ev) => {
       if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); sendChat(); }
     } },
@@ -74,8 +103,12 @@ const ACTIONS = {
 function bindActions() {
   // Botones de la portada que entran a la aplicación.
   document.querySelectorAll('[data-launch-aether]').forEach((el) => {
-    el.addEventListener('click', (ev) => { ev.preventDefault(); launchAether(ev); });
+    el.addEventListener('click', (ev) => { ev.preventDefault(); recuerdaPanelAbierto(); launchAether(ev); });
   });
+
+  /* Y si en esta sesión ya se había entrado, se entra directamente: es la
+     vuelta desde el globo, Signal o Vector. */
+  if (seVeniaDelPanel()) launchAether();
 
   document.querySelectorAll('[data-action]').forEach((el) => {
     const action = ACTIONS[el.getAttribute('data-action')];
