@@ -70,9 +70,15 @@ const FROZEN = Date.UTC(2026, 9, 17, 12, 0, 0);
   if (!cta) throw new Error('no se encontró el botón de entrada al dashboard');
   await cta.click();
 
-  // El mapa y el grafo se montan con retardo dentro de initAetherApp.
+  /* El grafo se monta con retardo, y la tarjeta del globo espera a los
+     datos. Antes se esperaba a '#world-map svg', un selector que no
+     existia -el id era #world-map-wrap- y que por el .catch() nunca
+     fallaba: la espera no esperaba a nada. */
   console.log('Esperando a que el dashboard termine de montarse ...');
-  await page.waitForSelector('#world-map svg, #map-wrap svg', { timeout: 30000 }).catch(() => {});
+  await page.waitForFunction(
+    () => document.getElementById('gt-fecha')
+      && !/cargando/i.test(document.getElementById('gt-fecha').textContent),
+    null, { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(7000);
 
   // Encuadre: la fila del termómetro y el ranking. El dashboard desplaza el

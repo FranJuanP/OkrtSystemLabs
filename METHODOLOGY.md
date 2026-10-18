@@ -623,6 +623,37 @@ comprobación de versión no pase nunca por la caché HTTP. En GitHub Pages no s
 pueden fijar cabeceras, así que es lo único que se puede controlar desde el
 código.
 
+#### El mapa 2D, y por qué ya no está
+
+El panel tenía un bloque «MAPA DE RIESGO GLOBAL»: un mapa coroplético de D3
+con filtros por categoría, zoom, arcos de tensión y dos leyendas. **Llevaba
+vacío desde la Fase 0.**
+
+La causa no era la fuente de datos ni una librería que faltase. La función que
+lo montaba, `initWorldMap()`, se llamaba desde `initAetherApp()`, y el router de
+la portada la invocaba así:
+
+```js
+if (typeof initAetherApp === 'function') initAetherApp();
+```
+
+Es decir, **buscándola como variable global**. Cuando la Fase 0 convirtió el
+panel en módulos ES, esas funciones dejaron de ser globales, la condición pasó a
+ser falsa para siempre y nadie volvió a llamarla. El mapa no fallaba: no se
+construía. Por eso no había ni un error en consola.
+
+El grafo de fuerzas se libró por casualidad: además de `initAetherApp()` se
+llama desde `loadRegion()`, dentro del propio módulo, donde sí está definida.
+
+En su hueco va una **tarjeta de acceso al globo 3D**, que es lo que el mapa
+plano intentaba ser. El fondo es una captura real del globo hecha con Playwright
+(`tools/capture-globo.mjs`), con el reloj fijado y la red externa cortada para
+que dos ejecuciones den el mismo fichero. Encima van el reparto por niveles y la
+fecha, leídos de `latest.json` igual que el ranking.
+
+Con el mapa se fueron `d3-geo`, `d3-zoom`, `d3-ease` y `topojson-client`, que ya
+no usa nadie. `d3-array` se queda, porque Vector usa su `range`.
+
 #### Cómo se pasa de una página a otra
 
 En un escritorio, GLOBE, SIGNAL y VECTOR abren una pestaña nueva: el panel se

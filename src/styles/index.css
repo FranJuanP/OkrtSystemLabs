@@ -174,3 +174,136 @@
   vertical-align:super;
   letter-spacing:0;
 }
+
+/* ── Tarjeta de acceso al globo 3D ─────────────────────────────────────────
+   Ocupa el hueco del mapa coroplético, con la misma caja de tarjeta y los
+   mismos acentos. El fondo es una captura real del globo. */
+.globo-tarjeta{
+  position:relative;
+  /* Flex para que el contenido ESTIRE hasta el alto de la tarjeta. Con
+     `display:block` y `height:100%` no funcionaba: el alto del padre lo fija
+     `min-height`, no una altura explícita, así que el 100% resolvía a auto y
+     el texto se amontonaba arriba dejando media tarjeta vacía. */
+  display:flex;
+  overflow:hidden;
+  padding:0;
+  text-decoration:none;
+  cursor:pointer;
+  /* La proporción de la captura (1400x600). `aspect-ratio` evita que la
+     tarjeta dé un salto de altura cuando la imagen termina de cargar. */
+  aspect-ratio:1400/600;
+  /* Y un tope, para que en pantallas muy anchas no se coma la página. */
+  max-height:560px;
+}
+.globo-tarjeta .gt-fondo{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  /* Un punto por debajo para que el texto de encima tenga contraste sin
+     necesidad de una capa opaca que esconda el planeta. */
+  filter:brightness(.82) saturate(1.05);
+}
+/* El degradado que separa el texto del fondo: oscuro abajo a la izquierda,
+   donde va todo, y transparente sobre el planeta. */
+.globo-tarjeta::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(105deg, rgba(5,10,16,.92) 0%, rgba(5,10,16,.72) 38%, rgba(5,10,16,0) 72%);
+  pointer-events:none;
+}
+.globo-tarjeta .gt-contenido{
+  position:relative; z-index:2;
+  flex:1; min-width:0;
+  display:flex; flex-direction:column;
+  gap:14px;
+  padding:16px 18px;
+}
+.globo-tarjeta .gt-cabecera{
+  display:flex; align-items:center; gap:8px;
+}
+/* Todo el texto va ENCIMA de la foto del planeta, que tiene zonas muy
+   claras —los continentes iluminados, los marcadores del Caribe—. Una sombra
+   corta lo hace legible sobre cualquiera de ellas sin tapar la imagen. */
+.globo-tarjeta .gt-titulo,
+.globo-tarjeta .gt-n,
+.globo-tarjeta .gt-l,
+.globo-tarjeta .gt-fecha{
+  text-shadow:0 1px 6px rgba(5,10,16,.95), 0 0 2px rgba(5,10,16,.9);
+}
+.globo-tarjeta .gt-titulo{
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px; letter-spacing:.18em;
+  color:var(--cyan);
+}
+.globo-tarjeta .gt-niveles{
+  display:flex; flex-wrap:wrap; gap:18px;
+  /* Empuja las cifras y el pie al fondo de la tarjeta. */
+  margin-top:auto;
+}
+.globo-tarjeta .gt-nivel{ display:flex; flex-direction:column; gap:2px; }
+.globo-tarjeta .gt-n{
+  font-family:'Share Tech Mono',monospace;
+  font-size:26px; line-height:1;
+}
+.globo-tarjeta .gt-l{
+  font-family:'Share Tech Mono',monospace;
+  font-size:8.5px; letter-spacing:.18em;
+  /* Más claro que `--dim`: sobre la foto, el gris de los paneles se pierde. */
+  color:rgba(210,228,240,.78);
+}
+.globo-tarjeta .gt-pie{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.globo-tarjeta .gt-boton{
+  display:inline-block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; letter-spacing:.16em;
+  padding:10px 20px; border-radius:999px;
+  color:#041018; background:rgba(0,255,200,.92);
+  border:1px solid rgba(0,255,200,.92);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.globo-tarjeta .gt-fecha{
+  font-family:'Share Tech Mono',monospace;
+  font-size:8.5px; letter-spacing:.14em;
+  color:rgba(210,228,240,.72);
+}
+.globo-tarjeta:hover .gt-boton,
+.globo-tarjeta:focus-visible .gt-boton{
+  transform:translateY(-1px);
+  box-shadow:0 4px 18px rgba(0,255,200,.35);
+}
+/* Toda la tarjeta es un enlace, así que el foco se marca en la tarjeta
+   entera y no solo en el botón. */
+.globo-tarjeta:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+}
+
+/* En un teléfono la proporción de la captura dejaría la tarjeta demasiado
+   baja para el texto: se le da altura propia y el fondo se recorta. */
+@media (max-width:640px){
+  .globo-tarjeta{ aspect-ratio:auto; min-height:330px; }
+  /* Velo más opaco que en escritorio: aquí el texto cae ENCIMA del planeta,
+     y sobre los continentes iluminados un rótulo de 8 px no se lee. El globo
+     se sigue viendo, que es lo que invita a pulsar. */
+  .globo-tarjeta::after{
+    background:linear-gradient(180deg, rgba(5,10,16,.90) 0%, rgba(5,10,16,.62) 42%, rgba(5,10,16,.94) 100%);
+  }
+  .globo-tarjeta .gt-contenido{
+    /* El título arriba, las cifras y el botón abajo, y el planeta respirando
+       en medio. */
+    justify-content:space-between;
+    padding:18px 16px 16px;
+  }
+  .globo-tarjeta .gt-niveles{ gap:0; justify-content:space-between; margin-top:0; }
+  .globo-tarjeta .gt-nivel{ align-items:center; flex:1; }
+  .globo-tarjeta .gt-n{ font-size:24px; }
+  .globo-tarjeta .gt-l{ font-size:8px; }
+  .globo-tarjeta .gt-pie{ flex-direction:column; align-items:stretch; gap:8px; }
+  .globo-tarjeta .gt-boton{ width:100%; text-align:center; padding:12px 16px; }
+  .globo-tarjeta .gt-fecha{ text-align:center; }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .globo-tarjeta .gt-boton{ transition:none; }
+}
