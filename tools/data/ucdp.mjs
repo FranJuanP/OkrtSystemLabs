@@ -319,20 +319,69 @@ export async function descargar(iso3Validos) {
     nombresIngles.set(normaliza(c.name), c.id);
   }
 
+  /* Un bloque de recuento: lo mismo se mide sobre la ventana movil y sobre
+     cada año natural, y se elige despues cual se publica. */
+  const bloque = () => ({
+    muertos: 0,
+    eventos: 0,
+    porTipo: { estatal: 0, noEstatal: 0, civiles: 0 },
+    parte: 0,
+    parteEventos: 0,
+    parteConflictos: new Set(),
+  });
+
   const acumulado = new Map();
   const toca = (iso) => {
     if (!acumulado.has(iso)) {
-      acumulado.set(iso, {
-        muertos12m: 0,
-        eventos12m: 0,
-        porTipo12m: { estatal: 0, noEstatal: 0, civiles: 0 },
-        porAnio: new Map(),
-        parte12m: 0,
-        parteEventos12m: 0,
-        parteConflictos: new Set(),
-      });
+      acumulado.set(iso, { ventana: bloque(), porAnio: new Map() });
     }
     return acumulado.get(iso);
+  };
+  /** El bloque del año natural `anio` de un país, creándolo si hace falta. */
+  const tocaAnio = (iso, anio) => {
+    const a = toca(iso);
+    if (!a.porAnio.has(anio)) a.porAnio.set(anio, bloque());
+    return a.porAnio.get(anio);
+  };
+
+  /**
+   * Suma el evento al territorio donde ocurre, en los bloques que toquen.
+   *
+   * @param {string} iso      país del evento
+   * @param {object} destinos {ventana:boolean, anio:number|null}
+   */
+  const anotaTerritorio = (iso, tipoBruto, best, destinos) => {
+    const tipo = TIPOS_VIOLENCIA[tipoBruto];
+    const aplica = [];
+    if (destinos.ventana) aplica.push(toca(iso).ventana);
+    if (destinos.anio != null) aplica.push(tocaAnio(iso, destinos.anio));
+    for (const b of aplica) {
+      b.muertos += best;
+      b.eventos += 1;
+      if (tipo) b.porTipo[tipo] += best;
+    }
+  };
+
+  /**
+   * Los países cuyo gobierno figura en un lado de un evento.
+   *
+   * Casi siempre es uno solo —«Government of Ukraine»—, pero el UCDP escribe
+   * las coaliciones en el mismo campo separadas por comas: la invasión de
+   * Irak sale como «Government of Australia, Government of United Kingdom,
+   * Government of United States of America». Sin partirlas, esa cadena entera
+   * no empareja con ningún país y la coalición se pierde entera.
+   *
+   * @returns {string[]} ISO3 sin repetir
+   */
+  const gobiernosDe = (lado) => {
+    const fuera = new Set();
+    for (const trozo of String(lado || '').split(',')) {
+      const m = /^\s*Government of (.+?)\s*$/.exec(trozo);
+      if (!m) continue;
+      const iso = isoDe(m[1], nombresIngles, null);
+      if (iso) fuera.add(iso);
+    }
+    return [...fuera];
   };
 
   /**
@@ -342,24 +391,28 @@ export async function descargar(iso3Validos) {
    * parte. No se reparte entre ellos ni se divide; la cifra responde a «en
    * cuánta violencia está metido este gobierno», no a quién la causó.
    */
-  const anotaPartes = (fila) => {
+  const anotaPartes = (fila, destinos) => {
     if (String(fila.type_of_violence) !== '1') return;
     const best = Number(fila.best) || 0;
+    /* Candidate trae conflictos recien codificados sin nombre todavia,
+       identificados con un codigo interno del tipo «XXX475». Esa cadena en
+       la ficha parece un error; las muertes si cuentan. */
+    const nombre = String(fila.conflict_name || '');
+    const etiqueta = !nombre ? null
+      : (/^XXX\d*$/i.test(nombre) ? 'conflicto aun sin nombre en UCDP' : nombre);
+
     for (const [ladoNombre, ladoGw] of [['side_a', 'gwnoa'], ['side_b', 'gwnob']]) {
       if (!fila[ladoGw]) continue;
-      const m = /^Government of (.+)$/.exec(String(fila[ladoNombre] || ''));
-      if (!m) continue;
-      const iso = isoDe(m[1], nombresIngles, null);
-      if (!iso) continue;
-      const a = toca(iso);
-      a.parte12m += best;
-      a.parteEventos12m += 1;
-      /* Candidate trae conflictos recien codificados sin nombre todavia,
-         identificados con un codigo interno del tipo «XXX475». Esa cadena
-         en la ficha parece un error; las muertes si cuentan. */
-      const nombre = String(fila.conflict_name || '');
-      if (nombre && !/^XXX\d*$/i.test(nombre)) a.parteConflictos.add(nombre);
-      else if (nombre) a.parteConflictos.add('conflicto aun sin nombre en UCDP');
+      for (const iso of gobiernosDe(fila[ladoNombre])) {
+        const aplica = [];
+        if (destinos.ventana) aplica.push(toca(iso).ventana);
+        if (destinos.anio != null) aplica.push(tocaAnio(iso, destinos.anio));
+        for (const b of aplica) {
+          b.parte += best;
+          b.parteEventos += 1;
+          if (etiqueta) b.parteConflictos.add(etiqueta);
+        }
+      }
     }
   };
 
@@ -376,6 +429,18 @@ export async function descargar(iso3Validos) {
   });
   if (!ultimaFecha) throw new Error('UCDP: Candidate no trae fechas utilizables');
 
+  /* La primera fecha de Candidate, que marca dónde deja de mandar GED.
+
+     Candidate NO es acumulativo: la versión 26.0.8 trae seis semanas
+     (2026-07-31 a 2026-09-09), no el año en curso entero. Saberlo importa
+     para no contar dos veces un día cubierto por los dos. */
+  let primeraCand = null;
+  for (const fila of filasCand) {
+    const d = new Date(fila.date_start || fila.date_end);
+    if (!isNaN(d) && (!primeraCand || d < primeraCand)) primeraCand = d;
+  }
+  if (!primeraCand) primeraCand = ultimaFecha;
+
   // Los últimos doce meses se cuentan hacia atrás desde la última fecha del
   // Candidate, no desde hoy: si el fichero va con un mes de retraso, «hoy»
   // metería un mes vacío y bajaría artificialmente el recuento.
@@ -386,15 +451,11 @@ export async function descargar(iso3Validos) {
     if (isNaN(d) || d < desde) continue;
     const best = Number(fila.best) || 0;
 
+    /* Candidate cubre el año en curso, que por definición no está completo:
+       sus eventos entran en la ventana y en ningún bloque anual. */
     const iso = isoDe(fila.country, nombresIngles, fila.adm_1);
-    if (iso) {
-      const a = toca(iso);
-      a.muertos12m += best;
-      a.eventos12m += 1;
-      const tipo = TIPOS_VIOLENCIA[fila.type_of_violence];
-      if (tipo) a.porTipo12m[tipo] += best;
-    }
-    anotaPartes(fila);
+    if (iso) anotaTerritorio(iso, fila.type_of_violence, best, { ventana: true, anio: null });
+    anotaPartes(fila, { ventana: true, anio: null });
   }
 
   // ── 2. GED: los años completos y el tramo que le falta a Candidate ───────
@@ -419,33 +480,24 @@ export async function descargar(iso3Validos) {
     aniosVistos.add(anio);
     const best = Number(campos[idx.best]) || 0;
     const d = new Date(campos[idx.date_end] || campos[idx.date_start]);
-    const enVentana = !isNaN(d) && d >= desde && d <= ultimaFecha;
+    /* El tramo de la ventana que Candidate no cubre. La cota superior evita
+       contar dos veces si una futura versión de GED llegase a solaparse con
+       Candidate: hoy GED acaba donde Candidate aún no ha empezado. */
+    const enVentana = !isNaN(d) && d >= desde && d <= ultimaFecha && d < primeraCand;
 
+    const destinos = { ventana: enVentana, anio };
     const iso = isoDe(campos[idx.country], nombresIngles, campos[idx.adm_1]);
-    if (iso) {
-      const a = toca(iso);
-      a.porAnio.set(anio, (a.porAnio.get(anio) || 0) + best);
+    if (iso) anotaTerritorio(iso, campos[idx.type_of_violence], best, destinos);
 
-      // Y el tramo de los doce meses que Candidate no cubre.
-      if (enVentana) {
-        a.muertos12m += best;
-        a.eventos12m += 1;
-        const tipo = TIPOS_VIOLENCIA[campos[idx.type_of_violence]];
-        if (tipo) a.porTipo12m[tipo] += best;
-      }
-    }
-
-    if (enVentana) {
-      anotaPartes({
-        type_of_violence: campos[idx.type_of_violence],
-        best: campos[idx.best],
-        side_a: campos[idx.side_a],
-        side_b: campos[idx.side_b],
-        gwnoa: campos[idx.gwnoa],
-        gwnob: campos[idx.gwnob],
-        conflict_name: campos[idx.conflict_name],
-      });
-    }
+    anotaPartes({
+      type_of_violence: campos[idx.type_of_violence],
+      best: campos[idx.best],
+      side_a: campos[idx.side_a],
+      side_b: campos[idx.side_b],
+      gwnoa: campos[idx.gwnoa],
+      gwnob: campos[idx.gwnob],
+      conflict_name: campos[idx.conflict_name],
+    }, destinos);
   });
 
   const ultimoCompleto = Math.max(...aniosVistos);
@@ -453,18 +505,34 @@ export async function descargar(iso3Validos) {
 
   const porPais = new Map();
   for (const [iso, a] of acumulado) {
-    const suma = tresAnios.reduce((t, y) => t + (a.porAnio.get(y) || 0), 0);
+    const vacio = bloque();
+    const ventana = a.ventana;
+    const anual = a.porAnio.get(ultimoCompleto) || vacio;
+    const suma = tresAnios.reduce((t, y) => t + ((a.porAnio.get(y) || vacio).muertos), 0);
+
+    /* Cuál de los dos se publica.
+       Gana el de más muertos, y se publica ENTERO: el desglose por tipo y la
+       cifra de parte vienen del mismo tramo que el total, porque mezclarlos
+       daría un desglose que no suma. */
+    const usaAnual = anual.muertos > ventana.muertos;
+    const elegido = usaAnual ? anual : ventana;
+
     porPais.set(iso, {
-      muertos12m: a.muertos12m,
-      eventos12m: a.eventos12m,
-      porTipo12m: a.porTipo12m,
-      media3anios: Math.round((suma / tresAnios.length) * 10) / 10,
-      anios3: tresAnios,
-      parte12m: a.parte12m,
-      parteEventos12m: a.parteEventos12m,
+      muertos: elegido.muertos,
+      eventos: elegido.eventos,
+      porTipo: elegido.porTipo,
+      parte: elegido.parte,
+      parteEventos: elegido.parteEventos,
       // Los nombres de los conflictos, para poder decir en cuáles está metido
       // y no solo cuántos muertos suman.
-      parteConflictos: [...a.parteConflictos].sort(),
+      parteConflictos: [...elegido.parteConflictos].sort(),
+      base: usaAnual ? 'anio_completo' : 'ventana_12m',
+      anioBase: usaAnual ? ultimoCompleto : null,
+      // Las dos cifras crudas, para poder enseñar por qué se eligió una.
+      muertosVentana: ventana.muertos,
+      muertosAnual: anual.muertos,
+      media3anios: Math.round((suma / tresAnios.length) * 10) / 10,
+      anios3: tresAnios,
     });
   }
 
@@ -480,6 +548,8 @@ export async function descargar(iso3Validos) {
       urlCandidate: version.candidate.url,
       desde: desde.toISOString().slice(0, 10),
       hasta: ultimaFecha.toISOString().slice(0, 10),
+      candidateDesde: primeraCand.toISOString().slice(0, 10),
+      ultimoAnioCompleto: ultimoCompleto,
       aniosCompletos: tresAnios,
       licencia: LICENCIA_UCDP,
       cita: CITA_UCDP,

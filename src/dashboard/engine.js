@@ -270,6 +270,27 @@ function drawGauge(svgId, score, color){
 /* Color y texto de cada nivel. Las claves son las de src/core/scoring.js.
    Los colores son los que ya usaba la aplicacion; lo que cambia es que
    ahora los asigna el tramo de la distribucion y no un umbral fijo. */
+/**
+ * De qué periodo son las cifras de conflicto de un país.
+ *
+ * No siempre son doce meses. Candidate, el fichero del año en curso, no es
+ * acumulativo: la version vigente trae seis semanas. Cuando el ultimo año
+ * natural cerrado de GED da mas muertos que esa ventana coja, se publica el
+ * año entero, y entonces la ficha tiene que decir «año 2025» y no «12 meses».
+ */
+function etiquetaPeriodo(c){
+  return c && c.base === 'anio_completo' && c.anioBase ? 'año ' + c.anioBase : '12 meses';
+}
+
+/** La explicacion de por que se ha usado ese periodo, para el tooltip. */
+function porQueEstePeriodo(c){
+  if(!c) return '';
+  if(c.base !== 'anio_completo') return 'Ventana de 12 meses: ';
+  return 'Se usa el año ' + c.anioBase + ' completo (' + Number(c.ultimoAnioCompleto || 0).toLocaleString('es-ES')
+    + ' muertos) y no la ventana de 12 meses (' + Number(c.ventana12m || 0).toLocaleString('es-ES')
+    + '), porque el fichero del año en curso del UCDP no es acumulativo y deja la ventana incompleta. Periodo publicado: ';
+}
+
 /** Severidad de cada nivel, para ordenar el ranking por etiqueta. */
 const ORDEN_NIVEL_RANKING = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
@@ -324,15 +345,15 @@ function actualizarPieDeNivel(d){
     } else if(!c.territorio && !c.parte){
       /* Un cero es un cero y no una laguna: decirlo evita que la ausencia de
          la linea se lea como «no hay dato». */
-      elCifras.textContent = '☗ UCDP · Sin muertos por violencia organizada (12 meses)';
-      elCifras.title = 'El UCDP no registra eventos de violencia organizada en este país en la ventana '
+      elCifras.textContent = '☗ UCDP · Sin muertos por violencia organizada (' + etiquetaPeriodo(c) + ')';
+      elCifras.title = 'El UCDP no registra eventos de violencia organizada en este país en '
         + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
     } else {
       const n = (v) => Number(v || 0).toLocaleString('es-ES');
-      // Las dos van siempre que haya alguna: un «como parte: 0» junto a 4.432
+      // Las dos van siempre que haya alguna: un «como parte: 0» junto a 7.843
       // en el territorio es justo lo que distingue a México de Rusia.
       elCifras.textContent = '☗ UCDP · En el territorio: ' + n(c.territorio)
-        + '  ·  Como parte: ' + n(c.parte) + ' muertos (12 meses)';
+        + '  ·  Como parte: ' + n(c.parte) + ' muertos (' + etiquetaPeriodo(c) + ')';
       const tipos = [];
       if(c.estatal) tipos.push('estatal ' + n(c.estatal));
       if(c.noEstatal) tipos.push('no estatal ' + n(c.noEstatal));
@@ -340,7 +361,8 @@ function actualizarPieDeNivel(d){
       elCifras.title = (tipos.length ? 'En el territorio, por tipo: ' + tipos.join(', ') + '. ' : '')
         + (c.conflictos && c.conflictos.length
           ? 'Parte en: ' + c.conflictos.slice(0, 6).join('; ') + '. ' : '')
-        + 'Ventana ' + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
+        + porQueEstePeriodo(c)
+        + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
     }
   }
 }

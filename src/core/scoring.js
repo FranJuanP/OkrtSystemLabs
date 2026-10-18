@@ -636,6 +636,17 @@ export function calcular(datos) {
     const c = datos.paises[iso].conflicto;
     if (!c) continue;
 
+    /* De que periodo es la cifra.
+
+       Candidate no es acumulativo: la version vigente trae seis semanas, no
+       el año en curso. Cuando el ultimo año natural cerrado de GED da mas
+       muertos que esa ventana coja, se publica el año entero. Decir «12
+       meses» entonces seria mentir sobre el periodo, asi que el texto lo
+       nombra: «en 2025». */
+    const periodo = c.base === 'anio_completo' && c.anio_base
+      ? `en ${c.anio_base}`
+      : 'en 12 meses';
+
     // Las dos cifras van siempre, haya suelo o no: la ficha las ensena.
     p.conflicto = {
       territorio: Number(c.territorio_12m) || 0,
@@ -644,6 +655,11 @@ export function calcular(datos) {
       civiles: Number(c.civiles_12m) || 0,
       parte: Number(c.parte_12m) || 0,
       conflictos: c.parte_conflictos || [],
+      base: c.base || 'ventana_12m',
+      anioBase: c.anio_base || null,
+      ventana12m: Number(c.ventana_12m) || 0,
+      ultimoAnioCompleto: Number(c.ultimo_anio_completo) || 0,
+      periodo,
       desde: c.desde,
       hasta: c.hasta,
       fuente: c.source,
@@ -666,9 +682,10 @@ export function calcular(datos) {
       clase: suelo.etiqueta,
       ambito: suelo.ambito,
       desde: p.nivelPorPercentil.etiqueta,
+      periodo,
       motivo: suelo.id === 'parte'
-        ? `parte en conflicto armado activo (UCDP): ${cifra} muertos en 12 meses`
-        : `nivel elevado por conflicto activo (UCDP): ${cifra} muertos en 12 meses (${suelo.etiqueta})`,
+        ? `parte en conflicto armado activo (UCDP): ${cifra} muertos ${periodo}`
+        : `nivel elevado por conflicto activo (UCDP): ${cifra} muertos ${periodo} (${suelo.etiqueta})`,
       detalle: suelo.descripcion,
     };
   }

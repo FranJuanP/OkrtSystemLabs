@@ -255,9 +255,9 @@ async function main() {
       if (ind.fuente === 'ucdp') {
         if (!datosUcdp || !p.iso3) continue;
         const u = datosUcdp.porPais.get(p.iso3);
-        const valor = ind.id === 'muertes_conflicto'
-          ? (u ? u.muertos12m : 0)
-          : (u ? u.media3anios : 0);
+        const valor = ind.id === 'muertes_conflicto' ? (u ? u.muertos : 0)
+          : ind.id === 'muertes_conflicto_parte' ? (u ? u.parte : 0)
+            : (u ? u.media3anios : 0);
         entrada.indicadores[ind.id] = {
           value: valor,
           unit: ind.unidad,
@@ -298,16 +298,34 @@ async function main() {
        civiles no significan lo mismo. */
     if (datosUcdp && p.iso3) {
       const u = datosUcdp.porPais.get(p.iso3);
+      /* De qué tramo sale la cifra.
+
+         Candidate NO es acumulativo: la versión vigente trae seis semanas,
+         no el año en curso. Con solo eso, la «ventana de 12 meses» se queda
+         sin los siete meses que median entre el final de GED y el principio
+         de Candidate, y todos los países en guerra parecen haberse calmado.
+         Cuando el último año natural cerrado de GED da más muertos que la
+         ventana, se publica ESE año y se dice cuál se ha usado. */
+      const base = u ? u.base : 'ventana_12m';
+      const periodo = base === 'anio_completo'
+        ? { desde: `${u.anioBase}-01-01`, hasta: `${u.anioBase}-12-31` }
+        : { desde: datosUcdp.version.desde, hasta: datosUcdp.version.hasta };
+
       entrada.conflicto = {
-        territorio_12m: u ? u.muertos12m : 0,
-        estatal_12m: u ? u.porTipo12m.estatal : 0,
-        no_estatal_12m: u ? u.porTipo12m.noEstatal : 0,
-        civiles_12m: u ? u.porTipo12m.civiles : 0,
-        parte_12m: u ? u.parte12m : 0,
+        territorio_12m: u ? u.muertos : 0,
+        estatal_12m: u ? u.porTipo.estatal : 0,
+        no_estatal_12m: u ? u.porTipo.noEstatal : 0,
+        civiles_12m: u ? u.porTipo.civiles : 0,
+        parte_12m: u ? u.parte : 0,
         parte_conflictos: u ? u.parteConflictos : [],
         media_3anios: u ? u.media3anios : 0,
-        desde: datosUcdp.version.desde,
-        hasta: datosUcdp.version.hasta,
+        base,
+        anio_base: u && u.anioBase != null ? u.anioBase : null,
+        ventana_12m: u ? u.muertosVentana : 0,
+        ultimo_anio_completo: u ? u.muertosAnual : 0,
+        desde: periodo.desde,
+        hasta: periodo.hasta,
+        candidate_desde: datosUcdp.version.candidateDesde,
         source: FUENTES.ucdp.corto,
         url: FUENTES.ucdp.url,
         version: `GED ${datosUcdp.version.ged} · Candidate ${datosUcdp.version.candidate}`,

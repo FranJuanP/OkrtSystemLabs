@@ -59,18 +59,57 @@ desfasado sin que nadie se entere.
 
 Tres medidas por país:
 
-- **Muertos en el territorio, últimos 12 meses.** Se cuentan hacia atrás desde
-  la última fecha que trae Candidate, no desde hoy: si el fichero va con un mes
-  de retraso, «hoy» metería un mes vacío y bajaría el recuento
-  artificialmente. Como Candidate solo cubre el año en curso, el tramo anterior
-  sale de GED. Se guarda además **desglosada por los tres tipos de violencia
-  organizada** que distingue el UCDP (estatal, no estatal y unilateral contra
-  civiles), porque el nivel mínimo depende del tipo y no solo del total.
-- **Muertos en los conflictos en los que el país es parte**, mismos 12 meses.
-  Ver la sección siguiente.
+- **Muertos en el territorio**, desglosados además por los **tres tipos de
+  violencia organizada** que distingue el UCDP (estatal, no estatal y
+  unilateral contra civiles), porque el nivel mínimo depende del tipo y no solo
+  del total.
+- **Muertos en los conflictos en los que el país es parte**, mismo periodo. Ver
+  más abajo.
 - **Media de los tres últimos años completos** en el territorio, de GED. Junto
   a la primera distingue una violencia reciente de una sostenida: un país puede
   tener un año tranquilo tras una guerra larga, y al revés.
+
+#### Qué periodo es «el periodo»
+
+Esto costó un susto, y conviene contarlo entero.
+
+La idea de partida era una **ventana móvil de 12 meses**, contada hacia atrás
+desde la última fecha que trae Candidate y no desde hoy: si el fichero va con un
+mes de retraso, «hoy» metería un mes vacío y bajaría el recuento
+artificialmente.
+
+El problema es que **Candidate no es acumulativo**. La documentación invita a
+leerlo como «el año en curso», pero la versión 26.0.8 trae **2.275 eventos de
+seis semanas** —del 31 de julio al 9 de septiembre de 2026—, no de los nueve
+meses transcurridos. Cada entrega mensual es un incremento, no el año entero.
+
+Con GED cerrando en el 31 de diciembre de 2025, la ventana de 12 meses quedaba
+así:
+
+```
+2025-09-09 ────── GED ──────▶ 2025-12-31    3,7 meses con datos
+2026-01-01 ─── sin datos ───▶ 2026-07-30    7 meses vacíos
+2026-07-31 ─ Candidate ─────▶ 2026-09-09    1,3 meses con datos
+```
+
+Cinco meses de cobertura presentados como doce. El efecto es sistemático y de
+un solo signo: **16 de los 18 países que se desviaban más del 50 % de su media
+de tres años lo hacían a la baja**, entre un −53 % y un −95 %. Rusia aparecía
+con 266 muertos, Siria con 173, el Líbano con 127. No se habían calmado: les
+faltaban siete meses.
+
+Así que la cifra que se publica es **el máximo entre la ventana de 12 meses y el
+último año natural cerrado de GED**, y se publica el bloque **entero** del tramo
+que gana —total, desglose por tipo y cifra de parte—, porque mezclar tramos
+daría un desglose que no suma su propio total.
+
+Hoy eso significa que **53 de los 217 países** llevan el año 2025 completo y los
+164 restantes la ventana. La ficha del país **dice cuál**: «muertos (año 2025)»
+frente a «muertos (12 meses)», y el *tooltip* da las dos cifras y el motivo.
+
+Es un arreglo, no una solución elegante. La solución elegante sería una ventana
+de 12 meses de verdad, y no la hay mientras el hueco exista: lo único honesto es
+publicar el periodo mejor cubierto y **decir cuál es**.
 
 **Un cero es un cero.** Que el UCDP no registre eventos en Noruega es
 información, no una laguna, así que los 217 países llevan dato y no solo los
@@ -79,9 +118,9 @@ información, no una laguna, así que los 217 países llevan dato y no solo los
 #### Parte en el conflicto, y no solo sede del conflicto
 
 Contar solo lo que ocurre **dentro** de un país deja fuera la mitad de la
-pregunta. Rusia tuvo 266 muertos por violencia organizada en su territorio en
-los últimos 12 meses; en la guerra en la que es parte, 47.931. Israel tuvo 4 en
-su territorio y 2.507 en los conflictos en los que es parte. Describir a
+pregunta. Rusia tuvo 4.412 muertos por violencia organizada en su territorio en
+2025; en la guerra en la que es parte, 93.823. Israel tuvo 38 en su territorio y
+15.271 en los conflictos en los que es parte. Describir a
 cualquiera de los dos con la primera cifra sería exacto y, a la vez, falso.
 
 No hace falta ningún criterio propio para medirlo: **GED y Candidate traen los
@@ -91,11 +130,16 @@ Para cada evento de violencia **estatal** (`type_of_violence = 1`) se suma su
 estimación de muertos a los gobiernos que aparecen como parte, ocurra donde
 ocurra.
 
-Se comprobó antes de escribirlo: de los actores con número Gleditsch-Ward en la
-ventana, **los 41 se llaman «Government of X»**, y ninguno es una coalición
-separada por comas. Así que basta leer ese patrón y resolver el nombre del país
-con la misma tabla que ya se usa para el resto; no hace falta una tabla nueva de
-equivalencias.
+Los actores con número Gleditsch-Ward se llaman todos **«Government of X»**, así
+que basta leer ese patrón y resolver el nombre del país con la misma tabla que
+ya se usa para el resto; no hace falta una tabla nueva de equivalencias.
+
+Con una excepción que apareció al extender el cálculo a los años completos: el
+UCDP escribe las **coaliciones en el mismo campo, separadas por comas**. La
+invasión de Irak sale como «Government of Australia, Government of United
+Kingdom, Government of United States of America». Sin partir esa cadena no
+empareja con ningún país y la coalición entera se pierde, así que el campo se
+divide por comas y cada trozo se resuelve por separado.
 
 Dos consecuencias que conviene decir en voz alta:
 
@@ -107,12 +151,46 @@ Dos consecuencias que conviene decir en voz alta:
   como parte, porque en el conflicto «Israel: Palestine» quien el UCDP codifica
   enfrente de Israel son Hamás y la Yihad Islámica, actores no estatales sin
   número Gleditsch-Ward. No es una laguna del cálculo: es lo que dice el dato, y
-  por eso en su ficha la cifra informativa es la del territorio (2.320).
+  por eso en su ficha la cifra informativa es la del territorio (14.511).
 
 Las dos cifras se guardan **por separado** en `latest.json`
 (`conflicto.territorio_12m` y `conflicto.parte_12m`), y la ficha del país las
 enseña con su etiqueta. No se suman nunca: sumarlas contaría dos veces los
 muertos de una guerra en el propio territorio.
+
+#### Sudán, o por qué «en el territorio» y «como parte» se separan tanto
+
+Es el ejemplo que mejor explica la diferencia entre las dos medidas, y conviene
+tenerlo a mano porque a primera vista parece un error del cálculo.
+
+En 2025 el UCDP sitúa **68.210 muertos en Sudán** y solo **6.806** en conflictos
+en los que el gobierno sudanés es parte. Desglosado por díada, lo que pasa es
+esto:
+
+| tipo | díada | muertos |
+|---|---|---|
+| 3 · unilateral | SFA – Civilians | 60.748 |
+| 1 · estatal | Government of Sudan – SFA | 4.978 |
+| 1 · estatal | Government of Sudan – RSF | 1.748 |
+| 3 · unilateral | Government of Sudan – Civilians | 348 |
+| 3 · unilateral | RSF – Civilians | 176 |
+
+El **89 %** de los muertos son **violencia unilateral contra civiles**, que por
+definición del UCDP no es un conflicto estatal y por tanto no tiene partes. La
+mayor parte corresponde a la toma de El Fasher de finales de octubre de 2025 y
+a las matanzas posteriores.
+
+El emparejamiento funciona: la díada estatal lleva `gwnoa = 625`, Sudán, y sus
+muertos se suman al gobierno sudanés como parte. Que la cifra de parte sea mucho
+menor **no es un fallo del cruce**: es que casi toda esa violencia no es un
+conflicto entre partes.
+
+**SFA** es la *Sudan Founding Alliance*, constituida el 23 de febrero de 2025 e
+integrada por las RSF, el SPLM/A-North y grupos de Darfur. Desde entonces el
+UCDP deja de codificar a las **RSF como actor independiente** y pasa a usar la
+alianza, que es por qué el nombre de la díada cambia a mitad de serie. Está en
+las fichas del propio UCDP: <https://ucdp.uu.se/actor/8635> y
+<https://ucdp.uu.se/onesided/18623>.
 
 #### Gaza y Cisjordania
 
@@ -333,13 +411,17 @@ guerra en la clasificación del UCDP:
 Gana la regla **más severa** de las que cumple; a igual nivel, la de más
 muertos, que es la que mejor lo explica.
 
-El desglose por tipo importa, y no es un detalle teórico: **México** tiene 4.432
-muertos en su territorio, de los que 4.404 son violencia entre grupos no
-estatales y **4** estatal. Con un umbral único sobre el total salía CRÍTICO,
+El desglose por tipo importa, y no es un detalle teórico: **México** tiene 7.843
+muertos en su territorio en 2025, de los que **7.767 son violencia entre grupos
+no estatales y 0 estatal**. Con un umbral único sobre el total salía CRÍTICO,
 junto a Ucrania y Sudán. Con el desglose sale ALTO, que es lo que dice el dato:
-hay una violencia criminal enorme y no una guerra. Al revés pasa con
-**Pakistán**, cuyos 1.557 muertos **sí** son violencia estatal y lo llevan a
-CRÍTICO.
+hay una violencia criminal enorme y no una guerra.
+
+Y el mismo criterio explica por qué **Sudán no sube por el umbral**: sus 68.210
+muertos son en un 89 % violencia unilateral contra civiles, que da suelo ALTO y
+no CRÍTICO. Sudán ya es CRÍTICO por percentil, así que el suelo no cambia nada;
+pero si no lo fuese, la etiqueta diría «violencia contra civiles» y no
+«guerra», porque eso es lo que mide el dato.
 
 **Es un suelo, no un techo:** si el percentil ya sitúa al país más arriba,
 manda el percentil. Y se aplica a la **etiqueta**, no al índice: el número
@@ -347,13 +429,13 @@ sigue siendo la combinación de las categorías y se puede seguir explicando
 como tal.
 
 Cuando se aplica, la ficha del país lo dice con la cifra —*«nivel elevado por
-conflicto activo (UCDP): 47.667 muertos en 12 meses (guerra)»*, o *«parte en
-conflicto armado activo (UCDP): 47.931 muertos en 12 meses»*— y muestra además
+conflicto activo (UCDP): 89.413 muertos en 2025 (guerra)»*, o *«parte en
+conflicto armado activo (UCDP): 15.271 muertos en 2025»*— y muestra además
 dónde caería por percentil. Sin eso, un CRÍTICO junto a un índice de 71 no
 habría forma de entenderlo.
 
-Con los datos de octubre de 2026 se eleva el nivel de **17 países**, y el
-reparto deja de ser exactamente 5/15/30/50 —queda en 15/44/59/99—: los tramos
+Con los datos de octubre de 2026 se eleva el nivel de **25 países**, y el
+reparto deja de ser exactamente 5/15/30/50 —queda en 20/45/53/99—: los tramos
 pasan a ser un mínimo, no una cuota.
 
 #### El ranking va por nivel, no por índice
@@ -366,8 +448,8 @@ el de ellos. Y la etiqueta es lo que el usuario lee.
 Así que el ranking ordena primero por **nivel final** (CRÍTICO, ALTO, MEDIO,
 BAJO) y dentro de cada nivel por índice. Los países cuyo nivel viene del umbral
 de conflicto llevan una **↑** junto al nombre, y su *tooltip* da el motivo —el
-mismo texto que la ficha—. Sin esa marca, ver a Israel (índice 54) por encima
-de Irán (67) parecería un error de cálculo.
+mismo texto que la ficha—. Sin esa marca, ver a Israel (índice 55) por encima
+de países con 70 parecería un error de cálculo.
 
 La barra de cada fila sigue midiendo el **índice**, que es lo que mide: en un
 país elevado se ve corta a propósito, y la flecha explica por qué está donde
