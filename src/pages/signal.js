@@ -13,6 +13,9 @@ import '../core/storage.js';
 import '../core/visibility.js';
 import '../core/mobile-viewport-fix.js';
 import '../core/pwa-register.js';
+// En movil o en la app instalada esta pagina se abre en la MISMA ventana;
+// sin esto no habria forma de volver al panel.
+import '../core/volver.js';
 
 import { loadAll, filterCat, sortBy } from '../signal/engine.js';
 import { installSignalBoost } from '../signal/feed-boost.js';

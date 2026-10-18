@@ -5,6 +5,7 @@
  * variables globales; ahora las dependencias son imports explícitos.
  */
 import { AETHER_STORAGE } from '../core/storage.js';
+import { abrirPagina } from '../core/navegar.js';
 function $(id){ return document.getElementById(id); }
 // T7: escribe a traves del contrato, que valida el esquema de la clave.
 function safeSet(k,v){
@@ -60,10 +61,15 @@ window.syncAetherGlobeBridge = function(){
   safeSet('aether_horizon', ctx.horizon);
   return ctx;
 };
-/** La página del globo, con una marca de tiempo para no servir una copia. */
-function urlDelGlobo(){
-  return 'aether-globe-v3.html?ctx=' + Date.now();
-}
+/* La página del globo, SIN parámetros.
+
+   Llevaba `?ctx=<marca de tiempo>`, que no aportaba nada: el contexto viaja
+   por localStorage, que es lo que el globo lee. Y costaba caro: Workbox busca
+   en su precache por URL exacta salvo los parámetros que se le digan, y con
+   `?ctx=` no encontraba la entrada; la navegación caía al respaldo y el
+   respaldo servía la portada. En un iPhone, con el service worker ya
+   controlando, pulsar GLOBE llevaba al panel. */
+const URL_GLOBO = 'aether-globe-v3.html';
 
 /**
  * Abre el globo. Pase lo que pase.
@@ -89,33 +95,10 @@ export function openAetherGlobe(){
     console.error('[AETHER] el contexto para el globo no se pudo preparar; '
       + 'se abre igualmente, sin él:', err);
   }
-
-  /* Sin 'noopener' en las opciones, A PROPOSITO.
-
-     Con esa opcion `window.open` devuelve `null` SIEMPRE, por especificacion,
-     haya abierto la pestaña o no. Es decir: no hay forma de distinguir el
-     exito del bloqueo, y el primer intento de este arreglo acababa navegando
-     la pestaña actual ADEMAS de abrir la nueva, en todos los casos.
-
-     El aislamiento se consigue igual poniendo `opener` a null a continuacion,
-     que es lo que ya intentaba el codigo anterior —y que con 'noopener' nunca
-     llegaba a ejecutarse, porque `w` era null—. La pagina de destino es una
-     nuestra y del mismo origen, asi que no hay nada que aislar de un tercero. */
-  let w = null;
-  try {
-    w = window.open(urlDelGlobo(), '_blank');
-  } catch (err) {
-    console.error('[AETHER] window.open ha fallado:', err);
-  }
-
-  if (w) { try { w.opener = null; } catch(e){} return w; }
-
-  /* Emergente bloqueada. Antes el botón no hacía nada; ahora el globo se abre
-     en esta misma pestaña, que es peor que una pestaña nueva pero
-     incomparablemente mejor que nada. */
-  console.warn('[AETHER] ventana emergente bloqueada; el globo se abre en esta pestaña.');
-  window.location.href = urlDelGlobo();
-  return null;
+  /* `abrirPagina` decide pestaña nueva o misma ventana, y sobrevive al
+     bloqueo de emergentes. Es el mismo camino que SIGNAL y VECTOR: los tres
+     botones hacian lo mismo mal, cada uno por su cuenta. */
+  return abrirPagina(URL_GLOBO);
 }
 function installBridgeHooks(){
   try { window.syncAetherGlobeBridge(); } catch(e){}

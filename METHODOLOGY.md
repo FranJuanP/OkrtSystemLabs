@@ -591,6 +591,29 @@ Ahora salen los cinco primeros del mismo orden que el ranking, con las mismas
 etiquetas. Los datos ya venían de `latest.json`; lo escrito a mano era **quiénes
 aparecían**.
 
+#### Cómo se pasa de una página a otra
+
+En un escritorio, GLOBE, SIGNAL y VECTOR abren una pestaña nueva: el panel se
+queda donde estaba y se vuelve a él con la pestaña. En un **teléfono** o en la
+**app instalada** eso no funciona —el navegador apila las pestañas fuera de la
+vista y en modo `standalone` no hay ninguna—, así que la navegación ocurre en la
+misma ventana y aparece un botón **← PANEL** que no existe en escritorio.
+
+Ese botón vuelve al **panel**, no a la portada. `launchAether()` es una
+transición del DOM sin entrada en el historial, así que volver aterrizaba en la
+animación de entrada y había que pulsar otra vez; ahora se recuerda en
+`sessionStorage` que el panel estaba abierto. Dura lo que dura la sesión: quien
+entra nuevo sigue viendo la portada.
+
+**Las URL de las páginas no llevan parámetros.** El botón GLOBE abría
+`aether-globe-v3.html?ctx=<marca de tiempo>`, que no aportaba nada —el contexto
+viaja por `localStorage`— y rompía el precache del service worker: Workbox busca
+por URL exacta salvo los parámetros que se le digan, y por defecto solo ignora
+`utm_*` y `fbclid`. La navegación caía al respaldo, el respaldo servía
+`index.html`, y pulsar GLOBE llevaba a la portada con la URL del globo en la
+barra de direcciones. Solo le pasaba a quien ya había estado antes, porque el
+worker tiene que estar controlando la página para decidir qué se sirve.
+
 ---
 
 ## 4. Confianza

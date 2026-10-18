@@ -27,18 +27,57 @@ import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategi
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
+/**
+ * Parámetros que NO cambian qué documento se pide.
+ *
+ * Esto costó un fallo que solo se veía en la segunda visita, y en móvil.
+ *
+ * El botón GLOBE abría `aether-globe-v3.html?ctx=<marca de tiempo>`. Workbox
+ * busca en el precache por URL exacta salvo los parámetros que se le digan, y
+ * por defecto solo ignora `utm_*` y `fbclid`: con `?ctx=` no encontraba la
+ * entrada, la navegación caía al respaldo y el respaldo servía `index.html`.
+ * El usuario pulsaba GLOBE y aterrizaba en la portada, con la URL del globo en
+ * la barra de direcciones.
+ *
+ * `source` e `icon` son del `start_url` del manifiesto
+ * (`./index.html?source=pwa&icon=okrtv2`), así que la app instalada arrancaba
+ * por el mismo camino de respaldo. Ahí daba igual —el respaldo ES index.html—
+ * pero era suerte, no diseño.
+ *
+ * Se conservan los dos por defecto de Workbox, que no vienen incluidos al
+ * pasar la opción.
+ */
+const PARAMETROS_IGNORABLES = [/^utm_/, /^fbclid$/, /^ctx$/, /^source$/, /^icon$/];
+
 /** Lista inyectada por Vite: cada recurso del build con su revisión. */
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(self.__WB_MANIFEST, {
+  ignoreURLParametersMatching: PARAMETROS_IGNORABLES,
+});
 cleanupOutdatedCaches();
 
-/** Las cuatro páginas son navegaciones; se sirven del precache. */
-const PAGES = ['index.html', 'aether-globe-v3.html', 'aether-signal.html', 'aether-vector.html'];
+/** Las páginas que el sitio publica, cada una con su entrada en el precache. */
+const PAGES = [
+  'index.html', 'aether-globe-v3.html', 'aether-signal.html',
+  'aether-vector.html', 'metodologia.html',
+];
+
+/**
+ * El respaldo de navegación, acotado.
+ *
+ * `index.html` solo puede servir de respaldo para navegaciones que no sean
+ * ninguna de las páginas conocidas. Antes la lista de excepciones se anclaba
+ * con `$` —`/aether-globe-v3\.html$/`— y Workbox compara contra
+ * `pathname + search`: en cuanto había un parámetro, la excepción dejaba de
+ * aplicarse y la página se convertía en la portada.
+ *
+ * Ahora la excepción admite parámetros y están las CINCO páginas; antes
+ * faltaba `metodologia.html`, que se libraba solo porque su URL sin
+ * parámetros sí casa con el precache.
+ */
 registerRoute(new NavigationRoute(
   createHandlerBoundToURL('index.html'),
   {
-    // Cada página tiene su propia entrada; solo se usa index como respaldo
-    // de navegaciones que no correspondan a ninguna.
-    denylist: PAGES.map((p) => new RegExp(p.replace('.', '\\.') + '$')),
+    denylist: PAGES.map((p) => new RegExp(p.replace(/\./g, '\\.') + '(\\?|$)')),
   },
 ));
 
