@@ -13,6 +13,7 @@ import path from 'node:path';
 import {
   normalizarUSGS, normalizarEONET, normalizarReliefWeb, normalizarGDELT,
   CONSULTAS_GDELT, urlGDELT, URLS, rehidratar, FUENTES_PENDIENTES, normalizarWHO,
+  normalizarGDACS, fueraDuplicadosGeo, urlGDACS, LIMITES_GDACS, ATRIBUCION_GDACS,
 } from '../../src/signal/normalizar.js';
 
 const FIXTURES = path.join(import.meta.dirname, '..', 'fixtures');
@@ -247,5 +248,172 @@ describe('fuentes', () => {
 
   it('no queda ninguna URL de ReliefWeb que se pueda llamar por descuido', () => {
     expect(URLS.reliefweb).toBeUndefined();
+  });
+});
+
+describe('GDACS', () => {
+  /** Un evento como los que devuelve la API, con lo justo. */
+  const evento = (o) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [o.lng ?? 0, o.lat ?? 0] },
+    properties: {
+      eventtype: 'EQ', eventid: 1, episodeid: 0, alertlevel: 'Orange',
+      country: 'Panama', fromdate: '2026-10-09T17:56:06',
+      datemodified: '2026-10-09T18:10:00',
+      severitydata: { severitytext: 'Magnitude 7.7M, Depth:12.647km' },
+      url: { report: 'https://www.gdacs.org/report.aspx?eventid=1' },
+      ...o,
+    },
+  });
+  const coleccion = (...evs) => ({ type: 'FeatureCollection', features: evs });
+
+  it('traduce el nivel de alerta a la escala del feed', () => {
+    const d = coleccion(
+      evento({ eventid: 1, alertlevel: 'Red' }),
+      evento({ eventid: 2, alertlevel: 'Orange' }),
+      evento({ eventid: 3, alertlevel: 'Green' }),
+    );
+    const sev = normalizarGDACS(d).map((e) => e.severity);
+    expect(sev).toContain('CRITICAL');
+    expect(sev).toContain('HIGH');
+    expect(sev).toContain('LOW');
+  });
+
+  it('usa la fecha del evento, no la de publicación', () => {
+    /* Una sequía en curso empezó cuando empezó; fecharla con `datemodified`
+       la haría parecer una noticia de hoy. */
+    const [e] = normalizarGDACS(coleccion(evento({})));
+    expect(e.time.toISOString()).toContain('2026-10-09T17:56');
+  });
+
+  it('lee las fechas como UTC aunque no lleven zona', () => {
+    /* GDACS las manda sin sufijo y `new Date()` las tomaría como hora local:
+       el mismo evento saldría con una hora distinta según dónde corra el
+       proceso, y cerca de medianoche con un día distinto. */
+    const [e] = normalizarGDACS(coleccion(evento({ fromdate: '2026-10-09T00:30:00' })));
+    expect(e.time.toISOString()).toBe('2026-10-09T00:30:00.000Z');
+  });
+
+  it('respeta la zona si la trae', () => {
+    const [e] = normalizarGDACS(coleccion(evento({ fromdate: '2026-10-09T02:30:00+02:00' })));
+    expect(e.time.toISOString()).toBe('2026-10-09T00:30:00.000Z');
+  });
+
+  it('enlaza a la ficha del evento', () => {
+    const [e] = normalizarGDACS(coleccion(evento({})));
+    expect(e.url).toBe('https://www.gdacs.org/report.aspx?eventid=1');
+  });
+
+  it('se inventa el enlace si la API no lo trae', () => {
+    const [e] = normalizarGDACS(coleccion(evento({ url: null, eventtype: 'TC', eventid: 42 })));
+    expect(e.url).toBe('https://www.gdacs.org/report.aspx?eventtype=TC&eventid=42');
+  });
+
+  it('va a la categoría humanitaria, sea cual sea el fenómeno', () => {
+    // GDACS no mide el suceso sino si hace falta ayuda internacional.
+    const cats = normalizarGDACS(coleccion(
+      evento({ eventid: 1, eventtype: 'EQ' }),
+      evento({ eventid: 2, eventtype: 'DR' }),
+    )).map((e) => e.cat);
+    expect(new Set(cats)).toEqual(new Set(['humanitarian']));
+  });
+
+  it('distingue dos eventos del mismo tipo y país', () => {
+    /* Dos volcanes filipinos salían los dos como «Volcán — Philippines» y la
+       deduplicación por título del feed se comía el segundo. */
+    const t = normalizarGDACS(coleccion(
+      evento({ eventid: 1, eventtype: 'VO', eventname: 'Kanlaon', country: 'Philippines', severitydata: {} }),
+      evento({ eventid: 2, eventtype: 'VO', eventname: 'Taal', country: 'Philippines', severitydata: {} }),
+    )).map((e) => e.title);
+    expect(new Set(t).size).toBe(2);
+    expect(t.join(' ')).toContain('Kanlaon');
+    expect(t.join(' ')).toContain('Taal');
+  });
+
+  it('acorta la lista de países de una sequía', () => {
+    const [e] = normalizarGDACS(coleccion(evento({
+      eventtype: 'DR', country: 'Kenya, Uganda, Tanzania, Somalia', severitydata: {},
+    })));
+    expect(e.title).toContain('Kenya y 3 más');
+    // Pero la lista entera sigue estando, para quien la quiera.
+    expect(e.location).toBe('Kenya, Uganda, Tanzania, Somalia');
+  });
+
+  it('dice que la alerta es automática', () => {
+    const [e] = normalizarGDACS(coleccion(evento({})));
+    expect(e.detail).toContain('sin revisión humana');
+  });
+
+  it('respeta el límite de eventos y se queda con los más recientes', () => {
+    const d = coleccion(
+      evento({ eventid: 1, fromdate: '2026-01-01T00:00:00' }),
+      evento({ eventid: 2, fromdate: '2026-10-01T00:00:00' }),
+      evento({ eventid: 3, fromdate: '2026-05-01T00:00:00' }),
+    );
+    const r = normalizarGDACS(d, Date.now(), 2);
+    expect(r).toHaveLength(2);
+    expect(r[0].time.getUTCMonth()).toBe(9);
+  });
+
+  it('la URL pide un solo nivel y los seis tipos', () => {
+    const u = urlGDACS('Red', '2026-09-18', '2026-10-18');
+    expect(u).toContain('alertlevel=Red');
+    expect(u).toContain('fromDate=2026-09-18');
+    expect(u).toContain('EQ;TC;FL;VO;DR;WF');
+  });
+
+  it('reparte el cupo poniéndolo en la gravedad', () => {
+    expect(LIMITES_GDACS.Red).toBeGreaterThanOrEqual(LIMITES_GDACS.Green);
+    expect(Object.values(LIMITES_GDACS).reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(30);
+  });
+
+  it('trae a quién hay que acreditar', () => {
+    expect(ATRIBUCION_GDACS.quien).toContain('Naciones Unidas');
+    expect(ATRIBUCION_GDACS.quien).toContain('Comisión Europea');
+    expect(ATRIBUCION_GDACS.url).toMatch(/^https:\/\/www\.gdacs\.org/);
+  });
+});
+
+describe('duplicados entre fuentes', () => {
+  const usgs = {
+    id: 'usgs_1', familia: 'sismo', lat: 7.58, lng: -80.77,
+    time: new Date('2026-10-09T17:56:00Z'),
+  };
+  const gdacs = (o) => ({
+    id: 'gdacs_1', familia: 'sismo', lat: 7.59, lng: -80.76,
+    time: new Date('2026-10-09T18:10:00Z'), ...o,
+  });
+
+  it('quita el que ya cuenta otra fuente', () => {
+    const { conservados, duplicados } = fueraDuplicadosGeo([gdacs({})], [usgs]);
+    expect(conservados).toHaveLength(0);
+    expect(duplicados[0].duplicadoDe).toBe('usgs_1');
+  });
+
+  it('no funde dos fenómenos distintos aunque coincidan en sitio y hora', () => {
+    // Un terremoto y un incendio cercanos el mismo día son dos sucesos.
+    const { conservados } = fueraDuplicadosGeo([gdacs({ familia: 'incendio' })], [usgs]);
+    expect(conservados).toHaveLength(1);
+  });
+
+  it('no funde dos sismos lejanos', () => {
+    const { conservados } = fueraDuplicadosGeo([gdacs({ lat: 40, lng: 3 })], [usgs]);
+    expect(conservados).toHaveLength(1);
+  });
+
+  it('no funde dos sismos separados por días', () => {
+    const { conservados } = fueraDuplicadosGeo(
+      [gdacs({ time: new Date('2026-10-14T18:10:00Z') })], [usgs]);
+    expect(conservados).toHaveLength(1);
+  });
+
+  it('conserva lo que no trae coordenadas en vez de adivinar', () => {
+    const { conservados } = fueraDuplicadosGeo([gdacs({ lat: null, lng: null })], [usgs]);
+    expect(conservados).toHaveLength(1);
+  });
+
+  it('no revienta con listas vacías', () => {
+    expect(fueraDuplicadosGeo([], []).conservados).toEqual([]);
+    expect(fueraDuplicadosGeo(null, null).conservados).toEqual([]);
   });
 });

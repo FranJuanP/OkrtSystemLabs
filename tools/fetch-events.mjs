@@ -27,8 +27,9 @@ import { fileURLToPath } from 'node:url';
 
 import { pedir } from './data/http.mjs';
 import {
-  normalizarUSGS, normalizarEONET, normalizarGDELT, normalizarWHO,
-  CONSULTAS_GDELT, urlGDELT, URLS, FUENTES_PENDIENTES,
+  normalizarUSGS, normalizarEONET, normalizarGDELT, normalizarWHO, normalizarGDACS,
+  CONSULTAS_GDELT, urlGDELT, urlGDACS, LIMITES_GDACS, URLS, FUENTES_PENDIENTES,
+  fueraDuplicadosGeo, ATRIBUCION_GDACS,
 } from '../src/signal/normalizar.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,6 +46,9 @@ async function main() {
 
   const fuentes = {};
   const eventos = [];
+  // Cuántos eventos de GDACS resultaron ser los mismos que ya traía USGS o
+  // EONET; va al fichero para que se pueda auditar el cruce.
+  let duplicadosGdacs = 0;
 
   /** Descarga una fuente y anota qué pasó, sin dejar que tumbe al resto. */
   async function intentar(id, etiqueta, fn) {
@@ -83,6 +87,48 @@ async function main() {
   };
   console.log('  relief   PENDIENTE · ' + FUENTES_PENDIENTES.relief.motivo);
 
+  /* GDACS, que ocupa el hueco de ReliefWeb en la categoría HUMANITARIA.
+
+     Se pide un nivel de alerta por petición porque la API filtra por uno
+     solo y tapa a cien resultados; pedir los tres juntos devolvía cien
+     verdes y una roja. Van de más grave a menos para que, si una falla, lo
+     que se pierda sea lo menos importante. */
+  await intentar('gdacs', ATRIBUCION_GDACS.nombre, async () => {
+    /* Treinta dias. GDACS mantiene como «actual» lo que sigue activo, y sin
+       ventana devuelve sequias que empezaron hace año y medio: verdaderas,
+       pero no son una senal de ahora y el feed va ordenado por fecha. */
+    const hoy = new Date(ahora);
+    const desde = new Date(ahora - 30 * 86400000).toISOString().slice(0, 10);
+    const hasta = hoy.toISOString().slice(0, 10);
+    let out = [];
+    let falladas = 0;
+    for (const [nivel, limite] of Object.entries(LIMITES_GDACS)) {
+      try {
+        const d = await pedir(urlGDACS(nivel, desde, hasta), { timeoutMs: 45000 });
+        out = out.concat(normalizarGDACS(d, ahora, limite));
+      } catch (err) {
+        falladas++;
+      }
+    }
+    if (falladas === Object.keys(LIMITES_GDACS).length) {
+      throw new Error('los tres niveles de alerta han fallado');
+    }
+    /* El mismo terremoto llega por USGS y por GDACS con títulos distintos,
+       así que la deduplicación por título del feed no lo ve. Aquí se compara
+       por dónde y cuándo, y se conserva el de la fuente que lo mide: USGS da
+       la magnitud y la profundidad, GDACS una estimación de impacto sacada
+       de ellas. */
+    const { conservados, duplicados } = fueraDuplicadosGeo(out, eventos);
+    if (duplicados.length) {
+      console.log(`  gdacs    ${duplicados.length} ya contados por otra fuente, fuera`);
+      for (const d of duplicados.slice(0, 5)) {
+        console.log(`             · ${d.title} (= ${d.duplicadoDe})`);
+      }
+    }
+    duplicadosGdacs = duplicados.length;
+    return conservados;
+  });
+
   await intentar('gdelt', 'GDELT', async () => {
     let out = [];
     let falladas = 0;
@@ -120,6 +166,11 @@ async function main() {
     console.error(`ABORTA: solo ${unicos.length} eventos, se esperaban al menos ${MINIMO}.`);
     console.error('No se escribe nada; el fichero anterior sigue siendo una lectura real.');
     process.exit(1);
+  }
+
+  if (fuentes.gdacs) {
+    fuentes.gdacs.duplicados_fuera = duplicadosGdacs;
+    fuentes.gdacs.atribucion = ATRIBUCION_GDACS;
   }
 
   const salida = {

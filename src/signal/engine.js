@@ -97,6 +97,20 @@ const SOURCE_LABELS = {
   },
   nasa:   { name: 'NASA EONET',     row: 'NASA EONET Events' },
   who:    { name: 'OMS',             row: 'OMS · Brotes (DON)' },
+  /* GDACS ocupa el hueco que dejó ReliefWeb en la categoría HUMANITARIA.
+
+     `servidor: true` quiere decir que esta página NO la consulta: la
+     descarga el trabajo automático cada media hora y llega por
+     data/events.json. No es un fallo ni una caída, así que su punto va en
+     verde cuando el fichero trae sus eventos, y no en rojo como el de una
+     fuente que no ha respondido. */
+  gdacs: {
+    name: 'GDACS',
+    row: 'GDACS · Alertas (ONU/CE)',
+    servidor: true,
+    motivo: 'Alertas automáticas de GDACS (ONU y Comisión Europea), sin revisión humana previa. '
+          + 'Se descargan en el proceso periódico, no desde el navegador.',
+  },
 };
 
 /** Fuentes que no se consultan porque no se puede, con su motivo. */
@@ -247,10 +261,12 @@ function updateSignalCount(){
   const el = document.getElementById('signal-count');
   if(!el) return;
   const total = allSignals.length;
-  const stale = allSignals.filter(s => s && s.stale).length;
-  const live = total - stale;
+  const delServidor = allSignals.filter(s => s && s.servidor).length;
+  const stale = allSignals.filter(s => s && s.stale && !s.servidor).length;
+  const live = total - stale - delServidor;
   let text = live + ' señales activas';
   if(stale) text += ' · ' + stale + ' de última lectura';
+  if(delServidor) text += ' · ' + delServidor + ' del proceso periódico';
   // Mientras se consulta no se dice "sin señales": todavia no se sabe.
   if(!total) text = faseDeCarga === 'cargando' ? 'consultando fuentes…' : 'sin señales disponibles';
   el.textContent = text;
@@ -429,12 +445,23 @@ async function cargarEventosDelServidor(ids) {
     const salida = [];
     for(const ev of d.eventos){
       if(!quiero.has(ev.fuente)) continue;
-      salida.push(rehidratar(ev, d.descargado));
+      const metaFuente = SOURCE_LABELS[ev.fuente];
+      /* `servidor` distingue dos cosas que no son iguales: una fuente que ha
+         fallado y de la que se rescata una lectura vieja, y una que SOLO se
+         descarga en el proceso periodico porque asi esta disenada. Las dos
+         llegan del fichero y ninguna es «en vivo», pero la segunda no esta
+         degradada y el feed no debe rotularla como si lo estuviera. */
+      salida.push(Object.assign(rehidratar(ev, d.descargado),
+        metaFuente && metaFuente.servidor ? { servidor: true } : null));
       /* Una fuente pendiente de autorizacion sigue estandolo aunque el
          servidor tenga eventos suyos de cuando respondia: su punto se queda
-         en gris, no pasa a rojo. */
+         en gris, no pasa a rojo. Y una fuente que SOLO se descarga en el
+         servidor -GDACS- esta funcionando: va en verde. */
       const meta = SOURCE_LABELS[ev.fuente];
-      setSrc(ev.fuente, meta && meta.pendiente ? 'pendiente' : 'err');
+      setSrc(ev.fuente,
+        meta && meta.pendiente ? 'pendiente'
+          : meta && meta.servidor ? 'ok'
+            : 'err');
     }
     return salida;
   } catch(e) {
@@ -525,6 +552,18 @@ async function loadAll() {
 
   const enCurso = [
     fetchUSGS(), fetchNASA(), fetchWHO(), fetchReliefWeb(), fetchGDELT(),
+    /* GDACS no se consulta desde aqui: la descarga el proceso periodico. No
+       es un respaldo de nada, asi que no espera a que las demas fallen; va
+       con las otras y pinta en cuanto llega el fichero, que tarda menos que
+       cualquier fuente externa.
+
+       Y si el fichero no trae nada suyo -su descarga falla sin abortar el
+       despliegue- hay que DECIRLO: sin esto su punto se quedaba girando
+       indefinidamente, que es la version de «cargando» que nunca termina. */
+    cargarEventosDelServidor(['gdacs']).then((evs) => {
+      if(!evs.length) setSrc('gdacs', 'err', 'GDACS: sin lectura del proceso periódico');
+      return evs;
+    }),
   ].map(promesa => promesa.then(pintar).catch(err => {
     console.warn('AETHER Signal: una fuente ha fallado:', err);
   }));
@@ -550,7 +589,8 @@ async function loadAll() {
       : id.includes('eonet') || id.includes('nasa') ? 'nasa'
       : id.includes('gdelt') ? 'gdelt'
       : id.includes('oms') || id.includes('who') ? 'who'
-      : id.includes('relief') ? 'relief' : null;
+      : id.includes('relief') ? 'relief'
+        : id.includes('gdacs') ? 'gdacs' : null;
     if(clave) porFuente.set(clave, (porFuente.get(clave) || 0) + 1);
   }
   const vacias = ['usgs','nasa','who','gdelt','relief'].filter(id => !porFuente.get(id));
@@ -601,9 +641,12 @@ function renderFeed(){
     const col = CAT_COLOR[s.cat] || '#888';
     // T1: las senales recuperadas de una fuente caida se rotulan con la fecha
     // de su ultima lectura real, nunca como si fueran de ahora mismo.
-    const timeStr = s.stale
-      ? ('última lectura · ' + formatReadingDate(s.fetchedAt))
-      : formatTime(s.time);
+    /* Una fuente de proceso periodico ensena la fecha REAL del evento: no
+       esta degradada, y poner en su lugar la hora de la descarga ocultaria
+       cuando ocurrio de verdad, que es el dato. */
+    const timeStr = s.servidor ? formatTime(s.time)
+      : s.stale ? ('última lectura · ' + formatReadingDate(s.fetchedAt))
+        : formatTime(s.time);
     return `
     <div class="signal-card ${s.id===selectedId?'selected':''}" data-signal-id="${esc(s.id)}"
          style="border-left-color:${col}">
@@ -724,7 +767,7 @@ function buildTicker(){
   ti.style.animation = '';
   const items = allSignals.slice(0,30).map(s=>{
     const col = CAT_COLOR[s.cat]||'#888';
-    const prefix = s.stale ? 'última lectura · ' : '';
+    const prefix = s.servidor ? 'proceso periódico · ' : s.stale ? 'última lectura · ' : '';
     return `<span class="ticker-item"><div class="t-dot" style="background:${col}"></div>${esc(prefix + String(s.title||'').slice(0,70))}<span class="ticker-sep">·</span></span>`;
   }).join('');
   ti.innerHTML = items + items; // double for seamless loop

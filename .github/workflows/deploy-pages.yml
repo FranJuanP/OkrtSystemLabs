@@ -50,10 +50,15 @@ jobs:
         # al dia de un fichero que caduca en media hora. Esto es un fichero de
         # salida, no codigo fuente, y su sitio es el artefacto.
         #
-        # Si la descarga falla no se aborta el despliegue: el sitio funciona
-        # sin events.json -Signal consulta las fuentes en vivo y guarda su
-        # ultima lectura- y es preferible publicar sin ese respaldo a no
+        # Si la descarga falla no se aborta el despliegue: Signal consulta
+        # USGS, EONET, la OMS y GDELT en vivo desde el navegador, asi que el
+        # sitio funciona, y es preferible publicar sin ese respaldo a no
         # publicar.
+        #
+        # Con una excepcion que conviene saber: GDACS SOLO se descarga aqui,
+        # asi que sin este fichero la categoria HUMANITARIA se queda vacia.
+        # La pagina lo dice -«sin lectura del proceso periodico»- en vez de
+        # dejar su punto girando.
         continue-on-error: true
         run: node tools/fetch-events.mjs
 

@@ -271,6 +271,70 @@ de metodología:
 > Sundberg, Ralph & Erik Melander (2013). *Introducing the UCDP Georeferenced
 > Event Dataset.* Journal of Peace Research 50(4).
 
+### GDACS, las alertas de desastre de Signal
+
+La categoría **HUMANITARIA** de Signal se quedó vacía cuando ReliefWeb retiró su
+API v1: la v2 exige un «appname» aprobado y ese trámite pide un correo de
+organización. La fuente sigue en la lista, en gris, como *pendiente de
+autorización*, porque eso es lo que es.
+
+El hueco lo ocupa **GDACS**, el *Global Disaster Alert and Coordination System*,
+un marco de cooperación entre **Naciones Unidas (OCHA, UNOSAT)** y la **Comisión
+Europea (JRC, ECHO)**. Mide exactamente lo que falta: no el fenómeno, sino si
+hace falta ayuda internacional. Por eso sus eventos van a HUMANITARIA aunque el
+suceso sea un terremoto.
+
+De cada alerta se toma la **fecha real del evento** (`fromdate`, no la de
+publicación: una sequía en curso empezó cuando empezó), el **nivel de alerta**
+—roja, naranja o verde, que se traduce a CRÍTICO, ALTO y BAJO— y el **enlace a
+su ficha** en gdacs.org.
+
+**Se descarga en el proceso de eventos, nunca desde el navegador.** Su API
+filtra por un solo nivel de alerta y tapa a cien resultados, así que hay que
+pedirla tres veces; hacerlo en cada visita sería cargar al visitante con tres
+peticiones para quedarse con veinticinco eventos que cambian cada media hora.
+Se piden los **treinta últimos días**, porque GDACS mantiene como «actual» lo
+que sigue activo y sin ventana devuelve sequías que empezaron hace año y medio:
+verdaderas, pero no son una señal de ahora.
+
+El reparto es **10 rojas, 10 naranjas y 5 verdes**, las más recientes de cada
+nivel. Las demás fuentes juntas dan unas sesenta señales, y meter las cien
+verdes que devuelve GDACS ahogaría el feed.
+
+En la interfaz sus señales no se rotulan como «última lectura», que es lo que se
+dice de una fuente caída de la que se rescata algo viejo. GDACS no está caída:
+se descarga así por diseño, y sus tarjetas lo dicen —«proceso periódico»— con la
+**fecha del evento**, no con la de la descarga.
+
+#### El mismo terremoto contado dos veces
+
+USGS y GDACS informan del mismo sismo con títulos distintos —«M7.7 — 20 km S of
+Panamá» y «Terremoto M7.7 — Panama»—, así que la deduplicación por título que
+hace el feed no los ve. Se comparan por **dónde y cuándo**: mismo tipo de
+fenómeno, menos de **150 km** y menos de **24 horas**. La condición de que sea
+el mismo tipo evita fundir un terremoto con un incendio cercano del mismo día.
+
+Se conserva el de la otra fuente y se descarta el de GDACS, porque USGS da la
+magnitud y la profundidad **medidas** y GDACS una estimación de impacto
+calculada a partir de ellas. En la última ejecución se descartaron **5 de 17**
+alertas, todas terremotos que USGS ya traía, y el fichero guarda cuántas fueron
+(`fuentes.gdacs.duplicados_fuera`) para que el cruce se pueda auditar.
+
+#### Atribución, y una advertencia que es suya
+
+Sus [términos de uso](https://www.gdacs.org/About/termofuse.aspx) no exigen una
+fórmula de crédito ni declaran una licencia concreta. Se les acredita igual, en
+el feed y aquí. Y se repite la advertencia que hacen ellos, porque cambia cómo
+hay que leer sus cifras:
+
+> GDACS notifications in the case of earthquakes, tsunamis and tropical cyclones
+> are automatic, produced by algorithms and not reviewed by human experts before
+> being issued.
+
+Cada señal de GDACS lo dice en su detalle. Y no sustituyen a la información
+oficial de las autoridades de cada país, que es la otra cosa que piden que se
+entienda.
+
 ### Por qué no está ACLED
 
 Se planteó incluirlo, porque es la mejor fuente de datos de conflicto
