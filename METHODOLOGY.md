@@ -57,22 +57,62 @@ descargas en cada ejecución: UCDP publica una versión de GED al año y una de
 Candidate al mes, y fijar `ged261` aquí sería garantizar que esto se queda
 desfasado sin que nadie se entere.
 
-Dos medidas por país:
+Tres medidas por país:
 
-- **Muertos en los últimos 12 meses.** Se cuentan hacia atrás desde la última
-  fecha que trae Candidate, no desde hoy: si el fichero va con un mes de
-  retraso, «hoy» metería un mes vacío y bajaría el recuento artificialmente.
-  Como Candidate solo cubre el año en curso, el tramo anterior sale de GED.
-- **Media de los tres últimos años completos**, de GED. Junto a la anterior
-  distingue una violencia reciente de una sostenida: un país puede tener un
-  año tranquilo tras una guerra larga, y al revés.
-
-Las dos suman los **tres tipos de violencia organizada** que distingue el
-UCDP: estatal, no estatal y unilateral contra civiles.
+- **Muertos en el territorio, últimos 12 meses.** Se cuentan hacia atrás desde
+  la última fecha que trae Candidate, no desde hoy: si el fichero va con un mes
+  de retraso, «hoy» metería un mes vacío y bajaría el recuento
+  artificialmente. Como Candidate solo cubre el año en curso, el tramo anterior
+  sale de GED. Se guarda además **desglosada por los tres tipos de violencia
+  organizada** que distingue el UCDP (estatal, no estatal y unilateral contra
+  civiles), porque el nivel mínimo depende del tipo y no solo del total.
+- **Muertos en los conflictos en los que el país es parte**, mismos 12 meses.
+  Ver la sección siguiente.
+- **Media de los tres últimos años completos** en el territorio, de GED. Junto
+  a la primera distingue una violencia reciente de una sostenida: un país puede
+  tener un año tranquilo tras una guerra larga, y al revés.
 
 **Un cero es un cero.** Que el UCDP no registre eventos en Noruega es
 información, no una laguna, así que los 217 países llevan dato y no solo los
 113 que aparecen en sus ficheros.
+
+#### Parte en el conflicto, y no solo sede del conflicto
+
+Contar solo lo que ocurre **dentro** de un país deja fuera la mitad de la
+pregunta. Rusia tuvo 266 muertos por violencia organizada en su territorio en
+los últimos 12 meses; en la guerra en la que es parte, 47.931. Israel tuvo 4 en
+su territorio y 2.507 en los conflictos en los que es parte. Describir a
+cualquiera de los dos con la primera cifra sería exacto y, a la vez, falso.
+
+No hace falta ningún criterio propio para medirlo: **GED y Candidate traen los
+actores de cada evento**. `side_a` y `side_b` dan los nombres, y `gwnoa` y
+`gwnob` el número Gleditsch-Ward del gobierno cuando una de las partes lo es.
+Para cada evento de violencia **estatal** (`type_of_violence = 1`) se suma su
+estimación de muertos a los gobiernos que aparecen como parte, ocurra donde
+ocurra.
+
+Se comprobó antes de escribirlo: de los actores con número Gleditsch-Ward en la
+ventana, **los 41 se llaman «Government of X»**, y ninguno es una coalición
+separada por comas. Así que basta leer ese patrón y resolver el nombre del país
+con la misma tabla que ya se usa para el resto; no hace falta una tabla nueva de
+equivalencias.
+
+Dos consecuencias que conviene decir en voz alta:
+
+- **No reparte culpas.** Un muerto en Ucrania suma a Ucrania y a Rusia, sin
+  dividirse entre los dos. La cifra responde a «en cuánta violencia armada está
+  metido este gobierno», no a quién la causó. Para eso haría falta un juicio que
+  el dato no contiene.
+- **Un territorio sin gobierno codificado sale a cero.** Palestina aparece con 0
+  como parte, porque en el conflicto «Israel: Palestine» quien el UCDP codifica
+  enfrente de Israel son Hamás y la Yihad Islámica, actores no estatales sin
+  número Gleditsch-Ward. No es una laguna del cálculo: es lo que dice el dato, y
+  por eso en su ficha la cifra informativa es la del territorio (2.320).
+
+Las dos cifras se guardan **por separado** en `latest.json`
+(`conflicto.territorio_12m` y `conflicto.parte_12m`), y la ficha del país las
+enseña con su etiqueta. No se suman nunca: sumarlas contaría dos veces los
+muertos de una guerra en el propio territorio.
 
 #### Gaza y Cisjordania
 
@@ -104,7 +144,7 @@ de metodología:
 > Sundberg, Ralph & Erik Melander (2013). *Introducing the UCDP Georeferenced
 > Event Dataset.* Journal of Peace Research 50(4).
 
-### Por qué no está ACLED### Por qué no está ACLED
+### Por qué no está ACLED
 
 Se planteó incluirlo, porque es la mejor fuente de datos de conflicto
 georreferenciados. Queda fuera por la licencia: su API exige registro con
@@ -277,13 +317,29 @@ Una clasificación relativa tiene un punto ciego: un país en guerra cuyos demá
 indicadores sean razonables puede acabar en mitad de la tabla. Eso es
 literalmente lo que pasaba antes de incorporar al UCDP.
 
-Se usan **los dos umbrales del propio UCDP**, que son el estándar del campo
-desde hace décadas:
+Se parte de **los umbrales del propio UCDP** —1.000 muertos al año es *guerra*,
+de 25 a 999 es *conflicto menor*—, que son el estándar del campo desde hace
+décadas, y se aplican **según el tipo de violencia**, porque solo la estatal es
+guerra en la clasificación del UCDP:
 
-| Muertos en 12 meses | UCDP lo llama | Nivel mínimo |
-|---|---|---|
-| **1.000 o más** | guerra | **CRÍTICO** |
-| **de 25 a 999** | conflicto menor | **ALTO** |
+| Muertos en 12 meses | Qué se cuenta | Dónde | Nivel mínimo |
+|---|---|---|---|
+| **1.000 o más** | violencia estatal (`type_of_violence = 1`) | en el territorio | **CRÍTICO** |
+| **1.000 o más** | entre grupos no estatales (`2`) | en el territorio | **ALTO** |
+| **1.000 o más** | unilateral contra civiles (`3`) | en el territorio | **ALTO** |
+| **1.000 o más** | conflictos estatales en los que es parte | en cualquier parte | **ALTO** |
+| **de 25 a 999** | cualquier tipo | en el territorio | **ALTO** |
+
+Gana la regla **más severa** de las que cumple; a igual nivel, la de más
+muertos, que es la que mejor lo explica.
+
+El desglose por tipo importa, y no es un detalle teórico: **México** tiene 4.432
+muertos en su territorio, de los que 4.404 son violencia entre grupos no
+estatales y **4** estatal. Con un umbral único sobre el total salía CRÍTICO,
+junto a Ucrania y Sudán. Con el desglose sale ALTO, que es lo que dice el dato:
+hay una violencia criminal enorme y no una guerra. Al revés pasa con
+**Pakistán**, cuyos 1.557 muertos **sí** son violencia estatal y lo llevan a
+CRÍTICO.
 
 **Es un suelo, no un techo:** si el percentil ya sitúa al país más arriba,
 manda el percentil. Y se aplica a la **etiqueta**, no al índice: el número
@@ -291,13 +347,31 @@ sigue siendo la combinación de las categorías y se puede seguir explicando
 como tal.
 
 Cuando se aplica, la ficha del país lo dice con la cifra —*«nivel elevado por
-conflicto activo (UCDP): 47.686 muertos en 12 meses»*— y muestra además dónde
-caería por percentil. Sin eso, un CRÍTICO junto a un índice de 71 no habría
-forma de entenderlo.
+conflicto activo (UCDP): 47.667 muertos en 12 meses (guerra)»*, o *«parte en
+conflicto armado activo (UCDP): 47.931 muertos en 12 meses»*— y muestra además
+dónde caería por percentil. Sin eso, un CRÍTICO junto a un índice de 71 no
+habría forma de entenderlo.
 
-Con los datos de octubre de 2026 se eleva el nivel de **19 países**, y el
-reparto deja de ser exactamente 5/15/30/50: los tramos pasan a ser un mínimo,
-no una cuota.
+Con los datos de octubre de 2026 se eleva el nivel de **17 países**, y el
+reparto deja de ser exactamente 5/15/30/50 —queda en 15/44/59/99—: los tramos
+pasan a ser un mínimo, no una cuota.
+
+#### El ranking va por nivel, no por índice
+
+Desde que el conflicto impone un suelo, ordenar la lista por índice la dejaba
+**incoherente consigo misma**: Ucrania, etiquetada CRÍTICO, aparecía por debajo
+de una veintena de países etiquetados ALTO, porque su índice (71) es menor que
+el de ellos. Y la etiqueta es lo que el usuario lee.
+
+Así que el ranking ordena primero por **nivel final** (CRÍTICO, ALTO, MEDIO,
+BAJO) y dentro de cada nivel por índice. Los países cuyo nivel viene del umbral
+de conflicto llevan una **↑** junto al nombre, y su *tooltip* da el motivo —el
+mismo texto que la ficha—. Sin esa marca, ver a Israel (índice 54) por encima
+de Irán (67) parecería un error de cálculo.
+
+La barra de cada fila sigue midiendo el **índice**, que es lo que mide: en un
+país elevado se ve corta a propósito, y la flecha explica por qué está donde
+está.
 
 ---
 

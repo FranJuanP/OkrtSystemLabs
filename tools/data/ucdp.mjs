@@ -19,16 +19,27 @@
  * al mes, y dejar `ged261` escrito aquí sería garantizar que esto se queda
  * desfasado sin que nadie se entere.
  *
- * Dos medidas por país:
+ * Medidas por país:
  *
- *   muertos12m    los últimos doce meses, contados hacia atrás desde la
- *                 última fecha que trae Candidate
+ *   muertos12m    en su TERRITORIO, últimos doce meses, contados hacia atrás
+ *                 desde la última fecha que trae Candidate
+ *   porTipo12m    ese mismo total, desglosado por los tres tipos de violencia
+ *                 que distingue el UCDP
  *   media3anios   la media de los tres últimos años completos de GED
+ *   parte12m      muertos en conflictos ESTATALES en los que el gobierno de
+ *                 ese país es una de las partes, ocurran donde ocurran
  *
- * La primera dice qué está pasando ahora; la segunda, si es algo reciente o
- * sostenido. Las dos suman los tres tipos de violencia que distingue el UCDP
- * (estatal, no estatal y unilateral contra civiles), que es lo que significa
- * «violencia organizada».
+ * Las dos últimas son cosas distintas y por eso se guardan por separado.
+ * «En el territorio» responde a qué está pasando dentro de un país; «como
+ * parte» responde a en qué guerras está metido su gobierno. Rusia tiene 266
+ * muertos en su territorio y 48.086 como parte; Israel, 4 y 2.522. Dar solo
+ * la primera cifra describe mal a los dos.
+ *
+ * La condición de parte sale de los campos de actores del propio UCDP, sin
+ * reatribuir nada: en los eventos de violencia estatal, `side_a` y `side_b`
+ * llevan el actor y `gwnoa`/`gwnob` su código de gobierno cuando lo son.
+ * Todos los actores con código se llaman «Government of X», así que el país
+ * se resuelve con el mismo emparejamiento de nombres que el resto.
  *
  * Cita obligada por la licencia, y está también en la página de metodología:
  *
@@ -130,6 +141,20 @@ const ALIAS = {
  */
 const POR_PROVINCIA = {
   Israel: { 'gaza strip': 'PSE', 'west bank': 'PSE' },
+};
+
+/**
+ * Los tres tipos de violencia organizada del UCDP.
+ *
+ * Importan porque mil muertos no significan lo mismo según de qué sean: una
+ * guerra entre un Estado y un grupo armado, enfrentamientos entre bandas sin
+ * Estado de por medio, o una campaña contra población civil. El nivel mínimo
+ * que impone cada uno es distinto, y está en src/core/scoring.js.
+ */
+export const TIPOS_VIOLENCIA = {
+  1: 'estatal',
+  2: 'noEstatal',
+  3: 'civiles',
 };
 
 /** Quita el paréntesis histórico y normaliza para comparar. */
@@ -297,9 +322,45 @@ export async function descargar(iso3Validos) {
   const acumulado = new Map();
   const toca = (iso) => {
     if (!acumulado.has(iso)) {
-      acumulado.set(iso, { muertos12m: 0, eventos12m: 0, porAnio: new Map() });
+      acumulado.set(iso, {
+        muertos12m: 0,
+        eventos12m: 0,
+        porTipo12m: { estatal: 0, noEstatal: 0, civiles: 0 },
+        porAnio: new Map(),
+        parte12m: 0,
+        parteEventos12m: 0,
+        parteConflictos: new Set(),
+      });
     }
     return acumulado.get(iso);
+  };
+
+  /**
+   * Suma el evento a los gobiernos que son parte, si es violencia estatal.
+   *
+   * Un evento de la guerra de Ucrania suma a Rusia y a Ucrania: los dos son
+   * parte. No se reparte entre ellos ni se divide; la cifra responde a «en
+   * cuánta violencia está metido este gobierno», no a quién la causó.
+   */
+  const anotaPartes = (fila) => {
+    if (String(fila.type_of_violence) !== '1') return;
+    const best = Number(fila.best) || 0;
+    for (const [ladoNombre, ladoGw] of [['side_a', 'gwnoa'], ['side_b', 'gwnob']]) {
+      if (!fila[ladoGw]) continue;
+      const m = /^Government of (.+)$/.exec(String(fila[ladoNombre] || ''));
+      if (!m) continue;
+      const iso = isoDe(m[1], nombresIngles, null);
+      if (!iso) continue;
+      const a = toca(iso);
+      a.parte12m += best;
+      a.parteEventos12m += 1;
+      /* Candidate trae conflictos recien codificados sin nombre todavia,
+         identificados con un codigo interno del tipo «XXX475». Esa cadena
+         en la ficha parece un error; las muertes si cuentan. */
+      const nombre = String(fila.conflict_name || '');
+      if (nombre && !/^XXX\d*$/i.test(nombre)) a.parteConflictos.add(nombre);
+      else if (nombre) a.parteConflictos.add('conflicto aun sin nombre en UCDP');
+    }
   };
 
   // ── 1. Candidate: el año en curso ────────────────────────────────────────
@@ -321,14 +382,19 @@ export async function descargar(iso3Validos) {
   const desde = new Date(ultimaFecha.getTime() - 365 * 86400000);
 
   for (const fila of filasCand) {
-    const iso = isoDe(fila.country, nombresIngles, fila.adm_1);
-    if (!iso) continue;
     const d = new Date(fila.date_end || fila.date_start);
     if (isNaN(d) || d < desde) continue;
     const best = Number(fila.best) || 0;
-    const a = toca(iso);
-    a.muertos12m += best;
-    a.eventos12m += 1;
+
+    const iso = isoDe(fila.country, nombresIngles, fila.adm_1);
+    if (iso) {
+      const a = toca(iso);
+      a.muertos12m += best;
+      a.eventos12m += 1;
+      const tipo = TIPOS_VIOLENCIA[fila.type_of_violence];
+      if (tipo) a.porTipo12m[tipo] += best;
+    }
+    anotaPartes(fila);
   }
 
   // ── 2. GED: los años completos y el tramo que le falta a Candidate ───────
@@ -351,17 +417,34 @@ export async function descargar(iso3Validos) {
     // que no se usan.
     if (anio < 2000) return;
     aniosVistos.add(anio);
-    const iso = isoDe(campos[idx.country], nombresIngles, campos[idx.adm_1]);
-    if (!iso) return;
     const best = Number(campos[idx.best]) || 0;
-    const a = toca(iso);
-    a.porAnio.set(anio, (a.porAnio.get(anio) || 0) + best);
-
-    // Y el tramo de los doce meses que Candidate no cubre.
     const d = new Date(campos[idx.date_end] || campos[idx.date_start]);
-    if (!isNaN(d) && d >= desde && d <= ultimaFecha) {
-      a.muertos12m += best;
-      a.eventos12m += 1;
+    const enVentana = !isNaN(d) && d >= desde && d <= ultimaFecha;
+
+    const iso = isoDe(campos[idx.country], nombresIngles, campos[idx.adm_1]);
+    if (iso) {
+      const a = toca(iso);
+      a.porAnio.set(anio, (a.porAnio.get(anio) || 0) + best);
+
+      // Y el tramo de los doce meses que Candidate no cubre.
+      if (enVentana) {
+        a.muertos12m += best;
+        a.eventos12m += 1;
+        const tipo = TIPOS_VIOLENCIA[campos[idx.type_of_violence]];
+        if (tipo) a.porTipo12m[tipo] += best;
+      }
+    }
+
+    if (enVentana) {
+      anotaPartes({
+        type_of_violence: campos[idx.type_of_violence],
+        best: campos[idx.best],
+        side_a: campos[idx.side_a],
+        side_b: campos[idx.side_b],
+        gwnoa: campos[idx.gwnoa],
+        gwnob: campos[idx.gwnob],
+        conflict_name: campos[idx.conflict_name],
+      });
     }
   });
 
@@ -374,8 +457,14 @@ export async function descargar(iso3Validos) {
     porPais.set(iso, {
       muertos12m: a.muertos12m,
       eventos12m: a.eventos12m,
+      porTipo12m: a.porTipo12m,
       media3anios: Math.round((suma / tresAnios.length) * 10) / 10,
       anios3: tresAnios,
+      parte12m: a.parte12m,
+      parteEventos12m: a.parteEventos12m,
+      // Los nombres de los conflictos, para poder decir en cuáles está metido
+      // y no solo cuántos muertos suman.
+      parteConflictos: [...a.parteConflictos].sort(),
     });
   }
 

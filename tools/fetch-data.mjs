@@ -291,6 +291,29 @@ async function main() {
       }
       if (contarCobertura) cobertura[ind.id] = (cobertura[ind.id] || 0) + 1;
     }
+    /* El desglose del conflicto va aparte de los indicadores porque no se
+       puntua: lo usan las reglas de nivel minimo, que necesitan saber de QUE
+       son los muertos. Mil muertos de una guerra entre un Estado y un grupo
+       armado, de enfrentamientos entre bandas o de una campana contra
+       civiles no significan lo mismo. */
+    if (datosUcdp && p.iso3) {
+      const u = datosUcdp.porPais.get(p.iso3);
+      entrada.conflicto = {
+        territorio_12m: u ? u.muertos12m : 0,
+        estatal_12m: u ? u.porTipo12m.estatal : 0,
+        no_estatal_12m: u ? u.porTipo12m.noEstatal : 0,
+        civiles_12m: u ? u.porTipo12m.civiles : 0,
+        parte_12m: u ? u.parte12m : 0,
+        parte_conflictos: u ? u.parteConflictos : [],
+        media_3anios: u ? u.media3anios : 0,
+        desde: datosUcdp.version.desde,
+        hasta: datosUcdp.version.hasta,
+        source: FUENTES.ucdp.corto,
+        url: FUENTES.ucdp.url,
+        version: `GED ${datosUcdp.version.ged} · Candidate ${datosUcdp.version.candidate}`,
+      };
+    }
+
     return entrada;
   }
 

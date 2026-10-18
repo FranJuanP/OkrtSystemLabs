@@ -127,20 +127,30 @@ function pintarNiveles(calculo) {
   pintarTabla('tabla-niveles', ['Nivel', 'Qué significa', 'Cuántos', 'Índice'], filas);
 }
 
-/** Los umbrales del UCDP y a cuantos paises se les aplica hoy. */
+/**
+ * Las reglas del UCDP y a cuantos paises eleva cada una hoy.
+ *
+ * La cuenta es por REGLA, no por nivel: antes se contaban los elevados
+ * agrupados por el nivel resultante y las tres reglas que dan ALTO
+ * ensenaban todas el mismo numero, como si cada una elevase a 14 paises.
+ */
 function pintarConflicto(calculo) {
-  const elevados = Object.values(calculo.paises).filter((p) => p.elevadoPorConflicto);
-  const porNivel = {};
-  for (const p of elevados) porNivel[p.nivel.clave] = (porNivel[p.nivel.clave] || 0) + 1;
+  const porRegla = {};
+  for (const p of Object.values(calculo.paises)) {
+    if (!p.elevadoPorConflicto) continue;
+    const id = p.elevadoPorConflicto.regla;
+    porRegla[id] = (porRegla[id] || 0) + 1;
+  }
 
   const filas = (UMBRALES_UCDP || []).map((u) => `<tr>
     <td class="num">${u.desde === 1000 ? '≥ 1.000' : '25 – 999'}</td>
-    <td class="dim">${esc(u.etiqueta)}</td>
+    <td class="dim">${esc(u.tipo)}</td>
+    <td class="dim">${u.ambito === 'parte' ? 'en cualquier parte' : 'en el territorio'}</td>
     <td>${esc(u.nivel === 'CRITICAL' ? 'CRÍTICO' : 'ALTO')}</td>
-    <td class="num">${esc(String(porNivel[u.nivel] || 0))} países hoy</td>
+    <td class="num">${esc(String(porRegla[u.id] || 0))} ${(porRegla[u.id] || 0) === 1 ? 'país' : 'países'}</td>
   </tr>`);
   pintarTabla('tabla-conflicto',
-    ['Muertos en 12 meses', 'UCDP lo llama', 'Nivel mínimo', 'Se aplica a'], filas);
+    ['Muertos en 12 meses', 'Qué se cuenta', 'Dónde', 'Nivel mínimo', 'Eleva hoy a'], filas);
 }
 
 function pintarConfianza(calculo) {

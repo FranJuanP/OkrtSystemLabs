@@ -270,6 +270,9 @@ function drawGauge(svgId, score, color){
 /* Color y texto de cada nivel. Las claves son las de src/core/scoring.js.
    Los colores son los que ya usaba la aplicacion; lo que cambia es que
    ahora los asigna el tramo de la distribucion y no un umbral fijo. */
+/** Severidad de cada nivel, para ordenar el ranking por etiqueta. */
+const ORDEN_NIVEL_RANKING = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
 const NIVEL_INFO = {
   CRITICAL: { etiqueta: 'CRÍTICO', color: 'var(--red)',    descripcion: 'El 5 % de países con más riesgo medido' },
   HIGH:     { etiqueta: 'ALTO',    color: 'var(--orange)', descripcion: 'Entre el 5 % y el 20 % con más riesgo' },
@@ -302,7 +305,43 @@ function actualizarPieDeNivel(d){
     const e = d.elevadoPorConflicto;
     elConf.textContent = '⚠ ' + e.motivo;
     elConf.title = 'Umbral del UCDP: ' + e.umbral.toLocaleString('es-ES')
-      + ' muertos en 12 meses (' + e.clase + '). Por percentil le correspondería ' + e.desde + '.';
+      + ' muertos en 12 meses · ' + e.detalle
+      + '. Por percentil le correspondería ' + e.desde + '.';
+  }
+
+  /* Las dos cifras de muertos, siempre que haya alguna.
+
+     Son cosas distintas y se ensenan con su etiqueta: «en el territorio»
+     responde a que pasa dentro del pais, «como parte» a en que guerras esta
+     metido su gobierno. Rusia tiene 266 y 47.931; darle solo la primera lo
+     describiria mal. */
+  const elCifras = document.getElementById('conflicto-cifras');
+  if(elCifras){
+    const c = d.conflicto;
+    if(!c){
+      elCifras.textContent = '';
+      elCifras.title = '';
+    } else if(!c.territorio && !c.parte){
+      /* Un cero es un cero y no una laguna: decirlo evita que la ausencia de
+         la linea se lea como «no hay dato». */
+      elCifras.textContent = '☗ UCDP · Sin muertos por violencia organizada (12 meses)';
+      elCifras.title = 'El UCDP no registra eventos de violencia organizada en este país en la ventana '
+        + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
+    } else {
+      const n = (v) => Number(v || 0).toLocaleString('es-ES');
+      // Las dos van siempre que haya alguna: un «como parte: 0» junto a 4.432
+      // en el territorio es justo lo que distingue a México de Rusia.
+      elCifras.textContent = '☗ UCDP · En el territorio: ' + n(c.territorio)
+        + '  ·  Como parte: ' + n(c.parte) + ' muertos (12 meses)';
+      const tipos = [];
+      if(c.estatal) tipos.push('estatal ' + n(c.estatal));
+      if(c.noEstatal) tipos.push('no estatal ' + n(c.noEstatal));
+      if(c.civiles) tipos.push('contra civiles ' + n(c.civiles));
+      elCifras.title = (tipos.length ? 'En el territorio, por tipo: ' + tipos.join(', ') + '. ' : '')
+        + (c.conflictos && c.conflictos.length
+          ? 'Parte en: ' + c.conflictos.slice(0, 6).join('; ') + '. ' : '')
+        + 'Ventana ' + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
+    }
   }
 }
 
@@ -2150,8 +2189,25 @@ function renderRanking(){
       ? d.score
       : (d[catSel] && typeof d[catSel].score==='number' ? d[catSel].score : null);
     if(typeof score!=='number') return null;
-    return{code,name:d.name||code,score,flag:COUNTRY_FLAGS[code]||'🌐'};
-  }).filter(Boolean).sort((a,b)=>order==='desc'?b.score-a.score:a.score-b.score).slice(0,topN);
+    return{
+      code, name:d.name||code, score, flag:COUNTRY_FLAGS[code]||'🌐',
+      nivel: catSel==='global' ? d.nivel : null,
+      elevado: catSel==='global' ? d.elevadoPorConflicto : null,
+    };
+  }).filter(Boolean).sort((a,b)=>{
+    /* Ordena por NIVEL y, dentro de cada nivel, por indice.
+
+       Antes ordenaba solo por indice, y desde que el conflicto impone un
+       suelo eso producia una lista incoherente consigo misma: Ucrania, con
+       etiqueta CRITICO, aparecia por debajo de paises etiquetados ALTO
+       porque su indice es menor. La etiqueta es lo que el usuario lee. */
+    if(catSel==='global' && a.nivel && b.nivel){
+      const da = ORDEN_NIVEL_RANKING[a.nivel] ?? 9;
+      const db = ORDEN_NIVEL_RANKING[b.nivel] ?? 9;
+      if(da !== db) return order==='desc' ? da - db : db - da;
+    }
+    return order==='desc' ? b.score-a.score : a.score-b.score;
+  }).slice(0,topN);
 
   const el=document.getElementById('ranking-list');
   const countEl=document.getElementById('ranking-count');
@@ -2167,7 +2223,7 @@ function renderRanking(){
       title="${hasDetail?'Click para cargar región':''}">
       <div class="rank-pos" style="color:${col};font-size:${medal?'14px':'12px'}">${medal||'#'+(i+1)}</div>
       <div class="rank-flag">${esc(r.flag)}</div>
-      <div class="rank-name" style="font-size:${r.name.length>14?'10px':'12px'}">${esc(r.name)}</div>
+      <div class="rank-name" style="font-size:${r.name.length>14?'10px':'12px'}">${esc(r.name)}${r.elevado ? `<span class="rank-flecha" title="${esc(r.elevado.motivo)}">↑</span>` : ''}</div>
       <div class="rank-bar-wrap"><div class="rank-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
       <div class="rank-score" style="color:${col}">${r.score}</div>
     </div>`;

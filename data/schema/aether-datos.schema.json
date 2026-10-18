@@ -88,6 +88,25 @@
           "lat": { "type": "number", "minimum": -90, "maximum": 90 },
           "lng": { "type": "number", "minimum": -180, "maximum": 180 },
           "origen_coordenadas": { "enum": ["capital", "centroide"] },
+          "conflicto": {
+            "description": "Desglose del UCDP: muertos en el territorio por tipo de violencia, y muertos en conflictos estatales en los que el gobierno del pais es parte. No se puntua; lo usan las reglas de nivel minimo.",
+            "type": "object",
+            "required": ["territorio_12m", "parte_12m", "source"],
+            "properties": {
+              "territorio_12m": { "type": "number", "minimum": 0 },
+              "estatal_12m": { "type": "number", "minimum": 0 },
+              "no_estatal_12m": { "type": "number", "minimum": 0 },
+              "civiles_12m": { "type": "number", "minimum": 0 },
+              "parte_12m": { "type": "number", "minimum": 0 },
+              "parte_conflictos": { "type": "array", "items": { "type": "string" } },
+              "media_3anios": { "type": "number", "minimum": 0 },
+              "desde": { "type": "string" },
+              "hasta": { "type": "string" },
+              "source": { "type": "string" },
+              "url": { "type": "string", "pattern": "^https://" },
+              "version": { "type": "string" }
+            }
+          },
           "indicadores": {
             "type": "object",
             "additionalProperties": { "$ref": "#/$defs/dato" }

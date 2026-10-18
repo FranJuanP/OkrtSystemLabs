@@ -114,35 +114,131 @@ export const NIVELES = [
 ];
 
 /**
- * Nivel mínimo por conflicto activo, con los umbrales del propio UCDP.
+ * Nivel mínimo por conflicto armado, con los umbrales y las categorías del
+ * propio UCDP.
  *
  * Los niveles por percentil tienen un punto ciego: son relativos. Un país en
  * guerra cuyos demás indicadores sean razonables puede acabar en mitad de la
  * tabla, y eso fue literalmente lo que pasó antes de incorporar al UCDP:
  * Ucrania salía en el puesto 57 de 217 e Israel en el 194.
  *
- * El UCDP tiene desde hace décadas dos umbrales que son el estándar del
- * campo, y se usan tal cual:
+ * Hay cuatro reglas, y todas son **suelos**: si el percentil ya sitúa al país
+ * más arriba, manda el percentil.
  *
- *   1.000 o más muertos en 12 meses   guerra           → al menos CRÍTICO
- *   de 25 a 999 muertos               conflicto menor  → al menos ALTO
+ * ── En su territorio, y según DE QUÉ sean los muertos ──
  *
- * **Es un suelo, no un techo**: si el percentil ya sitúa al país más arriba,
- * manda el percentil. Y la ficha del país dice cuándo se ha aplicado, con la
- * cifra, para que no parezca que el número sale de donde no sale.
+ * Mil muertos no significan lo mismo según el tipo de violencia, y el UCDP
+ * los distingue en el propio dato:
+ *
+ *   estatal (tipo 1) ≥ 1.000        guerra del Estado      → CRÍTICO
+ *   no estatal (2) o civiles (3) ≥ 1.000                   → ALTO
+ *   cualquier tipo entre 25 y 999   conflicto menor        → ALTO
+ *
+ * La distinción cambia resultados: México tiene 4.432 muertos en su
+ * territorio, pero 4.404 son violencia entre grupos no estatales y solo 4 son
+ * violencia estatal. Llamar «guerra» a eso, como hacía el umbral único,
+ * describía mal lo que ocurre.
+ *
+ * ── Como parte, ocurra donde ocurra ──
+ *
+ *   parte en conflicto estatal ≥ 1.000                     → ALTO
+ *
+ * Un gobierno puede estar metido en una guerra sin que los muertos caigan en
+ * su suelo. Rusia tiene 266 muertos en su territorio y 47.931 como parte;
+ * Israel, 4 y 2.507. Dar solo la primera cifra los describe mal a los dos.
+ *
+ * Todo esto se aplica a la ETIQUETA, no al índice: el número sigue siendo la
+ * combinación de las categorías y se puede seguir explicando como tal.
  */
 export const UMBRALES_UCDP = [
-  { desde: 1000, nivel: 'CRITICAL', etiqueta: 'guerra' },
-  { desde: 25, nivel: 'HIGH', etiqueta: 'conflicto menor' },
+  {
+    id: 'estatal',
+    desde: 1000,
+    nivel: 'CRITICAL',
+    etiqueta: 'guerra',
+    ambito: 'territorio',
+    tipo: 'violencia estatal (type_of_violence 1)',
+    descripcion: '1.000 o más muertos por violencia estatal en el territorio',
+  },
+  {
+    id: 'no_estatal',
+    desde: 1000,
+    nivel: 'HIGH',
+    etiqueta: 'violencia no estatal',
+    ambito: 'territorio',
+    tipo: 'entre grupos no estatales (2)',
+    descripcion: '1.000 o más muertos entre grupos no estatales',
+  },
+  {
+    id: 'civiles',
+    desde: 1000,
+    nivel: 'HIGH',
+    etiqueta: 'violencia contra civiles',
+    ambito: 'territorio',
+    tipo: 'unilateral contra civiles (3)',
+    descripcion: '1.000 o más muertos en violencia unilateral contra civiles',
+  },
+  {
+    id: 'parte',
+    desde: 1000,
+    nivel: 'HIGH',
+    etiqueta: 'parte en conflicto armado activo',
+    ambito: 'parte',
+    tipo: 'conflictos estatales en los que es parte',
+    descripcion: 'parte en conflictos estatales con 1.000 o más muertos, ocurran donde ocurran',
+  },
+  {
+    id: 'menor',
+    desde: 25,
+    nivel: 'HIGH',
+    etiqueta: 'conflicto menor',
+    ambito: 'territorio',
+    tipo: 'cualquiera de los tres tipos',
+    descripcion: 'de 25 a 999 muertos de cualquier tipo en el territorio',
+  },
 ];
 
-/** El suelo que impone el conflicto, o null si no llega a los umbrales. */
-export function suelosPorConflicto(muertos12m) {
-  if (!Number.isFinite(muertos12m)) return null;
+/** Orden de severidad de los niveles, de más a menos. */
+const ORDEN_NIVEL = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+/**
+ * El suelo que impone el conflicto, o null si no llega a ningún umbral.
+ *
+ * Se evalúan todas las reglas y gana la más severa; si varias dan el mismo
+ * nivel, gana la de más muertos, que es la que mejor lo explica.
+ *
+ * @param {object} c el bloque `conflicto` del país
+ */
+export function suelosPorConflicto(c) {
+  if (!c) return null;
+  const valor = {
+    estatal: Number(c.estatal_12m) || 0,
+    no_estatal: Number(c.no_estatal_12m) || 0,
+    civiles: Number(c.civiles_12m) || 0,
+    parte: Number(c.parte_12m) || 0,
+    // «Cualquier tipo entre 25 y 999»: el mayor de los tres tipos.
+    menor: Math.max(
+      Number(c.estatal_12m) || 0,
+      Number(c.no_estatal_12m) || 0,
+      Number(c.civiles_12m) || 0,
+    ),
+  };
+
+  let mejor = null;
   for (const u of UMBRALES_UCDP) {
-    if (muertos12m >= u.desde) return u;
+    const v = valor[u.id];
+    if (!(v >= u.desde)) continue;
+    // La regla de «conflicto menor» solo aplica por debajo de mil; a partir
+    // de ahí la describen las reglas por tipo, que son más precisas.
+    if (u.id === 'menor' && v >= 1000) continue;
+    const candidato = { ...u, muertos: v };
+    if (!mejor) { mejor = candidato; continue; }
+    if (ORDEN_NIVEL[candidato.nivel] < ORDEN_NIVEL[mejor.nivel]) { mejor = candidato; continue; }
+    if (ORDEN_NIVEL[candidato.nivel] === ORDEN_NIVEL[mejor.nivel] && candidato.muertos > mejor.muertos) {
+      mejor = candidato;
+    }
   }
-  return null;
+  return mejor;
 }
 
 /** Lo que la interfaz tiene que decir junto a cualquier nivel. */
@@ -536,23 +632,44 @@ export function calcular(datos) {
      midiendo lo que mide, y lo que cambia es la ETIQUETA. Mezclarlo en el
      numero habria dado un indice que ya no se puede explicar como la
      combinacion de sus categorias. */
-  const ordenNiveles = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
   for (const [iso, p] of conScore) {
-    const dato = (datos.paises[iso].indicadores || {}).muertes_conflicto;
-    const muertos = dato ? dato.value : null;
-    const suelo = suelosPorConflicto(muertos);
+    const c = datos.paises[iso].conflicto;
+    if (!c) continue;
+
+    // Las dos cifras van siempre, haya suelo o no: la ficha las ensena.
+    p.conflicto = {
+      territorio: Number(c.territorio_12m) || 0,
+      estatal: Number(c.estatal_12m) || 0,
+      noEstatal: Number(c.no_estatal_12m) || 0,
+      civiles: Number(c.civiles_12m) || 0,
+      parte: Number(c.parte_12m) || 0,
+      conflictos: c.parte_conflictos || [],
+      desde: c.desde,
+      hasta: c.hasta,
+      fuente: c.source,
+      version: c.version,
+    };
+
+    const suelo = suelosPorConflicto(c);
     if (!suelo) continue;
-    p.conflicto = { muertos, umbral: suelo.desde, clase: suelo.etiqueta };
-    if (ordenNiveles[p.nivel.clave] <= ordenNiveles[suelo.nivel]) continue;
+    p.sueloConflicto = suelo;
+    if (ORDEN_NIVEL[p.nivel.clave] <= ORDEN_NIVEL[suelo.nivel]) continue;
+
     // El percentil lo dejaba mas abajo: manda el umbral del UCDP.
     p.nivelPorPercentil = p.nivel;
     p.nivel = NIVELES.find((n) => n.clave === suelo.nivel);
+    const cifra = suelo.muertos.toLocaleString('es-ES');
     p.elevadoPorConflicto = {
-      muertos,
+      regla: suelo.id,
+      muertos: suelo.muertos,
       umbral: suelo.desde,
       clase: suelo.etiqueta,
+      ambito: suelo.ambito,
       desde: p.nivelPorPercentil.etiqueta,
-      motivo: `nivel elevado por conflicto activo (UCDP): ${muertos.toLocaleString('es-ES')} muertos en 12 meses`,
+      motivo: suelo.id === 'parte'
+        ? `parte en conflicto armado activo (UCDP): ${cifra} muertos en 12 meses`
+        : `nivel elevado por conflicto activo (UCDP): ${cifra} muertos en 12 meses (${suelo.etiqueta})`,
+      detalle: suelo.descripcion,
     };
   }
 

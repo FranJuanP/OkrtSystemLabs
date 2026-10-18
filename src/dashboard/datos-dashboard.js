@@ -69,6 +69,8 @@ export function construirDATA(datos, calculo) {
       // tiene que decirlo: el numero del indice no lo explica por si solo.
       elevadoPorConflicto: p.elevadoPorConflicto || null,
       conflicto: p.conflicto || null,
+      sueloConflicto: p.sueloConflicto || null,
+      nivelPorPercentil: p.nivelPorPercentil ? p.nivelPorPercentil.etiqueta : null,
       lat: p.lat,
       lng: p.lng,
     };
