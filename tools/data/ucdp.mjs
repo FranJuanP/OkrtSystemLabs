@@ -50,6 +50,7 @@
  *   Event Dataset. Journal of Peace Research 50(4).
  */
 import { createInflateRaw } from 'node:zlib';
+import { StringDecoder } from 'node:string_decoder';
 import { pedir } from './http.mjs';
 
 const PAGINA = 'https://ucdp.uu.se/downloads/';
@@ -201,9 +202,33 @@ export async function versionesVigentes() {
   if (!geds.length) throw new Error('UCDP: no se encuentra el GED global en la página de descargas');
   if (!cands.length) throw new Error('UCDP: no se encuentra Candidate Events en la página de descargas');
 
+  /* Todas las entregas del año en curso, no solo la última.
+
+     Cada versión mensual de Candidate es un LOTE, no un acumulado: la 26.0.1
+     trae del 29-12-2025 al 05-02-2026 y la 26.0.8 del 01-01 al 10-09-2026,
+     pero entre las dos faltan las seis de en medio. Con una sola, la ventana
+     de doce meses se quedaba en cinco.
+
+     La página enlaza únicamente las dos últimas, así que el resto se deducen
+     del patrón de nombre y se piden; las que no existan darán 404 y se
+     descartan. Se empieza por la más nueva porque es la que manda al quitar
+     duplicados. */
+  const [mayor, menor] = cands[0].partes;
+  const ultima = cands[0].partes[2];
+  const serie = [];
+  for (let k = ultima; k >= 1; k--) {
+    const ya = cands.find((c) => c.partes[0] === mayor && c.partes[1] === menor && c.partes[2] === k);
+    serie.push(ya || {
+      url: new URL(`candidateged/GEDEvent_v${mayor}_${menor}_${k}.csv`, PAGINA).href,
+      version: `${mayor}.${menor}.${k}`,
+      partes: [mayor, menor, k],
+    });
+  }
+
   return {
     ged: { url: geds[0].url, version: geds[0].version },
     candidate: { url: cands[0].url, version: cands[0].version },
+    serieCandidate: serie,
   };
 }
 
@@ -216,17 +241,41 @@ export async function versionesVigentes() {
 async function porCadaFila(stream, alLeer) {
   let resto = '';
   let cabecera = null;
+  /* Dentro de un campo entrecomillado, un salto de línea NO termina el
+     registro. `source_article` lleva el texto de la noticia y trae saltos a
+     menudo: partir por '\n' a secas rompía esos registros en trozos, y como
+     `country`, `best` y las fechas van DESPUÉS de ese campo, el trozo de
+     delante se quedaba sin ellos y no sumaba. Se perdía el 6,9 % de los
+     muertos de Candidate, y no de forma uniforme: Colombia perdía el 61 % y
+     Nigeria el 23 %. */
+  let dentroDeComillas = false;
+  // Un trozo del flujo puede cortar un carácter UTF-8 por la mitad.
+  const decodificador = new StringDecoder('utf8');
+
+  const procesa = (registro) => {
+    if (!registro.trim()) return;
+    if (!cabecera) { cabecera = partirCSV(registro); return; }
+    alLeer(partirCSV(registro), cabecera);
+  };
+
   for await (const trozo of stream) {
-    const texto = resto + trozo.toString('utf8');
-    const lineas = texto.split('\n');
-    resto = lineas.pop();
-    for (const linea of lineas) {
-      if (!linea.trim()) continue;
-      if (!cabecera) { cabecera = partirCSV(linea); continue; }
-      alLeer(partirCSV(linea), cabecera);
+    const texto = decodificador.write(Buffer.isBuffer(trozo) ? trozo : Buffer.from(trozo));
+    let inicio = 0;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      // Toggle simple: con «""» (comilla escapada) entra y sale, que es lo
+      // correcto, porque sigue estando dentro del campo.
+      if (c === '"') { dentroDeComillas = !dentroDeComillas; continue; }
+      if (c === '\n' && !dentroDeComillas) {
+        procesa(resto + texto.slice(inicio, i));
+        resto = '';
+        inicio = i + 1;
+      }
     }
+    resto += texto.slice(inicio);
   }
-  if (resto.trim() && cabecera) alLeer(partirCSV(resto), cabecera);
+  resto += decodificador.end();
+  procesa(resto);
 }
 
 /** Divide una línea de CSV respetando comillas y comillas dobladas. */
@@ -243,6 +292,9 @@ function partirCSV(linea) {
     }
     if (c === ',' && !dentro) { out.push(actual); actual = ''; continue; }
     if (c === '\r') continue;
+    // Un salto dentro de un campo entrecomillado se guarda como espacio: el
+    // valor sigue siendo el mismo dato y así no arrastra saltos a la ficha.
+    if (c === '\n') { actual += ' '; continue; }
     actual += c;
   }
   out.push(actual);
@@ -401,8 +453,13 @@ export async function descargar(iso3Validos) {
     const etiqueta = !nombre ? null
       : (/^XXX\d*$/i.test(nombre) ? 'conflicto aun sin nombre en UCDP' : nombre);
 
-    for (const [ladoNombre, ladoGw] of [['side_a', 'gwnoa'], ['side_b', 'gwnob']]) {
-      if (!fila[ladoGw]) continue;
+    /* No se mira `gwnoa`/`gwnob`: en las COALICIONES vienen VACÍOS aunque el
+       lado nombre a dos gobiernos. Exigirlos descartaba la guerra entera de
+       Irán contra Israel y Estados Unidos. El filtro de verdad es el nombre:
+       `gobiernosDe()` solo acepta «Government of X» que resuelva a un país, y
+       se comprobó que los únicos actores con ese patrón y sin número desde
+       2020 son las cuatro coaliciones que existen. */
+    for (const ladoNombre of ['side_a', 'side_b']) {
       for (const iso of gobiernosDe(fila[ladoNombre])) {
         const aplica = [];
         if (destinos.ventana) aplica.push(toca(iso).ventana);
@@ -416,29 +473,46 @@ export async function descargar(iso3Validos) {
     }
   };
 
-  // ── 1. Candidate: el año en curso ────────────────────────────────────────
-  const csvCand = await pedir(version.candidate.url, { como: 'text', timeoutMs: 180000 });
-  let ultimaFecha = null;
+  // ── 1. Candidate: el año en curso, entrega a entrega ─────────────────────
+  /* Se recorren de la más nueva a la más vieja y se queda el PRIMER id que
+     aparece: cuando un evento sale en dos entregas, la reciente es la que
+     lleva la corrección. Hoy se solapan 65 de 11.825 filas. */
+  const vistosCand = new Set();
   const filasCand = [];
-  await porCadaFila((async function* () { yield Buffer.from(csvCand, 'utf8'); })(), (campos, cab) => {
-    const fila = {};
-    for (let i = 0; i < cab.length; i++) fila[cab[i]] = campos[i];
-    filasCand.push(fila);
-    const d = new Date(fila.date_end || fila.date_start);
-    if (!isNaN(d) && (!ultimaFecha || d > ultimaFecha)) ultimaFecha = d;
-  });
-  if (!ultimaFecha) throw new Error('UCDP: Candidate no trae fechas utilizables');
+  const entregas = [];
+  for (const v of (version.serieCandidate || [version.candidate])) {
+    let csv;
+    try {
+      csv = await pedir(v.url, { como: 'text', timeoutMs: 180000 });
+    } catch (err) {
+      // Una entrega que no está no es un error: el patrón de nombre se deduce.
+      avisos.push(`UCDP: Candidate ${v.version} no disponible (${String(err.message).slice(0, 60)})`);
+      continue;
+    }
+    let nuevas = 0;
+    let repetidas = 0;
+    await porCadaFila((async function* () { yield Buffer.from(csv, 'utf8'); })(), (campos, cab) => {
+      const fila = {};
+      for (let i = 0; i < cab.length; i++) fila[cab[i]] = campos[i];
+      if (!fila.id) return;
+      if (vistosCand.has(fila.id)) { repetidas++; return; }
+      vistosCand.add(fila.id);
+      filasCand.push(fila);
+      nuevas++;
+    });
+    entregas.push({ version: v.version, nuevas, repetidas });
+  }
+  if (!filasCand.length) throw new Error('UCDP: ninguna entrega de Candidate ha podido leerse');
 
-  /* La primera fecha de Candidate, que marca dónde deja de mandar GED.
-
-     Candidate NO es acumulativo: la versión 26.0.8 trae seis semanas
-     (2026-07-31 a 2026-09-09), no el año en curso entero. Saberlo importa
-     para no contar dos veces un día cubierto por los dos. */
+  let ultimaFecha = null;
   let primeraCand = null;
   for (const fila of filasCand) {
-    const d = new Date(fila.date_start || fila.date_end);
-    if (!isNaN(d) && (!primeraCand || d < primeraCand)) primeraCand = d;
+    const fin = new Date(fila.date_end || fila.date_start);
+    if (!isNaN(fin) && (!ultimaFecha || fin > ultimaFecha)) ultimaFecha = fin;
+    const ini = new Date(fila.date_start || fila.date_end);
+    if (!isNaN(ini) && (!primeraCand || ini < primeraCand)) primeraCand = ini;
   }
+  if (!ultimaFecha) throw new Error('UCDP: Candidate no trae fechas utilizables');
   if (!primeraCand) primeraCand = ultimaFecha;
 
   // Los últimos doce meses se cuentan hacia atrás desde la última fecha del
@@ -469,6 +543,8 @@ export async function descargar(iso3Validos) {
   void anioUltimo;
 
   const aniosVistos = new Set();
+  // Hasta dónde llega GED, para poder decir cuánto de la ventana está cubierto.
+  let ultimaGed = null;
   await porCadaFila(stream, (campos, cab) => {
     const idx = {};
     for (let i = 0; i < cab.length; i++) idx[cab[i]] = i;
@@ -483,6 +559,7 @@ export async function descargar(iso3Validos) {
     /* El tramo de la ventana que Candidate no cubre. La cota superior evita
        contar dos veces si una futura versión de GED llegase a solaparse con
        Candidate: hoy GED acaba donde Candidate aún no ha empezado. */
+    if (!isNaN(d) && (!ultimaGed || d > ultimaGed)) ultimaGed = d;
     const enVentana = !isNaN(d) && d >= desde && d <= ultimaFecha && d < primeraCand;
 
     const destinos = { ventana: enVentana, anio };
@@ -501,7 +578,32 @@ export async function descargar(iso3Validos) {
   });
 
   const ultimoCompleto = Math.max(...aniosVistos);
+
+  /* Cuántos meses de la ventana están realmente cubiertos.
+
+     GED cubre hasta su última fecha y Candidate desde la suya; si entre las
+     dos queda un hueco, la «ventana de doce meses» no son doce meses y hay
+     que decirlo. Se unen los dos tramos recortados a la ventana y se mide. */
+  const tramos = [];
+  if (ultimaGed && ultimaGed > desde) {
+    tramos.push([desde.getTime(), Math.min(ultimaGed.getTime(), ultimaFecha.getTime())]);
+  }
+  tramos.push([Math.max(primeraCand.getTime(), desde.getTime()), ultimaFecha.getTime()]);
+  tramos.sort((a, b) => a[0] - b[0]);
+  const unidos = [];
+  for (const t of tramos) {
+    if (t[1] <= t[0]) continue;
+    const ult = unidos[unidos.length - 1];
+    if (ult && t[0] <= ult[1]) ult[1] = Math.max(ult[1], t[1]);
+    else unidos.push([...t]);
+  }
+  const diasCubiertos = unidos.reduce((n, t) => n + (t[1] - t[0]) / 86400000, 0);
+  const coberturaMeses = Math.round((diasCubiertos / 365) * 12 * 10) / 10;
   const tresAnios = [ultimoCompleto - 2, ultimoCompleto - 1, ultimoCompleto];
+
+  /* Dos semanas de margen: una ventana a la que le falten más de catorce
+     días deja de poder llamarse «doce meses». */
+  const ventanaIncompleta = diasCubiertos < 351;
 
   const porPais = new Map();
   for (const [iso, a] of acumulado) {
@@ -511,10 +613,18 @@ export async function descargar(iso3Validos) {
     const suma = tresAnios.reduce((t, y) => t + ((a.porAnio.get(y) || vacio).muertos), 0);
 
     /* Cuál de los dos se publica.
-       Gana el de más muertos, y se publica ENTERO: el desglose por tipo y la
-       cifra de parte vienen del mismo tramo que el total, porque mezclarlos
-       daría un desglose que no suma. */
-    const usaAnual = anual.muertos > ventana.muertos;
+
+       El año natural cerrado es un RESPALDO, no una alternativa: solo entra
+       cuando la ventana está incompleta. Mientras las entregas de Candidate
+       cubran el año en curso, la ventana de doce meses es doce meses de
+       verdad y es la que describe el presente; coger entonces el año anterior
+       solo porque fue peor mezclaría dos periodos y sesgaría al alza.
+
+       Cuando sí está incompleta —si el UCDP se salta una entrega, o si
+       cambia el formato— gana el de más muertos, y se publica ENTERO: el
+       desglose por tipo y la cifra de parte vienen del mismo tramo que el
+       total, porque mezclarlos daría un desglose que no suma. */
+    const usaAnual = ventanaIncompleta && anual.muertos > ventana.muertos;
     const elegido = usaAnual ? anual : ventana;
 
     porPais.set(iso, {
@@ -549,7 +659,16 @@ export async function descargar(iso3Validos) {
       desde: desde.toISOString().slice(0, 10),
       hasta: ultimaFecha.toISOString().slice(0, 10),
       candidateDesde: primeraCand.toISOString().slice(0, 10),
+      gedHasta: ultimaGed ? ultimaGed.toISOString().slice(0, 10) : null,
       ultimoAnioCompleto: ultimoCompleto,
+      coberturaMeses,
+      ventanaIncompleta,
+      entregasCandidate: entregas,
+      /* «26.0.1-26.0.8», porque se leen todas y decir solo la última daría a
+         entender que de ahí sale todo el año. */
+      candidateRango: entregas.length > 1
+        ? `${entregas[entregas.length - 1].version}-${entregas[0].version}`
+        : (entregas[0] ? entregas[0].version : version.candidate.version),
       aniosCompletos: tresAnios,
       licencia: LICENCIA_UCDP,
       cita: CITA_UCDP,

@@ -156,15 +156,28 @@ describe('el bloque de conflicto del UCDP', () => {
     expect(sin).toEqual([]);
   });
 
-  it('publica el tramo con más muertos, y dice cuál es', () => {
-    /* Candidate no es acumulativo, así que la ventana de 12 meses puede
-       quedarse corta. La regla es el máximo entre la ventana y el último año
-       natural cerrado; esto comprueba que se aplicó país por país. */
+  it('la ventana de 12 meses está cubierta de verdad', () => {
+    /* Candidate no es acumulativo: cada entrega es un lote de unas semanas.
+       Se descargan todas las del año en curso, así que la ventana tiene que
+       salir completa. Si esto falla, el UCDP ha cambiado algo. */
+    const c = paises[0][1].conflicto;
+    expect(c.cobertura_meses).toBeGreaterThanOrEqual(11.5);
+    expect(c.cobertura_meses).toBeLessThanOrEqual(12);
+  });
+
+  it('con la ventana completa publica la ventana, no el año anterior', () => {
+    /* El año natural cerrado es un RESPALDO: solo entra cuando a la ventana
+       le faltan datos. Con cobertura completa, coger el año anterior solo
+       porque fue peor mezclaría dos periodos. */
     for (const [iso, p] of paises) {
       const c = p.conflicto;
-      const mayor = Math.max(c.ventana_12m, c.ultimo_anio_completo);
-      expect(c.territorio_12m, iso).toBe(mayor);
-      expect(c.base, iso).toBe(c.ultimo_anio_completo > c.ventana_12m ? 'anio_completo' : 'ventana_12m');
+      if (c.cobertura_meses >= 11.5) {
+        expect(c.base, iso).toBe('ventana_12m');
+        expect(c.territorio_12m, iso).toBe(c.ventana_12m);
+      } else {
+        const mayor = Math.max(c.ventana_12m, c.ultimo_anio_completo);
+        expect(c.territorio_12m, iso).toBe(mayor);
+      }
     }
   });
 
@@ -200,6 +213,8 @@ describe('el bloque de conflicto del UCDP', () => {
     /* `muertes_conflicto_parte` llegó a escribir la media de tres años, con
        lo que el indicador que entra en GEO era un duplicado del otro. */
     const rus = datos.paises.RUS;
+    // Rusia es el caso que lo separa todo: poco en su territorio, una guerra
+    // entera como parte, y una media de tres años distinta de las dos.
     expect(rus.indicadores.muertes_conflicto.value).toBe(rus.conflicto.territorio_12m);
     expect(rus.indicadores.muertes_conflicto_parte.value).toBe(rus.conflicto.parte_12m);
     expect(rus.indicadores.muertes_conflicto_media.value).toBe(rus.conflicto.media_3anios);

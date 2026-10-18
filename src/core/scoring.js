@@ -156,6 +156,7 @@ export const UMBRALES_UCDP = [
     desde: 1000,
     nivel: 'CRITICAL',
     etiqueta: 'guerra',
+    frase: 'guerra en su territorio',
     ambito: 'territorio',
     tipo: 'violencia estatal (type_of_violence 1)',
     descripcion: '1.000 o más muertos por violencia estatal en el territorio',
@@ -165,6 +166,7 @@ export const UMBRALES_UCDP = [
     desde: 1000,
     nivel: 'HIGH',
     etiqueta: 'violencia no estatal',
+    frase: 'violencia no estatal en su territorio',
     ambito: 'territorio',
     tipo: 'entre grupos no estatales (2)',
     descripcion: '1.000 o más muertos entre grupos no estatales',
@@ -174,6 +176,7 @@ export const UMBRALES_UCDP = [
     desde: 1000,
     nivel: 'HIGH',
     etiqueta: 'violencia contra civiles',
+    frase: 'violencia contra civiles en su territorio',
     ambito: 'territorio',
     tipo: 'unilateral contra civiles (3)',
     descripcion: '1.000 o más muertos en violencia unilateral contra civiles',
@@ -183,6 +186,7 @@ export const UMBRALES_UCDP = [
     desde: 1000,
     nivel: 'HIGH',
     etiqueta: 'parte en conflicto armado activo',
+    frase: 'parte en conflicto armado',
     ambito: 'parte',
     tipo: 'conflictos estatales en los que es parte',
     descripcion: 'parte en conflictos estatales con 1.000 o más muertos, ocurran donde ocurran',
@@ -192,6 +196,7 @@ export const UMBRALES_UCDP = [
     desde: 25,
     nivel: 'HIGH',
     etiqueta: 'conflicto menor',
+    frase: 'conflicto menor en su territorio',
     ambito: 'territorio',
     tipo: 'cualquiera de los tres tipos',
     descripcion: 'de 25 a 999 muertos de cualquier tipo en el territorio',
@@ -202,43 +207,57 @@ export const UMBRALES_UCDP = [
 const ORDEN_NIVEL = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
 /**
+ * TODAS las reglas del UCDP que cumple un país, de más grave a menos.
+ *
+ * El nivel lo decide la primera —la más severa—, pero enseñar solo esa
+ * describía mal a los países que cumplen varias. Rusia tiene 4.410 muertos de
+ * violencia estatal en su propio territorio y 93.823 en la guerra en la que es
+ * parte: la primera cifra es la que manda en la etiqueta y la segunda es,
+ * con diferencia, la que explica el país.
+ *
+ * A igual nivel ordena por muertos, que es lo que mejor lo explica.
+ *
+ * @param {object} c el bloque `conflicto` del país
+ * @returns {object[]} las reglas cumplidas, con sus muertos
+ */
+export function reglasPorConflicto(c) {
+  if (!c) return [];
+  const valor = valoresDeConflicto(c);
+  const fuera = [];
+  for (const u of UMBRALES_UCDP) {
+    const v = valor[u.id];
+    if (!Number.isFinite(v) || !(v >= u.desde)) continue;
+    // La regla de «conflicto menor» solo aplica por debajo de mil; a partir
+    // de ahí la describen las reglas por tipo, que son más precisas.
+    if (u.id === 'menor' && v >= 1000) continue;
+    fuera.push({ ...u, muertos: v });
+  }
+  return fuera.sort((a, b) => (ORDEN_NIVEL[a.nivel] - ORDEN_NIVEL[b.nivel]) || (b.muertos - a.muertos));
+}
+
+/** Los valores que mira cada regla, sacados del bloque del país. */
+function valoresDeConflicto(c) {
+  const estatal = Number(c.estatal_12m) || 0;
+  const noEstatal = Number(c.no_estatal_12m) || 0;
+  const civiles = Number(c.civiles_12m) || 0;
+  return {
+    estatal,
+    no_estatal: noEstatal,
+    civiles,
+    parte: Number(c.parte_12m) || 0,
+    menor: Math.max(estatal, noEstatal, civiles),
+  };
+}
+
+/**
  * El suelo que impone el conflicto, o null si no llega a ningún umbral.
  *
- * Se evalúan todas las reglas y gana la más severa; si varias dan el mismo
- * nivel, gana la de más muertos, que es la que mejor lo explica.
+ * Es la primera de `reglasPorConflicto()`: la más severa.
  *
  * @param {object} c el bloque `conflicto` del país
  */
 export function suelosPorConflicto(c) {
-  if (!c) return null;
-  const valor = {
-    estatal: Number(c.estatal_12m) || 0,
-    no_estatal: Number(c.no_estatal_12m) || 0,
-    civiles: Number(c.civiles_12m) || 0,
-    parte: Number(c.parte_12m) || 0,
-    // «Cualquier tipo entre 25 y 999»: el mayor de los tres tipos.
-    menor: Math.max(
-      Number(c.estatal_12m) || 0,
-      Number(c.no_estatal_12m) || 0,
-      Number(c.civiles_12m) || 0,
-    ),
-  };
-
-  let mejor = null;
-  for (const u of UMBRALES_UCDP) {
-    const v = valor[u.id];
-    if (!(v >= u.desde)) continue;
-    // La regla de «conflicto menor» solo aplica por debajo de mil; a partir
-    // de ahí la describen las reglas por tipo, que son más precisas.
-    if (u.id === 'menor' && v >= 1000) continue;
-    const candidato = { ...u, muertos: v };
-    if (!mejor) { mejor = candidato; continue; }
-    if (ORDEN_NIVEL[candidato.nivel] < ORDEN_NIVEL[mejor.nivel]) { mejor = candidato; continue; }
-    if (ORDEN_NIVEL[candidato.nivel] === ORDEN_NIVEL[mejor.nivel] && candidato.muertos > mejor.muertos) {
-      mejor = candidato;
-    }
-  }
-  return mejor;
+  return reglasPorConflicto(c)[0] || null;
 }
 
 /** Lo que la interfaz tiene que decir junto a cualquier nivel. */
@@ -643,9 +662,10 @@ export function calcular(datos) {
        muertos que esa ventana coja, se publica el año entero. Decir «12
        meses» entonces seria mentir sobre el periodo, asi que el texto lo
        nombra: «en 2025». */
-    const periodo = c.base === 'anio_completo' && c.anio_base
-      ? `en ${c.anio_base}`
-      : 'en 12 meses';
+    const periodoCorto = c.base === 'anio_completo' && c.anio_base
+      ? String(c.anio_base)
+      : '12 meses';
+    const periodo = `en ${periodoCorto}`;
 
     // Las dos cifras van siempre, haya suelo o no: la ficha las ensena.
     p.conflicto = {
@@ -659,6 +679,8 @@ export function calcular(datos) {
       anioBase: c.anio_base || null,
       ventana12m: Number(c.ventana_12m) || 0,
       ultimoAnioCompleto: Number(c.ultimo_anio_completo) || 0,
+      // Cuántos de los doce meses de la ventana tienen datos detrás.
+      coberturaMeses: c.cobertura_meses == null ? null : Number(c.cobertura_meses),
       periodo,
       desde: c.desde,
       hasta: c.hasta,
@@ -666,15 +688,26 @@ export function calcular(datos) {
       version: c.version,
     };
 
-    const suelo = suelosPorConflicto(c);
+    const reglas = reglasPorConflicto(c);
+    const suelo = reglas[0];
     if (!suelo) continue;
     p.sueloConflicto = suelo;
+    /* Todas las reglas que cumple, para la ficha. El NIVEL sigue saliendo de
+       la primera; esto solo cambia lo que se cuenta. */
+    p.reglasConflicto = reglas.map((r) => ({
+      id: r.id, frase: r.frase, muertos: r.muertos, nivel: r.nivel, etiqueta: r.etiqueta,
+    }));
     if (ORDEN_NIVEL[p.nivel.clave] <= ORDEN_NIVEL[suelo.nivel]) continue;
 
     // El percentil lo dejaba mas abajo: manda el umbral del UCDP.
     p.nivelPorPercentil = p.nivel;
     p.nivel = NIVELES.find((n) => n.clave === suelo.nivel);
-    const cifra = suelo.muertos.toLocaleString('es-ES');
+
+    /* El motivo encadena TODAS las reglas cumplidas, de más grave a menos.
+       Con solo la primera, Rusia decía «guerra en su territorio: 4.410» y se
+       callaba los 93.823 de la guerra en la que es parte, que es la cifra que
+       de verdad la describe. */
+    const trozos = reglas.map((r) => `${r.frase}: ${r.muertos.toLocaleString('es-ES')}`);
     p.elevadoPorConflicto = {
       regla: suelo.id,
       muertos: suelo.muertos,
@@ -683,10 +716,9 @@ export function calcular(datos) {
       ambito: suelo.ambito,
       desde: p.nivelPorPercentil.etiqueta,
       periodo,
-      motivo: suelo.id === 'parte'
-        ? `parte en conflicto armado activo (UCDP): ${cifra} muertos ${periodo}`
-        : `nivel elevado por conflicto activo (UCDP): ${cifra} muertos ${periodo} (${suelo.etiqueta})`,
-      detalle: suelo.descripcion,
+      reglas: p.reglasConflicto,
+      motivo: `nivel elevado por conflicto activo (UCDP, ${periodoCorto}) — ${trozos.join(' · ')}`,
+      detalle: reglas.map((r) => r.descripcion).join('; '),
     };
   }
 

@@ -279,6 +279,11 @@
               },
               "candidate_desde": {
                 "type": "string"
+              },
+              "cobertura_meses": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 12
               }
             }
           },

@@ -12,7 +12,7 @@ import {
   percentiles, confianzaDe, nivelDe, nivelPorFraccion, calcular,
   PESOS_CATEGORIA, PESOS_INDICADOR, NIVELES, ETIQUETA_RELATIVA,
   PESO_CONJUNTO, PESO_PEORES, CUANTAS_PEORES, velocidadDeIndicador,
-  UMBRALES_UCDP, suelosPorConflicto,
+  UMBRALES_UCDP, suelosPorConflicto, reglasPorConflicto,
 } from '../../src/core/scoring.js';
 
 describe('percentiles', () => {
@@ -413,7 +413,8 @@ describe('calcular', () => {
 
     expect(calc.paises.AAA.nivel.clave).toBe('CRITICAL');
     expect(calc.paises.AAA.elevadoPorConflicto).toBeTruthy();
-    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/conflicto activo \(UCDP\)/);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/conflicto activo \(UCDP, /);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/guerra en su territorio: 5000/);
     // Y guarda donde caia por percentil, para poder ensenarlo.
     expect(calc.paises.AAA.nivelPorPercentil).toBeTruthy();
 
@@ -442,7 +443,7 @@ describe('calcular', () => {
     const calc = calcular(d);
     expect(calc.paises.AAA.nivel.clave).toBe('HIGH');
     expect(calc.paises.AAA.elevadoPorConflicto.regla).toBe('parte');
-    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/^parte en conflicto armado activo \(UCDP\)/);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/parte en conflicto armado: 47\.931/);
     expect(calc.paises.AAA.conflicto.conflictos).toEqual(['Russia - Ukraine']);
   });
 
@@ -458,7 +459,7 @@ describe('calcular', () => {
       desde: '2025-01-01', hasta: '2025-12-31',
     });
     const calc = calcular(d);
-    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/muertos en 2025 \(guerra\)/);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/\(UCDP, 2025\)/);
     expect(calc.paises.AAA.conflicto.periodo).toBe('en 2025');
     expect(calc.paises.AAA.conflicto.anioBase).toBe(2025);
     expect(calc.paises.AAA.conflicto.ventana12m).toBe(900);
@@ -471,8 +472,47 @@ describe('calcular', () => {
       base: 'ventana_12m', ventana_12m: 5000, ultimo_anio_completo: 10,
     });
     const calc = calcular(d);
-    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/muertos en 12 meses/);
+    expect(calc.paises.AAA.elevadoPorConflicto.motivo).toMatch(/\(UCDP, 12 meses\)/);
     expect(calc.paises.AAA.conflicto.periodo).toBe('en 12 meses');
+  });
+
+  it('el motivo encadena todas las reglas, de más grave a menos', () => {
+    /* Rusia: 4.410 muertos de violencia estatal en su territorio y 93.823 en
+       la guerra en la que es parte. Con solo la primera regla, el motivo se
+       callaba la cifra que de verdad la describe. */
+    const d = datosDePrueba();
+    d.paises.AAA.conflicto = bloqueConflicto({
+      territorio_12m: 4412, estatal_12m: 4410, civiles_12m: 2, parte_12m: 93823,
+      ventana_12m: 4412,
+    });
+    const calc = calcular(d);
+    const e = calc.paises.AAA.elevadoPorConflicto;
+    // El nivel lo sigue decidiendo la más severa, y solo ella.
+    expect(calc.paises.AAA.nivel.clave).toBe('CRITICAL');
+    expect(e.regla).toBe('estatal');
+    // Pero el motivo las cuenta todas, en orden de severidad.
+    expect(e.motivo).toContain('guerra en su territorio: 4410');
+    expect(e.motivo).toContain('parte en conflicto armado: 93.823');
+    expect(e.motivo.indexOf('guerra')).toBeLessThan(e.motivo.indexOf('parte en'));
+    expect(e.reglas.map((r) => r.id)).toEqual(['estatal', 'parte']);
+  });
+
+  it('a igual nivel, el motivo ordena por muertos', () => {
+    const d = datosDePrueba();
+    d.paises.AAA.conflicto = bloqueConflicto({
+      territorio_12m: 3000, no_estatal_12m: 1200, civiles_12m: 1800, ventana_12m: 3000,
+    });
+    const calc = calcular(d);
+    expect(calc.paises.AAA.elevadoPorConflicto.reglas.map((r) => r.id)).toEqual(['civiles', 'no_estatal']);
+  });
+
+  it('reglasPorConflicto devuelve todas, suelosPorConflicto solo la primera', () => {
+    const c = { estatal_12m: 4410, no_estatal_12m: 0, civiles_12m: 2, parte_12m: 93823 };
+    const todas = reglasPorConflicto(c);
+    expect(todas).toHaveLength(2);
+    expect(suelosPorConflicto(c)).toEqual(todas[0]);
+    expect(reglasPorConflicto(null)).toEqual([]);
+    expect(reglasPorConflicto({})).toEqual([]);
   });
 
   it('el tipo decide el techo del suelo: no estatal no llega a CRÍTICO', () => {
