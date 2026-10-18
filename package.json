@@ -9,7 +9,7 @@
     "smoke:compare": "node tests/compare.mjs",
     "test:xss": "node tests/xss.mjs --base http://localhost:8080/OkrtSystemLabs",
     "test:watchlist": "node tests/watchlist.mjs --base http://localhost:8080/OkrtSystemLabs",
-    "test": "npm run test:xss && npm run test:watchlist && npm run test:coverage && npm run test:paridad && npm run test:vector && npm run test:sw",
+    "test": "npm run test:xss && npm run test:watchlist && npm run test:coverage && npm run test:paridad && npm run test:vector && npm run test:rendimiento && npm run test:sw",
     "test:coverage": "node tests/coverage.mjs --base http://localhost:8080/OkrtSystemLabs",
     "test:sw": "node tests/sw.mjs --base http://localhost:8080/OkrtSystemLabs",
     "dev": "vite",
@@ -23,7 +23,11 @@
     "test:paridad": "node tests/paridad.mjs --base http://localhost:8080/OkrtSystemLabs",
     "eventos": "node tools/fetch-events.mjs",
     "vector": "node tools/fetch-vector.mjs",
-    "test:vector": "node tests/vector.mjs --base http://localhost:8080/OkrtSystemLabs"
+    "test:vector": "node tests/vector.mjs --base http://localhost:8080/OkrtSystemLabs",
+    "test:rendimiento": "node tests/rendimiento.mjs --base http://localhost:8080/OkrtSystemLabs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:todo": "npm run test:unit && npm run build && npm run smoke && npm test"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
@@ -34,6 +38,7 @@
     "sharp": "^0.35.5",
     "vite": "^8.3.4",
     "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.5",
     "workbox-window": "^7.4.1"
   },
   "dependencies": {

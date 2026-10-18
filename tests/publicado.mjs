@@ -26,7 +26,11 @@ const argOf = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && arg
 const BASE = argOf('base', 'https://franjuanp.github.io/OkrtSystemLabs').replace(/\/$/, '');
 const SALIDA = argOf('out', path.join(import.meta.dirname, 'shots', 'publicado'));
 
-const PAGINAS = ['index.html', 'aether-globe-v3.html', 'aether-signal.html', 'aether-vector.html'];
+/* Las cinco páginas que se publican. `metodologia.html` entra aquí porque
+   explica cómo se calcula lo que enseñan las otras cuatro: si se rompe, el
+   panel sigue pintando números que ya no hay forma de auditar. */
+const PAGINAS = ['index.html', 'aether-globe-v3.html', 'aether-signal.html',
+  'aether-vector.html', 'metodologia.html'];
 const VENTANAS = [
   { nombre: '1440x900', width: 1440, height: 900 },
   { nombre: '390x844', width: 390, height: 844 },
@@ -217,6 +221,33 @@ const TERCEROS = /earthquake\.usgs\.gov|eonet\.gsfc\.nasa\.gov|api\.reliefweb\.i
   }
 
   // ── 2. Offline de verdad ─────────────────────────────────────────────────
+  /* El fichero de datos, pedido como lo pide la página.
+
+     Es lo único de lo que depende todo el panel, y un 404 aquí se vería como
+     «SIN DATOS» en los 217 países sin un solo error de consola. */
+  console.log('\n--- data/latest.json ---');
+  try {
+    const r = await fetch(`${BASE}/data/latest.json`);
+    if (!r.ok) {
+      mal(`data/latest.json responde ${r.status}`);
+    } else {
+      const d = await r.json();
+      const paises = Object.keys(d.paises || {}).length;
+      const indicadores = Object.keys(d.indicadores || {}).length;
+      if (paises >= 200 && indicadores >= 50) {
+        ok(`data/latest.json: 200 · ${paises} países · ${indicadores} indicadores · generado ${String(d.generado || '').slice(0, 10)}`);
+      } else {
+        mal(`data/latest.json llega corto: ${paises} países, ${indicadores} indicadores`);
+      }
+      // El desglose del UCDP tiene que viajar: de él dependen los niveles.
+      const conBloque = Object.values(d.paises || {}).filter((p) => p.conflicto).length;
+      if (conBloque === paises) ok(`el bloque de conflicto viaja en los ${conBloque} países`);
+      else mal(`${paises - conBloque} países sin bloque de conflicto en el fichero publicado`);
+    }
+  } catch (err) {
+    mal(`data/latest.json: no se puede leer · ${err.message.split('\n')[0]}`);
+  }
+
   console.log('\n--- offline: primera visita con red, luego sin red ---');
   const ctxOffline = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const primera = await ctxOffline.newPage();

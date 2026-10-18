@@ -161,3 +161,16 @@
 /* La flecha del ranking: marca que el nivel lo impuso el umbral de
    conflicto del UCDP y no el percentil. El motivo va en el title. */
 .rank-flecha{color:var(--red);margin-left:3px;cursor:help;font-size:.9em}
+/* T27 · El ajuste del modelo, al lado de la puntuacion del dato.
+   El numero grande es el percentil que sale de los datos; este pequeno es lo
+   que le anaden la velocidad y las correlaciones, que son tablas escritas a
+   mano. Verlos juntos y separados es la diferencia entre "41" y "41 mas 3 que
+   pone el modelo". */
+.score-ajuste{
+  font-family:'Share Tech Mono',monospace;
+  font-size:.45em;
+  color:var(--dim);
+  margin-left:.25em;
+  vertical-align:super;
+  letter-spacing:0;
+}

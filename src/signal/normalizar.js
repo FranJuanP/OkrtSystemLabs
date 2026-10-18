@@ -169,6 +169,15 @@ export function normalizarWHO(d, ahora = Date.now()) {
     // El resumen viene con HTML y con espacios finos; se limpia para la ficha.
     const resumen = String(ev.Summary || ev.Overview || '')
       .replace(/<[^>]+>/g, ' ')
+      /* Las entidades HTML hay que decodificarlas, no solo quitar las
+         etiquetas: el resumen de la OMS trae &nbsp; y &amp; literales y, sin
+         esto, la ficha mostraba "WHO was informed&nbsp;of a cluster". */
+      .replace(/&nbsp;|&#160;|&#xa0;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&apos;/gi, "'")
       .replace(/[\u00a0\u202f\u2009]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();

@@ -13,3 +13,4 @@ data/aether-*.json
 # artefacto de Pages. Antes los confirmaba un trabajo cada media hora:
 # 48 commits al dia de un fichero que caduca en media hora.
 data/events.json
+preview.log

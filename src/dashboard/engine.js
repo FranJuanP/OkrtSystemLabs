@@ -27,6 +27,10 @@ import { feature as topoFeature } from 'topojson-client';
 import { cargarDatos, fechaDatos } from '../core/datos.js';
 import { construirDATA } from './datos-dashboard.js';
 import { ETIQUETA_RELATIVA } from '../core/scoring.js';
+import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rng.js';
+import { proyectarAPSD, normalizarPesos, comprobarCorrelacion } from './matrices.js';
+import { proyectar, enMemoria, estadisticas as statsSim } from './sim-cliente.js';
+import { simularCascada, monteCarlo as monteCarloLocal } from './sim-core.js';
 
 const d3 = {
   select, zoom, zoomIdentity, drag,
@@ -819,7 +823,41 @@ if (DATOS_ESTADO.ok && DATOS_ESTADO.calculo) {
   for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.paises)) VELOCITY[iso] = p.velocidades;
   for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.agregados || {})) VELOCITY[iso] = p.velocidades;
 }
-const CORR_MATRIX=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
+/* T27 · CORR_MATRIX no era una matriz de correlacion.
+
+   Es simetrica, tiene unos en la diagonal y todos sus valores estan en
+   [-1, 1], asi que lo parece. Pero una matriz de correlacion tiene que ser
+   ademas SEMIDEFINIDA POSITIVA: si no lo es, describe un conjunto de
+   correlaciones que ningun conjunto de variables reales puede tener a la vez.
+
+   Su espectro tiene un valor propio negativo: -0,1484. Los otros quince son
+   positivos. Mientras haya uno negativo, cualquier calculo que la trate como
+   una correlacion puede producir varianzas negativas.
+
+   La tabla escrita a mano se conserva como CORR_DECLARADA, para poder ver de
+   donde se parte, y CORR_MATRIX es su proyeccion valida: se recorta el valor
+   propio negativo y se devuelve la diagonal a unos. El cambio maximo en un
+   elemento es 0,051 y la correlacion mas alta pasa de 0,80 a 0,7879.
+
+   INFORME_CORR lleva el detalle y window.__AETHER__ lo expone. */
+const CORR_DECLARADA=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
+
+const INFORME_CORR = (() => {
+  const antes = comprobarCorrelacion(CORR_DECLARADA);
+  const r = proyectarAPSD(CORR_DECLARADA);
+  return {
+    antes,
+    despues: comprobarCorrelacion(r.matriz),
+    valoresPropios: r.valoresPropios,
+    minimoOriginal: r.minimoOriginal,
+    recortados: r.recortados,
+    cambioMaximo: r.cambioMaximo,
+    yaEraValida: r.yaEraValida,
+    matriz: r.matriz,
+  };
+})();
+
+const CORR_MATRIX = INFORME_CORR.matriz;
 const ISO_MAP={
   '004':'AFG',
   '008':'ALB',
@@ -1048,7 +1086,20 @@ const ISO_MAP={
 };
 
 // ── ENHANCED SCORE: base + velocidad + boost correlación ──
-function enhancedScore(baseScore, catKey, countryCode){
+/* T27 · El desglose, que antes no se podia ver.
+
+   La tarjeta de cada categoria mostraba un solo numero, el compuesto, con el
+   desglose escondido en el atributo title. Eso mezcla en una cifra tres cosas
+   de naturaleza muy distinta:
+
+     base   el percentil que sale de los datos, con su fuente y su anio
+     vel    un ajuste que depende de VELOCITY, una tabla escrita a mano
+     corr   un ajuste que depende de CORR_MATRIX, otra tabla escrita a mano
+
+   Ahora se devuelven separados y la tarjeta ensena la base como numero
+   principal con el ajuste al lado, para que se vea cuanto del numero viene
+   del dato y cuanto del modelo. */
+function enhancedScoreDesglosado(baseScore, catKey, countryCode){
   const vi = CAT_KEYS.indexOf(catKey);
   const vel = (VELOCITY[countryCode]||VELOCITY.WLD)[catKey]||0;
   const velAdj = Math.round(baseScore * vel * 0.28);
@@ -1062,7 +1113,18 @@ function enhancedScore(baseScore, catKey, countryCode){
     const s2 = d[k2]?.score || 50;
     corrBoost += (c - 0.5) * (s2 - 50) * 0.06;
   });
-  return Math.min(100, Math.max(0, Math.round(baseScore + velAdj + corrBoost)));
+  const total = Math.min(100, Math.max(0, Math.round(baseScore + velAdj + corrBoost)));
+  return {
+    base: baseScore,
+    velocidad: velAdj,
+    correlacion: Math.round(corrBoost * 10) / 10,
+    ajuste: total - baseScore,
+    total,
+  };
+}
+
+function enhancedScore(baseScore, catKey, countryCode){
+  return enhancedScoreDesglosado(baseScore, catKey, countryCode).total;
 }
 
 // ── VELOCIDAD LABEL ──
@@ -2509,20 +2571,28 @@ function loadRegion(){
   CATS_CFG.forEach(({k,g,n,c,i,color})=>{
     const cat=d[k];
     if(!cat) return;
-    // Enhanced score: base + velocidad + correlaciones
-    const eScore=typeof enhancedScore==='function'
-      ? enhancedScore(cat.score,k,code)
-      : cat.score;
+    /* T27 · Base y ajuste, separados.
+       El numero grande es la puntuacion que sale de los datos; el pequeno, lo
+       que le anade el modelo (velocidad y correlaciones, las dos tablas
+       escritas a mano). La aguja sigue marcando el compuesto. */
+    const desg=enhancedScoreDesglosado(cat.score,k,code);
+    const eScore=desg.total;
     const gaugeColor=eScore>=75?'#FF3355':eScore>=55?'#FF8C00':eScore>=35?'#FFD700':'#00CC66';
     drawGauge(g,eScore,gaugeColor);
     const nEl=document.getElementById(n);
     if(nEl){
-      nEl.textContent=eScore;
-      nEl.style.color=eScore>=75?'#FF3355':eScore>=55?'#FF8C00':eScore>=35?'#FFD700':'#00CC66';
-      if(typeof VELOCITY!=='undefined'){
-        const vel=(VELOCITY[code]||VELOCITY.WLD)[k]||0;
-        nEl.title='Base:'+cat.score+' Vel:'+(vel>0?'+':'')+(vel*100).toFixed(0)+'% Compuesto:'+eScore;
-      }
+      const colorBase=desg.base>=75?'#FF3355':desg.base>=55?'#FF8C00':desg.base>=35?'#FFD700':'#00CC66';
+      const signo=desg.ajuste>0?'+':'';
+      nEl.innerHTML=desg.ajuste!==0
+        ? esc(String(desg.base))+'<span class="score-ajuste">'+esc(signo+desg.ajuste)+'</span>'
+        : esc(String(desg.base));
+      nEl.style.color=colorBase;
+      const conf=cat.confianza&&cat.confianza.nivel?cat.confianza.nivel:'—';
+      nEl.title='Dato: '+desg.base+' (confianza '+conf+')'
+        +' · ajuste del modelo: velocidad '+(desg.velocidad>0?'+':'')+desg.velocidad
+        +', correlaciones '+(desg.correlacion>0?'+':'')+desg.correlacion
+        +' · compuesto '+eScore
+        +'. La velocidad y las correlaciones salen de tablas escritas a mano, no de los datos.';
     }
     const[lbl,lc]=riskLabel(eScore);
     const cEl=document.getElementById(c);
@@ -2687,7 +2757,7 @@ const PROP_MATRIX = {
 
 // ── FACTORES DE RESILIENCIA ──
 // Qué categorías amortiguan los shocks entrantes
-const RESILIENCE_WEIGHTS = {
+const RESILIENCE_DECLARADOS = {
   science: 0.18,  // I+D amortigua propagaciones
   eco:     0.15,  // solidez económica
   health:  0.12,  // salud pública fuerte absorbe shocks bio/mental
@@ -2706,6 +2776,21 @@ const RESILIENCE_WEIGHTS = {
   bio:     0.02,
 };
 
+/* T27 · Los pesos de resiliencia sumaban 1,20, no 1.
+
+   El indice de resiliencia es una media ponderada que se usa como un valor de
+   0 a 1: (1 - resilience*0,6) amortigua los shocks y (1 - resilience*0,4) los
+   atenua al llegar. Con pesos que suman 1,20 un pais perfecto habria dado
+   1,20, y el recorte a 0,95 del final estaba tapando el problema: el indice
+   llegaba al techo antes de lo debido y todos los paises buenos quedaban
+   indistinguibles ahi arriba.
+
+   Se dividen por su suma. Los pesos RELATIVOS no cambian -la ciencia sigue
+   pesando nueve veces mas que la alimentacion-; lo que cambia es que ahora el
+   indice vive de verdad entre 0 y 1. */
+const { pesos: RESILIENCE_WEIGHTS, sumaOriginal: RESILIENCE_SUMA_DECLARADA } =
+  normalizarPesos(RESILIENCE_DECLARADOS);
+
 // ══════════════════════════════════════════════════
 //  RESILIENCE INDEX — 0 (frágil) a 1 (muy resiliente)
 // ══════════════════════════════════════════════════
@@ -2716,7 +2801,11 @@ function computeResilienceIndex(code) {
     const score = d[k]?.score ?? 50;
     const riskNorm = score / 100;       // 0=muy bueno, 1=muy malo
     const strength = 1 - riskNorm;      // invertir: bueno = alta resiliencia
-    resilience += strength * (RESILIENCE_WEIGHTS[k] || 0.05);
+    /* T27: el respaldo era 0,05, un peso del orden de los declarados. Con
+       los pesos ya normalizados a 1 ese respaldo estaria fuera de escala, y
+       ademas las 16 categorias estan todas declaradas, asi que nunca entra:
+       se pone a 0 para que, si alguna vez faltara una, no inventara peso. */
+    resilience += strength * (RESILIENCE_WEIGHTS[k] || 0);
   });
   return Math.max(0.05, Math.min(0.95, resilience));
 }
@@ -2756,145 +2845,101 @@ function detectInflections(code) {
 // ══════════════════════════════════════════════════
 //  CASCADE SIMULATOR — propagación con lag y decay
 // ══════════════════════════════════════════════════
-function simulateCascade(code, horizonWeeks, shockOverrides = {}) {
+/**
+ * @param {string} code
+ * @param {number} horizonWeeks
+ * @param {object} [shockOverrides]  estado inicial alterado por categoria
+ * @param {object} [velOverrides]    T26: velocidades alteradas por categoria.
+ *   El Monte Carlo las perturbaba y las dejaba en una variable que NO SE
+ *   PASABA aqui, asi que las 400 simulaciones usaban todas la misma
+ *   velocidad y la unica variacion venia del estado inicial. Ahora entran.
+ */
+/**
+ * T28 · El modelo de un pais, serializable.
+ *
+ * El worker no puede ver DATA ni las matrices, asi que todo lo que la
+ * simulacion necesita se empaqueta aqui: las puntuaciones del pais, sus
+ * velocidades, su resiliencia ya calculada, la matriz de propagacion y la
+ * dispersion de cada categoria. Son unos pocos kilobytes y se copian con
+ * postMessage sin problema.
+ */
+function modeloDe(code){
   const d = DATA[code] || DATA.WLD;
-  const vel = VELOCITY[code] || VELOCITY.WLD;
-  const resilience = computeResilienceIndex(code);
-
-  // Estado inicial: scores actuales
-  const state = {};
-  CAT_KEYS.forEach(k => { state[k] = d[k]?.score ?? 50; });
-  Object.assign(state, shockOverrides);
-
-  // Historial de scores por semana
-  const history = [{ ...state, week: 0 }];
-
-  // Queue de shocks pendientes: {target, delta, arrivalWeek, decay}
-  const pendingShocks = [];
-
-  // Generar shocks iniciales desde velocidades actuales
-  CAT_KEYS.forEach(srcKey => {
-    const props = PROP_MATRIX[srcKey];
-    if (!props) return;
-    const srcVel = vel[srcKey] || 0;
-    const srcScore = state[srcKey];
-    if (Math.abs(srcVel) < 0.05) return;
-
-    Object.entries(props).forEach(([tgtKey, {s, l, d: dec}]) => {
-      const shockMagnitude = srcScore * srcVel * s * (1 - resilience * 0.6);
-      if (Math.abs(shockMagnitude) < 0.3) return;
-      pendingShocks.push({
-        target: tgtKey,
-        delta: shockMagnitude,
-        arrivalWeek: Math.round(l),
-        decay: dec,
-        source: srcKey,
-      });
-    });
-  });
-
-  // Simular semana a semana
-  for (let week = 1; week <= horizonWeeks; week++) {
-    const newState = { ...state };
-
-    // Aplicar velocidades base (tendencia secular)
-    CAT_KEYS.forEach(k => {
-      const drift = (vel[k] || 0) * 0.4 * (1 - resilience * 0.5);
-      newState[k] = Math.max(0, Math.min(100, newState[k] + drift));
-    });
-
-    // Aplicar shocks que llegan esta semana
-    pendingShocks.forEach(shock => {
-      if (shock.arrivalWeek !== week) return;
-      const dampened = shock.delta * (1 - resilience * 0.4);
-      newState[shock.target] = Math.max(0, Math.min(100,
-        newState[shock.target] + dampened
-      ));
-
-      // Propagar en cascada de segundo orden
-      const secondProps = PROP_MATRIX[shock.target];
-      if (secondProps && Math.abs(dampened) > 1.5) {
-        Object.entries(secondProps).forEach(([tgt2, {s, l, d: dec}]) => {
-          if (tgt2 === shock.source) return; // evitar ciclos
-          pendingShocks.push({
-            target: tgt2,
-            delta: dampened * s * 0.5,
-            arrivalWeek: week + Math.round(l * 0.7),
-            decay: dec,
-            source: shock.target,
-          });
-        });
-      }
-    });
-
-    // Actualizar estado
-    CAT_KEYS.forEach(k => { state[k] = newState[k]; });
-    history.push({ ...state, week });
+  const scores = {};
+  const sigmas = {};
+  for (const k of CAT_KEYS) {
+    scores[k] = (d[k] && typeof d[k].score === 'number') ? d[k].score : 50;
+    sigmas[k] = sigmaDeCategoria(d, k);
   }
-
-  return history;
+  return {
+    catKeys: CAT_KEYS.slice(),
+    scores,
+    sigmas,
+    vel: Object.assign({}, VELOCITY[code] || VELOCITY.WLD),
+    resiliencia: computeResilienceIndex(code),
+    prop: PROP_MATRIX,
+    sigmaVelocidad: SIGMA_VELOCIDAD,
+  };
 }
 
+function simulateCascade(code, horizonWeeks, shockOverrides = {}, velOverrides = null) {
+  /* T28 · El calculo vive en src/dashboard/sim-core.js, que no lee nada de
+     fuera y por tanto puede correr tambien dentro de un Web Worker. Esta
+     funcion se queda como la puerta de entrada que el resto del motor ya
+     usaba: construye el modelo del pais y delega. */
+  return simularCascada(modeloDe(code), horizonWeeks, shockOverrides, velOverrides);
+}
 // ══════════════════════════════════════════════════
 //  MONTE CARLO — 500 simulaciones con ruido
 // ══════════════════════════════════════════════════
-function runMonteCarlo(code, horizonWeeks, nSims = 400) {
-  const d = DATA[code] || DATA.WLD;
+/**
+ * Incertidumbre de cada categoria, en puntos de score (T26).
+ *
+ * Antes la dispersion era `base * 0,06`: proporcional al propio score, de
+ * modo que un pais con 80 en una categoria tenia mas incertidumbre que uno
+ * con 20 EN LA MISMA CATEGORIA, aunque los dos salieran de los mismos
+ * indicadores y de la misma fuente. Eso no es lo que dice el dato.
+ *
+ * Ahora sale de la CONFIANZA que calcula src/core/scoring.js, que mide dos
+ * cosas reales: cuantos indicadores tenia la categoria y de que anos son.
+ * Una categoria completa y reciente tiene una banda estrecha; una con un
+ * indicador de 2021, ancha.
+ */
+const SIGMA_POR_CONFIANZA = { alta: 3, media: 7, baja: 12, ninguna: 15 };
 
-  // Convertir horizonte a semanas
-  const results = [];
-
-  for (let sim = 0; sim < nSims; sim++) {
-    // Perturbación gaussiana de velocidades y scores iniciales
-    const shockOverrides = {};
-    CAT_KEYS.forEach(k => {
-      const base = d[k]?.score ?? 50;
-      const noise = gaussianRandom(0, base * 0.06);
-      shockOverrides[k] = Math.max(0, Math.min(100, base + noise));
-    });
-
-    // Perturbar también las velocidades en VELOCITY
-    const perturbedVel = {};
-    const vel = VELOCITY[code] || VELOCITY.WLD;
-    CAT_KEYS.forEach(k => {
-      perturbedVel[k] = (vel[k] || 0) + gaussianRandom(0, 0.05);
-    });
-
-    const history = simulateCascade(code, horizonWeeks, shockOverrides);
-    // Solo guardar semanas clave
-    const keyFrames = [0, Math.floor(horizonWeeks*0.25),
-                       Math.floor(horizonWeeks*0.5),
-                       Math.floor(horizonWeeks*0.75), horizonWeeks];
-    const simResult = {};
-    keyFrames.forEach(w => {
-      const frame = history[Math.min(w, history.length-1)];
-      let global = 0;
-      CAT_KEYS.forEach(k => { global += (frame[k] || 50); });
-      simResult[w] = global / CAT_KEYS.length;
-    });
-    results.push(simResult);
-  }
-
-  // Calcular percentiles para cada semana clave
-  const keyFrames = [0, Math.floor(horizonWeeks*0.25),
-                     Math.floor(horizonWeeks*0.5),
-                     Math.floor(horizonWeeks*0.75), horizonWeeks];
-  const bands = {};
-  keyFrames.forEach(w => {
-    const vals = results.map(r => r[w]).sort((a,b) => a-b);
-    bands[w] = {
-      p10: vals[Math.floor(nSims*0.10)],
-      p25: vals[Math.floor(nSims*0.25)],
-      p50: vals[Math.floor(nSims*0.50)],
-      p75: vals[Math.floor(nSims*0.75)],
-      p90: vals[Math.floor(nSims*0.90)],
-    };
-  });
-
-  return { bands, keyFrames };
+function sigmaDeCategoria(d, k) {
+  const cat = d && d[k];
+  const conf = cat && cat.confianza && cat.confianza.nivel;
+  return SIGMA_POR_CONFIANZA[conf] != null ? SIGMA_POR_CONFIANZA[conf] : SIGMA_POR_CONFIANZA.media;
 }
 
-// ── Box-Muller transform para ruido gaussiano ──
+/** Dispersion de la velocidad. Fija, porque VELOCITY no tiene confianza. */
+const SIGMA_VELOCIDAD = 0.05;
+
+function runMonteCarlo(code, horizonWeeks, nSims = 400) {
+  /* T28 · Igual que simulateCascade: el calculo esta en sim-core.js para que
+     pueda correr dentro del worker. Esta version sincrona se queda porque la
+     usan la consola, las pruebas y el camino de respaldo cuando no hay
+     Worker; el panel usa proyeccionDe(), que si va por el worker. */
+  return monteCarloLocal(modeloDe(code), horizonWeeks, nSims, semilla());
+}
+
+/**
+ * T28 · La proyeccion que usa el panel: por el worker y con memoria.
+ *
+ * Devuelve una promesa. El resultado solo depende del pais, del horizonte, del
+ * numero de simulaciones y de la semilla, asi que se puede memorizar: volver a
+ * una region ya vista no recalcula nada.
+ */
+function proyeccionDe(code, horizonWeeks, nSims = 400){
+  return proyectar(modeloDe(code), code, horizonWeeks, nSims, semilla());
+}
+
+/* ── Box-Muller para ruido gaussiano ──
+   T26: el Monte Carlo ya NO usa esta funcion; usa gaussianaCon() con un
+   generador sembrado, para que sus bandas sean reproducibles. Esta se queda
+   porque la usa el simulador de shocks manual, donde el usuario mueve los
+   deslizadores y no hay nada que reproducir. */
 function gaussianRandom(mean = 0, std = 1) {
   let u = 0, v = 0;
   while (u === 0) u = Math.random();
@@ -2906,6 +2951,31 @@ function gaussianRandom(mean = 0, std = 1) {
 //  RENDER: GRÁFICA DE PROYECCIÓN TEMPORAL
 // ══════════════════════════════════════════════════
 let cascadeChart = null;
+
+/* T26 · La semilla, visible y repetible.
+
+   Una proyeccion Monte Carlo sin semilla no se puede volver a mirar: cada
+   recalculo da bandas distintas. La semilla se muestra junto al grafico y el
+   enlace la pone en la URL, de modo que una proyeccion concreta se puede
+   compartir y comparar. Con ?seed=N se fija al cargar la pagina. */
+function mostrarSemilla(mc, origen){
+  const el = document.getElementById('mc-semilla');
+  if(!el || !mc) return;
+  const comoSeCalculo = origen === 'memoria'
+    ? 'memoria'
+    : statsSim.modo + (statsSim.msUltimo != null ? ' · ' + statsSim.msUltimo + ' ms' : '');
+  el.textContent = mc.simulaciones + ' simulaciones · semilla ' + mc.semilla + ' · ' + comoSeCalculo;
+  el.title = 'Con ?seed=' + mc.semilla + ' en la URL esta proyección sale idéntica. '
+    + 'La dispersión de cada categoría depende de su confianza, no de su puntuación.';
+  const enlace = document.getElementById('mc-repetir');
+  if(enlace){
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('seed', String(mc.semilla));
+      enlace.href = u.toString();
+    } catch (err) { /* sin URL valida, el enlace se queda como esté */ }
+  }
+}
 
 function renderProjectionChart(code, horizonMonths) {
   const horizonWeeks = horizonMonths * 4.3;
@@ -2925,7 +2995,25 @@ function renderProjectionChart(code, horizonMonths) {
 
   // Correr simulación base + Monte Carlo
   const baseHistory = simulateCascade(code, Math.round(horizonWeeks));
-  const { bands, keyFrames } = runMonteCarlo(code, Math.round(horizonWeeks));
+  /* T28 · Si el resultado ya esta memorizado se pinta ahora mismo; si no, se
+     pide al worker y se vuelve a pintar cuando llegue. El hilo principal no
+     se queda bloqueado 86 ms calculando 400 simulaciones. */
+  const semanas = Math.round(horizonWeeks);
+  const mc = enMemoria(code, semanas, 400, semilla());
+  if (!mc) {
+    proyeccionDe(code, semanas).then(() => {
+      // Si entre tanto se ha cambiado de region, no se pinta la vieja.
+      const actual = document.getElementById('region-sel');
+      if (!actual || actual.value === code) renderProjectionChart(code, horizonMonths);
+    }).catch((err) => console.warn('AETHER: proyeccion fallida:', err));
+    const esperando = document.getElementById('mc-semilla');
+    if (esperando) esperando.textContent = 'calculando 400 simulaciones…';
+    return;
+  }
+  const { bands, keyFrames } = mc;
+  // Venia de la memoria: lo dice la etiqueta, para no atribuirle al worker un
+  // calculo que no ha hecho.
+  mostrarSemilla(mc, 'memoria');
 
   // Semanas para eje X (base history)
   const nWeeks = baseHistory.length;
@@ -3606,8 +3694,8 @@ export {
   DATA, CAT_KEYS, CAT_LABELS, CAT_COLORS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
   EVENT_POOL, ISO_MAP, COUNTRY_FLAGS, REGION_GROUPS, RESILIENCE_WEIGHTS,
   ShockSim, SHOCK_PRESETS, STEPS,
-  enhancedScore, riskLabel, scoreToColor, velLabel,
-  simulateCascade, runMonteCarlo, gaussianRandom,
+  enhancedScore, enhancedScoreDesglosado, riskLabel, scoreToColor, velLabel,
+  simulateCascade, runMonteCarlo, proyeccionDe, modeloDe, gaussianRandom,
   computeResilienceIndex, detectInflections,
   initAetherApp, initAetherApp2, loadRegion, onRegionChange,
   updateBanner, renderInds, renderEvents, renderRanking, renderChains,
@@ -3628,7 +3716,7 @@ export {
 window.__AETHER__ = Object.freeze({
   COVERAGE: AETHER_COVERAGE,
   DATA, CAT_KEYS, CAT_LABELS, VELOCITY, CORR_MATRIX, PROP_MATRIX,
-  EVENT_POOL, RESILIENCE_WEIGHTS, ShockSim,
-  enhancedScore, riskLabel, simulateCascade, runMonteCarlo,
+  EVENT_POOL, RESILIENCE_WEIGHTS, RESILIENCE_DECLARADOS, INFORME_CORR, ShockSim,
+  enhancedScore, riskLabel, simulateCascade, runMonteCarlo, proyeccionDe, modeloDe,
   computeResilienceIndex, detectInflections,
 });
