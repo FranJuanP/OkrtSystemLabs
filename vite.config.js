@@ -1,6 +1,45 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { VitePWA } from 'vite-plugin-pwa';
+
+/**
+ * T21 · El fichero de datos entra en el build.
+ *
+ * `data/latest.json` lo escribe el trabajo semanal en la raíz del
+ * repositorio, no en `public/`, porque ahí viven también las instantáneas con
+ * fecha y esas NO deben publicarse: son varios megas cada una y solo sirven
+ * para comparar. Este plugin copia únicamente `latest.json`.
+ *
+ * No se precachea: son 2,9 MB, y sumarlos a los 4 MB que ya instala el
+ * service worker haría una instalación de siete megas. El worker lo sirve con
+ * NetworkFirst y guarda su copia, así que a partir de la primera visita
+ * funciona sin red.
+ */
+function datosEnElBuild() {
+  // `latest.json` lo escribe el trabajo semanal y `events.json` el de cada
+  // media hora. Las instantáneas con fecha NO se publican: son varios megas
+  // cada una y solo sirven para comparar.
+  const ficheros = ['data/latest.json', 'data/events.json', 'data/vector.json'];
+  return {
+    name: 'aether-datos',
+    generateBundle() {
+      for (const fileName of ficheros) {
+        try {
+          this.emitFile({
+            type: 'asset',
+            fileName,
+            source: readFileSync(resolve(import.meta.dirname, fileName), 'utf8'),
+          });
+        } catch (err) {
+          // Sin datos el sitio sigue construyéndose; las páginas lo dicen en
+          // lugar de quedarse en blanco. Mejor avisar que romper el build.
+          this.warn(`no se encontró ${fileName}; ejecuta \`npm run datos\` o \`npm run eventos\``);
+        }
+      }
+    },
+  };
+}
 
 /**
  * AETHER · configuración de Vite (T12)
@@ -16,6 +55,8 @@ export default defineConfig({
   appType: 'mpa',
 
   plugins: [
+    datosEnElBuild(),
+
     /**
      * T18 · Workbox con injectManifest.
      *
@@ -51,7 +92,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    target: 'es2020',
+    // T23: es2022 por el top-level await con el que el motor espera a
+    // data/latest.json. Con es2020 el build falla al transformarlo.
+    target: 'es2022',
     // Solo minificar, con el minificador por defecto de Vite. Sin ofuscación
     // y sin mangling agresivo de nombres: el objetivo es peso, no esconder el
     // código. La fuente que se versiona sigue siendo legible.
@@ -65,6 +108,7 @@ export default defineConfig({
         globe: resolve(import.meta.dirname, 'aether-globe-v3.html'),
         signal: resolve(import.meta.dirname, 'aether-signal.html'),
         vector: resolve(import.meta.dirname, 'aether-vector.html'),
+        metodologia: resolve(import.meta.dirname, 'metodologia.html'),
       },
     },
     // El motor es grande; avisar a partir de 700 kB en vez de 500.

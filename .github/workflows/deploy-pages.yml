@@ -44,6 +44,19 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Descargar los eventos de Signal
+        # Se descargan AQUI, en cada despliegue, y viajan en el artefacto de
+        # Pages. Antes los confirmaba un trabajo cada media hora: 48 commits
+        # al dia de un fichero que caduca en media hora. Esto es un fichero de
+        # salida, no codigo fuente, y su sitio es el artefacto.
+        #
+        # Si la descarga falla no se aborta el despliegue: el sitio funciona
+        # sin events.json -Signal consulta las fuentes en vivo y guarda su
+        # ultima lectura- y es preferible publicar sin ese respaldo a no
+        # publicar.
+        continue-on-error: true
+        run: node tools/fetch-events.mjs
+
       - name: Construir
         run: npm run build
 

@@ -1,0 +1,1117 @@
+{
+ "esquema": 1,
+ "generado": "2026-10-17T19:50:14.608Z",
+ "porDefecto": [
+  "remesas",
+  "ied",
+  "exportaciones"
+ ],
+ "bloques": [
+  {
+   "id": "reservas_moneda",
+   "clase": "stock",
+   "tipo": "reserves",
+   "titulo": "Reservas oficiales de divisas, por moneda",
+   "unidad": "B USD",
+   "periodo": "2026-Q2",
+   "publicado": "2026-09-30",
+   "source": "FMI · COFER",
+   "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+   "nota": "Solo reservas asignadas, es decir, aquellas cuya moneda declara el país tenedor. Es un saldo, no un flujo anual.",
+   "total": 13216.8,
+   "nodos": [
+    {
+     "id": "TOTAL_reservas_moneda",
+     "label": "Reservas asignadas",
+     "col": 0,
+     "isHub": true
+    },
+    {
+     "id": "CCY_USD",
+     "label": "Dólar de EEUU",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_EUR",
+     "label": "Euro",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_OTHC",
+     "label": "Otras monedas",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_JPY",
+     "label": "Yen japonés",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_GBP",
+     "label": "Libra esterlina",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_CAD",
+     "label": "Dólar canadiense",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_AUD",
+     "label": "Dólar australiano",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_CNY",
+     "label": "Renminbi chino",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "CCY_CHF",
+     "label": "Franco suizo",
+     "col": 2,
+     "region": "XX"
+    }
+   ],
+   "enlaces": [
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_USD",
+     "v": 7494.5,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Dólar de EEUU: 7494.5 B USD, el 56.70 % de las reservas asignadas. Serie CI_USD de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_EUR",
+     "v": 2722.9,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Euro: 2722.9 B USD, el 20.60 % de las reservas asignadas. Serie CI_EUR de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_OTHC",
+     "v": 800.6,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Otras monedas: 800.6 B USD, el 6.06 % de las reservas asignadas. Serie CI_OTHC de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_JPY",
+     "v": 656.2,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Yen japonés: 656.2 B USD, el 4.96 % de las reservas asignadas. Serie CI_JPY de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_GBP",
+     "v": 604.3,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Libra esterlina: 604.3 B USD, el 4.57 % de las reservas asignadas. Serie CI_GBP de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_CAD",
+     "v": 326.7,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Dólar canadiense: 326.7 B USD, el 2.47 % de las reservas asignadas. Serie CI_CAD de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_AUD",
+     "v": 296.7,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Dólar australiano: 296.7 B USD, el 2.25 % de las reservas asignadas. Serie CI_AUD de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_CNY",
+     "v": 279.4,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Renminbi chino: 279.4 B USD, el 2.11 % de las reservas asignadas. Serie CI_CNY de COFER."
+    },
+    {
+     "s": "TOTAL_reservas_moneda",
+     "t": "CCY_CHF",
+     "v": 35.4,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2026-Q2",
+     "source": "FMI · COFER",
+     "url": "https://data.imf.org/en/datasets/IMF.STA:COFER",
+     "detail": "Franco suizo: 35.4 B USD, el 0.27 % de las reservas asignadas. Serie CI_CHF de COFER."
+    }
+   ]
+  },
+  {
+   "id": "deuda_eeuu",
+   "clase": "stock",
+   "tipo": "debt",
+   "titulo": "Deuda del Tesoro de EEUU en manos extranjeras, por tenedor",
+   "unidad": "B USD",
+   "periodo": "2025-12",
+   "publicado": null,
+   "source": "Tesoro de EEUU · TIC",
+   "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+   "nota": "Saldo a fin de mes, no un flujo. El fichero legible por máquina del Tesoro va por detrás de la nota de prensa mensual: el periodo es el del dato, no el de hoy.",
+   "total": 9269.5,
+   "nodos": [
+    {
+     "id": "TOTAL_deuda_eeuu",
+     "label": "Deuda del Tesoro de EEUU",
+     "col": 0,
+     "isHub": true
+    },
+    {
+     "id": "TIC_JAPAN",
+     "label": "Japan",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_UNITEDKING",
+     "label": "United Kingdom",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_CHINAMAINL",
+     "label": "China, Mainland",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_BELGIUM",
+     "label": "Belgium",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_CANADA",
+     "label": "Canada",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_LUXEMBOURG",
+     "label": "Luxembourg",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_CAYMANISLA",
+     "label": "Cayman Islands",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "TIC_FRANCE",
+     "label": "France",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "RESTO_deuda_eeuu",
+     "label": "Resto del mundo",
+     "col": 2,
+     "region": "XX"
+    }
+   ],
+   "enlaces": [
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_JAPAN",
+     "v": 1185.5,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "Japan mantiene 1185.5 mil millones de dólares en valores del Tesoro de EEUU, el 12.8 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_UNITEDKING",
+     "v": 863.1,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "United Kingdom mantiene 863.1 mil millones de dólares en valores del Tesoro de EEUU, el 9.3 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_CHINAMAINL",
+     "v": 684.4,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "China, Mainland mantiene 684.4 mil millones de dólares en valores del Tesoro de EEUU, el 7.4 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_BELGIUM",
+     "v": 477.3,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "Belgium mantiene 477.3 mil millones de dólares en valores del Tesoro de EEUU, el 5.1 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_CANADA",
+     "v": 468.3,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "Canada mantiene 468.3 mil millones de dólares en valores del Tesoro de EEUU, el 5.1 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_LUXEMBOURG",
+     "v": 434,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "Luxembourg mantiene 434 mil millones de dólares en valores del Tesoro de EEUU, el 4.7 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_CAYMANISLA",
+     "v": 421.6,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "Cayman Islands mantiene 421.6 mil millones de dólares en valores del Tesoro de EEUU, el 4.5 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "TIC_FRANCE",
+     "v": 368.9,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "France mantiene 368.9 mil millones de dólares en valores del Tesoro de EEUU, el 4.0 % del total en manos extranjeras."
+    },
+    {
+     "s": "TOTAL_deuda_eeuu",
+     "t": "RESTO_deuda_eeuu",
+     "v": 4366.4,
+     "type": "debt",
+     "unit": "B USD",
+     "year": "2025-12",
+     "source": "Tesoro de EEUU · TIC",
+     "url": "https://home.treasury.gov/data/treasury-international-capital-tic-system",
+     "detail": "Diferencia entre el total de la fuente (9269.5 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+    }
+   ]
+  },
+  {
+   "id": "remesas",
+   "clase": "flujo",
+   "tipo": "remit",
+   "titulo": "Remesas recibidas",
+   "unidad": "B USD",
+   "periodo": "2025",
+   "publicado": null,
+   "source": "Banco Mundial · WDI",
+   "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+   "nota": "Flujo anual: transferencias personales recibidas en un año, no un saldo acumulado. Suma de 198 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "total": 990.6,
+   "nodos": [
+    {
+     "id": "TOTAL_remesas",
+     "label": "Remesas mundiales",
+     "col": 0,
+     "isHub": true
+    },
+    {
+     "id": "REME_IND",
+     "label": "India",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "REME_MEX",
+     "label": "México",
+     "col": 2,
+     "region": "LA"
+    },
+    {
+     "id": "REME_FRA",
+     "label": "Francia",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "REME_PHL",
+     "label": "Filipinas",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "REME_EGY",
+     "label": "Egipto, República Árabe de",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "REME_PAK",
+     "label": "Pakistán",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "REME_BGD",
+     "label": "Bangladesh",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "REME_CHN",
+     "label": "China",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "RESTO_remesas",
+     "label": "Resto del mundo",
+     "col": 2,
+     "region": "XX"
+    }
+   ],
+   "enlaces": [
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_IND",
+     "v": 150.7,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "India: 150.7 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_MEX",
+     "v": 65.1,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "México: 65.1 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_FRA",
+     "v": 44.5,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "Francia: 44.5 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_PHL",
+     "v": 41.6,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "Filipinas: 41.6 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_EGY",
+     "v": 41.5,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "Egipto, República Árabe de: 41.5 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_PAK",
+     "v": 40.5,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "Pakistán: 40.5 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_BGD",
+     "v": 33.9,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "Bangladesh: 33.9 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "REME_CHN",
+     "v": 30,
+     "type": "remit",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "China: 30 B USD en 2025. Transferencias personales y remuneración de empleados, recibidos (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_remesas",
+     "t": "RESTO_remesas",
+     "v": 542.9,
+     "type": "remit",
+     "unit": "B USD",
+     "year": "2025",
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
+     "detail": "Diferencia entre el total de la fuente (990.6 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+    }
+   ]
+  },
+  {
+   "id": "ied",
+   "clase": "flujo",
+   "tipo": "fdi",
+   "titulo": "Entradas de inversión extranjera directa",
+   "unidad": "B USD",
+   "periodo": "2025",
+   "publicado": null,
+   "source": "Banco Mundial · WDI",
+   "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+   "nota": "Flujo anual neto de entrada. Puede ser negativo en un país concreto; los negativos no se reparten en el diagrama y entran en el resto. Suma de 187 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "total": 1956.6,
+   "nodos": [
+    {
+     "id": "TOTAL_ied",
+     "label": "IED mundial",
+     "col": 0,
+     "isHub": true
+    },
+    {
+     "id": "IED_USA",
+     "label": "Estados Unidos",
+     "col": 2,
+     "region": "NA"
+    },
+    {
+     "id": "IED_SGP",
+     "label": "Singapur",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "IED_HKG",
+     "label": "Hong Kong, Región Administrativa Especial",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "IED_DEU",
+     "label": "Alemania",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "IED_CHN",
+     "label": "China",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "IED_BRA",
+     "label": "Brasil",
+     "col": 2,
+     "region": "LA"
+    },
+    {
+     "id": "IED_IRL",
+     "label": "Irlanda",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "IED_CAN",
+     "label": "Canadá",
+     "col": 2,
+     "region": "NA"
+    },
+    {
+     "id": "RESTO_ied",
+     "label": "Resto del mundo",
+     "col": 2,
+     "region": "XX"
+    }
+   ],
+   "enlaces": [
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_USA",
+     "v": 307,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Estados Unidos: 307 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_SGP",
+     "v": 159.1,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Singapur: 159.1 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_HKG",
+     "v": 121,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Hong Kong, Región Administrativa Especial: 121 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_DEU",
+     "v": 95.2,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Alemania: 95.2 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_CHN",
+     "v": 80,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "China: 80 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_BRA",
+     "v": 77.7,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Brasil: 77.7 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_IRL",
+     "v": 75,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Irlanda: 75 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "IED_CAN",
+     "v": 70.1,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Canadá: 70.1 B USD en 2025. Inversión extranjera directa, entrada neta de capital (balanza de pagos, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_ied",
+     "t": "RESTO_ied",
+     "v": 971.5,
+     "type": "fdi",
+     "unit": "B USD",
+     "year": "2025",
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/BX.KLT.DINV.CD.WD",
+     "detail": "Diferencia entre el total de la fuente (1956.6 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+    }
+   ]
+  },
+  {
+   "id": "exportaciones",
+   "clase": "flujo",
+   "tipo": "trade",
+   "titulo": "Exportaciones de bienes y servicios",
+   "unidad": "B USD",
+   "periodo": "2025",
+   "publicado": null,
+   "source": "Banco Mundial · WDI",
+   "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+   "nota": "Flujo anual. Al sumar países se cuenta el comercio intermedio más de una vez, así que el total es mayor que el comercio mundial neto. Suma de 194 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "total": 33570,
+   "nodos": [
+    {
+     "id": "TOTAL_exportaciones",
+     "label": "Exportaciones mundiales",
+     "col": 0,
+     "isHub": true
+    },
+    {
+     "id": "EXPO_CHN",
+     "label": "China",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "EXPO_USA",
+     "label": "Estados Unidos",
+     "col": 2,
+     "region": "NA"
+    },
+    {
+     "id": "EXPO_DEU",
+     "label": "Alemania",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "EXPO_GBR",
+     "label": "Reino Unido",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "EXPO_FRA",
+     "label": "Francia",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "EXPO_NLD",
+     "label": "Países Bajos",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "EXPO_SGP",
+     "label": "Singapur",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "EXPO_IRL",
+     "label": "Irlanda",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "RESTO_exportaciones",
+     "label": "Resto del mundo",
+     "col": 2,
+     "region": "XX"
+    }
+   ],
+   "enlaces": [
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_CHN",
+     "v": 4108.5,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "China: 4108.5 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_USA",
+     "v": 3215.4,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2024,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Estados Unidos: 3215.4 B USD en 2024. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_DEU",
+     "v": 2042.3,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Alemania: 2042.3 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_GBR",
+     "v": 1224.7,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Reino Unido: 1224.7 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_FRA",
+     "v": 1124.1,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Francia: 1124.1 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_NLD",
+     "v": 1075.1,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Países Bajos: 1075.1 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_SGP",
+     "v": 1074,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Singapur: 1074 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "EXPO_IRL",
+     "v": 1010.9,
+     "type": "trade",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Irlanda: 1010.9 B USD en 2025. Exportaciones de bienes y servicios (US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_exportaciones",
+     "t": "RESTO_exportaciones",
+     "v": 18695.1,
+     "type": "trade",
+     "unit": "B USD",
+     "year": "2025",
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
+     "detail": "Diferencia entre el total de la fuente (33570 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+    }
+   ]
+  },
+  {
+   "id": "reservas_pais",
+   "clase": "stock",
+   "tipo": "reserves",
+   "titulo": "Reservas totales, por país",
+   "unidad": "B USD",
+   "periodo": "2025",
+   "publicado": null,
+   "source": "Banco Mundial · WDI",
+   "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+   "nota": "Saldo, oro incluido. No es lo mismo que COFER: aquí se reparte por país tenedor y allí por moneda. Suma de 181 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "total": 17874.4,
+   "nodos": [
+    {
+     "id": "TOTAL_reservas_pais",
+     "label": "Reservas mundiales",
+     "col": 0,
+     "isHub": true
+    },
+    {
+     "id": "RESE_CHN",
+     "label": "China",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "RESE_USA",
+     "label": "Estados Unidos",
+     "col": 2,
+     "region": "NA"
+    },
+    {
+     "id": "RESE_JPN",
+     "label": "Japón",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "RESE_CHE",
+     "label": "Suiza",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "RESE_IND",
+     "label": "India",
+     "col": 2,
+     "region": "AS"
+    },
+    {
+     "id": "RESE_RUS",
+     "label": "Federación de Rusia",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "RESE_DEU",
+     "label": "Alemania",
+     "col": 2,
+     "region": "EU"
+    },
+    {
+     "id": "RESE_SAU",
+     "label": "Arabia Saudita",
+     "col": 2,
+     "region": "XX"
+    },
+    {
+     "id": "RESTO_reservas_pais",
+     "label": "Resto del mundo",
+     "col": 2,
+     "region": "XX"
+    }
+   ],
+   "enlaces": [
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_CHN",
+     "v": 3748.7,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "China: 3748.7 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_USA",
+     "v": 1385.4,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Estados Unidos: 1385.4 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_JPN",
+     "v": 1371.4,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Japón: 1371.4 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_CHE",
+     "v": 1075.7,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Suiza: 1075.7 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_IND",
+     "v": 700.1,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "India: 700.1 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_RUS",
+     "v": 608.4,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2024,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Federación de Rusia: 608.4 B USD en 2024. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_DEU",
+     "v": 572.2,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Alemania: 572.2 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESE_SAU",
+     "v": 505.2,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": 2025,
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Arabia Saudita: 505.2 B USD en 2025. Total de reservas (incluye oro, US$ a precios actuales)."
+    },
+    {
+     "s": "TOTAL_reservas_pais",
+     "t": "RESTO_reservas_pais",
+     "v": 7907.3,
+     "type": "reserves",
+     "unit": "B USD",
+     "year": "2025",
+     "source": "Banco Mundial · WDI",
+     "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
+     "detail": "Diferencia entre el total de la fuente (17874.4 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+    }
+   ]
+  }
+ ],
+ "conservacion": [
+  {
+   "bloque": "reservas_moneda",
+   "total": 13216.8,
+   "suma_enlaces": 13216.7,
+   "residuo": 0.1,
+   "tolerancia": 0.5,
+   "ok": true
+  },
+  {
+   "bloque": "deuda_eeuu",
+   "total": 9269.5,
+   "suma_enlaces": 9269.5,
+   "residuo": 0,
+   "tolerancia": 0.5,
+   "ok": true
+  },
+  {
+   "bloque": "remesas",
+   "total": 990.6,
+   "suma_enlaces": 990.7,
+   "residuo": 0.1,
+   "tolerancia": 0.5,
+   "ok": true
+  },
+  {
+   "bloque": "ied",
+   "total": 1956.6,
+   "suma_enlaces": 1956.6,
+   "residuo": 0,
+   "tolerancia": 0.5,
+   "ok": true
+  },
+  {
+   "bloque": "exportaciones",
+   "total": 33570,
+   "suma_enlaces": 33570.1,
+   "residuo": 0.1,
+   "tolerancia": 0.5,
+   "ok": true
+  },
+  {
+   "bloque": "reservas_pais",
+   "total": 17874.4,
+   "suma_enlaces": 17874.4,
+   "residuo": 0,
+   "tolerancia": 0.5,
+   "ok": true
+  }
+ ]
+}

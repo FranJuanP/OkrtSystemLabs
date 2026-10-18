@@ -24,6 +24,9 @@ import { geoNaturalEarth1, geoPath, geoGraticule, geoCentroid } from 'd3-geo';
 import { min } from 'd3-array';
 import { easeCubicInOut, easeQuadOut } from 'd3-ease';
 import { feature as topoFeature } from 'topojson-client';
+import { cargarDatos, fechaDatos } from '../core/datos.js';
+import { construirDATA } from './datos-dashboard.js';
+import { ETIQUETA_RELATIVA } from '../core/scoring.js';
 
 const d3 = {
   select, zoom, zoomIdentity, drag,
@@ -174,1251 +177,36 @@ function setHorizon(el,v){
 // BASELINE DATA (World Bank ~2023, normalized to risk 0-100)
 // Higher score = higher RISK
 // ──────────────────────────────────────────
-const DATA={WLD:{'name':'Global',eco:{score:48,inds:[{n:'PIB Crecimiento',v:'2.9%',risk:42},{n:'Inflación',v:'6.8%',risk:62},{n:'Desempleo',v:'5.1%',risk:44},{n:'Deuda Pública',v:'93% PIB',risk:71}]},geo:{score:62,inds:[{n:'Conflictos Activos',v:'56 zonas',risk:78},{n:'Estabilidad Política',v:'-0.4',risk:65},{n:'Estado de Derecho',v:'-0.1',risk:52},{n:'Control Corrupción',v:'-0.2',risk:58}]},health:{score:38,inds:[{n:'Esperanza de Vida',v:'72.3 años',risk:35},{n:'Cobertura Sanitaria',v:'68%',risk:42},{n:'Mort. Infantil',v:'28/1k',risk:48},{n:'Gasto Sanitario',v:'9.8% PIB',risk:28}]},climate:{score:67,inds:[{n:'Anom. Temperatura',v:'+1.2°C',risk:72},{n:'CO₂ Emisiones',v:'4.7t/cáp.',risk:65},{n:'Pérd. Biodiversidad',v:'alta',risk:74},{n:'Eventos Extremos',v:'+34%',risk:68}]},social:{score:58,inds:[{n:'Desigualdad (Gini)',v:'0.38',risk:62},{n:'Desplazados forzados',v:'117M',risk:88},{n:'Índice Democracia',v:'5.5/10',risk:55},{n:'Libertad de Prensa',v:'moderada',risk:58}]},tech:{score:52,inds:[{n:'Ciberataques',v:'+38% anual',risk:72},{n:'Brecha digital',v:'37% excluidos',risk:65},{n:'Dependencia IA',v:'creciendo',risk:55},{n:'Desinformación',v:'alta',risk:68}]},food:{score:55,inds:[{n:'Índice Hambre (GHI)',v:'18.3',risk:58},{n:'Precio cereales',v:'+22% 3a',risk:62},{n:'Pérdida cosechas',v:'+18%',risk:55},{n:'Reservas mundiales',v:'72 días',risk:52}]},mental:{score:61,inds:[{n:'Depresión/Ansiedad',v:'1 de 8',risk:68},{n:'Suicidio /100k',v:'9.0',risk:58},{n:'Burnout laboral',v:'muy alto',risk:72},{n:'Soledad social',v:'creciente',risk:65}]},energy:{score:60,inds:[{n:'Depend. Fósiles',v:'82%',risk:72},{n:'Precio energía',v:'volátil',risk:65},{n:'Reservas petróleo',v:'47 años',risk:58},{n:'Renovables',v:'13% mix',risk:52}]},demo:{score:54,inds:[{n:'Crecim. Poblacional',v:'+0.9%',risk:45},{n:'Envejecimiento',v:'10% >65a',risk:55},{n:'Migración forzada',v:'117M',risk:82},{n:'Urbanización',v:'57%',risk:48}]},urban:{score:56,inds:[{n:'Infra. obsoleta',v:'alta',risk:62},{n:'Acceso agua potable',v:'74%',risk:58},{n:'Ciudades en riesgo',v:'1000+',risk:72},{n:'Vivienda asequible',v:'crisis',risk:65}]},science:{score:44,inds:[{n:'Inversión I+D',v:'2.6% PIB',risk:42},{n:'Brain drain',v:'creciente',risk:55},{n:'Brecha innovación',v:'alta',risk:58},{n:'Acceso ciencia',v:'desigual',risk:52}]},justice:{score:62,inds:[{n:'Presos políticos',v:'estimados',risk:68},{n:'Igualdad género (GII)',v:'0.436',risk:62},{n:'Trabajo infantil',v:'160M niños',risk:72},{n:'Impunidad judicial',v:'alta',risk:65}]},finance:{score:58,inds:[{n:'Deuda global total',v:'307% PIB',risk:78},{n:'Burbuja inmobiliaria',v:'alta',risk:65},{n:'Riesgo banca sombra',v:'elevado',risk:62},{n:'Reservas divisas',v:'declinando',risk:55}]},ocean:{score:68,inds:[{n:'Acidificación',v:'+26% H+',risk:75},{n:'Blanqueo corales',v:'50% afectados',risk:82},{n:'Sobrepesca',v:'34% stocks',risk:72},{n:'Microplásticos',v:'crítico',risk:68}]},bio:{score:55,inds:[{n:'GHS Index',v:'38.9/100',risk:65},{n:'Zoonosis emergentes',v:'alta actividad',risk:72},{n:'Resist. antibiótica',v:'urgente',risk:78},{n:'Vigilancia epidem.',v:'insuficiente',risk:58}]}},USA:{'name':'Estados Unidos',eco:{score:44,inds:[{n:'PIB Crecimiento',v:'2.5%',risk:38},{n:'Inflación',v:'4.1%',risk:52},{n:'Desempleo',v:'3.7%',risk:32},{n:'Deuda Pública',v:'123% PIB',risk:82}]},geo:{score:55,inds:[{n:'Polarización Política',v:'muy alta',risk:82},{n:'Estabilidad Instit.',v:'moderada',risk:48},{n:'Conflictos Externos',v:'2 activos',risk:55},{n:'Control Corrupción',v:'1.2',risk:28}]},health:{score:42,inds:[{n:'Esperanza de Vida',v:'76.4 años',risk:38},{n:'Cobertura Sanitaria',v:'91%',risk:22},{n:'Mort. Infantil',v:'5.4/1k',risk:32},{n:'Gasto Sanitario',v:'16.9% PIB',risk:18}]},climate:{score:61,inds:[{n:'Emisiones CO₂',v:'14.9t/cáp.',risk:78},{n:'Sequías Severas',v:'28% territ.',risk:65},{n:'Eventos Climáticos',v:'+41%',risk:62},{n:'Área Forestal',v:'33%',risk:42}]},social:{score:64,inds:[{n:'Polarización Social',v:'muy alta',risk:88},{n:'Desigualdad (Gini)',v:'0.49',risk:78},{n:'Índice Democracia',v:'7.9/10',risk:38},{n:'Confianza Instit.',v:'27%',risk:72}]},tech:{score:42,inds:[{n:'Ciberdefensa',v:'líder global',risk:22},{n:'Ciberataques recib.',v:'nº1 objetivo',risk:82},{n:'Depend. semicond.',v:'alta Asia',risk:72},{n:'IA dominancia',v:'alta',risk:28}]},food:{score:28,inds:[{n:'Seguridad Aliment.',v:'alta',risk:18},{n:'Obesidad',v:'41.9%',risk:68},{n:'Desperdicio',v:'30-40%',risk:55},{n:'Exportador neto',v:'sí',risk:12}]},mental:{score:68,inds:[{n:'Depresión',v:'21%',risk:75},{n:'Crisis opioides',v:'crítica',risk:88},{n:'Suicidio /100k',v:'14.2',risk:72},{n:'Acceso terapia',v:'limitado',risk:65}]},energy:{score:48,inds:[{n:'Independencia energét.',v:'alta',risk:28},{n:'Emisiones fósiles',v:'muy altas',risk:82},{n:'Renovables',v:'22% mix',risk:48},{n:'Shale oil',v:'líder',risk:32}]},demo:{score:42,inds:[{n:'Natalidad',v:'1.6 hijos',risk:45},{n:'Envejecimiento',v:'17% >65a',risk:52},{n:'Inmigración',v:'polarizada',risk:62},{n:'Brain gain',v:'alto',risk:18}]},urban:{score:52,inds:[{n:'Infra. obsoleta',v:'alta',risk:72},{n:'Vivienda asequible',v:'crisis',risk:78},{n:'Resiliencia climática',v:'media',risk:58},{n:'Transporte público',v:'deficiente',risk:65}]},science:{score:28,inds:[{n:'Inversión I+D',v:'3.4% PIB',risk:22},{n:'Patentes',v:'nº1 global',risk:12},{n:'Universidades top',v:'liderazgo',risk:15},{n:'Financiación ciencia',v:'alta',risk:18}]},justice:{score:55,inds:[{n:'Encarcelamiento',v:'2.1M (1º)',risk:85},{n:'Desigualdad racial',v:'alta',risk:72},{n:'Igualdad género',v:'media',risk:48},{n:'Acceso justicia',v:'desigual',risk:62}]},finance:{score:55,inds:[{n:'Deuda total',v:'350% PIB',risk:78},{n:'Burbuja inmobiliaria',v:'alta',risk:72},{n:'Banca sistémica',v:'alta exposición',risk:65},{n:'Dólar reserva',v:'dominante',risk:22}]},ocean:{score:58,inds:[{n:'Costas en riesgo',v:'alta',risk:72},{n:'Arrecifes Florida',v:'blanqueados',risk:82},{n:'Sobrepesca costera',v:'alta',risk:65},{n:'Subida nivel mar',v:'+3.7mm/a',risk:58}]},bio:{score:42,inds:[{n:'GHS Index',v:'75.9/100',risk:28},{n:'CDC preparación',v:'alta',risk:22},{n:'Resist. antibiótica',v:'crítica',risk:75},{n:'Vigilancia epidem.',v:'alta',risk:25}]}},CHN:{'name':'China',eco:{score:41,inds:[{n:'PIB Crecimiento',v:'5.2%',risk:28},{n:'Inflación',v:'0.2%',risk:38},{n:'Desempleo Juvenil',v:'21%',risk:68},{n:'Deuda Corporativa',v:'160% PIB',risk:79}]},geo:{score:72,inds:[{n:'Tensión Taiwán',v:'muy alta',risk:88},{n:'Disputas Territ.',v:'múltiples',risk:75},{n:'Estado de Derecho',v:'-0.4',risk:68},{n:'Sanciones Activas',v:'parciales',risk:55}]},health:{score:33,inds:[{n:'Esperanza de Vida',v:'77.4 años',risk:30},{n:'Cobertura Sanitaria',v:'87%',risk:28},{n:'Mort. Infantil',v:'6.8/1k',risk:35},{n:'Envejecimiento Pob.',v:'alta',risk:52}]},climate:{score:74,inds:[{n:'Emisiones CO₂',v:'7.1t/cáp.',risk:82},{n:'Calidad del Aire',v:'PM2.5 alta',risk:78},{n:'Estrés Hídrico',v:'72% territ.',risk:74},{n:'Carbón % energía',v:'62%',risk:80}]},social:{score:55,inds:[{n:'Desigualdad (Gini)',v:'0.47',risk:72},{n:'Libertad Civil',v:'muy baja',risk:88},{n:'Migración Interna',v:'300M pers.',risk:58},{n:'Envejecimiento',v:'crítico',risk:75}]},tech:{score:48,inds:[{n:'Ciberataque origen',v:'alta actividad',risk:78},{n:'Vigilancia digital',v:'máxima',risk:85},{n:'Semicond. domésticos',v:'en desarrollo',risk:62},{n:'IA inversión',v:'2º global',risk:32}]},food:{score:44,inds:[{n:'Autosuficiencia',v:'alta',risk:28},{n:'Reservas cereales',v:'50% mundial',risk:18},{n:'Contam. suelos',v:'19% afectado',risk:68},{n:'Agua subterránea',v:'sobreexplot.',risk:75}]},mental:{score:58,inds:[{n:'Depresión',v:'17%',risk:62},{n:'Presión laboral',v:'muy alta',risk:78},{n:'Suicidio /100k',v:'8.1',risk:52},{n:'Recursos salud mental',v:'insuficientes',risk:65}]},energy:{score:65,inds:[{n:'Carbón dependencia',v:'62%',risk:80},{n:'Importación petróleo',v:'72%',risk:72},{n:'Renovables crecim.',v:'acelerado',risk:25},{n:'Emisiones totales',v:'nº1 global',risk:88}]},demo:{score:62,inds:[{n:'Natalidad',v:'1.0 hijos',risk:82},{n:'Envejecimiento',v:'14% >65a',risk:65},{n:'Ratio hombre/mujer',v:'105/100',risk:55},{n:'Población urbana',v:'65%',risk:42}]},urban:{score:48,inds:[{n:'Ciudades fantasma',v:'estimadas',risk:65},{n:'Burbuja inmobil.',v:'crítica',risk:85},{n:'Infra. moderna',v:'alta',risk:22},{n:'Polución urbana',v:'severa',risk:78}]},science:{score:35,inds:[{n:'Inversión I+D',v:'2.4% PIB',risk:32},{n:'Patentes',v:'nº1 cantidad',risk:18},{n:'Espionaje científico',v:'documentado',risk:72},{n:'Talento STEM',v:'muy alto',risk:18}]},justice:{score:82,inds:[{n:'Presos políticos',v:'documentados',risk:88},{n:'Derechos digitales',v:'nulos',risk:92},{n:'Trabajo forzado',v:'documentado',risk:85},{n:'Igualdad género',v:'media-baja',risk:62}]},finance:{score:62,inds:[{n:'Deuda total',v:'280% PIB',risk:72},{n:'Burbuja inmobil.',v:'crítica',risk:88},{n:'Banca pública',v:'expuesta',risk:65},{n:'Yuan internac.',v:'limitado',risk:45}]},ocean:{score:72,inds:[{n:'Pesca industrial',v:'nº1 mundial',risk:85},{n:'Contaminación costera',v:'severa',risk:82},{n:'Mar del Sur China',v:'militarizado',risk:78},{n:'Manglares',v:'pérdida alta',risk:68}]},bio:{score:52,inds:[{n:'GHS Index',v:'52.8/100',risk:52},{n:'Zoonosis origen',v:'alta densidad',risk:78},{n:'Laboratorios BSL-4',v:'activos',risk:65},{n:'Transparencia datos',v:'limitada',risk:82}]}},ESP:{'name':'España',eco:{score:47,inds:[{n:'PIB Crecimiento',v:'2.5%',risk:38},{n:'Inflación',v:'3.5%',risk:48},{n:'Desempleo',v:'11.8%',risk:72},{n:'Deuda Pública',v:'108% PIB',risk:75}]},geo:{score:34,inds:[{n:'Estabilidad Política',v:'moderada',risk:45},{n:'Tensión Territorial',v:'Cataluña',risk:52},{n:'Estado de Derecho',v:'1.1',risk:24},{n:'Posición OTAN',v:'estable',risk:18}]},health:{score:22,inds:[{n:'Esperanza de Vida',v:'83.4 años',risk:14},{n:'Cobertura Sanitaria',v:'97%',risk:12},{n:'Mort. Infantil',v:'2.7/1k',risk:18},{n:'Gasto Sanitario',v:'9.5% PIB',risk:24}]},climate:{score:58,inds:[{n:'Sequías',v:'endémicas',risk:78},{n:'Incendios',v:'creciendo',risk:65},{n:'Temperatura',v:'+1.8°C',risk:62},{n:'Estrés Hídrico',v:'severo sur',risk:72}]},social:{score:42,inds:[{n:'Desigualdad (Gini)',v:'0.33',risk:45},{n:'Desempleo juvenil',v:'28%',risk:78},{n:'Cohesión territorial',v:'moderada',risk:52},{n:'Confianza política',v:'baja',risk:65}]},tech:{score:44,inds:[{n:'Ciberdefensa',v:'media-alta',risk:42},{n:'Depend. cloud ext.',v:'alta',risk:65},{n:'Digital. PYME',v:'en progreso',risk:48},{n:'Ciberataques recib.',v:'moderados',risk:52}]},food:{score:30,inds:[{n:'Autosuficiencia',v:'alta',risk:22},{n:'Sequía agrícola',v:'severa',risk:75},{n:'Exportador neto',v:'sí',risk:15},{n:'Pérdidas calor',v:'crecientes',risk:62}]},mental:{score:48,inds:[{n:'Depresión',v:'10.8%',risk:52},{n:'Suicidio /100k',v:'7.4',risk:48},{n:'Acceso salud mental',v:'medio',risk:45},{n:'Soledad social',v:'creciente',risk:58}]},energy:{score:42,inds:[{n:'Depend. importación',v:'74%',risk:72},{n:'Renovables',v:'46% mix',risk:28},{n:'Precio electricidad',v:'alto',risk:65},{n:'Gas Argelia',v:'dependencia',risk:55}]},demo:{score:52,inds:[{n:'Natalidad',v:'1.19 hijos',risk:78},{n:'Envejecimiento',v:'20% >65a',risk:72},{n:'Emigración jóvenes',v:'alta',risk:68},{n:'Inmigración',v:'moderada',risk:35}]},urban:{score:38,inds:[{n:'Infra. viaria',v:'buena',risk:28},{n:'Vivienda asequible',v:'crisis',risk:78},{n:'Resiliencia hídrica',v:'baja',risk:72},{n:'Smart cities',v:'en progreso',risk:38}]},science:{score:45,inds:[{n:'Inversión I+D',v:'1.4% PIB',risk:62},{n:'Brain drain',v:'alto',risk:72},{n:'Universidades top',v:'media',risk:48},{n:'Startups',v:'creciendo',risk:35}]},justice:{score:32,inds:[{n:'Estado de Derecho',v:'alto',risk:22},{n:'Igualdad género',v:'avanzada',risk:28},{n:'Violencia machista',v:'persistente',risk:55},{n:'Corrupción',v:'moderada',risk:45}]},finance:{score:52,inds:[{n:'Deuda total',v:'210% PIB',risk:65},{n:'Burbuja inmobil.',v:'alta',risk:72},{n:'Banca expuesta',v:'moderada',risk:52},{n:'Riesgo prima',v:'moderado',risk:48}]},ocean:{score:48,inds:[{n:'Mediterráneo calor',v:'récord',risk:75},{n:'Pesca sostenible',v:'en mejora',risk:42},{n:'Costas erosión',v:'moderada',risk:52},{n:'Posidonia',v:'en declive',risk:58}]},bio:{score:32,inds:[{n:'GHS Index',v:'65.5/100',risk:38},{n:'Sistem. vigilancia',v:'alto',risk:28},{n:'Resist. antibiótica',v:'alta UE',risk:62},{n:'Preparación pandém.',v:'media-alta',risk:35}]}},RUS:{'name':'Rusia',eco:{score:71,inds:[{n:'PIB Crecimiento',v:'3.6%',risk:38},{n:'Inflación',v:'7.5%',risk:68},{n:'Sanciones Impacto',v:'severo',risk:88},{n:'Deuda Externa',v:'baja',risk:28}]},geo:{score:91,inds:[{n:'Guerra en Curso',v:'Ucrania',risk:98},{n:'Aislamiento Diplom.',v:'alto',risk:88},{n:'Estado de Derecho',v:'-1.1',risk:85},{n:'Riesgo Escalada',v:'nuclear',risk:78}]},health:{score:55,inds:[{n:'Esperanza de Vida',v:'72.8 años',risk:52},{n:'Mortalidad Hombres',v:'alta',risk:65},{n:'Sistema Sanitario',v:'deteriorado',risk:58},{n:'Emigración Médicos',v:'alta',risk:62}]},climate:{score:44,inds:[{n:'Emisiones CO₂',v:'10.2t/cáp.',risk:72},{n:'Permafrost Fusión',v:'acelerando',risk:68},{n:'Área Forestal',v:'49%',risk:28},{n:'Incendios Sib.',v:'récords',risk:62}]},social:{score:72,inds:[{n:'Emigración talento',v:'+800k 2022',risk:85},{n:'Libertad Civil',v:'muy baja',risk:92},{n:'Cohesión social',v:'fracturada',risk:78},{n:'Desigualdad (Gini)',v:'0.41',risk:65}]},tech:{score:58,inds:[{n:'Ciberataque origen',v:'muy alta',risk:88},{n:'Aislamiento internet',v:'RuNet parcial',risk:72},{n:'Semicond. sancionados',v:'crítico',risk:82},{n:'Drones/IA militar',v:'activo',risk:78}]},food:{score:38,inds:[{n:'Exportador trigo',v:'nº1 mundial',risk:18},{n:'Sanciones agrícolas',v:'parciales',risk:42},{n:'Autosuficiencia',v:'alta',risk:22},{n:'Inflación alimentos',v:'alta',risk:62}]},mental:{score:75,inds:[{n:'Trauma bélico',v:'masivo',risk:88},{n:'Suicidio /100k',v:'17.0',risk:78},{n:'Alcoholismo',v:'alto',risk:72},{n:'Recursos salud mental',v:'muy escasos',risk:82}]},energy:{score:35,inds:[{n:'Exportador neto',v:'petróleo/gas',risk:15},{n:'Depend. ingresos',v:'60% PIB',risk:72},{n:'Sanciones energía',v:'parciales',risk:65},{n:'Diversif. energética',v:'baja',risk:58}]},demo:{score:65,inds:[{n:'Pérdida demográfica',v:'bélica',risk:85},{n:'Emigración masiva',v:'1M+ 2022',risk:82},{n:'Natalidad',v:'1.5 hijos',risk:62},{n:'Envejecimiento',v:'15% >65a',risk:55}]},urban:{score:52,inds:[{n:'Infra. bélica',v:'deterioro',risk:72},{n:'Inversión civil',v:'reducida',risk:68},{n:'Ciudades dañadas',v:'ocupadas',risk:78},{n:'Sanciones constr.',v:'impacto',risk:62}]},science:{score:62,inds:[{n:'Fuga de científicos',v:'masiva',risk:88},{n:'Sanciones I+D',v:'aislamiento',risk:82},{n:'Armamento avanzado',v:'activo',risk:78},{n:'Inversión civil I+D',v:'caída',risk:72}]},justice:{score:92,inds:[{n:'Presos políticos',v:'miles',risk:95},{n:'Crímenes de guerra',v:'documentados',risk:98},{n:'Independencia judicial',v:'nula',risk:92},{n:'Libertad de expresión',v:'eliminada',risk:95}]},finance:{score:65,inds:[{n:'Reservas divisas',v:'parcialmente bloq.',risk:72},{n:'SWIFT exclusión',v:'parcial',risk:68},{n:'Rublo volatilidad',v:'alta',risk:65},{n:'Economía de guerra',v:'activa',risk:78}]},ocean:{score:45,inds:[{n:'Ártico apertura',v:'acelerada',risk:68},{n:'Mar Negro bloq.',v:'activo',risk:75},{n:'Pesca ártica',v:'creciente',risk:52},{n:'Derrames petroleo',v:'moderados',risk:48}]},bio:{score:55,inds:[{n:'GHS Index',v:'44.3/100',risk:58},{n:'Armas biológicas',v:'tratado firmado',risk:65},{n:'Vigilancia epidem.',v:'limitada',risk:62},{n:'Laboratorios',v:'activos',risk:58}]}},IND:{'name':'India',eco:{score:35,inds:[{n:'PIB Crecimiento',v:'6.3%',risk:22},{n:'Inflación',v:'5.7%',risk:58},{n:'Desempleo',v:'7.8%',risk:55},{n:'Infraestructura',v:'en desarrollo',risk:48}]},geo:{score:55,inds:[{n:'Tensión Pak/China',v:'alta',risk:72},{n:'Cohesión Interna',v:'moderada',risk:52},{n:'Estabilidad Política',v:'0.1',risk:45},{n:'Conflictos Frontera',v:'activos',risk:62}]},health:{score:51,inds:[{n:'Esperanza de Vida',v:'70.1 años',risk:52},{n:'Mort. Infantil',v:'25.5/1k',risk:62},{n:'Acceso Agua Potable',v:'88%',risk:42},{n:'Cobertura Sanitaria',v:'71%',risk:48}]},climate:{score:76,inds:[{n:'Olas de Calor',v:'críticas',risk:88},{n:'Estrés Hídrico',v:'extremo',risk:85},{n:'Emisiones CO₂',v:'1.9t/cáp.',risk:42},{n:'Monzón Variabilidad',v:'alta',risk:72}]},social:{score:62,inds:[{n:'Desigualdad (Gini)',v:'0.35',risk:58},{n:'Tensiones religiosas',v:'altas',risk:75},{n:'Discriminación castas',v:'persistente',risk:68},{n:'Índice Democracia',v:'7.2/10',risk:45}]},tech:{score:45,inds:[{n:'Digital expansion',v:'rápida',risk:28},{n:'Ciberataques recib.',v:'top 5',risk:72},{n:'Brecha digital rural',v:'alta',risk:65},{n:'IA outsourcing',v:'líder global',risk:22}]},food:{score:58,inds:[{n:'Desnutrición',v:'16.6%',risk:72},{n:'Estrés hídrico agríc.',v:'extremo',risk:85},{n:'Pérd. post-cosecha',v:'15-20%',risk:62},{n:'Volatilidad monzón',v:'alta',risk:75}]},mental:{score:55,inds:[{n:'Depresión',v:'14%',risk:58},{n:'Suicidio /100k',v:'12.7',risk:65},{n:'Estigma salud mental',v:'muy alto',risk:78},{n:'Recursos',v:'0.3/100k hab.',risk:82}]},energy:{score:58,inds:[{n:'Carbón dependencia',v:'44%',risk:65},{n:'Importación petróleo',v:'85%',risk:78},{n:'Renovables crecim.',v:'acelerado',risk:28},{n:'Acceso energía rural',v:'en mejora',risk:42}]},demo:{score:42,inds:[{n:'Crecim. poblacional',v:'+1.0%',risk:48},{n:'Dividendo demográfico',v:'positivo',risk:18},{n:'Urbanización',v:'36%',risk:55},{n:'Emigración talento',v:'alta',risk:62}]},urban:{score:65,inds:[{n:'Superpoblación urb.',v:'crítica',risk:82},{n:'Saneamiento urb.',v:'deficiente',risk:72},{n:'Contam. aire urb.',v:'severa',risk:78},{n:'Infra. transporte',v:'sobresaturada',risk:68}]},science:{score:42,inds:[{n:'Inversión I+D',v:'0.7% PIB',risk:65},{n:'Talento STEM',v:'muy alto',risk:15},{n:'Brain drain',v:'alta emigrac.',risk:72},{n:'Misión espacial',v:'activa',risk:18}]},justice:{score:55,inds:[{n:'Igualdad género',v:'media-baja',risk:65},{n:'Violencia doméstica',v:'alta',risk:72},{n:'Acceso justicia',v:'desigual',risk:62},{n:'Libertad de prensa',v:'parcial',risk:55}]},finance:{score:45,inds:[{n:'Deuda pública',v:'83% PIB',risk:62},{n:'Rupia estabilidad',v:'moderada',risk:52},{n:'Crecim. reservas',v:'positivo',risk:28},{n:'Crédito privado',v:'expansivo',risk:48}]},ocean:{score:62,inds:[{n:'Arrecifes coralinos',v:'blanqueados',risk:72},{n:'Pesca artesanal',v:'amenazada',risk:65},{n:'Contam. costera',v:'alta',risk:75},{n:'Nivel mar afecta',v:'200M pers.',risk:78}]},bio:{score:55,inds:[{n:'GHS Index',v:'42.8/100',risk:58},{n:'Densidad poblacional',v:'alta riesgo',risk:72},{n:'Resist. antibiótica',v:'muy alta',risk:82},{n:'Vigilancia epidem.',v:'mejorando',risk:48}]}},EUU:{'name':'Unión Europea',eco:{score:52,inds:[{n:'PIB Crecimiento',v:'0.5%',risk:62},{n:'Inflación',v:'5.4%',risk:65},{n:'Desempleo',v:'6.0%',risk:52},{n:'Deuda Pública avg',v:'88% PIB',risk:68}]},geo:{score:58,inds:[{n:'Conflicto Vecino',v:'guerra Ucrania',risk:85},{n:'Cohesión Interna',v:'moderada',risk:52},{n:'Estado de Derecho',v:'1.1',risk:28},{n:'Depend. Energética',v:'alta',risk:68}]},health:{score:28,inds:[{n:'Esperanza de Vida',v:'80.8 años',risk:22},{n:'Cobertura Sanitaria',v:'96%',risk:14},{n:'Mort. Infantil',v:'3.2/1k',risk:22},{n:'Gasto Sanitario',v:'10.2% PIB',risk:20}]},climate:{score:54,inds:[{n:'Emisiones CO₂',v:'6.4t/cáp.',risk:58},{n:'Olas de Calor',v:'frecuencia+',risk:62},{n:'Trans. Energética',v:'en progreso',risk:42},{n:'Biodiversidad',v:'crítica',risk:64}]},social:{score:44,inds:[{n:'Desigualdad avg',v:'0.31',risk:42},{n:'Populismo creciente',v:'alto',risk:65},{n:'Inmigración tensión',v:'alta',risk:62},{n:'Cohesión Social',v:'moderada',risk:48}]},tech:{score:46,inds:[{n:'Ciberdefensa',v:'alta',risk:32},{n:'Depend. cloud EEUU',v:'muy alta',risk:72},{n:'Soberanía digital',v:'en construc.',risk:58},{n:'Desinformación',v:'creciente',risk:62}]},food:{score:32,inds:[{n:'Seguridad Aliment.',v:'alta',risk:22},{n:'Depend. fertiliz.',v:'rusa anterior',risk:55},{n:'Pérd. cosecha calor',v:'crecientes',risk:52},{n:'PAC sostenible',v:'en transición',risk:38}]},mental:{score:52,inds:[{n:'Depresión/Ansiedad',v:'15%',risk:55},{n:'Soledad adultos',v:'alta',risk:62},{n:'Burnout sanitarios',v:'post-COVID',risk:68},{n:'Acceso terapia',v:'variable',risk:48}]},energy:{score:58,inds:[{n:'Depend. gas ruso',v:'reduciendo',risk:65},{n:'Renovables',v:'43% mix',risk:28},{n:'Precio energía',v:'elevado',risk:72},{n:'Almacenamiento',v:'insuficiente',risk:58}]},demo:{score:55,inds:[{n:'Natalidad avg',v:'1.4 hijos',risk:72},{n:'Envejecimiento',v:'21% >65a',risk:68},{n:'Emigración E.del E.',v:'alta',risk:62},{n:'Integración migr.',v:'desafío',risk:55}]},urban:{score:38,inds:[{n:'Infra. transporte',v:'buena',risk:28},{n:'Vivienda asequible',v:'crisis',risk:72},{n:'Resiliencia climática',v:'media',risk:55},{n:'Ciudades sostenibles',v:'progresando',risk:35}]},science:{score:38,inds:[{n:'Inversión I+D avg',v:'2.2% PIB',risk:38},{n:'Horizon Europe',v:'activo',risk:22},{n:'Brain drain a EEUU',v:'moderado',risk:52},{n:'Unicornios tech',v:'creciendo',risk:35}]},justice:{score:28,inds:[{n:'Estado de Derecho',v:'alto',risk:22},{n:'Igualdad género',v:'avanzada',risk:25},{n:'Derechos digitales',v:'GDPR líder',risk:18},{n:'Corrupción',v:'baja-media',risk:35}]},finance:{score:52,inds:[{n:'Deuda soberana',v:'fragmentada',risk:65},{n:'BCE política',v:'restrictiva',risk:58},{n:'Riesgo periférico',v:'moderado',risk:52},{n:'Euro estabilidad',v:'alta',risk:25}]},ocean:{score:52,inds:[{n:'Mediterráneo',v:'warming crítico',risk:75},{n:'Mar del Norte',v:'sobrepescado',risk:62},{n:'Arrecifes europeos',v:'degradados',risk:68},{n:'Política azul',v:'en desarrollo',risk:42}]},bio:{score:35,inds:[{n:'GHS Index avg',v:'62.5/100',risk:38},{n:'ECDC vigilancia',v:'alta',risk:22},{n:'Resist. antibiótica',v:'alta',risk:65},{n:'Preparación',v:'alta',risk:28}]}},BRA:{'name':'Brasil',eco:{score:53,inds:[{n:'PIB Crecimiento',v:'2.9%',risk:42},{n:'Inflación',v:'4.6%',risk:52},{n:'Desigualdad (Gini)',v:'0.53',risk:78},{n:'Deuda Pública',v:'87% PIB',risk:68}]},geo:{score:48,inds:[{n:'Crimen Organizado',v:'alto',risk:75},{n:'Estabilidad Política',v:'moderada',risk:45},{n:'Corrupción',v:'-0.3',risk:62},{n:'Seguridad Frontera',v:'desafíos',risk:52}]},health:{score:45,inds:[{n:'Esperanza de Vida',v:'75.5 años',risk:40},{n:'Mort. Infantil',v:'14.2/1k',risk:52},{n:'Cobertura SUS',v:'80%',risk:38},{n:'Enf. Tropicales',v:'activas',risk:58}]},climate:{score:62,inds:[{n:'Deforestación Amaz.',v:'alta',risk:82},{n:'Sequías Sur',v:'severas',risk:68},{n:'Eventos Extremos',v:'creciendo',risk:65},{n:'Biodiversidad',v:'crítica',risk:78}]},social:{score:68,inds:[{n:'Desigualdad (Gini)',v:'0.53',risk:82},{n:'Violencia urbana',v:'muy alta',risk:85},{n:'Favelas',v:'13M pers.',risk:72},{n:'Polarización',v:'alta',risk:68}]},tech:{score:48,inds:[{n:'Ciberdelito',v:'3º global',risk:72},{n:'Infra. digital',v:'media',risk:52},{n:'Brecha digital',v:'28%',risk:58},{n:'Fintechs',v:'emergentes',risk:28}]},food:{score:35,inds:[{n:'Exportador neto',v:'potencia',risk:12},{n:'Hambre residual',v:'8.1%',risk:55},{n:'Deforestación agríc.',v:'alta',risk:72},{n:'Vulnerabilidad clim.',v:'alta',risk:65}]},mental:{score:62,inds:[{n:'Depresión',v:'12%',risk:62},{n:'Ansiedad',v:'más alto mundo',risk:82},{n:'Suicidio /100k',v:'6.4',risk:45},{n:'Acceso tratamiento',v:'bajo',risk:65}]},energy:{score:38,inds:[{n:'Hidroeléctrica',v:'65% mix',risk:25},{n:'Petróleo Petrobras',v:'exportador',risk:22},{n:'Vulnerabilidad sequía',v:'alta',risk:72},{n:'Biocombustibles',v:'líder',risk:18}]},demo:{score:45,inds:[{n:'Crecim. poblac.',v:'+0.6%',risk:38},{n:'Urbanización',v:'87%',risk:55},{n:'Envejecimiento',v:'10% >65a',risk:48},{n:'Emigración',v:'moderada',risk:42}]},urban:{score:62,inds:[{n:'Favelas riesgo',v:'alta',risk:78},{n:'Saneamiento',v:'deficiente',risk:72},{n:'Violencia urbana',v:'crítica',risk:85},{n:'Infra. transporte',v:'deficiente',risk:65}]},science:{score:48,inds:[{n:'Inversión I+D',v:'1.2% PIB',risk:55},{n:'Embrapa agri-ciencia',v:'líder',risk:15},{n:'Brain drain',v:'moderado',risk:52},{n:'Startups',v:'creciendo',risk:38}]},justice:{score:62,inds:[{n:'Impunidad',v:'alta',risk:78},{n:'Violencia policial',v:'alta',risk:82},{n:'Derechos indígenas',v:'amenazados',risk:72},{n:'Corrupción',v:'alta',risk:68}]},finance:{score:55,inds:[{n:'Tipo interés',v:'10.5%',risk:62},{n:'Deuda pública',v:'87% PIB',risk:68},{n:'Real estabilidad',v:'moderada',risk:52},{n:'Riesgo fiscal',v:'alto',risk:65}]},ocean:{score:55,inds:[{n:'Arrecifes Abrolhos',v:'amenazados',risk:68},{n:'Pesca industrial',v:'alta',risk:62},{n:'Plataforma petrolífera',v:'expansión',risk:58},{n:'Amazonas costera',v:'presión',risk:65}]},bio:{score:48,inds:[{n:'GHS Index',v:'46.5/100',risk:55},{n:'Dengue/Zika',v:'endémicos',risk:72},{n:'Deforestación-zoonosis',v:'relación alta',risk:78},{n:'Vigilancia epidem.',v:'media',risk:52}]}},MEX:{'name':'México',eco:{score:55,inds:[{n:'PIB Crecimiento',v:'3.2%',risk:38},{n:'Inflación',v:'4.7%',risk:55},{n:'Desigualdad (Gini)',v:'0.45',risk:68},{n:'Depend. Export. EEUU',v:'alta',risk:62}]},geo:{score:68,inds:[{n:'Crimen Organizado',v:'muy alto',risk:88},{n:'Homicidios/100k',v:'25',risk:82},{n:'Corrupción',v:'-0.5',risk:72},{n:'Estabilidad Política',v:'moderada',risk:52}]},health:{score:48,inds:[{n:'Esperanza de Vida',v:'75.0 años',risk:42},{n:'Mort. Infantil',v:'11.8/1k',risk:55},{n:'Obesidad',v:'36.1%',risk:65},{n:'Cobertura Sanitaria',v:'74%',risk:52}]},climate:{score:64,inds:[{n:'Sequías Norte',v:'severas',risk:78},{n:'Huracanes',v:'creciendo',risk:72},{n:'Estrés Hídrico',v:'alto',risk:68},{n:'Deforestación',v:'moderada',risk:55}]},social:{score:65,inds:[{n:'Desigualdad (Gini)',v:'0.45',risk:68},{n:'Violencia criminal',v:'muy alta',risk:88},{n:'Migración forzada',v:'alta',risk:72},{n:'Índice Democracia',v:'6.9/10',risk:48}]},tech:{score:50,inds:[{n:'Ciberdelito',v:'alto',risk:68},{n:'Brecha digital',v:'30%',risk:62},{n:'Infra. TIC',v:'media',risk:52},{n:'Vigilancia criminal',v:'preocupante',risk:72}]},food:{score:44,inds:[{n:'Autosuficiencia maíz',v:'dependiente',risk:58},{n:'Desnutrición crónica',v:'12%',risk:65},{n:'Estrés hídrico norte',v:'severo',risk:78},{n:'Pérd. cosecha',v:'moderadas',risk:48}]},mental:{score:55,inds:[{n:'Depresión',v:'11%',risk:58},{n:'Trauma violencia',v:'alto',risk:72},{n:'Suicidio /100k',v:'5.3',risk:42},{n:'Recursos escasos',v:'muy escasos',risk:75}]},energy:{score:55,inds:[{n:'Pemex dependencia',v:'alta',risk:65},{n:'Renovables',v:'25% mix',risk:45},{n:'Reforma energética',v:'revertida',risk:68},{n:'Importación gas EEUU',v:'alta',risk:58}]},demo:{score:48,inds:[{n:'Emigración EEUU',v:'masiva',risk:72},{n:'Natalidad',v:'1.9 hijos',risk:38},{n:'Bono demográfico',v:'activo',risk:22},{n:'Urbanización',v:'82%',risk:48}]},urban:{score:62,inds:[{n:'CDMX hundimiento',v:'40cm/año',risk:85},{n:'Escasez agua urb.',v:'crítica',risk:82},{n:'Violencia urbana',v:'muy alta',risk:88},{n:'Infra. sísmica',v:'riesgo alto',risk:72}]},science:{score:55,inds:[{n:'Inversión I+D',v:'0.3% PIB',risk:78},{n:'Brain drain',v:'muy alto',risk:82},{n:'UNAM referente',v:'regional',risk:28},{n:'Startups',v:'limitadas',risk:62}]},justice:{score:72,inds:[{n:'Impunidad',v:'94% casos',risk:92},{n:'Femicidios',v:'10/día',risk:88},{n:'Prensa asesinada',v:'alta',risk:82},{n:'Corrupción judicial',v:'alta',risk:78}]},finance:{score:52,inds:[{n:'Deuda pública',v:'52% PIB',risk:48},{n:'Peso estabilidad',v:'moderada',risk:55},{n:'Remesas',v:'60B USD/a',risk:22},{n:'Riesgo fiscal',v:'moderado',risk:52}]},ocean:{score:52,inds:[{n:'Golfo México contam.',v:'alta',risk:68},{n:'Arrecife Mesoameric.',v:'amenazado',risk:75},{n:'Pesca ilegal',v:'moderada',risk:58},{n:'Costas turísticas',v:'presión alta',risk:55}]},bio:{score:52,inds:[{n:'GHS Index',v:'47.2/100',risk:55},{n:'Dengue/arbovirosis',v:'endémicos',risk:68},{n:'Frontera vectores',v:'riesgo',risk:62},{n:'Vigilancia epidem.',v:'media',risk:55}]}},JPN:{'name':'Japón',eco:{score:52,inds:[{n:'PIB Crecimiento',v:'1.9%',risk:52},{n:'Inflación',v:'3.3%',risk:48},{n:'Deuda Pública',v:'261% PIB',risk:88},{n:'Envejecimiento Pob.',v:'crítico',risk:82}]},geo:{score:45,inds:[{n:'Tensión RPDC',v:'alta',risk:72},{n:'Disputa Mar China',v:'activa',risk:62},{n:'Alianza EEUU',v:'sólida',risk:22},{n:'Estado de Derecho',v:'1.6',risk:15}]},health:{score:18,inds:[{n:'Esperanza de Vida',v:'84.3 años',risk:10},{n:'Cobertura Sanitaria',v:'100%',risk:8},{n:'Mort. Infantil',v:'1.7/1k',risk:12},{n:'Gasto Sanitario',v:'10.9% PIB',risk:18}]},climate:{score:55,inds:[{n:'Tifones/Ciclones',v:'creciendo',risk:72},{n:'Emisiones CO₂',v:'8.5t/cáp.',risk:68},{n:'Riesgo Sísmico',v:'muy alto',risk:78},{n:'Trans. Energética',v:'en curso',risk:42}]},social:{score:48,inds:[{n:'Envejecimiento extremo',v:'30% >65a',risk:82},{n:'Natalidad',v:'0.7 hijos',risk:88},{n:'Desigualdad (Gini)',v:'0.32',risk:38},{n:'Cohesión social',v:'alta',risk:18}]},tech:{score:38,inds:[{n:'Ciberdefensa',v:'alta',risk:32},{n:'Infra. digital',v:'avanzada',risk:22},{n:'IA inversión',v:'alta',risk:28},{n:'Depend. semicond.',v:'TSMC',risk:62}]},food:{score:45,inds:[{n:'Autosuficiencia',v:'38%',risk:72},{n:'Depend. importac.',v:'muy alta',risk:78},{n:'Desperdicio alim.',v:'bajo',risk:22},{n:'Desastres agrícolas',v:'riesgo sísmico',risk:62}]},mental:{score:65,inds:[{n:'Suicidio /100k',v:'17.5',risk:78},{n:'Karoshi',v:'documentado',risk:82},{n:'Hikikomori',v:'1.5M pers.',risk:72},{n:'Soledad estructural',v:'alta',risk:68}]},energy:{score:58,inds:[{n:'Depend. importación',v:'90%',risk:88},{n:'Nuclear post-Fukushima',v:'reducida',risk:62},{n:'Renovables',v:'22% mix',risk:45},{n:'GNL dependencia',v:'muy alta',risk:75}]},demo:{score:72,inds:[{n:'Natalidad',v:'0.7 hijos',risk:95},{n:'Envejecimiento',v:'30% >65a',risk:88},{n:'Inmigración rígida',v:'muy baja',risk:72},{n:'Colapso demográfico',v:'proyectado',risk:85}]},urban:{score:42,inds:[{n:'Resiliencia sísmica',v:'alta',risk:28},{n:'Infra. avanzada',v:'alta',risk:15},{n:'Ciudades vaciándose',v:'rural',risk:65},{n:'Costo vida urbano',v:'muy alto',risk:62}]},science:{score:32,inds:[{n:'Inversión I+D',v:'3.3% PIB',risk:28},{n:'Premios Nobel',v:'liderazgo',risk:12},{n:'Robótica/IA',v:'líder',risk:18},{n:'Declive talento joven',v:'demográfico',risk:72}]},justice:{score:28,inds:[{n:'Estado de Derecho',v:'muy alto',risk:12},{n:'Igualdad género',v:'media',risk:55},{n:'Derechos trabajador',v:'karoshi',risk:72},{n:'Sistema judicial',v:'eficiente',risk:18}]},finance:{score:55,inds:[{n:'Deuda pública',v:'261% PIB',risk:88},{n:'Yen volatilidad',v:'alta 2023',risk:68},{n:'BoJ política',v:'ultra-laxa',risk:72},{n:'Burbuja inmobil.',v:'moderada',risk:48}]},ocean:{score:48,inds:[{n:'Pesca sostenible',v:'media',risk:52},{n:'Fukushima agua',v:'vertido 2023',risk:72},{n:'Tsunamis riesgo',v:'muy alto',risk:82},{n:'Costas erosión',v:'moderada',risk:45}]},bio:{score:35,inds:[{n:'GHS Index',v:'59.4/100',risk:42},{n:'Influenza vigilancia',v:'alta',risk:28},{n:'Envejecimiento-pandemia',v:'riesgo alto',risk:68},{n:'Preparación',v:'alta',risk:28}]}},
-// ── 15 PAÍSES DETALLADOS ──
-SAU:{name:'Arabia Saudí',eco:{score:42,inds:[{n:'PIB Crecimiento',v:'8.7%',risk:22},{n:'Inflación',v:'3.1%',risk:38},{n:'Desempleo Nac.',v:'8.3%',risk:55},{n:'Depend. petróleo',v:'67% PIB',risk:78}]},geo:{score:68,inds:[{n:'Tensión Yemen',v:'guerra activa',risk:88},{n:'Rivalidad Irán',v:'alta',risk:75},{n:'Estabilidad intern.',v:'monarquía',risk:55},{n:'Armas importadas',v:'nº2 mundial',risk:72}]},health:{score:32,inds:[{n:'Esperanza de Vida',v:'77.0 años',risk:30},{n:'Cobertura Sanitaria',v:'88%',risk:25},{n:'Obesidad',v:'35.4%',risk:72},{n:'Gasto Sanitario',v:'5.9% PIB',risk:42}]},climate:{score:72,inds:[{n:'Temp. extrema',v:'+2.1°C',risk:85},{n:'Estrés Hídrico',v:'extremo',risk:92},{n:'CO₂/cápita',v:'15.1t',risk:82},{n:'Desertificación',v:'avanzando',risk:78}]},social:{score:62,inds:[{n:'Libertades civiles',v:'muy bajas',risk:88},{n:'Desig. género',v:'alta',risk:82},{n:'Trabajad. migr.',v:'38% poblaç.',risk:65},{n:'Desig. (Gini)',v:'0.45',risk:62}]},tech:{score:38,inds:[{n:'Inversión IA',v:'Vision 2030',risk:28},{n:'Ciberataques',v:'moderados',risk:52},{n:'Penetr. digital',v:'98%',risk:18},{n:'Depend. tech ext.',v:'alta',risk:65}]},food:{score:58,inds:[{n:'Autosuficiencia',v:'20%',risk:82},{n:'Importaciones',v:'80% alim.',risk:85},{n:'Reservas agua',v:'críticas',risk:92},{n:'Precio alimentos',v:'alto',risk:62}]},mental:{score:52,inds:[{n:'Depresión',v:'11.9%',risk:58},{n:'Estigma mental',v:'muy alto',risk:82},{n:'Suicidio /100k',v:'4.1',risk:35},{n:'Recursos escasos',v:'insuficientes',risk:68}]},energy:{score:28,inds:[{n:'Exportador neto',v:'nº2 OPEP',risk:12},{n:'Renovables',v:'0.2% mix',risk:88},{n:'Reservas petróleo',v:'17% mundial',risk:8},{n:'Diversificación',v:'en proceso',risk:55}]},demo:{score:42,inds:[{n:'Crecim. poblac.',v:'+2.4%',risk:45},{n:'Jóvenes <30',v:'63%',risk:35},{n:'Urbanización',v:'84%',risk:38},{n:'Emigración',v:'baja',risk:28}]},urban:{score:35,inds:[{n:'Infra. moderna',v:'alta',risk:22},{n:'Mega proyectos',v:'NEOM activo',risk:32},{n:'Estrés calor urb.',v:'crítico',risk:88},{n:'Agua urbana',v:'desalinización',risk:55}]},science:{score:48,inds:[{n:'Inversión I+D',v:'0.8% PIB',risk:65},{n:'Vision 2030',v:'activo',risk:28},{n:'Universidades',v:'media',risk:52},{n:'Depend. ext.',v:'alta',risk:62}]},justice:{score:75,inds:[{n:'Libertad expresión',v:'muy baja',risk:90},{n:'Derechos mujer',v:'mejorando',risk:65},{n:'Pena de muerte',v:'activa',risk:82},{n:'Independ. judicial',v:'baja',risk:78}]},finance:{score:38,inds:[{n:'Reservas divisas',v:'459B USD',risk:15},{n:'Fondo soberano',v:'PIF 700B',risk:12},{n:'Deuda pública',v:'25% PIB',risk:28},{n:'Oil dependencia',v:'largo plazo',risk:72}]},ocean:{score:55,inds:[{n:'Arrecifes Mar Rojo',v:'blanqueados',risk:72},{n:'Desalinización',v:'nº1 mundial',risk:45},{n:'Pesca limitada',v:'escasa',risk:38},{n:'Contam. costera',v:'moderada',risk:52}]},bio:{score:38,inds:[{n:'GHS Index',v:'54.5/100',risk:48},{n:'Vigilancia epidem.',v:'media-alta',risk:38},{n:'MERS riesgo',v:'camellos',risk:65},{n:'Preparación',v:'media',risk:45}]}},
-IRN:{name:'Irán',eco:{score:72,inds:[{n:'PIB Crecimiento',v:'4.7%',risk:42},{n:'Inflación',v:'42%',risk:95},{n:'Sanciones impacto',v:'severo',risk:92},{n:'Desempleo',v:'9.1%',risk:62}]},geo:{score:85,inds:[{n:'Sanciones EEUU/ONU',v:'máximas',risk:95},{n:'Programa nuclear',v:'activo',risk:92},{n:'Proxy wars',v:'activos',risk:88},{n:'Tensión Israel',v:'muy alta',risk:90}]},health:{score:45,inds:[{n:'Esperanza de Vida',v:'75.2 años',risk:42},{n:'Cobertura Sanitaria',v:'72%',risk:48},{n:'Sanciones medicam.',v:'impacto',risk:68},{n:'Gasto Sanitario',v:'5.2% PIB',risk:52}]},climate:{score:68,inds:[{n:'Estrés Hídrico',v:'muy alto',risk:85},{n:'Desertificación',v:'avanzando',risk:78},{n:'Tormentas polvo',v:'frecuentes',risk:72},{n:'Lagos desecándose',v:'crítico',risk:88}]},social:{score:78,inds:[{n:'Libertades civiles',v:'muy bajas',risk:90},{n:'Protestas masivas',v:'recurrentes',risk:82},{n:'Brecha género',v:'alta',risk:85},{n:'Emigración jóvenes',v:'masiva',risk:78}]},tech:{score:55,inds:[{n:'Internet filtrado',v:'alto',risk:85},{n:'Ciberataque origen',v:'activo',risk:78},{n:'Sanciones tech',v:'severas',risk:88},{n:'Tecnol. militar',v:'drones/misiles',risk:82}]},food:{score:55,inds:[{n:'Autosuficiencia',v:'media',risk:52},{n:'Sanciones agrícolas',v:'parciales',risk:62},{n:'Estrés hídrico agríc.',v:'extremo',risk:88},{n:'Inflación alimentos',v:'alta',risk:85}]},mental:{score:68,inds:[{n:'Depresión',v:'alta',risk:72},{n:'Trauma represión',v:'alto',risk:82},{n:'Suicidio /100k',v:'5.3',risk:45},{n:'Recursos',v:'escasos',risk:72}]},energy:{score:32,inds:[{n:'Reservas gas',v:'2º mundial',risk:12},{n:'Sanciones energía',v:'severas',risk:88},{n:'Renovables',v:'0.5% mix',risk:82},{n:'Exportación bloq.',v:'parcial',risk:85}]},demo:{score:45,inds:[{n:'Natalidad',v:'1.7 hijos',risk:52},{n:'Fuga cerebros',v:'masiva',risk:88},{n:'Jóvenes 15-29',v:'24%',risk:35},{n:'Urbanización',v:'76%',risk:42}]},urban:{score:58,inds:[{n:'Riesgo sísmico',v:'muy alto',risk:85},{n:'Teherán contam.',v:'severa',risk:78},{n:'Infra. deteriorada',v:'sanciones',risk:65},{n:'Escasez agua urb.',v:'alta',risk:82}]},science:{score:48,inds:[{n:'Programa nuclear',v:'activo',risk:85},{n:'Sanciones I+D',v:'aislamiento',risk:78},{n:'Talento emigrado',v:'fuga masiva',risk:82},{n:'Inversión I+D',v:'0.6% PIB',risk:70}]},justice:{score:90,inds:[{n:'Ejecuciones',v:'nº2 mundial',risk:95},{n:'Presos políticos',v:'miles',risk:92},{n:'Derechos mujer',v:'muy bajos',risk:90},{n:'Libertad expresión',v:'eliminada',risk:92}]},finance:{score:78,inds:[{n:'Rial colapso',v:'inflación 40%+',risk:92},{n:'SWIFT exclusión',v:'total',risk:95},{n:'Economía paralela',v:'grande',risk:72},{n:'Deuda externa',v:'baja',risk:28}]},ocean:{score:55,inds:[{n:'Golfo Pérsico',v:'contaminado',risk:68},{n:'Pesca declive',v:'moderado',risk:55},{n:'Costas petrolíferas',v:'riesgo',risk:65},{n:'Subida nivel mar',v:'impacto bajo',risk:38}]},bio:{score:55,inds:[{n:'GHS Index',v:'37.9/100',risk:62},{n:'COVID respuesta',v:'tardía',risk:65},{n:'Sanciones vacunas',v:'impacto',risk:72},{n:'Vigilancia epidem.',v:'limitada',risk:62}]}},
-ISR:{name:'Israel',eco:{score:38,inds:[{n:'PIB Crecimiento',v:'2.0%',risk:48},{n:'Inflación',v:'3.8%',risk:45},{n:'Desempleo',v:'3.9%',risk:30},{n:'Guerra impacto',v:'2023+',risk:72}]},geo:{score:88,inds:[{n:'Conflicto Gaza',v:'guerra activa',risk:98},{n:'Tensión Irán',v:'muy alta',risk:92},{n:'Hezbollah',v:'amenaza norte',risk:85},{n:'Aislamiento dipl.',v:'creciente',risk:78}]},health:{score:25,inds:[{n:'Esperanza de Vida',v:'82.4 años',risk:18},{n:'Cobertura Sanitaria',v:'99%',risk:10},{n:'Sistema sanitario',v:'avanzado',risk:15},{n:'Trauma bélico',v:'masivo',risk:75}]},climate:{score:55,inds:[{n:'Estrés Hídrico',v:'alto',risk:72},{n:'Temperatura',v:'+1.9°C',risk:65},{n:'Desertificación',v:'sur',risk:58},{n:'Innovación hídrica',v:'líder',risk:15}]},social:{score:58,inds:[{n:'Polarización intern.',v:'muy alta',risk:85},{n:'Tensión Arab-Judía',v:'alta',risk:78},{n:'Ultra-ortodoxos',v:'conflicto civil',risk:65},{n:'Desig. (Gini)',v:'0.39',risk:55}]},tech:{score:22,inds:[{n:'Silicon Wadi',v:'top 5 global',risk:12},{n:'Ciberdefensa 8200',v:'elite',risk:10},{n:'Startups/cápita',v:'nº1 mundial',risk:8},{n:'Depend. EEUU',v:'alta',risk:35}]},food:{score:35,inds:[{n:'Autosuficiencia',v:'media',risk:45},{n:'Tecnol. agríc.',v:'líder global',risk:12},{n:'Depend. importac.',v:'moderada',risk:42},{n:'Riego eficiente',v:'goteo líder',risk:10}]},mental:{score:62,inds:[{n:'Trauma bélico',v:'masivo 2023+',risk:85},{n:'PTSD soldados',v:'alto',risk:78},{n:'Suicidio /100k',v:'5.8',risk:48},{n:'Recursos salud mental',v:'disponibles',risk:35}]},energy:{score:38,inds:[{n:'Gas Leviatan',v:'nuevo campo',risk:18},{n:'Renovables',v:'18% mix',risk:42},{n:'Depend. importac.',v:'reduciendo',risk:38},{n:'Innovación energía',v:'alta',risk:18}]},demo:{score:32,inds:[{n:'Natalidad',v:'2.9 hijos',risk:18},{n:'Aliá continua',v:'inmigración judía',risk:22},{n:'Crecim. poblac.',v:'+1.8%',risk:25},{n:'Urbanización',v:'92%',risk:35}]},urban:{score:35,inds:[{n:'Infra. moderna',v:'alta',risk:22},{n:'Cohetes riesgo',v:'constante',risk:82},{n:'Tel Aviv smartcity',v:'avanzado',risk:15},{n:'Bunkers/hab.',v:'alta resiliencia',risk:18}]},science:{score:18,inds:[{n:'Inversión I+D',v:'5.4% PIB (nº1)',risk:8},{n:'Nobeles/cápita',v:'liderazgo',risk:10},{n:'Bio/Pharma',v:'líder global',risk:12},{n:'IA militar',v:'avanzado',risk:35}]},justice:{score:65,inds:[{n:'Ocupación Palestina',v:'conflicto activo',risk:92},{n:'Asentamientos',v:'expansión',risk:85},{n:'Minorías derechos',v:'desiguales',risk:65},{n:'CPI investigación',v:'activa',risk:72}]},finance:{score:40,inds:[{n:'Shekel estabilidad',v:'afectado 2023',risk:55},{n:'Déficit guerra',v:'creciendo',risk:68},{n:'Rating crediticio',v:'bajado',risk:62},{n:'Inversión extran.',v:'disminuida',risk:58}]},ocean:{score:42,inds:[{n:'Mediterráneo costas',v:'en riesgo',risk:58},{n:'Desalinización',v:'avanzada',risk:25},{n:'Coral Mar Rojo',v:'amenazado',risk:65},{n:'Gestión marina',v:'innovadora',risk:28}]},bio:{score:28,inds:[{n:'GHS Index',v:'70.9/100',risk:30},{n:'Vacunación COVID',v:'líder global',risk:12},{n:'Biodefensa milit.',v:'alta',risk:25},{n:'Vigilancia epidem.',v:'alta',risk:22}]}},
-TUR:{name:'Turquía',eco:{score:62,inds:[{n:'PIB Crecimiento',v:'5.1%',risk:35},{n:'Inflación',v:'65%',risk:92},{n:'Tipo cambio',v:'colapso lira',risk:88},{n:'Deuda externa',v:'alta',risk:72}]},geo:{score:68,inds:[{n:'Conflicto Kurdos',v:'activo',risk:75},{n:'Posición OTAN',v:'ambigua',risk:62},{n:'Influencia Siria',v:'presencia mil.',risk:68},{n:'Rivalidad Grecia',v:'tensión',risk:58}]},health:{score:38,inds:[{n:'Esperanza de Vida',v:'77.9 años',risk:32},{n:'Cobertura Sanitaria',v:'82%',risk:35},{n:'Sistema sanitario',v:'medio-alto',risk:38},{n:'Gasto Sanitario',v:'4.6% PIB',risk:48}]},climate:{score:62,inds:[{n:'Sequías',v:'agravándose',risk:72},{n:'Incendios',v:'récords 2021',risk:68},{n:'Inundaciones',v:'crecientes',risk:65},{n:'Temperatura',v:'+1.7°C',risk:62}]},social:{score:58,inds:[{n:'Polarización',v:'alta',risk:72},{n:'Refugiados sirios',v:'3.6M',risk:68},{n:'Libertad prensa',v:'baja',risk:78},{n:'Desig. género',v:'alta',risk:65}]},tech:{score:45,inds:[{n:'Drones Bayraktar',v:'exportador',risk:28},{n:'Ciberdefensa',v:'media',risk:48},{n:'Digital. economía',v:'en progreso',risk:45},{n:'Brecha digital',v:'moderada',risk:52}]},food:{score:35,inds:[{n:'Autosuficiencia',v:'alta',risk:25},{n:'Exportador agríc.',v:'sí',risk:20},{n:'Inflación alimentos',v:'alta',risk:85},{n:'Tierra cultivable',v:'abundante',risk:22}]},mental:{score:52,inds:[{n:'Depresión',v:'11%',risk:55},{n:'Trauma terremotos',v:'2023 masivo',risk:78},{n:'Suicidio /100k',v:'3.7',risk:38},{n:'Recursos',v:'limitados',risk:62}]},energy:{score:55,inds:[{n:'Depend. importac.',v:'72%',risk:75},{n:'TurkStream gas',v:'dep. Rusia',risk:68},{n:'Renovables',v:'37% mix',risk:32},{n:'Nuclear en constr.',v:'activo',risk:42}]},demo:{score:38,inds:[{n:'Crecim. poblac.',v:'+0.7%',risk:38},{n:'Natalidad',v:'1.9 hijos',risk:42},{n:'Urbanización',v:'77%',risk:45},{n:'Emigración EU',v:'moderada',risk:45}]},urban:{score:55,inds:[{n:'Riesgo sísmico',v:'muy alto',risk:88},{n:'Terremoto 2023',v:'50k muertes',risk:82},{n:'Construc. ilegal',v:'alta',risk:75},{n:'Infra. transporte',v:'mejorando',risk:42}]},science:{score:45,inds:[{n:'Inversión I+D',v:'1.1% PIB',risk:58},{n:'Défensa I+D',v:'alta',risk:35},{n:'Fuga cerebros EU',v:'moderada',risk:55},{n:'Tecnol. defensa',v:'creciendo',risk:32}]},justice:{score:65,inds:[{n:'Periodistas presos',v:'nº1 mundial',risk:92},{n:'Independ. judicial',v:'muy baja',risk:82},{n:'Derechos LGTB+',v:'retroceso',risk:78},{n:'Estado de Derecho',v:'-0.4',risk:68}]},finance:{score:68,inds:[{n:'Lira colapso',v:'-80% en 5a',risk:88},{n:'Inflación 65%+',v:'crónica',risk:92},{n:'Deuda externa',v:'alta',risk:72},{n:'Política monetaria',v:'heterodoxa',risk:78}]},ocean:{score:45,inds:[{n:'Mar Negro',v:'contaminado',risk:65},{n:'Mediterráneo E.',v:'sobrepescado',risk:62},{n:'Bósforo tráfico',v:'riesgo',risk:55},{n:'Costas turísticas',v:'presión alta',risk:48}]},bio:{score:42,inds:[{n:'GHS Index',v:'50.4/100',risk:52},{n:'COVID respuesta',v:'moderada',risk:48},{n:'Vigilancia epidem.',v:'media',risk:52},{n:'Frontera vectores',v:'riesgo',risk:55}]}},
-GBR:{name:'Reino Unido',eco:{score:48,inds:[{n:'PIB Crecimiento',v:'0.1%',risk:65},{n:'Inflación',v:'6.7%',risk:72},{n:'Desempleo',v:'4.3%',risk:38},{n:'Brexit impacto',v:'negativo',risk:68}]},geo:{score:35,inds:[{n:'OTAN miembro',v:'activo',risk:18},{n:'Influencia global',v:'declinando',risk:48},{n:'Irlanda del Norte',v:'tensión',risk:42},{n:'P5 ONU',v:'perm.',risk:15}]},health:{score:32,inds:[{n:'Esperanza de Vida',v:'81.3 años',risk:22},{n:'NHS en crisis',v:'listas espera',risk:65},{n:'Mort. Infantil',v:'3.6/1k',risk:28},{n:'Gasto Sanitario',v:'10.2% PIB',risk:25}]},climate:{score:42,inds:[{n:'Inundaciones',v:'crecientes',risk:58},{n:'Trans. energética',v:'líder EU',risk:25},{n:'Temperatura',v:'+1.3°C',risk:52},{n:'Tormentas riesgo',v:'moderado',risk:48}]},social:{score:45,inds:[{n:'Desigualdad',v:'0.35',risk:52},{n:'Brecha Brexit',v:'social',risk:65},{n:'Inmigración tensión',v:'alta',risk:62},{n:'Índice Democracia',v:'8.3/10',risk:28}]},tech:{score:30,inds:[{n:'IA inversión',v:'3º global',risk:20},{n:'Ciberdefensa GCHQ',v:'alta',risk:18},{n:'Post-Brexit I+D',v:'impacto neg.',risk:55},{n:'Sector financiero',v:'global líder',risk:18}]},food:{score:38,inds:[{n:'Autosuficiencia',v:'55%',risk:52},{n:'Brexit supply chain',v:'disrupciones',risk:62},{n:'Exportador neto',v:'no',risk:48},{n:'Desperdicio alim.',v:'alto',risk:55}]},mental:{score:50,inds:[{n:'Depresión',v:'12.7%',risk:58},{n:'NHS salud mental',v:'en crisis',risk:72},{n:'Suicidio /100k',v:'7.9',risk:55},{n:'Soledad social',v:'alta',risk:65}]},energy:{score:38,inds:[{n:'Renovables',v:'42% mix',risk:28},{n:'Gas Mar del Norte',v:'declive',risk:58},{n:'Nuclear nueva',v:'en constr.',risk:42},{n:'Precio energía',v:'elevado',risk:68}]},demo:{score:40,inds:[{n:'Natalidad',v:'1.6 hijos',risk:52},{n:'Envejecimiento',v:'18% >65a',risk:55},{n:'Inmigración neta',v:'alta',risk:42},{n:'Brain gain',v:'moderado',risk:28}]},urban:{score:42,inds:[{n:'Vivienda asequible',v:'crisis',risk:78},{n:'Infra. transporte',v:'envejecida',risk:62},{n:'Inundaciones urb.',v:'crecientes',risk:58},{n:'Londres smartcity',v:'líder',risk:22}]},science:{score:25,inds:[{n:'Inversión I+D',v:'1.7% PIB',risk:45},{n:'Oxford/Cambridge',v:'top mundial',risk:12},{n:'Post-Brexit cienc.',v:'impacto neg.',risk:52},{n:'Startups',v:'2º EU',risk:18}]},justice:{score:28,inds:[{n:'Estado de Derecho',v:'muy alto',risk:15},{n:'Igualdad género',v:'avanzada',risk:25},{n:'Libertad prensa',v:'alta',risk:22},{n:'Acceso justicia',v:'bueno',risk:28}]},finance:{score:42,inds:[{n:'Libra esterlina',v:'estable',risk:35},{n:'Deuda pública',v:'102% PIB',risk:65},{n:'City post-Brexit',v:'impacto',risk:52},{n:'Inflación persist.',v:'alta',risk:68}]},ocean:{score:38,inds:[{n:'Mar del Norte',v:'petróleo/gas',risk:42},{n:'Costas erosión',v:'moderada',risk:52},{n:'Pesca post-Brexit',v:'disputas',risk:58},{n:'Biodiversidad mar.',v:'en mejora',risk:35}]},bio:{score:28,inds:[{n:'GHS Index',v:'75.5/100',risk:25},{n:'UKHSA vigilancia',v:'alta',risk:20},{n:'Resist. antibiótica',v:'alta',risk:65},{n:'Preparación',v:'alta',risk:22}]}},
-UKR:{name:'Ucrania',eco:{score:82,inds:[{n:'PIB caída',v:'-29% 2022',risk:95},{n:'Inflación',v:'26%',risk:85},{n:'Infraestr. destrozada',v:'masiva',risk:95},{n:'Ayuda externa',v:'dependiente',risk:78}]},geo:{score:98,inds:[{n:'Guerra Rusia',v:'invasión total',risk:100},{n:'Territorio ocupado',v:'~20%',risk:98},{n:'Riesgo nuclear',v:'amenaza activa',risk:85},{n:'OTAN candidato',v:'proceso',risk:55}]},health:{score:68,inds:[{n:'Sistema sanitario',v:'destruido parcial',risk:85},{n:'Bajas civiles',v:'decenas de miles',risk:92},{n:'Hospitales bomb.',v:'documentado',risk:88},{n:'Desplazados',v:'5.9M intern.',risk:82}]},climate:{score:48,inds:[{n:'Tierra agrícola',v:'contaminada',risk:72},{n:'Central Kakhovka',v:'destruida',risk:85},{n:'Contaminación war',v:'severa',risk:78},{n:'Cambio climático',v:'moderado',risk:48}]},social:{score:85,inds:[{n:'Refugiados extern.',v:'6.5M fuera',risk:95},{n:'Desplazados intern.',v:'5.9M',risk:92},{n:'Trauma bélico',v:'masivo',risk:95},{n:'Cohesión nac.',v:'alta resistencia',risk:15}]},tech:{score:45,inds:[{n:'IT sector',v:'resistiendo',risk:35},{n:'Ciberataques Rusia',v:'continuos',risk:92},{n:'Drones UAV',v:'innovación líder',risk:22},{n:'Infra. digital',v:'parcialm. dañada',risk:72}]},food:{score:55,inds:[{n:'Granero Europa',v:'exportac. bloq.',risk:82},{n:'Tierra minada',v:'inutilizada',risk:88},{n:'Autosuficiencia',v:'alta base',risk:25},{n:'Impacto mundial',v:'cereales',risk:72}]},mental:{score:88,inds:[{n:'Trauma guerra',v:'masivo',risk:98},{n:'PTSD estimado',v:'millones',risk:95},{n:'Salud mental',v:'colapsada',risk:88},{n:'Infantes afectados',v:'generación',risk:92}]},energy:{score:78,inds:[{n:'Centrales atacadas',v:'continuo',risk:95},{n:'Apagones masivos',v:'inviernos',risk:88},{n:'Depend. ayuda ext.',v:'alta',risk:78},{n:'Zaporiyia nuclear',v:'riesgo activo',risk:85}]},demo:{score:85,inds:[{n:'Pérdida demográfica',v:'~8M emigrados',risk:95},{n:'Bajas militares',v:'decenas de miles',risk:92},{n:'Natalidad colapso',v:'mínimo hist.',risk:88},{n:'Envejecimiento acel.',v:'guerra',risk:82}]},urban:{score:90,inds:[{n:'Ciudades destruidas',v:'Mariupol etc.',risk:98},{n:'Infra. civil',v:'objetivo militar',risk:92},{n:'Desminado',v:'décadas necesario',risk:85},{n:'Reconstrucción',v:'500B$ estim.',risk:78}]},science:{score:55,inds:[{n:'IT sector offshore',v:'activo',risk:28},{n:'Científicos emigr.',v:'alta',risk:82},{n:'Drones innovación',v:'liderazgo',risk:22},{n:'Inversión I+D',v:'0.4% PIB',risk:72}]},justice:{score:72,inds:[{n:'Crímenes de guerra',v:'documentados',risk:92},{n:'CPI órdenes arrest.',v:'vs Rusia',risk:75},{n:'Corrupción',v:'alta pre-guerra',risk:68},{n:'Reformas judiciales',v:'en proceso',risk:52}]},finance:{score:78,inds:[{n:'Deuda de guerra',v:'creciendo',risk:88},{n:'Depende FMI',v:'total',risk:85},{n:'Hryvnia',v:'artificialmente estab.',risk:72},{n:'Reconstrucción',v:'500B USD',risk:82}]},ocean:{score:55,inds:[{n:'Mar Negro bloq.',v:'parcialmente',risk:72},{n:'Kakhovka desastre',v:'ecosistema',risk:88},{n:'Contaminación war',v:'ríos/suelos',risk:82},{n:'Pesca paralizada',v:'zonas guerra',risk:78}]},bio:{score:62,inds:[{n:'Sistema sanitario',v:'bajo presión',risk:82},{n:'Trauma/enfermedad',v:'guerra',risk:85},{n:'Vectores post-war',v:'riesgo',risk:58},{n:'GHS Index',v:'en deterioro',risk:65}]}},
-POL:{name:'Polonia',eco:{score:42,inds:[{n:'PIB Crecimiento',v:'0.2%',risk:62},{n:'Inflación',v:'11.4%',risk:78},{n:'Desempleo',v:'2.8%',risk:22},{n:'Gasto defensa',v:'4% PIB',risk:55}]},geo:{score:52,inds:[{n:'Flanco OTAN',v:'1ª línea',risk:72},{n:'Frontera Ucrania',v:'guerra vecina',risk:78},{n:'Frontera Bielorrusia',v:'presión migrat.',risk:65},{n:'Estado de Derecho',v:'controvert.',risk:58}]},health:{score:35,inds:[{n:'Esperanza de Vida',v:'76.5 años',risk:38},{n:'Cobertura Sanitaria',v:'82%',risk:38},{n:'Sistema público',v:'sobrecargado',risk:58},{n:'Gasto Sanitario',v:'6.5% PIB',risk:42}]},climate:{score:55,inds:[{n:'Carbón dependencia',v:'60% energía',risk:82},{n:'Contaminación aire',v:'alta UE',risk:75},{n:'Inundaciones',v:'moderadas',risk:48},{n:'Trans. energética',v:'lenta',risk:68}]},social:{score:45,inds:[{n:'Refugiados Ucrania',v:'1M+ acogidos',risk:42},{n:'Derechos LGTB+',v:'retroceso',risk:72},{n:'Polarización',v:'alta',risk:68},{n:'Desig. (Gini)',v:'0.30',risk:35}]},tech:{score:38,inds:[{n:'Sector IT',v:'creciendo',risk:28},{n:'Ciberdefensa',v:'mejorando',risk:42},{n:'Digital. PYME',v:'media',risk:52},{n:'Startups',v:'emergentes',risk:38}]},food:{score:28,inds:[{n:'Autosuficiencia',v:'alta',risk:22},{n:'Exportador agríc.',v:'EU fuerte',risk:18},{n:'Inflación alim.',v:'alta',risk:72},{n:'Seguridad aliment.',v:'alta',risk:20}]},mental:{score:48,inds:[{n:'Depresión',v:'10%',risk:52},{n:'Suicidio /100k',v:'12.8',risk:68},{n:'Recursos escasos',v:'insuficientes',risk:62},{n:'Ansiedad guerra',v:'cercana',risk:65}]},energy:{score:60,inds:[{n:'Carbón depend.',v:'60%',risk:82},{n:'Gas ruso',v:'eliminando',risk:65},{n:'Renovables',v:'20% mix',risk:48},{n:'Nuclear proyecto',v:'en proceso',risk:38}]},demo:{score:48,inds:[{n:'Natalidad',v:'1.3 hijos',risk:78},{n:'Emigración EU',v:'histórica',risk:65},{n:'Envejecimiento',v:'19% >65a',risk:62},{n:'Retorno emigrantes',v:'parcial',risk:42}]},urban:{score:38,inds:[{n:'Infra. moderna',v:'EU fondos',risk:28},{n:'Vivienda asequible',v:'presión',risk:62},{n:'Smog ciudades',v:'peor UE',risk:78},{n:'Transporte público',v:'bueno',risk:28}]},science:{score:42,inds:[{n:'Inversión I+D',v:'1.4% PIB',risk:55},{n:'Talento IT',v:'fuerte',risk:25},{n:'Brain drain',v:'moderado',risk:52},{n:'Universidades',v:'media',risk:48}]},justice:{score:55,inds:[{n:'Estado de Derecho',v:'controvertido',risk:68},{n:'Judicial reforma',v:'conflicto EU',risk:72},{n:'Libertad prensa',v:'reducida',risk:65},{n:'Igualdad género',v:'media',risk:52}]},finance:{score:42,inds:[{n:'Deuda pública',v:'49% PIB',risk:42},{n:'Zloty estable',v:'moderado',risk:45},{n:'Gasto defensa',v:'+presupuesto',risk:48},{n:'Fondos EU',v:'receptor neto',risk:18}]},ocean:{score:35,inds:[{n:'Mar Báltico',v:'contaminado',risk:65},{n:'Pesca Báltico',v:'en declive',risk:55},{n:'Política marina',v:'EU marcos',risk:35},{n:'Costas limitadas',v:'baja exposición',risk:28}]},bio:{score:35,inds:[{n:'GHS Index',v:'60.2/100',risk:42},{n:'Sistema vigilancia',v:'bueno',risk:32},{n:'Resist. antibiótica',v:'alta EU',risk:62},{n:'Preparación',v:'media-alta',risk:38}]}},
-ARG:{name:'Argentina',eco:{score:78,inds:[{n:'PIB Crecim.',v:'-2.5%',risk:75},{n:'Inflación',v:'211%',risk:98},{n:'Pobreza',v:'40%',risk:82},{n:'Deuda FMI',v:'44B USD',risk:88}]},geo:{score:38,inds:[{n:'Estabilidad polít.',v:'turbulenta',risk:62},{n:'Crimen organiz.',v:'creciendo',risk:55},{n:'Malvinas tensión',v:'latente',risk:42},{n:'Relac. internac.',v:'neutras',risk:35}]},health:{score:42,inds:[{n:'Esperanza Vida',v:'77.1 años',risk:35},{n:'Cobertura Sanitaria',v:'87%',risk:30},{n:'Mort. Infantil',v:'8.5/1k',risk:48},{n:'Gasto Sanitario',v:'9.8% PIB',risk:28}]},climate:{score:55,inds:[{n:'Sequía Pampa',v:'severa',risk:72},{n:'Derretim. Patagonia',v:'acelerado',risk:65},{n:'Inundaciones norte',v:'cíclicas',risk:62},{n:'CO₂/cápita',v:'4.1t',risk:45}]},social:{score:65,inds:[{n:'Pobreza',v:'40%',risk:82},{n:'Desig. (Gini)',v:'0.42',risk:65},{n:'Clase media caída',v:'masiva',risk:78},{n:'Índice Democracia',v:'7.9/10',risk:35}]},tech:{score:45,inds:[{n:'Sector IT',v:'exportador',risk:25},{n:'Talento tech',v:'alto',risk:22},{n:'Emigración IT',v:'masiva crisis',risk:82},{n:'Infraestr. digital',v:'media',risk:52}]},food:{score:25,inds:[{n:'Exportador soja',v:'nº3 mundial',risk:12},{n:'Exportador carne',v:'nº3 mundial',risk:12},{n:'Autosuficiencia',v:'muy alta',risk:8},{n:'Inflación alim.',v:'200%+',risk:95}]},mental:{score:62,inds:[{n:'Psicólogos/cápita',v:'nº1 mundial',risk:8},{n:'Estrés económico',v:'muy alto',risk:88},{n:'Depresión',v:'11%',risk:58},{n:'Suicidio /100k',v:'9.3',risk:62}]},energy:{score:42,inds:[{n:'Gas Vaca Muerta',v:'2º reservas',risk:12},{n:'Renovables',v:'16% mix',risk:48},{n:'Subsidios energía',v:'insostenibles',risk:75},{n:'Crisis eléctr.',v:'intermitente',risk:65}]},demo:{score:38,inds:[{n:'Natalidad',v:'2.2 hijos',risk:32},{n:'Emigración',v:'acelerada',risk:72},{n:'Urbanización',v:'92%',risk:42},{n:'Envejecimiento',v:'moderado',risk:45}]},urban:{score:55,inds:[{n:'Vivienda asequible',v:'crisis',risk:72},{n:'Villas miseria',v:'grandes',risk:75},{n:'Infra. deteriorada',v:'falta inversión',risk:65},{n:'Buenos Aires',v:'megalópolis',risk:55}]},science:{score:42,inds:[{n:'CONICET',v:'institución fuerte',risk:25},{n:'Brain drain',v:'masivo crisis',risk:88},{n:'Inversión I+D',v:'0.5% PIB',risk:68},{n:'Nobeles',v:'5 premios',risk:20}]},justice:{score:52,inds:[{n:'Corrupción',v:'alta',risk:68},{n:'Impunidad',v:'alta',risk:72},{n:'Igualdad género',v:'Ley Paridad',risk:38},{n:'Acceso justicia',v:'desigual',risk:58}]},finance:{score:85,inds:[{n:'Default serial',v:'9 veces',risk:92},{n:'Inflación 211%',v:'crónica',risk:98},{n:'Reservas negativas',v:'crítico',risk:95},{n:'Cepo cambiario',v:'activo',risk:85}]},ocean:{score:35,inds:[{n:'Pesca austral',v:'sostenible',risk:28},{n:'Costas patagónicas',v:'prístinas',risk:18},{n:'Pesca ilegal',v:'ZEE presión',risk:65},{n:'Biodiversidad mar.',v:'alta',risk:22}]},bio:{score:38,inds:[{n:'GHS Index',v:'58.8/100',risk:42},{n:'Dengue endémico',v:'norte',risk:65},{n:'Sistema vigilancia',v:'bueno',risk:35},{n:'Preparación',v:'media',risk:45}]}},
-KOR:{name:'Corea del Sur',eco:{score:35,inds:[{n:'PIB Crecimiento',v:'1.4%',risk:55},{n:'Inflación',v:'3.6%',risk:45},{n:'Desempleo',v:'2.7%',risk:22},{n:'Deuda hogares',v:'muy alta',risk:78}]},geo:{score:65,inds:[{n:'RPDC amenaza',v:'nuclear activa',risk:92},{n:'Misiles RPDC',v:'frecuentes',risk:85},{n:'Alianza EEUU',v:'sólida',risk:18},{n:'Tensión Japón',v:'histórica',risk:45}]},health:{score:20,inds:[{n:'Esperanza Vida',v:'83.6 años',risk:12},{n:'Cobertura Sanitaria',v:'100%',risk:10},{n:'Mort. Infantil',v:'2.5/1k',risk:15},{n:'Gasto Sanitario',v:'8.8% PIB',risk:22}]},climate:{score:52,inds:[{n:'Ondas calor',v:'crecientes',risk:62},{n:'Emisiones CO₂',v:'11.9t/cáp.',risk:75},{n:'Tifones',v:'creciendo',risk:65},{n:'Trans. energética',v:'en proceso',risk:48}]},social:{score:55,inds:[{n:'Presión social',v:'extrema',risk:82},{n:'Suicidio jóvenes',v:'alta presión',risk:78},{n:'Polarización polít.',v:'alta',risk:65},{n:'Desig. (Gini)',v:'0.31',risk:38}]},tech:{score:18,inds:[{n:'Samsung/LG/SK',v:'líderes glob.',risk:8},{n:'Semiconductores',v:'TSMC rival',risk:12},{n:'5G cobertura',v:'nº1 mundial',risk:8},{n:'Ciberataque RPDC',v:'constante',risk:72}]},food:{score:42,inds:[{n:'Autosuficiencia',v:'25%',risk:72},{n:'Depend. importac.',v:'muy alta',risk:78},{n:'Tecnol. agríc.',v:'avanzada',risk:22},{n:'Desperdicio alim.',v:'bajo',risk:22}]},mental:{score:72,inds:[{n:'Suicidio /100k',v:'23.6 (1º OCDE)',risk:88},{n:'Burnout estud.',v:'extremo',risk:85},{n:'Soledad jóvenes',v:'alta',risk:78},{n:'Depresión',v:'12%',risk:65}]},energy:{score:55,inds:[{n:'Nuclear 30% mix',v:'activa',risk:38},{n:'Depend. importac.',v:'93%',risk:88},{n:'Renovables',v:'9% mix',risk:62},{n:'GNL depend.',v:'muy alta',risk:75}]},demo:{score:72,inds:[{n:'Natalidad',v:'0.72 hijos',risk:98},{n:'Envejecimiento',v:'18% >65a',risk:72},{n:'Colapso demogr.',v:'proyectado',risk:92},{n:'Inmigración',v:'rígida',risk:65}]},urban:{score:35,inds:[{n:'Seúl smartcity',v:'top 5 global',risk:15},{n:'Infra. avanzada',v:'alta',risk:12},{n:'Vivienda asequible',v:'crisis',risk:72},{n:'Transporte público',v:'excelente',risk:10}]},science:{score:20,inds:[{n:'Inversión I+D',v:'4.9% PIB (nº1)',risk:10},{n:'Patentes',v:'top 5 global',risk:12},{n:'Semiconductores',v:'liderazgo',risk:10},{n:'Talento STEM',v:'excelente',risk:12}]},justice:{score:35,inds:[{n:'Estado de Derecho',v:'alto',risk:20},{n:'Igualdad género',v:'mejorando',risk:45},{n:'Corrupción chaebol',v:'moderada',risk:52},{n:'Libertad prensa',v:'alta',risk:25}]},finance:{score:40,inds:[{n:'Deuda hogares',v:'105% PIB',risk:78},{n:'Won estabilidad',v:'moderada',risk:48},{n:'Reservas divisas',v:'altas',risk:18},{n:'Sistema bancario',v:'sólido',risk:28}]},ocean:{score:45,inds:[{n:'Mar Amarillo',v:'contaminado',risk:68},{n:'Pesca sostenible',v:'media',risk:52},{n:'Plásticos marinos',v:'alta prod.',risk:62},{n:'Subida nivel mar',v:'impacto costas',risk:55}]},bio:{score:25,inds:[{n:'GHS Index',v:'70.2/100',risk:28},{n:'K-BIO preparación',v:'alta post-MERS',risk:22},{n:'Vigilancia epidem.',v:'alta',risk:18},{n:'Capacidad resp.',v:'alta',risk:20}]}},
-NGA:{name:'Nigeria',eco:{score:62,inds:[{n:'PIB Crecimiento',v:'2.9%',risk:58},{n:'Inflación',v:'28%',risk:85},{n:'Desempleo',v:'33%',risk:88},{n:'Naira colapso',v:'devaluación',risk:82}]},geo:{score:72,inds:[{n:'Boko Haram',v:'norte activo',risk:82},{n:'Niger Delta',v:'conflicto',risk:75},{n:'Tensiones étnicas',v:'alta',risk:72},{n:'Inseguridad',v:'alta',risk:78}]},health:{score:68,inds:[{n:'Esperanza Vida',v:'54.3 años',risk:78},{n:'Mort. Infantil',v:'72/1k',risk:85},{n:'Cobertura Sanitaria',v:'42%',risk:72},{n:'Malaria/Polio',v:'activos',risk:68}]},climate:{score:72,inds:[{n:'Desertificación norte',v:'avanzando',risk:82},{n:'Inundaciones sur',v:'cíclicas',risk:75},{n:'Delta Níger',v:'degradado',risk:78},{n:'Temperatura',v:'+1.5°C',risk:72}]},social:{score:68,inds:[{n:'Pobreza extrema',v:'40%',risk:82},{n:'250 etnias',v:'tensiones',risk:72},{n:'Desplazados intern.',v:'3.6M',risk:78},{n:'Desig. (Gini)',v:'0.43',risk:68}]},tech:{score:48,inds:[{n:'Fintech hub África',v:'Lagos líder',risk:25},{n:'Brecha digital',v:'45%',risk:65},{n:'Startups',v:'ecosistema creciente',risk:28},{n:'Infraestr. digital',v:'deficiente',risk:68}]},food:{score:65,inds:[{n:'Inseguridad alim.',v:'25M personas',risk:82},{n:'Importaciones',v:'dependiente',risk:72},{n:'Inflación alim.',v:'alta',risk:82},{n:'Tierras sub-explot.',v:'potencial',risk:55}]},mental:{score:55,inds:[{n:'Trauma violencia',v:'alto',risk:75},{n:'Recursos',v:'muy escasos',risk:88},{n:'Estigma mental',v:'muy alto',risk:85},{n:'Suicidio /100k',v:'4.0',risk:38}]},energy:{score:58,inds:[{n:'Petróleo export.',v:'1º África',risk:15},{n:'Acceso electricidad',v:'59%',risk:72},{n:'Gas flaring',v:'alto',risk:82},{n:'Renovables',v:'21% mix',risk:45}]},demo:{score:42,inds:[{n:'Crecim. poblac.',v:'+2.4%',risk:45},{n:'Fertilidad',v:'5.2 hijos',risk:52},{n:'Bono demográfico',v:'potencial',risk:18},{n:'Urbanización',v:'54%',risk:55}]},urban:{score:68,inds:[{n:'Lagos 25M hab.',v:'megalópolis',risk:72},{n:'Saneamiento',v:'deficiente',risk:82},{n:'Infra. crítica',v:'muy deficiente',risk:78},{n:'Slums',v:'alta densidad',risk:75}]},science:{score:58,inds:[{n:'Inversión I+D',v:'0.2% PIB',risk:82},{n:'Brain drain',v:'masivo',risk:88},{n:'Universidades',v:'en crisis',risk:72},{n:'Potencial joven',v:'alto',risk:25}]},justice:{score:72,inds:[{n:'Corrupción',v:'muy alta',risk:85},{n:'Impunidad',v:'alta',risk:82},{n:'Violencia policial',v:'documentada',risk:78},{n:'Acceso justicia',v:'muy limitado',risk:80}]},finance:{score:65,inds:[{n:'Deuda externa',v:'creciendo',risk:68},{n:'Reservas divisas',v:'bajas',risk:72},{n:'Depend. petróleo',v:'90% exportac.',risk:82},{n:'Banca informal',v:'alta',risk:62}]},ocean:{score:62,inds:[{n:'Delta Níger contam.',v:'severa',risk:88},{n:'Pesca artesanal',v:'amenazada',risk:72},{n:'Derrames petróleo',v:'frecuentes',risk:85},{n:'Costas erosión',v:'alta',risk:68}]},bio:{score:65,inds:[{n:'GHS Index',v:'34.6/100',risk:68},{n:'Mpox endémico',v:'activo',risk:72},{n:'Polio residual',v:'monitoreado',risk:65},{n:'Vigilancia epidem.',v:'deficiente',risk:72}]}},
-AUS:{name:'Australia',eco:{score:30,inds:[{n:'PIB Crecimiento',v:'2.0%',risk:48},{n:'Inflación',v:'4.1%',risk:52},{n:'Desempleo',v:'3.7%',risk:28},{n:'Deuda hogares',v:'alta',risk:65}]},geo:{score:30,inds:[{n:'Alianza AUKUS',v:'activa',risk:18},{n:'Tensión China',v:'comercial',risk:52},{n:'Pacífico Sur',v:'influencia China',risk:48},{n:'Estabilidad',v:'alta',risk:15}]},health:{score:18,inds:[{n:'Esperanza Vida',v:'83.9 años',risk:10},{n:'Medicare universal',v:'100%',risk:10},{n:'Mort. Infantil',v:'3.0/1k',risk:18},{n:'Gasto Sanitario',v:'10.6% PIB',risk:18}]},climate:{score:72,inds:[{n:'Megaincendios',v:'récords',risk:88},{n:'Gran Barrera Coral',v:'amenazada',risk:85},{n:'Sequías El Niño',v:'severas',risk:78},{n:'Temperatura',v:'+1.4°C',risk:72}]},social:{score:28,inds:[{n:'Cohesión social',v:'alta',risk:20},{n:'Desig. (Gini)',v:'0.34',risk:38},{n:'Indígenas derechos',v:'en mejora',risk:48},{n:'Índice Democracia',v:'9.5/10',risk:10}]},tech:{score:25,inds:[{n:'Ciberdefensa ASD',v:'líder',risk:20},{n:'Infraestr. digital',v:'alta',risk:18},{n:'IA investigación',v:'avanzada',risk:22},{n:'Innovación',v:'media-alta',risk:35}]},food:{score:20,inds:[{n:'Exportador neto',v:'grande',risk:10},{n:'Autosuficiencia',v:'muy alta',risk:8},{n:'Seguridad aliment.',v:'muy alta',risk:10},{n:'Sequía impacto',v:'moderado',risk:48}]},mental:{score:48,inds:[{n:'Suicidio /100k',v:'11.3',risk:62},{n:'Depresión',v:'11.6%',risk:55},{n:'Soledad post-COVID',v:'alta',risk:58},{n:'Acceso terapia',v:'bueno',risk:32}]},energy:{score:55,inds:[{n:'Carbón exportador',v:'nº2 mundial',risk:72},{n:'Renovables',v:'35% mix',risk:35},{n:'GNL exportador',v:'nº2',risk:18},{n:'Trans. energética',v:'acelerada',risk:38}]},demo:{score:25,inds:[{n:'Inmigración neta',v:'alta',risk:18},{n:'Natalidad',v:'1.7 hijos',risk:48},{n:'Envejecimiento',v:'17% >65a',risk:45},{n:'Urbanización',v:'86%',risk:35}]},urban:{score:35,inds:[{n:'Infra. moderna',v:'alta',risk:18},{n:'Vivienda asequible',v:'crisis',risk:78},{n:'Resiliencia climát.',v:'mejorando',risk:45},{n:'Ciudades sostenibl.',v:'en progreso',risk:32}]},science:{score:25,inds:[{n:'Inversión I+D',v:'1.7% PIB',risk:42},{n:'Universidades top',v:'ANU/Melbourne',risk:18},{n:'Ciencias del mar',v:'liderazgo',risk:15},{n:'Brain gain',v:'alto',risk:18}]},justice:{score:22,inds:[{n:'Estado de Derecho',v:'muy alto',risk:12},{n:'Igualdad género',v:'avanzada',risk:22},{n:'Derechos Indígenas',v:'en mejora',risk:42},{n:'Libertad prensa',v:'alta',risk:18}]},finance:{score:30,inds:[{n:'Deuda hogares',v:'alta',risk:65},{n:'Sistema bancario',v:'sólido',risk:18},{n:'Dólar australiano',v:'estable',risk:28},{n:'Superannuation',v:'pensiones fuertes',risk:15}]},ocean:{score:68,inds:[{n:'Gran Barrera Coral',v:'50% blanqueada',risk:88},{n:'Acidificación',v:'alta',risk:78},{n:'Costas en riesgo',v:'alta',risk:72},{n:'Pesca sostenible',v:'media',risk:48}]},bio:{score:22,inds:[{n:'GHS Index',v:'71.1/100',risk:25},{n:'Biodefensa',v:'alta',risk:20},{n:'Vigilancia epidem.',v:'alta',risk:18},{n:'Preparación',v:'alta',risk:18}]}},
-CAN:{name:'Canadá',eco:{score:32,inds:[{n:'PIB Crecimiento',v:'1.2%',risk:52},{n:'Inflación',v:'3.4%',risk:45},{n:'Desempleo',v:'5.8%',risk:38},{n:'Deuda hogares',v:'alta',risk:68}]},geo:{score:22,inds:[{n:'Alianza OTAN',v:'activa',risk:15},{n:'Relac. EEUU',v:'muy estrechas',risk:18},{n:'Ártico soberanía',v:'disputa',risk:42},{n:'Estabilidad intern.',v:'alta',risk:12}]},health:{score:22,inds:[{n:'Esperanza Vida',v:'82.7 años',risk:15},{n:'Medicare universal',v:'cobertura',risk:12},{n:'Mort. Infantil',v:'4.5/1k',risk:25},{n:'Gasto Sanitario',v:'12.2% PIB',risk:18}]},climate:{score:58,inds:[{n:'Incendios',v:'récords 2023',risk:82},{n:'Permafrost fusión',v:'acelerada',risk:72},{n:'Emisiones CO₂',v:'14.4t/cáp.',risk:78},{n:'Ártico calentam.',v:'3x promedio',risk:75}]},social:{score:25,inds:[{n:'Multiculturalismo',v:'modelo mundial',risk:15},{n:'Desig. (Gini)',v:'0.31',risk:35},{n:'Indígenas derechos',v:'TRC proceso',risk:52},{n:'Índice Democracia',v:'9.2/10',risk:12}]},tech:{score:22,inds:[{n:'IA Montreal/Toronto',v:'hub global',risk:12},{n:'Ciberdefensa CSIS',v:'alta',risk:18},{n:'Sector tech',v:'robusto',risk:18},{n:'Depend. EEUU tech',v:'alta',risk:45}]},food:{score:15,inds:[{n:'Exportador neto',v:'grande',risk:8},{n:'Autosuficiencia',v:'muy alta',risk:8},{n:'Seguridad aliment.',v:'muy alta',risk:8},{n:'Incendios impacto',v:'limitado agríc.',risk:35}]},mental:{score:42,inds:[{n:'Opioides crisis',v:'alta',risk:72},{n:'Depresión',v:'9.7%',risk:48},{n:'Suicidio /100k',v:'11.0',risk:58},{n:'Acceso terapia',v:'bueno',risk:28}]},energy:{score:32,inds:[{n:'Oil sands export.',v:'alta',risk:22},{n:'Hidro-eléctrica',v:'60% mix',risk:18},{n:'Emisiones industria',v:'alta',risk:72},{n:'Trans. energética',v:'en progreso',risk:38}]},demo:{score:20,inds:[{n:'Inmigración neta',v:'muy alta',risk:15},{n:'Brain gain',v:'muy alto',risk:10},{n:'Natalidad',v:'1.4 hijos',risk:55},{n:'Envejecimiento',v:'18% >65a',risk:48}]},urban:{score:35,inds:[{n:'Infra. moderna',v:'alta',risk:20},{n:'Vivienda asequible',v:'crisis Vncvr/TO',risk:85},{n:'Incendios urb. riesgo',v:'creciente',risk:58},{n:'Transporte público',v:'bueno',risk:25}]},science:{score:22,inds:[{n:'IA investigación',v:'Bengio/LeCun',risk:12},{n:'Inversión I+D',v:'1.6% PIB',risk:45},{n:'Universidades top',v:'UofT/McGill',risk:18},{n:'Brain gain',v:'alto',risk:15}]},justice:{score:15,inds:[{n:'Estado de Derecho',v:'muy alto',risk:10},{n:'Igualdad género',v:'avanzada',risk:15},{n:'Derechos Indígenas',v:'TRC proceso',risk:42},{n:'Libertad prensa',v:'muy alta',risk:12}]},finance:{score:28,inds:[{n:'Deuda hogares',v:'alta',risk:65},{n:'Sistema bancario',v:'muy sólido',risk:12},{n:'Dólar canadiense',v:'estable',risk:25},{n:'Deuda pública',v:'107% PIB',risk:55}]},ocean:{score:40,inds:[{n:'Ártico calentam.',v:'crítico',risk:82},{n:'Pesca sostenible',v:'media',risk:45},{n:'Gran Banco recuperac.',v:'en proceso',risk:45},{n:'Costas árticas',v:'en riesgo',risk:68}]},bio:{score:20,inds:[{n:'GHS Index',v:'75.3/100',risk:22},{n:'PHAC vigilancia',v:'alta',risk:18},{n:'Preparación',v:'alta',risk:18},{n:'Resist. antibiótica',v:'moderada',risk:52}]}},
-ZAF:{name:'Sudáfrica',eco:{score:62,inds:[{n:'PIB Crecimiento',v:'0.6%',risk:68},{n:'Desempleo',v:'32%',risk:92},{n:'Load shedding',v:'crítico',risk:88},{n:'Desig. (Gini)',v:'0.63 (1º)',risk:95}]},geo:{score:48,inds:[{n:'Crimen violento',v:'muy alto',risk:82},{n:'Estabilidad polít.',v:'ANC debilitado',risk:55},{n:'BRICS miembro',v:'activo',risk:35},{n:'Liderazgo regional',v:'África',risk:28}]},health:{score:55,inds:[{n:'Esperanza Vida',v:'63.9 años',risk:62},{n:'VIH/SIDA',v:'7.5M infectados',risk:82},{n:'TB activa',v:'alta',risk:78},{n:'Sistema sanitario',v:'dual priv/púb.',risk:58}]},climate:{score:65,inds:[{n:'Sequías',v:'severas',risk:78},{n:'Coal 82% electricidad',v:'alta contamin.',risk:88},{n:'Estrés Hídrico',v:'alto',risk:72},{n:'Day zero riesgo',v:'Ciudad del Cabo',risk:75}]},social:{score:72,inds:[{n:'Desig. extrema',v:'Gini 0.63',risk:95},{n:'Violencia de género',v:'muy alta',risk:85},{n:'Pobreza',v:'55%',risk:82},{n:'Tierra distribución',v:'pendiente',risk:82}]},tech:{score:45,inds:[{n:'Fintech hub',v:'Johannesburgo',risk:28},{n:'Brecha digital',v:'alta',risk:65},{n:'Infraestr. TIC',v:'media',risk:55},{n:'Startups',v:'creciendo',risk:35}]},food:{score:48,inds:[{n:'Autosuficiencia',v:'media',risk:48},{n:'Sequía impacto',v:'alto',risk:72},{n:'Hambre crónica',v:'10%',risk:65},{n:'Tierra productiva',v:'desigual',risk:72}]},mental:{score:58,inds:[{n:'Trauma violencia',v:'muy alto',risk:82},{n:'Depresión',v:'alta',risk:68},{n:'Recursos',v:'insuficientes',risk:85},{n:'Suicidio /100k',v:'11.4',risk:65}]},energy:{score:72,inds:[{n:'Eskom crisis',v:'apagones 10h/día',risk:95},{n:'Coal 82% mix',v:'alta contamin.',risk:88},{n:'Renovables',v:'12% creciendo',risk:42},{n:'Inversión energía',v:'insuficiente',risk:78}]},demo:{score:42,inds:[{n:'Crecim. poblac.',v:'+1.4%',risk:45},{n:'Jóvenes 15-35',v:'34%',risk:28},{n:'Emigración talento',v:'alta',risk:68},{n:'Urbanización',v:'67%',risk:52}]},urban:{score:65,inds:[{n:'Township pobreza',v:'masiva',risk:85},{n:'Saneamiento',v:'deficiente',risk:75},{n:'Apagones infra.',v:'crítica',risk:88},{n:'Crimen urbano',v:'muy alto',risk:82}]},science:{score:48,inds:[{n:'Inversión I+D',v:'0.6% PIB',risk:65},{n:'Brain drain',v:'alta',risk:78},{n:'UCT/Wits',v:'líderes África',risk:28},{n:'Ciencia aplicada',v:'media',risk:52}]},justice:{score:62,inds:[{n:'Corrupción state cap.',v:'alta',risk:82},{n:'Violencia de género',v:'alta',risk:85},{n:'Impunidad',v:'alta',risk:78},{n:'Sistema judicial',v:'independiente',risk:38}]},finance:{score:58,inds:[{n:'Rand volatilidad',v:'alta',risk:65},{n:'Deuda pública',v:'69% PIB',risk:62},{n:'Rating junk',v:'Moody/S&P',risk:72},{n:'Inversión extran.',v:'baja',risk:68}]},ocean:{score:35,inds:[{n:'Cabo de Buena Esp.',v:'biodiversidad',risk:18},{n:'Pesca industrial',v:'sostenible',risk:32},{n:'Costas prístinas',v:'biodiversidad',risk:22},{n:'Ruta marítima',v:'estratégica',risk:28}]},bio:{score:52,inds:[{n:'GHS Index',v:'47.5/100',risk:55},{n:'VIH gestión',v:'programa activo',risk:42},{n:'Mpox activo',v:'endémico',risk:65},{n:'Vigilancia epidem.',v:'media',risk:52}]}},
-PAK:{name:'Pakistán',eco:{score:72,inds:[{n:'PIB Crecimiento',v:'2.0%',risk:58},{n:'Inflación',v:'29%',risk:88},{n:'Deuda externa',v:'crítica',risk:85},{n:'FMI rescate',v:'dependiente',risk:82}]},geo:{score:78,inds:[{n:'Tensión India',v:'nuclear',risk:88},{n:'Afganistán frontera',v:'inestable',risk:82},{n:'TTP terrorismo',v:'activo',risk:78},{n:'Armas nucleares',v:'~170 ojivas',risk:85}]},health:{score:58,inds:[{n:'Esperanza Vida',v:'67.1 años',risk:62},{n:'Mort. Infantil',v:'55/1k',risk:78},{n:'Polio residual',v:'activo',risk:72},{n:'Cobertura Sanitaria',v:'52%',risk:68}]},climate:{score:75,inds:[{n:'Inundaciones 2022',v:'33% territorio',risk:92},{n:'Glaciares fusión',v:'3000 en riesgo',risk:85},{n:'Calor extremo',v:'récords',risk:82},{n:'Estrés Hídrico',v:'muy alto',risk:78}]},social:{score:70,inds:[{n:'Pobreza extrema',v:'24%',risk:75},{n:'Desig. género',v:'muy alta',risk:88},{n:'Tensiones étnicas',v:'altas',risk:72},{n:'Desplazados intern.',v:'millones',risk:75}]},tech:{score:52,inds:[{n:'IT exportaciones',v:'creciendo',risk:35},{n:'Brecha digital',v:'40%',risk:65},{n:'Censura internet',v:'alta',risk:72},{n:'Infraestr. TIC',v:'deficiente',risk:65}]},food:{score:60,inds:[{n:'Inseguridad alim.',v:'36%',risk:78},{n:'Inundaciones agríc.',v:'devastadoras',risk:88},{n:'Importaciones',v:'dependiente',risk:72},{n:'Sequías norte',v:'frecuentes',risk:75}]},mental:{score:62,inds:[{n:'Trauma colectivo',v:'alto',risk:75},{n:'Recursos',v:'muy escasos',risk:88},{n:'Estigma mental',v:'muy alto',risk:85},{n:'Suicidio /100k',v:'3.1',risk:30}]},energy:{score:65,inds:[{n:'Apagones crónicos',v:'12h/día',risk:82},{n:'Deuda energética',v:'circular',risk:78},{n:'China CPEC',v:'deuda',risk:72},{n:'Renovables',v:'crecimiento',risk:48}]},demo:{score:48,inds:[{n:'Crecim. poblac.',v:'+2.0%',risk:52},{n:'Fertilidad',v:'3.3 hijos',risk:48},{n:'Jóvenes 60%',v:'<30 años',risk:28},{n:'Urbanización',v:'37%',risk:55}]},urban:{score:65,inds:[{n:'Karachi 15M',v:'infra. deficiente',risk:78},{n:'Saneamiento',v:'muy deficiente',risk:82},{n:'Contam. Lahore',v:'peor mundial',risk:85},{n:'Inundaciones urb.',v:'frecuentes',risk:78}]},science:{score:62,inds:[{n:'Inversión I+D',v:'0.2% PIB',risk:85},{n:'Brain drain',v:'masivo',risk:88},{n:'Programa nuclear',v:'activo',risk:72},{n:'Talento potencial',v:'no capturado',risk:55}]},justice:{score:72,inds:[{n:'Corrupción',v:'alta',risk:78},{n:'Blasfemia ley',v:'pena muerte',risk:85},{n:'Derechos mujer',v:'bajos',risk:82},{n:'Independ. judicial',v:'limitada',risk:72}]},finance:{score:75,inds:[{n:'Reservas divisas',v:'mínimas',risk:88},{n:'Deuda externa',v:'crítica',risk:85},{n:'Rupia devaluación',v:'masiva',risk:82},{n:'China CPEC deuda',v:'alta',risk:72}]},ocean:{score:45,inds:[{n:'Mar Arábigo costas',v:'contaminadas',risk:65},{n:'Manglares pérdida',v:'alta',risk:68},{n:'Pesca artesanal',v:'amenazada',risk:62},{n:'Inundaciones cost.',v:'riesgo',risk:72}]},bio:{score:62,inds:[{n:'GHS Index',v:'35.5/100',risk:65},{n:'Polio activo',v:'endémico',risk:72},{n:'Dengue/Cólera',v:'activos',risk:68},{n:'Vigilancia epidem.',v:'deficiente',risk:72}]}},
-EGY:{name:'Egipto',eco:{score:65,inds:[{n:'PIB Crecimiento',v:'3.8%',risk:52},{n:'Inflación',v:'38%',risk:92},{n:'Deuda externa',v:'alta',risk:78},{n:'FMI rescates',v:'múltiples',risk:75}]},geo:{score:58,inds:[{n:'Sinaí terrorismo',v:'moderado',risk:62},{n:'Libia frontera',v:'inestable',risk:58},{n:'Nilo disputa',v:'Etiopía tensión',risk:72},{n:'Sudán crisis',v:'frontera',risk:55}]},health:{score:48,inds:[{n:'Esperanza Vida',v:'72.1 años',risk:48},{n:'Cobertura Sanitaria',v:'62%',risk:58},{n:'Mort. Infantil',v:'17/1k',risk:55},{n:'Hepatitis C',v:'alta prevalencia',risk:65}]},climate:{score:68,inds:[{n:'Delta Nilo',v:'subida mar',risk:82},{n:'Calor extremo',v:'récords',risk:78},{n:'Estrés Hídrico',v:'extremo',risk:88},{n:'Desertificación',v:'avanzando',risk:72}]},social:{score:62,inds:[{n:'Libertades civiles',v:'muy bajas',risk:85},{n:'Pobreza',v:'29.7%',risk:72},{n:'Desempleo jóvenes',v:'22%',risk:68},{n:'Desig. (Gini)',v:'0.32',risk:42}]},tech:{score:48,inds:[{n:'Digital hub MENA',v:'El Cairo',risk:28},{n:'Brecha digital',v:'40%',risk:62},{n:'Cibervigilancia',v:'alta',risk:72},{n:'Startups',v:'creciendo',risk:35}]},food:{score:62,inds:[{n:'Importaciones trigo',v:'nº1 mundial',risk:88},{n:'Subsidios pan',v:'insostenibles',risk:72},{n:'Nilo depend. agua',v:'100%',risk:85},{n:'Autosuficiencia',v:'baja',risk:78}]},mental:{score:52,inds:[{n:'Depresión',v:'alta',risk:62},{n:'Estigma mental',v:'muy alto',risk:82},{n:'Recursos',v:'insuficientes',risk:78},{n:'Suicidio /100k',v:'3.4',risk:32}]},energy:{score:42,inds:[{n:'Gas Zohr',v:'exportador',risk:22},{n:'Renovables solar',v:'desierto',risk:32},{n:'Subsidios energía',v:'insostenibles',risk:72},{n:'Electricidad acceso',v:'99%',risk:18}]},demo:{score:42,inds:[{n:'Crecim. poblac.',v:'+1.9%',risk:48},{n:'Jóvenes 60%',v:'<30 años',risk:35},{n:'Urbanización',v:'43%',risk:52},{n:'Cairo 21M',v:'megalópolis',risk:58}]},urban:{score:58,inds:[{n:'Cairo contaminación',v:'severa',risk:75},{n:'Saneamiento',v:'deficiente',risk:68},{n:'Infra. deteriorada',v:'alta',risk:65},{n:'Informalidad urb.',v:'alta',risk:72}]},science:{score:52,inds:[{n:'Inversión I+D',v:'0.7% PIB',risk:68},{n:'Brain drain',v:'alta',risk:78},{n:'El Cairo universidad',v:'antigua',risk:42},{n:'Talento potencial',v:'alto',risk:32}]},justice:{score:72,inds:[{n:'Presos políticos',v:'60k estimados',risk:88},{n:'Libertad prensa',v:'muy baja',risk:85},{n:'Derechos LGTB+',v:'criminalizados',risk:88},{n:'Independ. judicial',v:'baja',risk:75}]},finance:{score:68,inds:[{n:'Libra egipcia',v:'devaluación masiva',risk:85},{n:'Inflación 38%',v:'crónica',risk:92},{n:'Deuda externa',v:'alta',risk:78},{n:'Reservas FX',v:'bajas',risk:72}]},ocean:{score:45,inds:[{n:'Mar Rojo comercio',v:'estratégico',risk:45},{n:'Coral Mar Rojo',v:'blanqueado',risk:68},{n:'Mediterráneo costas',v:'contaminadas',risk:62},{n:'Pesca declining',v:'moderado',risk:55}]},bio:{score:48,inds:[{n:'GHS Index',v:'43.8/100',risk:55},{n:'Hepatitis C prog.',v:'activo',risk:42},{n:'Vigilancia epidem.',v:'media',risk:55},{n:'Preparación',v:'media',risk:52}]}},
-// ── COBERTURA MUNDIAL ──
-NOR:{name:'Noruega',flag:'🇳🇴',
-    eco:{score:20,inds:[]},geo:{score:18,inds:[]},health:{score:10,inds:[]},
-    climate:{score:35,inds:[]},social:{score:12,inds:[]},tech:{score:18,inds:[]},
-    food:{score:10,inds:[]},mental:{score:38,inds:[]},energy:{score:22,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:20,inds:[]},science:{score:18,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:20,inds:[]},ocean:{score:25,inds:[]},
-    bio:{score:18,inds:[]}},
-SWE:{name:'Suecia',flag:'🇸🇪',
-    eco:{score:22,inds:[]},geo:{score:20,inds:[]},health:{score:12,inds:[]},
-    climate:{score:38,inds:[]},social:{score:18,inds:[]},tech:{score:20,inds:[]},
-    food:{score:12,inds:[]},mental:{score:42,inds:[]},energy:{score:25,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:14,inds:[]},finance:{score:22,inds:[]},ocean:{score:28,inds:[]},
-    bio:{score:20,inds:[]}},
-DNK:{name:'Dinamarca',flag:'🇩🇰',
-    eco:{score:22,inds:[]},geo:{score:18,inds:[]},health:{score:12,inds:[]},
-    climate:{score:35,inds:[]},social:{score:15,inds:[]},tech:{score:18,inds:[]},
-    food:{score:12,inds:[]},mental:{score:38,inds:[]},energy:{score:22,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:20,inds:[]},science:{score:18,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:20,inds:[]},ocean:{score:25,inds:[]},
-    bio:{score:18,inds:[]}},
-FIN:{name:'Finlandia',flag:'🇫🇮',
-    eco:{score:20,inds:[]},geo:{score:22,inds:[]},health:{score:12,inds:[]},
-    climate:{score:38,inds:[]},social:{score:15,inds:[]},tech:{score:20,inds:[]},
-    food:{score:12,inds:[]},mental:{score:40,inds:[]},energy:{score:22,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:20,inds:[]},ocean:{score:25,inds:[]},
-    bio:{score:20,inds:[]}},
-ISL:{name:'Islandia',flag:'🇮🇸',
-    eco:{score:18,inds:[]},geo:{score:15,inds:[]},health:{score:10,inds:[]},
-    climate:{score:45,inds:[]},social:{score:12,inds:[]},tech:{score:18,inds:[]},
-    food:{score:15,inds:[]},mental:{score:35,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:35,inds:[]},urban:{score:18,inds:[]},science:{score:15,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:18,inds:[]},ocean:{score:22,inds:[]},
-    bio:{score:18,inds:[]}},
-CHE:{name:'Suiza',flag:'🇨🇭',
-    eco:{score:25,inds:[]},geo:{score:18,inds:[]},health:{score:12,inds:[]},
-    climate:{score:32,inds:[]},social:{score:18,inds:[]},tech:{score:22,inds:[]},
-    food:{score:12,inds:[]},mental:{score:38,inds:[]},energy:{score:22,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:18,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:18,inds:[]},ocean:{score:25,inds:[]},
-    bio:{score:18,inds:[]}},
-AUT:{name:'Austria',flag:'🇦🇹',
-    eco:{score:28,inds:[]},geo:{score:20,inds:[]},health:{score:15,inds:[]},
-    climate:{score:38,inds:[]},social:{score:20,inds:[]},tech:{score:22,inds:[]},
-    food:{score:15,inds:[]},mental:{score:42,inds:[]},energy:{score:25,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:22,inds:[]},ocean:{score:28,inds:[]},
-    bio:{score:20,inds:[]}},
-NLD:{name:'Países Bajos',flag:'🇳🇱',
-    eco:{score:30,inds:[]},geo:{score:18,inds:[]},health:{score:15,inds:[]},
-    climate:{score:52,inds:[]},social:{score:22,inds:[]},tech:{score:20,inds:[]},
-    food:{score:18,inds:[]},mental:{score:40,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:20,inds:[]},ocean:{score:30,inds:[]},
-    bio:{score:20,inds:[]}},
-BEL:{name:'Bélgica',flag:'🇧🇪',
-    eco:{score:32,inds:[]},geo:{score:22,inds:[]},health:{score:15,inds:[]},
-    climate:{score:40,inds:[]},social:{score:25,inds:[]},tech:{score:20,inds:[]},
-    food:{score:18,inds:[]},mental:{score:42,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:22,inds:[]},ocean:{score:30,inds:[]},
-    bio:{score:20,inds:[]}},
-DEU:{name:'Alemania',flag:'🇩🇪',
-    eco:{score:35,inds:[]},geo:{score:22,inds:[]},health:{score:18,inds:[]},
-    climate:{score:42,inds:[]},social:{score:28,inds:[]},tech:{score:22,inds:[]},
-    food:{score:18,inds:[]},mental:{score:42,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:25,inds:[]},science:{score:20,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:22,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:22,inds:[]}},
-FRA:{name:'Francia',flag:'🇫🇷',
-    eco:{score:38,inds:[]},geo:{score:28,inds:[]},health:{score:18,inds:[]},
-    climate:{score:45,inds:[]},social:{score:32,inds:[]},tech:{score:22,inds:[]},
-    food:{score:20,inds:[]},mental:{score:45,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:25,inds:[]},science:{score:20,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:25,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:25,inds:[]}},
-ITA:{name:'Italia',flag:'🇮🇹',
-    eco:{score:45,inds:[]},geo:{score:30,inds:[]},health:{score:22,inds:[]},
-    climate:{score:52,inds:[]},social:{score:35,inds:[]},tech:{score:28,inds:[]},
-    food:{score:22,inds:[]},mental:{score:48,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:25,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:30,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:28,inds:[]}},
-PRT:{name:'Portugal',flag:'🇵🇹',
-    eco:{score:38,inds:[]},geo:{score:22,inds:[]},health:{score:18,inds:[]},
-    climate:{score:55,inds:[]},social:{score:28,inds:[]},tech:{score:28,inds:[]},
-    food:{score:22,inds:[]},mental:{score:45,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:28,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:28,inds:[]}},
-GRC:{name:'Grecia',flag:'🇬🇷',
-    eco:{score:52,inds:[]},geo:{score:28,inds:[]},health:{score:22,inds:[]},
-    climate:{score:58,inds:[]},social:{score:32,inds:[]},tech:{score:30,inds:[]},
-    food:{score:25,inds:[]},mental:{score:50,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:30,inds:[]},science:{score:25,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:32,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:30,inds:[]}},
-CZE:{name:'República Checa',flag:'🇨🇿',
-    eco:{score:32,inds:[]},geo:{score:25,inds:[]},health:{score:18,inds:[]},
-    climate:{score:42,inds:[]},social:{score:25,inds:[]},tech:{score:25,inds:[]},
-    food:{score:18,inds:[]},mental:{score:42,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:25,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:22,inds:[]}},
-SVK:{name:'Eslovaquia',flag:'🇸🇰',
-    eco:{score:35,inds:[]},geo:{score:28,inds:[]},health:{score:20,inds:[]},
-    climate:{score:42,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:20,inds:[]},mental:{score:45,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:25,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:22,inds:[]}},
-HUN:{name:'Hungría',flag:'🇭🇺',
-    eco:{score:42,inds:[]},geo:{score:35,inds:[]},health:{score:22,inds:[]},
-    climate:{score:42,inds:[]},social:{score:38,inds:[]},tech:{score:28,inds:[]},
-    food:{score:22,inds:[]},mental:{score:48,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:35,inds:[]},ocean:{score:40,inds:[]},
-    bio:{score:25,inds:[]}},
-ROU:{name:'Rumanía',flag:'🇷🇴',
-    eco:{score:42,inds:[]},geo:{score:30,inds:[]},health:{score:25,inds:[]},
-    climate:{score:45,inds:[]},social:{score:35,inds:[]},tech:{score:28,inds:[]},
-    food:{score:25,inds:[]},mental:{score:50,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:35,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-BGR:{name:'Bulgaria',flag:'🇧🇬',
-    eco:{score:45,inds:[]},geo:{score:30,inds:[]},health:{score:25,inds:[]},
-    climate:{score:48,inds:[]},social:{score:38,inds:[]},tech:{score:30,inds:[]},
-    food:{score:25,inds:[]},mental:{score:52,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:30,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:38,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-HRV:{name:'Croacia',flag:'🇭🇷',
-    eco:{score:38,inds:[]},geo:{score:25,inds:[]},health:{score:20,inds:[]},
-    climate:{score:45,inds:[]},social:{score:28,inds:[]},tech:{score:28,inds:[]},
-    food:{score:20,inds:[]},mental:{score:45,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:25,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:25,inds:[]}},
-SRB:{name:'Serbia',flag:'🇷🇸',
-    eco:{score:45,inds:[]},geo:{score:35,inds:[]},health:{score:25,inds:[]},
-    climate:{score:45,inds:[]},social:{score:35,inds:[]},tech:{score:30,inds:[]},
-    food:{score:25,inds:[]},mental:{score:48,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:35,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-BIH:{name:'Bosnia-Herz.',flag:'🇧🇦',
-    eco:{score:48,inds:[]},geo:{score:42,inds:[]},health:{score:28,inds:[]},
-    climate:{score:45,inds:[]},social:{score:42,inds:[]},tech:{score:32,inds:[]},
-    food:{score:28,inds:[]},mental:{score:52,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:30,inds:[]},science:{score:30,inds:[]},
-    justice:{score:25,inds:[]},finance:{score:40,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:30,inds:[]}},
-MKD:{name:'Macedonia del N.',flag:'🇲🇰',
-    eco:{score:45,inds:[]},geo:{score:38,inds:[]},health:{score:25,inds:[]},
-    climate:{score:45,inds:[]},social:{score:38,inds:[]},tech:{score:30,inds:[]},
-    food:{score:25,inds:[]},mental:{score:50,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:38,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-ALB:{name:'Albania',flag:'🇦🇱',
-    eco:{score:45,inds:[]},geo:{score:35,inds:[]},health:{score:28,inds:[]},
-    climate:{score:48,inds:[]},social:{score:38,inds:[]},tech:{score:30,inds:[]},
-    food:{score:28,inds:[]},mental:{score:52,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:38,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-MNE:{name:'Montenegro',flag:'🇲🇪',
-    eco:{score:42,inds:[]},geo:{score:32,inds:[]},health:{score:25,inds:[]},
-    climate:{score:45,inds:[]},social:{score:35,inds:[]},tech:{score:28,inds:[]},
-    food:{score:25,inds:[]},mental:{score:48,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:25,inds:[]},science:{score:28,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:35,inds:[]},ocean:{score:40,inds:[]},
-    bio:{score:25,inds:[]}},
-SVN:{name:'Eslovenia',flag:'🇸🇮',
-    eco:{score:28,inds:[]},geo:{score:20,inds:[]},health:{score:15,inds:[]},
-    climate:{score:40,inds:[]},social:{score:22,inds:[]},tech:{score:22,inds:[]},
-    food:{score:15,inds:[]},mental:{score:40,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:22,inds:[]},ocean:{score:30,inds:[]},
-    bio:{score:22,inds:[]}},
-LTU:{name:'Lituania',flag:'🇱🇹',
-    eco:{score:32,inds:[]},geo:{score:28,inds:[]},health:{score:18,inds:[]},
-    climate:{score:42,inds:[]},social:{score:25,inds:[]},tech:{score:25,inds:[]},
-    food:{score:18,inds:[]},mental:{score:42,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:22,inds:[]},science:{score:25,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:25,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:22,inds:[]}},
-LVA:{name:'Letonia',flag:'🇱🇻',
-    eco:{score:35,inds:[]},geo:{score:28,inds:[]},health:{score:20,inds:[]},
-    climate:{score:42,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:20,inds:[]},mental:{score:45,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:25,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:22,inds:[]}},
-EST:{name:'Estonia',flag:'🇪🇪',
-    eco:{score:28,inds:[]},geo:{score:25,inds:[]},health:{score:15,inds:[]},
-    climate:{score:38,inds:[]},social:{score:22,inds:[]},tech:{score:22,inds:[]},
-    food:{score:15,inds:[]},mental:{score:38,inds:[]},energy:{score:25,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:22,inds:[]},ocean:{score:28,inds:[]},
-    bio:{score:20,inds:[]}},
-BLR:{name:'Bielorrusia',flag:'🇧🇾',
-    eco:{score:55,inds:[]},geo:{score:65,inds:[]},health:{score:35,inds:[]},
-    climate:{score:42,inds:[]},social:{score:58,inds:[]},tech:{score:55,inds:[]},
-    food:{score:30,inds:[]},mental:{score:52,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:58,inds:[]},ocean:{score:52,inds:[]},
-    bio:{score:35,inds:[]}},
-MDA:{name:'Moldavia',flag:'🇲🇩',
-    eco:{score:55,inds:[]},geo:{score:48,inds:[]},health:{score:32,inds:[]},
-    climate:{score:45,inds:[]},social:{score:45,inds:[]},tech:{score:38,inds:[]},
-    food:{score:30,inds:[]},mental:{score:52,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:32,inds:[]},science:{score:32,inds:[]},
-    justice:{score:25,inds:[]},finance:{score:42,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:30,inds:[]}},
-GEO:{name:'Georgia',flag:'🇬🇪',
-    eco:{score:45,inds:[]},geo:{score:52,inds:[]},health:{score:28,inds:[]},
-    climate:{score:45,inds:[]},social:{score:38,inds:[]},tech:{score:32,inds:[]},
-    food:{score:25,inds:[]},mental:{score:48,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:35,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-ARM:{name:'Armenia',flag:'🇦🇲',
-    eco:{score:48,inds:[]},geo:{score:55,inds:[]},health:{score:28,inds:[]},
-    climate:{score:48,inds:[]},social:{score:42,inds:[]},tech:{score:32,inds:[]},
-    food:{score:28,inds:[]},mental:{score:50,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:30,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:38,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:28,inds:[]}},
-AZE:{name:'Azerbaiyán',flag:'🇦🇿',
-    eco:{score:48,inds:[]},geo:{score:58,inds:[]},health:{score:30,inds:[]},
-    climate:{score:48,inds:[]},social:{score:45,inds:[]},tech:{score:38,inds:[]},
-    food:{score:28,inds:[]},mental:{score:50,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:30,inds:[]},science:{score:30,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:42,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:30,inds:[]}},
-KOS:{name:'Kosovo',flag:'🇽🇰',
-    eco:{score:52,inds:[]},geo:{score:45,inds:[]},health:{score:30,inds:[]},
-    climate:{score:45,inds:[]},social:{score:42,inds:[]},tech:{score:32,inds:[]},
-    food:{score:28,inds:[]},mental:{score:52,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:28,inds:[]},science:{score:32,inds:[]},
-    justice:{score:25,inds:[]},finance:{score:42,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:28,inds:[]}},
-LIE:{name:'Liechtenstein',flag:'🇱🇮',
-    eco:{score:18,inds:[]},geo:{score:15,inds:[]},health:{score:10,inds:[]},
-    climate:{score:30,inds:[]},social:{score:12,inds:[]},tech:{score:18,inds:[]},
-    food:{score:10,inds:[]},mental:{score:28,inds:[]},energy:{score:18,inds:[]},
-    demo:{score:25,inds:[]},urban:{score:15,inds:[]},science:{score:15,inds:[]},
-    justice:{score:8,inds:[]},finance:{score:15,inds:[]},ocean:{score:18,inds:[]},
-    bio:{score:15,inds:[]}},
-LUX:{name:'Luxemburgo',flag:'🇱🇺',
-    eco:{score:20,inds:[]},geo:{score:15,inds:[]},health:{score:12,inds:[]},
-    climate:{score:38,inds:[]},social:{score:15,inds:[]},tech:{score:18,inds:[]},
-    food:{score:12,inds:[]},mental:{score:32,inds:[]},energy:{score:22,inds:[]},
-    demo:{score:32,inds:[]},urban:{score:18,inds:[]},science:{score:18,inds:[]},
-    justice:{score:10,inds:[]},finance:{score:18,inds:[]},ocean:{score:22,inds:[]},
-    bio:{score:18,inds:[]}},
-MCO:{name:'Mónaco',flag:'🇲🇨',
-    eco:{score:18,inds:[]},geo:{score:14,inds:[]},health:{score:10,inds:[]},
-    climate:{score:38,inds:[]},social:{score:12,inds:[]},tech:{score:16,inds:[]},
-    food:{score:10,inds:[]},mental:{score:28,inds:[]},energy:{score:20,inds:[]},
-    demo:{score:28,inds:[]},urban:{score:14,inds:[]},science:{score:15,inds:[]},
-    justice:{score:8,inds:[]},finance:{score:15,inds:[]},ocean:{score:18,inds:[]},
-    bio:{score:14,inds:[]}},
-AND:{name:'Andorra',flag:'🇦🇩',
-    eco:{score:20,inds:[]},geo:{score:15,inds:[]},health:{score:10,inds:[]},
-    climate:{score:35,inds:[]},social:{score:12,inds:[]},tech:{score:18,inds:[]},
-    food:{score:10,inds:[]},mental:{score:28,inds:[]},energy:{score:18,inds:[]},
-    demo:{score:28,inds:[]},urban:{score:15,inds:[]},science:{score:15,inds:[]},
-    justice:{score:8,inds:[]},finance:{score:15,inds:[]},ocean:{score:20,inds:[]},
-    bio:{score:15,inds:[]}},
-SMR:{name:'San Marino',flag:'🇸🇲',
-    eco:{score:18,inds:[]},geo:{score:14,inds:[]},health:{score:10,inds:[]},
-    climate:{score:32,inds:[]},social:{score:12,inds:[]},tech:{score:16,inds:[]},
-    food:{score:10,inds:[]},mental:{score:28,inds:[]},energy:{score:18,inds:[]},
-    demo:{score:25,inds:[]},urban:{score:14,inds:[]},science:{score:15,inds:[]},
-    justice:{score:8,inds:[]},finance:{score:15,inds:[]},ocean:{score:18,inds:[]},
-    bio:{score:14,inds:[]}},
-MKD2:{name:'North Macedonia',flag:'🇲🇰',
-    eco:{score:45,inds:[]},geo:{score:38,inds:[]},health:{score:25,inds:[]},
-    climate:{score:45,inds:[]},social:{score:38,inds:[]},tech:{score:30,inds:[]},
-    food:{score:25,inds:[]},mental:{score:50,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:38,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-KAZ:{name:'Kazajistán',flag:'🇰🇿',
-    eco:{score:48,inds:[]},geo:{score:45,inds:[]},health:{score:35,inds:[]},
-    climate:{score:55,inds:[]},social:{score:45,inds:[]},tech:{score:38,inds:[]},
-    food:{score:35,inds:[]},mental:{score:50,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:35,inds:[]},urban:{score:32,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:42,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:35,inds:[]}},
-UZB:{name:'Uzbekistán',flag:'🇺🇿',
-    eco:{score:52,inds:[]},geo:{score:50,inds:[]},health:{score:40,inds:[]},
-    climate:{score:58,inds:[]},social:{score:50,inds:[]},tech:{score:42,inds:[]},
-    food:{score:38,inds:[]},mental:{score:52,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:30,inds:[]},finance:{score:48,inds:[]},ocean:{score:52,inds:[]},
-    bio:{score:38,inds:[]}},
-TKM:{name:'Turkmenistán',flag:'🇹🇲',
-    eco:{score:52,inds:[]},geo:{score:68,inds:[]},health:{score:42,inds:[]},
-    climate:{score:62,inds:[]},social:{score:62,inds:[]},tech:{score:48,inds:[]},
-    food:{score:40,inds:[]},mental:{score:55,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:35,inds:[]},urban:{score:35,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:55,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:40,inds:[]}},
-KGZ:{name:'Kirguistán',flag:'🇰🇬',
-    eco:{score:55,inds:[]},geo:{score:52,inds:[]},health:{score:42,inds:[]},
-    climate:{score:58,inds:[]},social:{score:52,inds:[]},tech:{score:42,inds:[]},
-    food:{score:38,inds:[]},mental:{score:55,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:30,inds:[]},finance:{score:50,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:40,inds:[]}},
-TJK:{name:'Tayikistán',flag:'🇹🇯',
-    eco:{score:60,inds:[]},geo:{score:52,inds:[]},health:{score:48,inds:[]},
-    climate:{score:62,inds:[]},social:{score:55,inds:[]},tech:{score:45,inds:[]},
-    food:{score:45,inds:[]},mental:{score:58,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:52,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:42,inds:[]}},
-MNG:{name:'Mongolia',flag:'🇲🇳',
-    eco:{score:48,inds:[]},geo:{score:38,inds:[]},health:{score:35,inds:[]},
-    climate:{score:62,inds:[]},social:{score:42,inds:[]},tech:{score:35,inds:[]},
-    food:{score:38,inds:[]},mental:{score:50,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:30,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:38,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:35,inds:[]}},
-AFG:{name:'Afganistán',flag:'🇦🇫',
-    eco:{score:85,inds:[]},geo:{score:92,inds:[]},health:{score:78,inds:[]},
-    climate:{score:72,inds:[]},social:{score:88,inds:[]},tech:{score:72,inds:[]},
-    food:{score:82,inds:[]},mental:{score:82,inds:[]},energy:{score:68,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:68,inds:[]},science:{score:62,inds:[]},
-    justice:{score:55,inds:[]},finance:{score:88,inds:[]},ocean:{score:82,inds:[]},
-    bio:{score:68,inds:[]}},
-TWN:{name:'Taiwán',flag:'🇹🇼',
-    eco:{score:35,inds:[]},geo:{score:72,inds:[]},health:{score:18,inds:[]},
-    climate:{score:45,inds:[]},social:{score:32,inds:[]},tech:{score:22,inds:[]},
-    food:{score:18,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:20,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:22,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:22,inds:[]}},
-HKG:{name:'Hong Kong',flag:'🇭🇰',
-    eco:{score:42,inds:[]},geo:{score:65,inds:[]},health:{score:15,inds:[]},
-    climate:{score:45,inds:[]},social:{score:38,inds:[]},tech:{score:22,inds:[]},
-    food:{score:15,inds:[]},mental:{score:40,inds:[]},energy:{score:25,inds:[]},
-    demo:{score:35,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:22,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:18,inds:[]}},
-MMR:{name:'Myanmar',flag:'🇲🇲',
-    eco:{score:65,inds:[]},geo:{score:78,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:72,inds:[]},tech:{score:58,inds:[]},
-    food:{score:62,inds:[]},mental:{score:65,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:48,inds:[]},finance:{score:68,inds:[]},ocean:{score:72,inds:[]},
-    bio:{score:58,inds:[]}},
-THA:{name:'Tailandia',flag:'🇹🇭',
-    eco:{score:45,inds:[]},geo:{score:52,inds:[]},health:{score:38,inds:[]},
-    climate:{score:58,inds:[]},social:{score:45,inds:[]},tech:{score:38,inds:[]},
-    food:{score:35,inds:[]},mental:{score:48,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:42,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:38,inds:[]}},
-VNM:{name:'Vietnam',flag:'🇻🇳',
-    eco:{score:42,inds:[]},geo:{score:45,inds:[]},health:{score:35,inds:[]},
-    climate:{score:58,inds:[]},social:{score:42,inds:[]},tech:{score:38,inds:[]},
-    food:{score:35,inds:[]},mental:{score:48,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:32,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:40,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:38,inds:[]}},
-KHM:{name:'Camboya',flag:'🇰🇭',
-    eco:{score:58,inds:[]},geo:{score:50,inds:[]},health:{score:52,inds:[]},
-    climate:{score:62,inds:[]},social:{score:55,inds:[]},tech:{score:52,inds:[]},
-    food:{score:50,inds:[]},mental:{score:58,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:42,inds:[]},science:{score:42,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:52,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:48,inds:[]}},
-LAO:{name:'Laos',flag:'🇱🇦',
-    eco:{score:58,inds:[]},geo:{score:52,inds:[]},health:{score:52,inds:[]},
-    climate:{score:62,inds:[]},social:{score:55,inds:[]},tech:{score:52,inds:[]},
-    food:{score:50,inds:[]},mental:{score:58,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:42,inds:[]},science:{score:42,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:52,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:48,inds:[]}},
-MYS:{name:'Malasia',flag:'🇲🇾',
-    eco:{score:40,inds:[]},geo:{score:42,inds:[]},health:{score:28,inds:[]},
-    climate:{score:55,inds:[]},social:{score:38,inds:[]},tech:{score:32,inds:[]},
-    food:{score:30,inds:[]},mental:{score:42,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:35,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:32,inds:[]}},
-SGP:{name:'Singapur',flag:'🇸🇬',
-    eco:{score:22,inds:[]},geo:{score:35,inds:[]},health:{score:12,inds:[]},
-    climate:{score:45,inds:[]},social:{score:25,inds:[]},tech:{score:18,inds:[]},
-    food:{score:12,inds:[]},mental:{score:28,inds:[]},energy:{score:18,inds:[]},
-    demo:{score:25,inds:[]},urban:{score:18,inds:[]},science:{score:18,inds:[]},
-    justice:{score:8,inds:[]},finance:{score:15,inds:[]},ocean:{score:22,inds:[]},
-    bio:{score:18,inds:[]}},
-BRN:{name:'Brunéi',flag:'🇧🇳',
-    eco:{score:32,inds:[]},geo:{score:28,inds:[]},health:{score:18,inds:[]},
-    climate:{score:45,inds:[]},social:{score:28,inds:[]},tech:{score:28,inds:[]},
-    food:{score:20,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:25,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:28,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:22,inds:[]}},
-PHL:{name:'Filipinas',flag:'🇵🇭',
-    eco:{score:55,inds:[]},geo:{score:52,inds:[]},health:{score:48,inds:[]},
-    climate:{score:72,inds:[]},social:{score:52,inds:[]},tech:{score:45,inds:[]},
-    food:{score:50,inds:[]},mental:{score:58,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:42,inds:[]},science:{score:42,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:50,inds:[]},ocean:{score:52,inds:[]},
-    bio:{score:58,inds:[]}},
-IDN:{name:'Indonesia',flag:'🇮🇩',
-    eco:{score:48,inds:[]},geo:{score:45,inds:[]},health:{score:42,inds:[]},
-    climate:{score:68,inds:[]},social:{score:48,inds:[]},tech:{score:40,inds:[]},
-    food:{score:42,inds:[]},mental:{score:50,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:45,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:52,inds:[]}},
-TLS:{name:'Timor-Leste',flag:'🇹🇱',
-    eco:{score:62,inds:[]},geo:{score:45,inds:[]},health:{score:55,inds:[]},
-    climate:{score:65,inds:[]},social:{score:55,inds:[]},tech:{score:52,inds:[]},
-    food:{score:55,inds:[]},mental:{score:60,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:48,inds:[]},science:{score:45,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:55,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:52,inds:[]}},
-NPL:{name:'Nepal',flag:'🇳🇵',
-    eco:{score:62,inds:[]},geo:{score:48,inds:[]},health:{score:52,inds:[]},
-    climate:{score:68,inds:[]},social:{score:58,inds:[]},tech:{score:52,inds:[]},
-    food:{score:55,inds:[]},mental:{score:58,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:48,inds:[]},science:{score:45,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:55,inds:[]},ocean:{score:60,inds:[]},
-    bio:{score:52,inds:[]}},
-BTN:{name:'Bután',flag:'🇧🇹',
-    eco:{score:40,inds:[]},geo:{score:32,inds:[]},health:{score:38,inds:[]},
-    climate:{score:58,inds:[]},social:{score:35,inds:[]},tech:{score:38,inds:[]},
-    food:{score:35,inds:[]},mental:{score:42,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:30,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:38,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:35,inds:[]}},
-BGD:{name:'Bangladesh',flag:'🇧🇩',
-    eco:{score:62,inds:[]},geo:{score:48,inds:[]},health:{score:58,inds:[]},
-    climate:{score:82,inds:[]},social:{score:58,inds:[]},tech:{score:52,inds:[]},
-    food:{score:62,inds:[]},mental:{score:60,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:52,inds:[]},science:{score:45,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:60,inds:[]},
-    bio:{score:58,inds:[]}},
-LKA:{name:'Sri Lanka',flag:'🇱🇰',
-    eco:{score:58,inds:[]},geo:{score:55,inds:[]},health:{score:35,inds:[]},
-    climate:{score:62,inds:[]},social:{score:52,inds:[]},tech:{score:42,inds:[]},
-    food:{score:42,inds:[]},mental:{score:52,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:38,inds:[]}},
-MDV:{name:'Maldivas',flag:'🇲🇻',
-    eco:{score:38,inds:[]},geo:{score:28,inds:[]},health:{score:22,inds:[]},
-    climate:{score:72,inds:[]},social:{score:28,inds:[]},tech:{score:28,inds:[]},
-    food:{score:25,inds:[]},mental:{score:38,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:58,inds:[]}},
-YEM:{name:'Yemen',flag:'🇾🇪',
-    eco:{score:88,inds:[]},geo:{score:95,inds:[]},health:{score:85,inds:[]},
-    climate:{score:72,inds:[]},social:{score:88,inds:[]},tech:{score:72,inds:[]},
-    food:{score:88,inds:[]},mental:{score:82,inds:[]},energy:{score:72,inds:[]},
-    demo:{score:68,inds:[]},urban:{score:75,inds:[]},science:{score:68,inds:[]},
-    justice:{score:62,inds:[]},finance:{score:85,inds:[]},ocean:{score:88,inds:[]},
-    bio:{score:65,inds:[]}},
-SYR:{name:'Siria',flag:'🇸🇾',
-    eco:{score:85,inds:[]},geo:{score:95,inds:[]},health:{score:82,inds:[]},
-    climate:{score:68,inds:[]},social:{score:88,inds:[]},tech:{score:72,inds:[]},
-    food:{score:82,inds:[]},mental:{score:82,inds:[]},energy:{score:68,inds:[]},
-    demo:{score:62,inds:[]},urban:{score:72,inds:[]},science:{score:65,inds:[]},
-    justice:{score:58,inds:[]},finance:{score:85,inds:[]},ocean:{score:88,inds:[]},
-    bio:{score:62,inds:[]}},
-IRQ:{name:'Iraq',flag:'🇮🇶',
-    eco:{score:72,inds:[]},geo:{score:78,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:72,inds:[]},tech:{score:62,inds:[]},
-    food:{score:65,inds:[]},mental:{score:68,inds:[]},energy:{score:60,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:58,inds:[]},science:{score:52,inds:[]},
-    justice:{score:48,inds:[]},finance:{score:72,inds:[]},ocean:{score:75,inds:[]},
-    bio:{score:58,inds:[]}},
-JOR:{name:'Jordania',flag:'🇯🇴',
-    eco:{score:52,inds:[]},geo:{score:48,inds:[]},health:{score:38,inds:[]},
-    climate:{score:58,inds:[]},social:{score:48,inds:[]},tech:{score:42,inds:[]},
-    food:{score:50,inds:[]},mental:{score:50,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:42,inds:[]}},
-LBN:{name:'Líbano',flag:'🇱🇧',
-    eco:{score:82,inds:[]},geo:{score:78,inds:[]},health:{score:65,inds:[]},
-    climate:{score:58,inds:[]},social:{score:72,inds:[]},tech:{score:58,inds:[]},
-    food:{score:70,inds:[]},mental:{score:72,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:62,inds:[]},science:{score:55,inds:[]},
-    justice:{score:48,inds:[]},finance:{score:72,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:52,inds:[]}},
-PSE:{name:'Palestina',flag:'🇵🇸',
-    eco:{score:85,inds:[]},geo:{score:92,inds:[]},health:{score:72,inds:[]},
-    climate:{score:58,inds:[]},social:{score:82,inds:[]},tech:{score:65,inds:[]},
-    food:{score:72,inds:[]},mental:{score:75,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:68,inds:[]},science:{score:62,inds:[]},
-    justice:{score:55,inds:[]},finance:{score:78,inds:[]},ocean:{score:82,inds:[]},
-    bio:{score:52,inds:[]}},
-KWT:{name:'Kuwait',flag:'🇰🇼',
-    eco:{score:35,inds:[]},geo:{score:45,inds:[]},health:{score:22,inds:[]},
-    climate:{score:72,inds:[]},social:{score:42,inds:[]},tech:{score:28,inds:[]},
-    food:{score:30,inds:[]},mental:{score:42,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:22,inds:[]},urban:{score:22,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:38,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:28,inds:[]}},
-BHR:{name:'Baréin',flag:'🇧🇭',
-    eco:{score:38,inds:[]},geo:{score:48,inds:[]},health:{score:22,inds:[]},
-    climate:{score:70,inds:[]},social:{score:45,inds:[]},tech:{score:30,inds:[]},
-    food:{score:28,inds:[]},mental:{score:42,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:25,inds:[]},urban:{score:22,inds:[]},science:{score:28,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:42,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:28,inds:[]}},
-QAT:{name:'Catar',flag:'🇶🇦',
-    eco:{score:30,inds:[]},geo:{score:38,inds:[]},health:{score:18,inds:[]},
-    climate:{score:72,inds:[]},social:{score:38,inds:[]},tech:{score:25,inds:[]},
-    food:{score:25,inds:[]},mental:{score:35,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:20,inds:[]},urban:{score:18,inds:[]},science:{score:22,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:35,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:25,inds:[]}},
-ARE:{name:'Emiratos Árabes',flag:'🇦🇪',
-    eco:{score:32,inds:[]},geo:{score:38,inds:[]},health:{score:20,inds:[]},
-    climate:{score:70,inds:[]},social:{score:40,inds:[]},tech:{score:25,inds:[]},
-    food:{score:28,inds:[]},mental:{score:35,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:22,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:35,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:25,inds:[]}},
-OMN:{name:'Omán',flag:'🇴🇲',
-    eco:{score:38,inds:[]},geo:{score:40,inds:[]},health:{score:25,inds:[]},
-    climate:{score:70,inds:[]},social:{score:42,inds:[]},tech:{score:30,inds:[]},
-    food:{score:32,inds:[]},mental:{score:42,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:25,inds:[]},urban:{score:25,inds:[]},science:{score:28,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:40,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:28,inds:[]}},
-MDG:{name:'Madagascar',flag:'🇲🇬',
-    eco:{score:72,inds:[]},geo:{score:52,inds:[]},health:{score:68,inds:[]},
-    climate:{score:72,inds:[]},social:{score:65,inds:[]},tech:{score:62,inds:[]},
-    food:{score:72,inds:[]},mental:{score:65,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:58,inds:[]},science:{score:52,inds:[]},
-    justice:{score:48,inds:[]},finance:{score:65,inds:[]},ocean:{score:68,inds:[]},
-    bio:{score:58,inds:[]}},
-CYP:{name:'Chipre',flag:'🇨🇾',
-    eco:{score:38,inds:[]},geo:{score:42,inds:[]},health:{score:22,inds:[]},
-    climate:{score:48,inds:[]},social:{score:32,inds:[]},tech:{score:28,inds:[]},
-    food:{score:22,inds:[]},mental:{score:42,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:25,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:30,inds:[]}},
-DZA:{name:'Argelia',flag:'🇩🇿',
-    eco:{score:55,inds:[]},geo:{score:58,inds:[]},health:{score:45,inds:[]},
-    climate:{score:70,inds:[]},social:{score:55,inds:[]},tech:{score:48,inds:[]},
-    food:{score:48,inds:[]},mental:{score:55,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:42,inds:[]},science:{score:42,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:55,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:45,inds:[]}},
-TUN:{name:'Túnez',flag:'🇹🇳',
-    eco:{score:55,inds:[]},geo:{score:48,inds:[]},health:{score:40,inds:[]},
-    climate:{score:65,inds:[]},social:{score:52,inds:[]},tech:{score:45,inds:[]},
-    food:{score:45,inds:[]},mental:{score:52,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:52,inds:[]},ocean:{score:52,inds:[]},
-    bio:{score:42,inds:[]}},
-LBY:{name:'Libia',flag:'🇱🇾',
-    eco:{score:78,inds:[]},geo:{score:82,inds:[]},health:{score:68,inds:[]},
-    climate:{score:68,inds:[]},social:{score:75,inds:[]},tech:{score:65,inds:[]},
-    food:{score:65,inds:[]},mental:{score:70,inds:[]},energy:{score:60,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:62,inds:[]},science:{score:58,inds:[]},
-    justice:{score:52,inds:[]},finance:{score:75,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:58,inds:[]}},
-MAR:{name:'Marruecos',flag:'🇲🇦',
-    eco:{score:48,inds:[]},geo:{score:42,inds:[]},health:{score:42,inds:[]},
-    climate:{score:65,inds:[]},social:{score:48,inds:[]},tech:{score:42,inds:[]},
-    food:{score:45,inds:[]},mental:{score:50,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:35,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:42,inds:[]}},
-MRT:{name:'Mauritania',flag:'🇲🇷',
-    eco:{score:68,inds:[]},geo:{score:55,inds:[]},health:{score:62,inds:[]},
-    climate:{score:75,inds:[]},social:{score:65,inds:[]},tech:{score:58,inds:[]},
-    food:{score:68,inds:[]},mental:{score:62,inds:[]},energy:{score:60,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:48,inds:[]},finance:{score:65,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:55,inds:[]}},
-SDN:{name:'Sudán',flag:'🇸🇩',
-    eco:{score:78,inds:[]},geo:{score:82,inds:[]},health:{score:72,inds:[]},
-    climate:{score:72,inds:[]},social:{score:78,inds:[]},tech:{score:65,inds:[]},
-    food:{score:78,inds:[]},mental:{score:72,inds:[]},energy:{score:68,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:65,inds:[]},science:{score:60,inds:[]},
-    justice:{score:55,inds:[]},finance:{score:78,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:62,inds:[]}},
-SSD:{name:'Sudán del Sur',flag:'🇸🇸',
-    eco:{score:88,inds:[]},geo:{score:90,inds:[]},health:{score:85,inds:[]},
-    climate:{score:72,inds:[]},social:{score:88,inds:[]},tech:{score:72,inds:[]},
-    food:{score:88,inds:[]},mental:{score:82,inds:[]},energy:{score:80,inds:[]},
-    demo:{score:65,inds:[]},urban:{score:75,inds:[]},science:{score:68,inds:[]},
-    justice:{score:62,inds:[]},finance:{score:85,inds:[]},ocean:{score:88,inds:[]},
-    bio:{score:68,inds:[]}},
-SEN:{name:'Senegal',flag:'🇸🇳',
-    eco:{score:58,inds:[]},geo:{score:42,inds:[]},health:{score:55,inds:[]},
-    climate:{score:68,inds:[]},social:{score:55,inds:[]},tech:{score:52,inds:[]},
-    food:{score:58,inds:[]},mental:{score:58,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:45,inds:[]},science:{score:45,inds:[]},
-    justice:{score:40,inds:[]},finance:{score:55,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:52,inds:[]}},
-GHA:{name:'Ghana',flag:'🇬🇭',
-    eco:{score:52,inds:[]},geo:{score:40,inds:[]},health:{score:50,inds:[]},
-    climate:{score:65,inds:[]},social:{score:50,inds:[]},tech:{score:48,inds:[]},
-    food:{score:52,inds:[]},mental:{score:52,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:40,inds:[]},science:{score:40,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:50,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-CIV:{name:'Costa de Marfil',flag:'🇨🇮',
-    eco:{score:62,inds:[]},geo:{score:50,inds:[]},health:{score:60,inds:[]},
-    climate:{score:68,inds:[]},social:{score:58,inds:[]},tech:{score:55,inds:[]},
-    food:{score:62,inds:[]},mental:{score:60,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:48,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:60,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:55,inds:[]}},
-GIN:{name:'Guinea',flag:'🇬🇳',
-    eco:{score:72,inds:[]},geo:{score:55,inds:[]},health:{score:68,inds:[]},
-    climate:{score:70,inds:[]},social:{score:65,inds:[]},tech:{score:62,inds:[]},
-    food:{score:70,inds:[]},mental:{score:65,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:58,inds:[]},science:{score:55,inds:[]},
-    justice:{score:50,inds:[]},finance:{score:68,inds:[]},ocean:{score:72,inds:[]},
-    bio:{score:60,inds:[]}},
-SLE:{name:'Sierra Leona',flag:'🇸🇱',
-    eco:{score:75,inds:[]},geo:{score:55,inds:[]},health:{score:72,inds:[]},
-    climate:{score:70,inds:[]},social:{score:68,inds:[]},tech:{score:65,inds:[]},
-    food:{score:72,inds:[]},mental:{score:68,inds:[]},energy:{score:65,inds:[]},
-    demo:{score:60,inds:[]},urban:{score:62,inds:[]},science:{score:58,inds:[]},
-    justice:{score:52,inds:[]},finance:{score:70,inds:[]},ocean:{score:72,inds:[]},
-    bio:{score:62,inds:[]}},
-LBR:{name:'Liberia',flag:'🇱🇷',
-    eco:{score:72,inds:[]},geo:{score:52,inds:[]},health:{score:68,inds:[]},
-    climate:{score:70,inds:[]},social:{score:65,inds:[]},tech:{score:62,inds:[]},
-    food:{score:70,inds:[]},mental:{score:65,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:58,inds:[]},science:{score:55,inds:[]},
-    justice:{score:50,inds:[]},finance:{score:68,inds:[]},ocean:{score:70,inds:[]},
-    bio:{score:60,inds:[]}},
-MLI:{name:'Mali',flag:'🇲🇱',
-    eco:{score:78,inds:[]},geo:{score:75,inds:[]},health:{score:72,inds:[]},
-    climate:{score:75,inds:[]},social:{score:72,inds:[]},tech:{score:65,inds:[]},
-    food:{score:75,inds:[]},mental:{score:70,inds:[]},energy:{score:68,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:65,inds:[]},science:{score:60,inds:[]},
-    justice:{score:55,inds:[]},finance:{score:75,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:62,inds:[]}},
-BFA:{name:'Burkina Faso',flag:'🇧🇫',
-    eco:{score:78,inds:[]},geo:{score:78,inds:[]},health:{score:72,inds:[]},
-    climate:{score:75,inds:[]},social:{score:72,inds:[]},tech:{score:65,inds:[]},
-    food:{score:75,inds:[]},mental:{score:70,inds:[]},energy:{score:68,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:65,inds:[]},science:{score:60,inds:[]},
-    justice:{score:55,inds:[]},finance:{score:75,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:62,inds:[]}},
-NER:{name:'Níger',flag:'🇳🇪',
-    eco:{score:80,inds:[]},geo:{score:72,inds:[]},health:{score:78,inds:[]},
-    climate:{score:78,inds:[]},social:{score:75,inds:[]},tech:{score:68,inds:[]},
-    food:{score:80,inds:[]},mental:{score:75,inds:[]},energy:{score:72,inds:[]},
-    demo:{score:60,inds:[]},urban:{score:68,inds:[]},science:{score:65,inds:[]},
-    justice:{score:58,inds:[]},finance:{score:78,inds:[]},ocean:{score:80,inds:[]},
-    bio:{score:65,inds:[]}},
-TCD:{name:'Chad',flag:'🇹🇩',
-    eco:{score:82,inds:[]},geo:{score:78,inds:[]},health:{score:78,inds:[]},
-    climate:{score:75,inds:[]},social:{score:78,inds:[]},tech:{score:70,inds:[]},
-    food:{score:80,inds:[]},mental:{score:75,inds:[]},energy:{score:72,inds:[]},
-    demo:{score:62,inds:[]},urban:{score:70,inds:[]},science:{score:65,inds:[]},
-    justice:{score:60,inds:[]},finance:{score:80,inds:[]},ocean:{score:82,inds:[]},
-    bio:{score:65,inds:[]}},
-CMR:{name:'Camerún',flag:'🇨🇲',
-    eco:{score:65,inds:[]},geo:{score:58,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:58,inds:[]}},
-GNB:{name:'Guinea-Bisáu',flag:'🇬🇼',
-    eco:{score:72,inds:[]},geo:{score:58,inds:[]},health:{score:68,inds:[]},
-    climate:{score:68,inds:[]},social:{score:65,inds:[]},tech:{score:60,inds:[]},
-    food:{score:68,inds:[]},mental:{score:65,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:58,inds:[]},science:{score:55,inds:[]},
-    justice:{score:50,inds:[]},finance:{score:65,inds:[]},ocean:{score:68,inds:[]},
-    bio:{score:58,inds:[]}},
-GMB:{name:'Gambia',flag:'🇬🇲',
-    eco:{score:62,inds:[]},geo:{score:48,inds:[]},health:{score:58,inds:[]},
-    climate:{score:68,inds:[]},social:{score:58,inds:[]},tech:{score:55,inds:[]},
-    food:{score:62,inds:[]},mental:{score:58,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:50,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:60,inds:[]},
-    bio:{score:52,inds:[]}},
-CPV:{name:'Cabo Verde',flag:'🇨🇻',
-    eco:{score:42,inds:[]},geo:{score:28,inds:[]},health:{score:38,inds:[]},
-    climate:{score:58,inds:[]},social:{score:35,inds:[]},tech:{score:38,inds:[]},
-    food:{score:38,inds:[]},mental:{score:42,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:32,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:38,inds:[]},ocean:{score:40,inds:[]},
-    bio:{score:40,inds:[]}},
-STP:{name:'Santo Tomé',flag:'🇸🇹',
-    eco:{score:50,inds:[]},geo:{score:30,inds:[]},health:{score:45,inds:[]},
-    climate:{score:62,inds:[]},social:{score:42,inds:[]},tech:{score:45,inds:[]},
-    food:{score:45,inds:[]},mental:{score:48,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:38,inds:[]},science:{score:35,inds:[]},
-    justice:{score:30,inds:[]},finance:{score:45,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:45,inds:[]}},
-GNQ:{name:'Guinea Ecuatorial',flag:'🇬🇶',
-    eco:{score:60,inds:[]},geo:{score:58,inds:[]},health:{score:58,inds:[]},
-    climate:{score:65,inds:[]},social:{score:62,inds:[]},tech:{score:55,inds:[]},
-    food:{score:58,inds:[]},mental:{score:60,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:52,inds:[]},science:{score:50,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:60,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:55,inds:[]}},
-GAB:{name:'Gabón',flag:'🇬🇦',
-    eco:{score:55,inds:[]},geo:{score:50,inds:[]},health:{score:52,inds:[]},
-    climate:{score:65,inds:[]},social:{score:55,inds:[]},tech:{score:50,inds:[]},
-    food:{score:52,inds:[]},mental:{score:55,inds:[]},energy:{score:50,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:45,inds:[]},science:{score:45,inds:[]},
-    justice:{score:40,inds:[]},finance:{score:55,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:50,inds:[]}},
-COG:{name:'Rep. del Congo',flag:'🇨🇬',
-    eco:{score:65,inds:[]},geo:{score:58,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:55,inds:[]}},
-COD:{name:'RD del Congo',flag:'🇨🇩',
-    eco:{score:82,inds:[]},geo:{score:85,inds:[]},health:{score:80,inds:[]},
-    climate:{score:72,inds:[]},social:{score:82,inds:[]},tech:{score:72,inds:[]},
-    food:{score:82,inds:[]},mental:{score:78,inds:[]},energy:{score:75,inds:[]},
-    demo:{score:62,inds:[]},urban:{score:72,inds:[]},science:{score:65,inds:[]},
-    justice:{score:60,inds:[]},finance:{score:82,inds:[]},ocean:{score:82,inds:[]},
-    bio:{score:68,inds:[]}},
-AGO:{name:'Angola',flag:'🇦🇴',
-    eco:{score:65,inds:[]},geo:{score:55,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:60,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:55,inds:[]}},
-TOG:{name:'Togo',flag:'🇹🇬',
-    eco:{score:65,inds:[]},geo:{score:52,inds:[]},health:{score:60,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:55,inds:[]}},
-BEN:{name:'Benín',flag:'🇧🇯',
-    eco:{score:60,inds:[]},geo:{score:45,inds:[]},health:{score:55,inds:[]},
-    climate:{score:68,inds:[]},social:{score:58,inds:[]},tech:{score:55,inds:[]},
-    food:{score:60,inds:[]},mental:{score:58,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:50,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:60,inds:[]},
-    bio:{score:52,inds:[]}},
-ETH:{name:'Etiopía',flag:'🇪🇹',
-    eco:{score:72,inds:[]},geo:{score:68,inds:[]},health:{score:68,inds:[]},
-    climate:{score:72,inds:[]},social:{score:68,inds:[]},tech:{score:62,inds:[]},
-    food:{score:72,inds:[]},mental:{score:68,inds:[]},energy:{score:65,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:62,inds:[]},science:{score:58,inds:[]},
-    justice:{score:52,inds:[]},finance:{score:68,inds:[]},ocean:{score:70,inds:[]},
-    bio:{score:60,inds:[]}},
-ERI:{name:'Eritrea',flag:'🇪🇷',
-    eco:{score:75,inds:[]},geo:{score:78,inds:[]},health:{score:70,inds:[]},
-    climate:{score:70,inds:[]},social:{score:75,inds:[]},tech:{score:68,inds:[]},
-    food:{score:75,inds:[]},mental:{score:72,inds:[]},energy:{score:68,inds:[]},
-    demo:{score:60,inds:[]},urban:{score:65,inds:[]},science:{score:62,inds:[]},
-    justice:{score:55,inds:[]},finance:{score:75,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:62,inds:[]}},
-DJI:{name:'Yibuti',flag:'🇩🇯',
-    eco:{score:65,inds:[]},geo:{score:52,inds:[]},health:{score:58,inds:[]},
-    climate:{score:72,inds:[]},social:{score:62,inds:[]},tech:{score:55,inds:[]},
-    food:{score:62,inds:[]},mental:{score:60,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:52,inds:[]},science:{score:50,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:55,inds:[]}},
-SOM:{name:'Somalia',flag:'🇸🇴',
-    eco:{score:88,inds:[]},geo:{score:90,inds:[]},health:{score:85,inds:[]},
-    climate:{score:75,inds:[]},social:{score:88,inds:[]},tech:{score:75,inds:[]},
-    food:{score:88,inds:[]},mental:{score:82,inds:[]},energy:{score:80,inds:[]},
-    demo:{score:65,inds:[]},urban:{score:78,inds:[]},science:{score:70,inds:[]},
-    justice:{score:65,inds:[]},finance:{score:88,inds:[]},ocean:{score:88,inds:[]},
-    bio:{score:70,inds:[]}},
-KEN:{name:'Kenia',flag:'🇰🇪',
-    eco:{score:58,inds:[]},geo:{score:52,inds:[]},health:{score:55,inds:[]},
-    climate:{score:68,inds:[]},social:{score:55,inds:[]},tech:{score:50,inds:[]},
-    food:{score:58,inds:[]},mental:{score:58,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:45,inds:[]},science:{score:45,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:55,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:52,inds:[]}},
-UGA:{name:'Uganda',flag:'🇺🇬',
-    eco:{score:62,inds:[]},geo:{score:55,inds:[]},health:{score:58,inds:[]},
-    climate:{score:68,inds:[]},social:{score:58,inds:[]},tech:{score:55,inds:[]},
-    food:{score:62,inds:[]},mental:{score:60,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:50,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:55,inds:[]}},
-TZA:{name:'Tanzania',flag:'🇹🇿',
-    eco:{score:60,inds:[]},geo:{score:48,inds:[]},health:{score:55,inds:[]},
-    climate:{score:68,inds:[]},social:{score:55,inds:[]},tech:{score:52,inds:[]},
-    food:{score:60,inds:[]},mental:{score:58,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:45,inds:[]},science:{score:45,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:55,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:52,inds:[]}},
-RWA:{name:'Ruanda',flag:'🇷🇼',
-    eco:{score:52,inds:[]},geo:{score:45,inds:[]},health:{score:50,inds:[]},
-    climate:{score:65,inds:[]},social:{score:50,inds:[]},tech:{score:48,inds:[]},
-    food:{score:52,inds:[]},mental:{score:52,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:40,inds:[]},science:{score:40,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:50,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-BDI:{name:'Burundi',flag:'🇧🇮',
-    eco:{score:75,inds:[]},geo:{score:65,inds:[]},health:{score:70,inds:[]},
-    climate:{score:70,inds:[]},social:{score:70,inds:[]},tech:{score:65,inds:[]},
-    food:{score:72,inds:[]},mental:{score:68,inds:[]},energy:{score:65,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:62,inds:[]},science:{score:58,inds:[]},
-    justice:{score:52,inds:[]},finance:{score:70,inds:[]},ocean:{score:72,inds:[]},
-    bio:{score:60,inds:[]}},
-MOZ:{name:'Mozambique',flag:'🇲🇿',
-    eco:{score:72,inds:[]},geo:{score:55,inds:[]},health:{score:68,inds:[]},
-    climate:{score:72,inds:[]},social:{score:68,inds:[]},tech:{score:62,inds:[]},
-    food:{score:72,inds:[]},mental:{score:68,inds:[]},energy:{score:65,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:60,inds:[]},science:{score:55,inds:[]},
-    justice:{score:50,inds:[]},finance:{score:68,inds:[]},ocean:{score:70,inds:[]},
-    bio:{score:60,inds:[]}},
-ZMB:{name:'Zambia',flag:'🇿🇲',
-    eco:{score:65,inds:[]},geo:{score:48,inds:[]},health:{score:60,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:55,inds:[]}},
-ZWE:{name:'Zimbabue',flag:'🇿🇼',
-    eco:{score:72,inds:[]},geo:{score:58,inds:[]},health:{score:65,inds:[]},
-    climate:{score:68,inds:[]},social:{score:68,inds:[]},tech:{score:58,inds:[]},
-    food:{score:68,inds:[]},mental:{score:65,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:58,inds:[]},science:{score:55,inds:[]},
-    justice:{score:48,inds:[]},finance:{score:65,inds:[]},ocean:{score:68,inds:[]},
-    bio:{score:58,inds:[]}},
-MWI:{name:'Malaui',flag:'🇲🇼',
-    eco:{score:70,inds:[]},geo:{score:45,inds:[]},health:{score:65,inds:[]},
-    climate:{score:72,inds:[]},social:{score:65,inds:[]},tech:{score:62,inds:[]},
-    food:{score:70,inds:[]},mental:{score:65,inds:[]},energy:{score:62,inds:[]},
-    demo:{score:58,inds:[]},urban:{score:58,inds:[]},science:{score:55,inds:[]},
-    justice:{score:50,inds:[]},finance:{score:65,inds:[]},ocean:{score:68,inds:[]},
-    bio:{score:58,inds:[]}},
-COM:{name:'Comoras',flag:'🇰🇲',
-    eco:{score:68,inds:[]},geo:{score:50,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:55,inds:[]}},
-SYC:{name:'Seychelles',flag:'🇸🇨',
-    eco:{score:38,inds:[]},geo:{score:25,inds:[]},health:{score:30,inds:[]},
-    climate:{score:55,inds:[]},social:{score:30,inds:[]},tech:{score:30,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:38,inds:[]}},
-MUS:{name:'Mauricio',flag:'🇲🇺',
-    eco:{score:38,inds:[]},geo:{score:25,inds:[]},health:{score:30,inds:[]},
-    climate:{score:52,inds:[]},social:{score:28,inds:[]},tech:{score:28,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:38,inds:[]}},
-NAM:{name:'Namibia',flag:'🇳🇦',
-    eco:{score:52,inds:[]},geo:{score:38,inds:[]},health:{score:45,inds:[]},
-    climate:{score:68,inds:[]},social:{score:52,inds:[]},tech:{score:45,inds:[]},
-    food:{score:50,inds:[]},mental:{score:52,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-BWA:{name:'Botsuana',flag:'🇧🇼',
-    eco:{score:45,inds:[]},geo:{score:32,inds:[]},health:{score:40,inds:[]},
-    climate:{score:68,inds:[]},social:{score:45,inds:[]},tech:{score:42,inds:[]},
-    food:{score:45,inds:[]},mental:{score:48,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:42,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:45,inds:[]}},
-LSO:{name:'Lesoto',flag:'🇱🇸',
-    eco:{score:65,inds:[]},geo:{score:35,inds:[]},health:{score:60,inds:[]},
-    climate:{score:65,inds:[]},social:{score:60,inds:[]},tech:{score:55,inds:[]},
-    food:{score:65,inds:[]},mental:{score:60,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:52,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:60,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:52,inds:[]}},
-SWZ:{name:'Esuatini',flag:'🇸🇿',
-    eco:{score:62,inds:[]},geo:{score:35,inds:[]},health:{score:58,inds:[]},
-    climate:{score:65,inds:[]},social:{score:58,inds:[]},tech:{score:52,inds:[]},
-    food:{score:62,inds:[]},mental:{score:58,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:50,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:60,inds:[]},
-    bio:{score:52,inds:[]}},
-CHL:{name:'Chile',flag:'🇨🇱',
-    eco:{score:38,inds:[]},geo:{score:28,inds:[]},health:{score:28,inds:[]},
-    climate:{score:58,inds:[]},social:{score:35,inds:[]},tech:{score:28,inds:[]},
-    food:{score:32,inds:[]},mental:{score:40,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:28,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:38,inds:[]}},
-COL:{name:'Colombia',flag:'🇨🇴',
-    eco:{score:55,inds:[]},geo:{score:58,inds:[]},health:{score:45,inds:[]},
-    climate:{score:65,inds:[]},social:{score:55,inds:[]},tech:{score:45,inds:[]},
-    food:{score:50,inds:[]},mental:{score:55,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:40,inds:[]},science:{score:40,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:50,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:52,inds:[]}},
-VEN:{name:'Venezuela',flag:'🇻🇪',
-    eco:{score:78,inds:[]},geo:{score:72,inds:[]},health:{score:68,inds:[]},
-    climate:{score:65,inds:[]},social:{score:72,inds:[]},tech:{score:62,inds:[]},
-    food:{score:72,inds:[]},mental:{score:70,inds:[]},energy:{score:65,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:62,inds:[]},science:{score:58,inds:[]},
-    justice:{score:52,inds:[]},finance:{score:72,inds:[]},ocean:{score:78,inds:[]},
-    bio:{score:58,inds:[]}},
-PER:{name:'Perú',flag:'🇵🇪',
-    eco:{score:52,inds:[]},geo:{score:45,inds:[]},health:{score:45,inds:[]},
-    climate:{score:65,inds:[]},social:{score:52,inds:[]},tech:{score:42,inds:[]},
-    food:{score:50,inds:[]},mental:{score:52,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:52,inds:[]}},
-BOL:{name:'Bolivia',flag:'🇧🇴',
-    eco:{score:58,inds:[]},geo:{score:45,inds:[]},health:{score:52,inds:[]},
-    climate:{score:65,inds:[]},social:{score:55,inds:[]},tech:{score:48,inds:[]},
-    food:{score:55,inds:[]},mental:{score:55,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:42,inds:[]},science:{score:42,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:52,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:52,inds:[]}},
-PRY:{name:'Paraguay',flag:'🇵🇾',
-    eco:{score:55,inds:[]},geo:{score:42,inds:[]},health:{score:48,inds:[]},
-    climate:{score:65,inds:[]},social:{score:52,inds:[]},tech:{score:45,inds:[]},
-    food:{score:50,inds:[]},mental:{score:52,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:40,inds:[]},science:{score:40,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:50,inds:[]},ocean:{score:52,inds:[]},
-    bio:{score:48,inds:[]}},
-URY:{name:'Uruguay',flag:'🇺🇾',
-    eco:{score:32,inds:[]},geo:{score:22,inds:[]},health:{score:25,inds:[]},
-    climate:{score:48,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:25,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:22,inds:[]},ocean:{score:30,inds:[]},
-    bio:{score:30,inds:[]}},
-ECU:{name:'Ecuador',flag:'🇪🇨',
-    eco:{score:55,inds:[]},geo:{score:48,inds:[]},health:{score:42,inds:[]},
-    climate:{score:68,inds:[]},social:{score:52,inds:[]},tech:{score:42,inds:[]},
-    food:{score:50,inds:[]},mental:{score:52,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:52,inds:[]},
-    bio:{score:52,inds:[]}},
-GUY:{name:'Guyana',flag:'🇬🇾',
-    eco:{score:52,inds:[]},geo:{score:38,inds:[]},health:{score:45,inds:[]},
-    climate:{score:65,inds:[]},social:{score:50,inds:[]},tech:{score:45,inds:[]},
-    food:{score:48,inds:[]},mental:{score:50,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-SUR:{name:'Surinam',flag:'🇸🇷',
-    eco:{score:52,inds:[]},geo:{score:40,inds:[]},health:{score:45,inds:[]},
-    climate:{score:65,inds:[]},social:{score:50,inds:[]},tech:{score:45,inds:[]},
-    food:{score:48,inds:[]},mental:{score:50,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-GUF:{name:'Guayana Francesa',flag:'🇬🇫',
-    eco:{score:40,inds:[]},geo:{score:20,inds:[]},health:{score:32,inds:[]},
-    climate:{score:62,inds:[]},social:{score:32,inds:[]},tech:{score:32,inds:[]},
-    food:{score:35,inds:[]},mental:{score:42,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:25,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:30,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:40,inds:[]}},
-GTM:{name:'Guatemala',flag:'🇬🇹',
-    eco:{score:62,inds:[]},geo:{score:58,inds:[]},health:{score:55,inds:[]},
-    climate:{score:65,inds:[]},social:{score:60,inds:[]},tech:{score:52,inds:[]},
-    food:{score:58,inds:[]},mental:{score:58,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:48,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:52,inds:[]}},
-BLZ:{name:'Belice',flag:'🇧🇿',
-    eco:{score:52,inds:[]},geo:{score:38,inds:[]},health:{score:45,inds:[]},
-    climate:{score:65,inds:[]},social:{score:50,inds:[]},tech:{score:45,inds:[]},
-    food:{score:48,inds:[]},mental:{score:50,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-HND:{name:'Honduras',flag:'🇭🇳',
-    eco:{score:65,inds:[]},geo:{score:62,inds:[]},health:{score:58,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:55,inds:[]},
-    food:{score:62,inds:[]},mental:{score:60,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:50,inds:[]},science:{score:50,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:60,inds:[]},ocean:{score:65,inds:[]},
-    bio:{score:55,inds:[]}},
-SLV:{name:'El Salvador',flag:'🇸🇻',
-    eco:{score:62,inds:[]},geo:{score:58,inds:[]},health:{score:55,inds:[]},
-    climate:{score:65,inds:[]},social:{score:58,inds:[]},tech:{score:52,inds:[]},
-    food:{score:58,inds:[]},mental:{score:58,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:48,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:52,inds:[]}},
-NIC:{name:'Nicaragua',flag:'🇳🇮',
-    eco:{score:62,inds:[]},geo:{score:58,inds:[]},health:{score:55,inds:[]},
-    climate:{score:65,inds:[]},social:{score:60,inds:[]},tech:{score:52,inds:[]},
-    food:{score:58,inds:[]},mental:{score:60,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:52,inds:[]},urban:{score:48,inds:[]},science:{score:48,inds:[]},
-    justice:{score:42,inds:[]},finance:{score:58,inds:[]},ocean:{score:62,inds:[]},
-    bio:{score:52,inds:[]}},
-CRI:{name:'Costa Rica',flag:'🇨🇷',
-    eco:{score:35,inds:[]},geo:{score:22,inds:[]},health:{score:28,inds:[]},
-    climate:{score:55,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:22,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:35,inds:[]}},
-PAN:{name:'Panamá',flag:'🇵🇦',
-    eco:{score:42,inds:[]},geo:{score:35,inds:[]},health:{score:35,inds:[]},
-    climate:{score:62,inds:[]},social:{score:38,inds:[]},tech:{score:32,inds:[]},
-    food:{score:38,inds:[]},mental:{score:42,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:28,inds:[]},science:{score:30,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:35,inds:[]},ocean:{score:40,inds:[]},
-    bio:{score:42,inds:[]}},
-CUB:{name:'Cuba',flag:'🇨🇺',
-    eco:{score:58,inds:[]},geo:{score:62,inds:[]},health:{score:35,inds:[]},
-    climate:{score:52,inds:[]},social:{score:60,inds:[]},tech:{score:55,inds:[]},
-    food:{score:48,inds:[]},mental:{score:58,inds:[]},energy:{score:48,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:42,inds:[]},science:{score:42,inds:[]},
-    justice:{score:35,inds:[]},finance:{score:58,inds:[]},ocean:{score:60,inds:[]},
-    bio:{score:42,inds:[]}},
-JAM:{name:'Jamaica',flag:'🇯🇲',
-    eco:{score:52,inds:[]},geo:{score:45,inds:[]},health:{score:38,inds:[]},
-    climate:{score:60,inds:[]},social:{score:50,inds:[]},tech:{score:42,inds:[]},
-    food:{score:48,inds:[]},mental:{score:52,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:48,inds:[]},ocean:{score:50,inds:[]},
-    bio:{score:48,inds:[]}},
-HTI:{name:'Haití',flag:'🇭🇹',
-    eco:{score:82,inds:[]},geo:{score:68,inds:[]},health:{score:78,inds:[]},
-    climate:{score:70,inds:[]},social:{score:78,inds:[]},tech:{score:68,inds:[]},
-    food:{score:80,inds:[]},mental:{score:75,inds:[]},energy:{score:72,inds:[]},
-    demo:{score:60,inds:[]},urban:{score:68,inds:[]},science:{score:62,inds:[]},
-    justice:{score:58,inds:[]},finance:{score:78,inds:[]},ocean:{score:80,inds:[]},
-    bio:{score:62,inds:[]}},
-DOM:{name:'Rep. Dominicana',flag:'🇩🇴',
-    eco:{score:48,inds:[]},geo:{score:40,inds:[]},health:{score:38,inds:[]},
-    climate:{score:62,inds:[]},social:{score:45,inds:[]},tech:{score:38,inds:[]},
-    food:{score:42,inds:[]},mental:{score:48,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:42,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:48,inds:[]}},
-PRI:{name:'Puerto Rico',flag:'🇵🇷',
-    eco:{score:42,inds:[]},geo:{score:22,inds:[]},health:{score:28,inds:[]},
-    climate:{score:62,inds:[]},social:{score:35,inds:[]},tech:{score:28,inds:[]},
-    food:{score:30,inds:[]},mental:{score:42,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:25,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:42,inds:[]}},
-TTO:{name:'Trinidad y Tobago',flag:'🇹🇹',
-    eco:{score:48,inds:[]},geo:{score:38,inds:[]},health:{score:35,inds:[]},
-    climate:{score:60,inds:[]},social:{score:45,inds:[]},tech:{score:38,inds:[]},
-    food:{score:40,inds:[]},mental:{score:48,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:32,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:42,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:45,inds:[]}},
-BRB:{name:'Barbados',flag:'🇧🇧',
-    eco:{score:35,inds:[]},geo:{score:22,inds:[]},health:{score:28,inds:[]},
-    climate:{score:55,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:22,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:32,inds:[]}},
-LCA:{name:'Santa Lucía',flag:'🇱🇨',
-    eco:{score:40,inds:[]},geo:{score:25,inds:[]},health:{score:32,inds:[]},
-    climate:{score:60,inds:[]},social:{score:30,inds:[]},tech:{score:28,inds:[]},
-    food:{score:32,inds:[]},mental:{score:40,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:25,inds:[]},science:{score:25,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:28,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:40,inds:[]}},
-VCT:{name:'San Vicente',flag:'🇻🇨',
-    eco:{score:42,inds:[]},geo:{score:25,inds:[]},health:{score:32,inds:[]},
-    climate:{score:60,inds:[]},social:{score:32,inds:[]},tech:{score:28,inds:[]},
-    food:{score:32,inds:[]},mental:{score:40,inds:[]},energy:{score:32,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:25,inds:[]},science:{score:25,inds:[]},
-    justice:{score:20,inds:[]},finance:{score:28,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:40,inds:[]}},
-GRD:{name:'Granada',flag:'🇬🇩',
-    eco:{score:38,inds:[]},geo:{score:22,inds:[]},health:{score:30,inds:[]},
-    climate:{score:58,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:25,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:38,inds:[]}},
-ATG:{name:'Antigua y Barbuda',flag:'🇦🇬',
-    eco:{score:35,inds:[]},geo:{score:22,inds:[]},health:{score:28,inds:[]},
-    climate:{score:58,inds:[]},social:{score:28,inds:[]},tech:{score:25,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:22,inds:[]},ocean:{score:32,inds:[]},
-    bio:{score:38,inds:[]}},
-DMA:{name:'Dominica',flag:'🇩🇲',
-    eco:{score:40,inds:[]},geo:{score:22,inds:[]},health:{score:32,inds:[]},
-    climate:{score:60,inds:[]},social:{score:30,inds:[]},tech:{score:28,inds:[]},
-    food:{score:30,inds:[]},mental:{score:38,inds:[]},energy:{score:30,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:25,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:25,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:40,inds:[]}},
-KNA:{name:'San Cristóbal',flag:'🇰🇳',
-    eco:{score:35,inds:[]},geo:{score:20,inds:[]},health:{score:28,inds:[]},
-    climate:{score:55,inds:[]},social:{score:25,inds:[]},tech:{score:22,inds:[]},
-    food:{score:25,inds:[]},mental:{score:35,inds:[]},energy:{score:25,inds:[]},
-    demo:{score:35,inds:[]},urban:{score:18,inds:[]},science:{score:20,inds:[]},
-    justice:{score:15,inds:[]},finance:{score:20,inds:[]},ocean:{score:30,inds:[]},
-    bio:{score:35,inds:[]}},
-BHS:{name:'Bahamas',flag:'🇧🇸',
-    eco:{score:38,inds:[]},geo:{score:25,inds:[]},health:{score:28,inds:[]},
-    climate:{score:58,inds:[]},social:{score:30,inds:[]},tech:{score:25,inds:[]},
-    food:{score:28,inds:[]},mental:{score:38,inds:[]},energy:{score:28,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:22,inds:[]},science:{score:22,inds:[]},
-    justice:{score:18,inds:[]},finance:{score:25,inds:[]},ocean:{score:35,inds:[]},
-    bio:{score:38,inds:[]}},
-MEX2:{name:'México',flag:'🇲🇽',
-    eco:{score:55,inds:[]},geo:{score:68,inds:[]},health:{score:48,inds:[]},
-    climate:{score:64,inds:[]},social:{score:65,inds:[]},tech:{score:50,inds:[]},
-    food:{score:44,inds:[]},mental:{score:55,inds:[]},energy:{score:55,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:65,inds:[]},science:{score:72,inds:[]},
-    justice:{score:62,inds:[]},finance:{score:52,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:52,inds:[]}},
-NZL:{name:'Nueva Zelanda',flag:'🇳🇿',
-    eco:{score:25,inds:[]},geo:{score:18,inds:[]},health:{score:15,inds:[]},
-    climate:{score:52,inds:[]},social:{score:20,inds:[]},tech:{score:20,inds:[]},
-    food:{score:18,inds:[]},mental:{score:38,inds:[]},energy:{score:20,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:20,inds:[]},science:{score:18,inds:[]},
-    justice:{score:12,inds:[]},finance:{score:18,inds:[]},ocean:{score:22,inds:[]},
-    bio:{score:35,inds:[]}},
-FJI:{name:'Fiyi',flag:'🇫🇯',
-    eco:{score:45,inds:[]},geo:{score:28,inds:[]},health:{score:38,inds:[]},
-    climate:{score:65,inds:[]},social:{score:38,inds:[]},tech:{score:38,inds:[]},
-    food:{score:38,inds:[]},mental:{score:45,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:30,inds:[]},science:{score:30,inds:[]},
-    justice:{score:25,inds:[]},finance:{score:35,inds:[]},ocean:{score:40,inds:[]},
-    bio:{score:45,inds:[]}},
-PNG:{name:'Papúa Nueva Guinea',flag:'🇵🇬',
-    eco:{score:68,inds:[]},geo:{score:52,inds:[]},health:{score:62,inds:[]},
-    climate:{score:68,inds:[]},social:{score:62,inds:[]},tech:{score:58,inds:[]},
-    food:{score:65,inds:[]},mental:{score:62,inds:[]},energy:{score:58,inds:[]},
-    demo:{score:55,inds:[]},urban:{score:55,inds:[]},science:{score:52,inds:[]},
-    justice:{score:45,inds:[]},finance:{score:62,inds:[]},ocean:{score:68,inds:[]},
-    bio:{score:58,inds:[]}},
-SLB:{name:'Islas Salomón',flag:'🇸🇧',
-    eco:{score:62,inds:[]},geo:{score:40,inds:[]},health:{score:55,inds:[]},
-    climate:{score:68,inds:[]},social:{score:55,inds:[]},tech:{score:52,inds:[]},
-    food:{score:58,inds:[]},mental:{score:58,inds:[]},energy:{score:52,inds:[]},
-    demo:{score:50,inds:[]},urban:{score:48,inds:[]},science:{score:45,inds:[]},
-    justice:{score:40,inds:[]},finance:{score:55,inds:[]},ocean:{score:58,inds:[]},
-    bio:{score:55,inds:[]}},
-VUT:{name:'Vanuatu',flag:'🇻🇺',
-    eco:{score:58,inds:[]},geo:{score:35,inds:[]},health:{score:52,inds:[]},
-    climate:{score:70,inds:[]},social:{score:52,inds:[]},tech:{score:50,inds:[]},
-    food:{score:55,inds:[]},mental:{score:55,inds:[]},energy:{score:50,inds:[]},
-    demo:{score:48,inds:[]},urban:{score:45,inds:[]},science:{score:42,inds:[]},
-    justice:{score:38,inds:[]},finance:{score:52,inds:[]},ocean:{score:55,inds:[]},
-    bio:{score:55,inds:[]}},
-WSM:{name:'Samoa',flag:'🇼🇸',
-    eco:{score:50,inds:[]},geo:{score:28,inds:[]},health:{score:42,inds:[]},
-    climate:{score:65,inds:[]},social:{score:42,inds:[]},tech:{score:42,inds:[]},
-    food:{score:42,inds:[]},mental:{score:48,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:30,inds:[]},finance:{score:42,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:48,inds:[]}},
-TON:{name:'Tonga',flag:'🇹🇴',
-    eco:{score:48,inds:[]},geo:{score:28,inds:[]},health:{score:40,inds:[]},
-    climate:{score:65,inds:[]},social:{score:40,inds:[]},tech:{score:40,inds:[]},
-    food:{score:40,inds:[]},mental:{score:45,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:32,inds:[]},science:{score:32,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:40,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:45,inds:[]}},
-KIR:{name:'Kiribati',flag:'🇰🇮',
-    eco:{score:55,inds:[]},geo:{score:25,inds:[]},health:{score:45,inds:[]},
-    climate:{score:82,inds:[]},social:{score:45,inds:[]},tech:{score:48,inds:[]},
-    food:{score:48,inds:[]},mental:{score:52,inds:[]},energy:{score:45,inds:[]},
-    demo:{score:45,inds:[]},urban:{score:38,inds:[]},science:{score:38,inds:[]},
-    justice:{score:32,inds:[]},finance:{score:45,inds:[]},ocean:{score:48,inds:[]},
-    bio:{score:72,inds:[]}},
-FSM:{name:'Micronesia',flag:'🇫🇲',
-    eco:{score:52,inds:[]},geo:{score:25,inds:[]},health:{score:42,inds:[]},
-    climate:{score:72,inds:[]},social:{score:42,inds:[]},tech:{score:45,inds:[]},
-    food:{score:45,inds:[]},mental:{score:50,inds:[]},energy:{score:42,inds:[]},
-    demo:{score:42,inds:[]},urban:{score:35,inds:[]},science:{score:35,inds:[]},
-    justice:{score:30,inds:[]},finance:{score:42,inds:[]},ocean:{score:45,inds:[]},
-    bio:{score:65,inds:[]}},
-MHL:{name:'Islas Marshall',flag:'🇲🇭',
-    eco:{score:52,inds:[]},geo:{score:22,inds:[]},health:{score:40,inds:[]},
-    climate:{score:82,inds:[]},social:{score:40,inds:[]},tech:{score:42,inds:[]},
-    food:{score:42,inds:[]},mental:{score:48,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:32,inds:[]},science:{score:35,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:40,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:72,inds:[]}},
-PLW:{name:'Palaos',flag:'🇵🇼',
-    eco:{score:42,inds:[]},geo:{score:20,inds:[]},health:{score:35,inds:[]},
-    climate:{score:65,inds:[]},social:{score:35,inds:[]},tech:{score:35,inds:[]},
-    food:{score:35,inds:[]},mental:{score:42,inds:[]},energy:{score:35,inds:[]},
-    demo:{score:38,inds:[]},urban:{score:28,inds:[]},science:{score:28,inds:[]},
-    justice:{score:22,inds:[]},finance:{score:35,inds:[]},ocean:{score:38,inds:[]},
-    bio:{score:55,inds:[]}},
-NRU:{name:'Nauru',flag:'🇳🇷',
-    eco:{score:45,inds:[]},geo:{score:20,inds:[]},health:{score:38,inds:[]},
-    climate:{score:70,inds:[]},social:{score:38,inds:[]},tech:{score:38,inds:[]},
-    food:{score:38,inds:[]},mental:{score:42,inds:[]},energy:{score:38,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:30,inds:[]},science:{score:30,inds:[]},
-    justice:{score:25,inds:[]},finance:{score:38,inds:[]},ocean:{score:40,inds:[]},
-    bio:{score:58,inds:[]}},
-TUV:{name:'Tuvalu',flag:'🇹🇻',
-    eco:{score:50,inds:[]},geo:{score:20,inds:[]},health:{score:40,inds:[]},
-    climate:{score:82,inds:[]},social:{score:40,inds:[]},tech:{score:42,inds:[]},
-    food:{score:42,inds:[]},mental:{score:48,inds:[]},energy:{score:40,inds:[]},
-    demo:{score:40,inds:[]},urban:{score:32,inds:[]},science:{score:35,inds:[]},
-    justice:{score:28,inds:[]},finance:{score:40,inds:[]},ocean:{score:42,inds:[]},
-    bio:{score:75,inds:[]}}
-,
-CAF:{name:'Rep. Centroafricana',flag:'🇨🇫',eco:{score:82,inds:[]},geo:{score:85,inds:[]},health:{score:80,inds:[]},climate:{score:72,inds:[]},social:{score:82,inds:[]},tech:{score:68,inds:[]},food:{score:85,inds:[]},mental:{score:72,inds:[]},energy:{score:70,inds:[]},demo:{score:58,inds:[]},urban:{score:78,inds:[]},science:{score:72,inds:[]},justice:{score:85,inds:[]},finance:{score:78,inds:[]},ocean:{score:35,inds:[]},bio:{score:72,inds:[]}}
-,
-IRL:{name:'Irlanda',flag:'🇮🇪',eco:{score:28,inds:[]},geo:{score:20,inds:[]},health:{score:22,inds:[]},climate:{score:40,inds:[]},social:{score:25,inds:[]},tech:{score:22,inds:[]},food:{score:30,inds:[]},mental:{score:48,inds:[]},energy:{score:42,inds:[]},demo:{score:22,inds:[]},urban:{score:35,inds:[]},science:{score:22,inds:[]},justice:{score:18,inds:[]},finance:{score:25,inds:[]},ocean:{score:38,inds:[]},bio:{score:20,inds:[]}},
-MLT:{name:'Malta',flag:'🇲🇹',eco:{score:30,inds:[]},geo:{score:22,inds:[]},health:{score:25,inds:[]},climate:{score:55,inds:[]},social:{score:28,inds:[]},tech:{score:28,inds:[]},food:{score:42,inds:[]},mental:{score:42,inds:[]},energy:{score:52,inds:[]},demo:{score:35,inds:[]},urban:{score:38,inds:[]},science:{score:32,inds:[]},justice:{score:22,inds:[]},finance:{score:28,inds:[]},ocean:{score:45,inds:[]},bio:{score:25,inds:[]}},
-PRK:{name:'Corea del Norte',flag:'🇰🇵',eco:{score:82,inds:[]},geo:{score:92,inds:[]},health:{score:72,inds:[]},climate:{score:62,inds:[]},social:{score:90,inds:[]},tech:{score:68,inds:[]},food:{score:82,inds:[]},mental:{score:80,inds:[]},energy:{score:72,inds:[]},demo:{score:55,inds:[]},urban:{score:65,inds:[]},science:{score:55,inds:[]},justice:{score:98,inds:[]},finance:{score:88,inds:[]},ocean:{score:48,inds:[]},bio:{score:62,inds:[]}},
-ESH:{name:'Sáhara Occidental',flag:'🏳',eco:{score:72,inds:[]},geo:{score:82,inds:[]},health:{score:58,inds:[]},climate:{score:78,inds:[]},social:{score:72,inds:[]},tech:{score:62,inds:[]},food:{score:68,inds:[]},mental:{score:65,inds:[]},energy:{score:58,inds:[]},demo:{score:52,inds:[]},urban:{score:60,inds:[]},science:{score:65,inds:[]},justice:{score:80,inds:[]},finance:{score:72,inds:[]},ocean:{score:42,inds:[]},bio:{score:55,inds:[]}}
+/* T23 · DATA se rellena desde data/latest.json.
+
+   Aqui habia 162.000 caracteres de tabla escrita a mano: 204 paises por 16
+   categorias, 3.264 puntuaciones y 1.600 indicadores sin ninguna fuente
+   detras. La estructura es la misma (DATA[ISO3][categoria].score y .inds),
+   porque cambiarla habria obligado a tocar las 30 lecturas de DATA
+   repartidas por este motor; lo que cambia es de donde salen los numeros.
+
+   El await de aqui es deliberado: con top-level await, todo lo que importe
+   este modulo espera a que los datos esten, asi que ninguna funcion de
+   pintado puede ejecutarse con DATA a medias. Si la descarga falla, DATA se
+   queda vacio y DATOS_ESTADO lo dice, y el panel lo muestra en vez de pintar
+   ceros. */
+const DATA = {};
+let DATOS_ESTADO = { ok: false, error: null, generado: null, calculo: null, datos: null };
+
+try {
+  const { datos, calculo, deCache, guardadoEn } = await cargarDatos();
+  Object.assign(DATA, construirDATA(datos, calculo));
+  DATOS_ESTADO = {
+    ok: true, error: null,
+    generado: datos.generado, calculo, datos, deCache, guardadoEn,
+  };
+} catch (err) {
+  DATOS_ESTADO = {
+    ok: false,
+    error: (err && err.message) ? err.message : String(err),
+    generado: null, calculo: null, datos: null,
+  };
 }
-;
 
 // ──────────────────────────────────────────
 // GAUGE DRAW  (semicírculo SUPERIOR — SVG Y invertido)
@@ -1479,6 +267,110 @@ function drawGauge(svgId, score, color){
 // ──────────────────────────────────────────
 // RISK LABEL
 // ──────────────────────────────────────────
+/* Color y texto de cada nivel. Las claves son las de src/core/scoring.js.
+   Los colores son los que ya usaba la aplicacion; lo que cambia es que
+   ahora los asigna el tramo de la distribucion y no un umbral fijo. */
+/**
+ * De qué periodo son las cifras de conflicto de un país.
+ *
+ * No siempre son doce meses. Candidate, el fichero del año en curso, no es
+ * acumulativo: la version vigente trae seis semanas. Cuando el ultimo año
+ * natural cerrado de GED da mas muertos que esa ventana coja, se publica el
+ * año entero, y entonces la ficha tiene que decir «año 2025» y no «12 meses».
+ */
+function etiquetaPeriodo(c){
+  return c && c.base === 'anio_completo' && c.anioBase ? 'año ' + c.anioBase : '12 meses';
+}
+
+/** La explicacion de por que se ha usado ese periodo, para el tooltip. */
+function porQueEstePeriodo(c){
+  if(!c) return '';
+  if(c.base !== 'anio_completo') return 'Ventana de 12 meses: ';
+  return 'Se usa el año ' + c.anioBase + ' completo (' + Number(c.ultimoAnioCompleto || 0).toLocaleString('es-ES')
+    + ' muertos) y no la ventana de 12 meses (' + Number(c.ventana12m || 0).toLocaleString('es-ES')
+    + '), porque el fichero del año en curso del UCDP no es acumulativo y deja la ventana incompleta. Periodo publicado: ';
+}
+
+/** Severidad de cada nivel, para ordenar el ranking por etiqueta. */
+const ORDEN_NIVEL_RANKING = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+const NIVEL_INFO = {
+  CRITICAL: { etiqueta: 'CRÍTICO', color: 'var(--red)',    descripcion: 'El 5 % de países con más riesgo medido' },
+  HIGH:     { etiqueta: 'ALTO',    color: 'var(--orange)', descripcion: 'Entre el 5 % y el 20 % con más riesgo' },
+  MEDIUM:   { etiqueta: 'MEDIO',   color: 'var(--yellow)', descripcion: 'Entre el 20 % y el 50 % con más riesgo' },
+  LOW:      { etiqueta: 'BAJO',    color: 'var(--green)',  descripcion: 'La mitad de países con menos riesgo' },
+};
+
+/** La linea que recuerda que la clasificacion es relativa. */
+function actualizarPieDeNivel(d){
+  const el = document.getElementById('nivel-relativo');
+  const elConf = document.getElementById('nivel-conflicto');
+  if(elConf) elConf.textContent = '';
+  if(!el) return;
+  if(!d || !d.nivel){ el.textContent = ''; return; }
+  /* Si el nivel viene del umbral de conflicto, la descripcion del tramo NO
+     corresponde: decir "el 5 % con mas riesgo - puesto 53 de 217" seria
+     contradecirse en la misma linea. En ese caso se ensena donde cae por
+     percentil, y la linea de abajo explica por que esta mas arriba. */
+  const info = NIVEL_INFO[d.nivel];
+  const puesto = d.puesto ? ' · puesto ' + d.puesto + ' de ' + d.deTotal : '';
+  el.textContent = d.elevadoPorConflicto
+    ? 'Por percentil: ' + d.elevadoPorConflicto.desde + puesto
+    : (info ? info.descripcion : '') + puesto;
+  el.title = ETIQUETA_RELATIVA;
+
+  /* Cuando el nivel no sale del percentil sino del umbral de conflicto del
+     UCDP, hay que decirlo con la cifra: si no, el usuario ve CRITICO junto a
+     un indice de 70 y no hay forma de entender de donde sale. */
+  if(elConf && d.elevadoPorConflicto){
+    const e = d.elevadoPorConflicto;
+    elConf.textContent = '⚠ ' + e.motivo;
+    elConf.title = 'Umbral del UCDP: ' + e.umbral.toLocaleString('es-ES')
+      + ' muertos en 12 meses · ' + e.detalle
+      + '. Por percentil le correspondería ' + e.desde + '.';
+  }
+
+  /* Las dos cifras de muertos, siempre que haya alguna.
+
+     Son cosas distintas y se ensenan con su etiqueta: «en el territorio»
+     responde a que pasa dentro del pais, «como parte» a en que guerras esta
+     metido su gobierno. Rusia tiene 266 y 47.931; darle solo la primera lo
+     describiria mal. */
+  const elCifras = document.getElementById('conflicto-cifras');
+  if(elCifras){
+    const c = d.conflicto;
+    if(!c){
+      elCifras.textContent = '';
+      elCifras.title = '';
+    } else if(!c.territorio && !c.parte){
+      /* Un cero es un cero y no una laguna: decirlo evita que la ausencia de
+         la linea se lea como «no hay dato». */
+      elCifras.textContent = '☗ UCDP · Sin muertos por violencia organizada (' + etiquetaPeriodo(c) + ')';
+      elCifras.title = 'El UCDP no registra eventos de violencia organizada en este país en '
+        + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
+    } else {
+      const n = (v) => Number(v || 0).toLocaleString('es-ES');
+      // Las dos van siempre que haya alguna: un «como parte: 0» junto a 7.843
+      // en el territorio es justo lo que distingue a México de Rusia.
+      elCifras.textContent = '☗ UCDP · En el territorio: ' + n(c.territorio)
+        + '  ·  Como parte: ' + n(c.parte) + ' muertos (' + etiquetaPeriodo(c) + ')';
+      const tipos = [];
+      if(c.estatal) tipos.push('estatal ' + n(c.estatal));
+      if(c.noEstatal) tipos.push('no estatal ' + n(c.noEstatal));
+      if(c.civiles) tipos.push('contra civiles ' + n(c.civiles));
+      elCifras.title = (tipos.length ? 'En el territorio, por tipo: ' + tipos.join(', ') + '. ' : '')
+        + (c.conflictos && c.conflictos.length
+          ? 'Parte en: ' + c.conflictos.slice(0, 6).join('; ') + '. ' : '')
+        + porQueEstePeriodo(c)
+        + (c.desde || '') + ' a ' + (c.hasta || '') + ' · ' + (c.version || '');
+    }
+  }
+}
+
+/* riskLabel se queda para las CATEGORIAS, que si se leen contra una escala
+   de 0 a 100: el percentil de una categoria es directamente su posicion
+   entre los 217 paises en ese dominio. Lo que no puede es etiquetar el
+   indice compuesto, que esta comprimido hacia el centro. */
 function riskLabel(s){
   if(s<30)return['BAJO','var(--green)'];
   if(s<50)return['MODERADO','var(--yellow)'];
@@ -1491,12 +383,26 @@ function riskLabel(s){
 // ──────────────────────────────────────────
 function renderInds(id,inds,color){
   const el=document.getElementById(id);
-  el.innerHTML=inds.map(d=>{
-    const bc=d.risk>66?'var(--red)':d.risk>40?'var(--yellow)':color;
-    return`<div class="ind-row">
-      <span class="ind-name">${d.n}</span>
-      <div class="ind-track"><div class="ind-fill" style="width:${d.risk}%;background:${bc}"></div></div>
-      <span class="ind-val" style="color:${bc}">${d.v}</span>
+  if(!el) return;
+  el.innerHTML=(inds||[]).map(d=>{
+    /* T23: `risk` es null en los indicadores que no puntuan (fecundidad,
+       saldo migratorio...). Se muestran con la barra vacia y en el color de
+       la categoria, sin color de riesgo: ponerles uno seria afirmar una
+       direccion que la propia fuente no sostiene. */
+    const tiene=typeof d.risk==='number';
+    const bc=!tiene?'var(--dim)':d.risk>66?'var(--red)':d.risk>40?'var(--yellow)':color;
+    /* T23: la procedencia va en el title. Cada dato lleva su anio y su
+       fuente, y los que tienen limite de comparabilidad lo dicen. */
+    const partes=[];
+    if(d.year) partes.push('Dato de '+d.year);
+    if(d.source) partes.push(d.source);
+    if(!tiene) partes.push('No puntúa: no tiene una dirección de riesgo única');
+    if(d.nota) partes.push(d.nota);
+    const titulo=partes.join(' · ');
+    return`<div class="ind-row" title="${esc(titulo)}">
+      <span class="ind-name">${esc(d.n)}</span>
+      <div class="ind-track"><div class="ind-fill" style="width:${tiene?d.risk:0}%;background:${bc}"></div></div>
+      <span class="ind-val" style="color:${bc}">${esc(d.v)}</span>
     </div>`;
   }).join('');
 }
@@ -1892,7 +798,27 @@ const CAT_COLORS=[
   "#7DD8F0",   // océanos   — cian claro
   "#B0C8E0",   // bioseg    — gris-azul claro
 ];
-const VELOCITY={"WLD": {"eco": 0.1, "geo": 0.4, "health": -0.1, "climate": 0.5, "social": 0.2, "tech": 0.3, "food": 0.2, "mental": 0.4, "energy": 0.1, "demo": 0.2, "urban": 0.3, "science": 0.1, "justice": 0.1, "finance": 0.3, "ocean": 0.5, "bio": 0.2}, "USA": {"eco": -0.1, "geo": 0.3, "health": -0.1, "climate": 0.2, "social": 0.4, "tech": 0.1, "food": -0.1, "mental": 0.5, "energy": -0.2, "demo": 0.1, "urban": 0.3, "science": -0.1, "justice": 0.2, "finance": 0.4, "ocean": 0.2, "bio": -0.1}, "CHN": {"eco": 0.3, "geo": 0.5, "health": -0.1, "climate": 0.2, "social": 0.1, "tech": 0.2, "food": -0.1, "mental": 0.3, "energy": -0.1, "demo": 0.5, "urban": -0.1, "science": -0.2, "justice": 0.1, "finance": 0.5, "ocean": 0.3, "bio": 0.1}, "ESP": {"eco": -0.1, "geo": -0.1, "health": -0.1, "climate": 0.5, "social": 0.1, "tech": -0.1, "food": 0.2, "mental": 0.2, "energy": -0.2, "demo": 0.4, "urban": 0.3, "science": 0.1, "justice": -0.1, "finance": 0.2, "ocean": 0.4, "bio": -0.1}, "RUS": {"eco": 0.2, "geo": 0.6, "health": 0.2, "climate": 0.2, "social": 0.5, "tech": 0.2, "food": -0.1, "mental": 0.6, "energy": 0.1, "demo": 0.5, "urban": 0.3, "science": 0.4, "justice": 0.4, "finance": 0.3, "ocean": 0.2, "bio": 0.2}, "IND": {"eco": -0.3, "geo": 0.2, "health": -0.1, "climate": 0.5, "social": 0.1, "tech": -0.2, "food": 0.2, "mental": 0.2, "energy": -0.2, "demo": -0.1, "urban": 0.3, "science": -0.1, "justice": 0.1, "finance": -0.1, "ocean": 0.3, "bio": 0.2}, "EUU": {"eco": 0.2, "geo": 0.3, "health": -0.1, "climate": 0.2, "social": 0.2, "tech": 0.1, "food": 0.1, "mental": 0.3, "energy": -0.1, "demo": 0.2, "urban": 0.2, "science": -0.1, "justice": -0.1, "finance": 0.2, "ocean": 0.3, "bio": -0.1}, "BRA": {"eco": -0.1, "geo": 0.1, "health": 0.1, "climate": 0.4, "social": 0.2, "tech": 0.1, "food": -0.1, "mental": 0.3, "energy": -0.1, "demo": -0.1, "urban": 0.2, "science": 0.1, "justice": 0.1, "finance": 0.2, "ocean": 0.3, "bio": 0.2}, "MEX": {"eco": 0.1, "geo": 0.3, "health": 0.1, "climate": 0.4, "social": 0.2, "tech": 0.1, "food": 0.2, "mental": 0.2, "energy": 0.2, "demo": 0.1, "urban": 0.4, "science": 0.2, "justice": 0.2, "finance": 0.1, "ocean": 0.2, "bio": 0.2}, "JPN": {"eco": 0.1, "geo": 0.2, "health": -0.1, "climate": 0.2, "social": 0.2, "tech": -0.1, "food": 0.1, "mental": 0.1, "energy": 0.1, "demo": 0.6, "urban": -0.1, "science": -0.1, "justice": -0.1, "finance": 0.3, "ocean": 0.2, "bio": -0.1}};
+/* T28/B-d · VELOCITY se calcula de los datos.
+
+   Aqui habia una tabla escrita a mano con valores para DIEZ paises; los
+   otros 207 usaban los del mundo, de modo que la "velocidad" de Nigeria era
+   la misma que la de Noruega. No tenia fuente ni forma de comprobarse.
+
+   Ahora sale de la variacion de los propios indicadores entre sus dos
+   ultimos anos publicados, con el signo del riesgo y por mediana, en
+   src/core/scoring.js. Cada categoria lleva ademas de cuantos indicadores
+   sale esa velocidad: con cero, es un cero declarado y no una medicion de
+   estabilidad. */
+const VELOCITY = {};
+
+/* Se rellena aqui y no junto a DATA: en el modulo, `const VELOCITY` esta en
+   su zona muerta hasta esta linea, y asignarle antes lanzaba
+   "Cannot set properties of undefined", dejaba DATOS_ESTADO en fallo y el
+   panel entero decia SIN DATOS teniendo los datos cargados. */
+if (DATOS_ESTADO.ok && DATOS_ESTADO.calculo) {
+  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.paises)) VELOCITY[iso] = p.velocidades;
+  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.agregados || {})) VELOCITY[iso] = p.velocidades;
+}
 const CORR_MATRIX=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
 const ISO_MAP={
   '004':'AFG',
@@ -3268,23 +2194,42 @@ function renderRanking(){
   const topN=parseInt(document.getElementById('ranking-top')?.value||'10');
   const order=document.getElementById('ranking-order')?.value||'desc';
 
-  let codes=Object.keys(DATA).filter(k=>k!=='WLD'&&k!=='EUU');
+  /* T23: los agregados (mundo, Union Europea) no compiten en el ranking, y
+     los territorios sin ninguna fuente oficial tampoco aparecen: antes
+     entraban con un 50 de relleno y se colocaban en mitad de la tabla como
+     si fuera una medicion. */
+  let codes=Object.keys(DATA).filter(k=>k!=='WLD'&&k!=='EUU'&&!DATA[k].sinDatos);
   if(regionSel!=='all') codes=codes.filter(k=>REGION_GROUPS[regionSel]?.includes(k));
 
   const ranked=codes.map(code=>{
     const d=DATA[code];
     if(!d) return null;
-    let score;
-    if(catSel==='global'){
-      const keys=['eco','geo','health','climate','social','tech','food','mental','energy','demo','urban','science','justice','finance','ocean','bio'];
-      let sum=0,cnt=0;
-      keys.forEach(k=>{const c=d[k];if(c&&typeof c.score==='number'){sum+=c.score;cnt++;}});
-      score=cnt>0?Math.round(sum/cnt):50;
-    } else {
-      score=d[catSel]?.score||50;
+    /* La puntuacion global es la que calcula src/core/scoring.js, la misma
+       que muestran el banner y el globo. Antes se recalculaba aqui con una
+       media que rellenaba con 50 las categorias sin dato. */
+    const score=catSel==='global'
+      ? d.score
+      : (d[catSel] && typeof d[catSel].score==='number' ? d[catSel].score : null);
+    if(typeof score!=='number') return null;
+    return{
+      code, name:d.name||code, score, flag:COUNTRY_FLAGS[code]||'🌐',
+      nivel: catSel==='global' ? d.nivel : null,
+      elevado: catSel==='global' ? d.elevadoPorConflicto : null,
+    };
+  }).filter(Boolean).sort((a,b)=>{
+    /* Ordena por NIVEL y, dentro de cada nivel, por indice.
+
+       Antes ordenaba solo por indice, y desde que el conflicto impone un
+       suelo eso producia una lista incoherente consigo misma: Ucrania, con
+       etiqueta CRITICO, aparecia por debajo de paises etiquetados ALTO
+       porque su indice es menor. La etiqueta es lo que el usuario lee. */
+    if(catSel==='global' && a.nivel && b.nivel){
+      const da = ORDEN_NIVEL_RANKING[a.nivel] ?? 9;
+      const db = ORDEN_NIVEL_RANKING[b.nivel] ?? 9;
+      if(da !== db) return order==='desc' ? da - db : db - da;
     }
-    return{code,name:d.name||code,score,flag:COUNTRY_FLAGS[code]||'🌐'};
-  }).filter(Boolean).sort((a,b)=>order==='desc'?b.score-a.score:a.score-b.score).slice(0,topN);
+    return order==='desc' ? b.score-a.score : a.score-b.score;
+  }).slice(0,topN);
 
   const el=document.getElementById('ranking-list');
   const countEl=document.getElementById('ranking-count');
@@ -3299,8 +2244,8 @@ function renderRanking(){
       ${hasDetail?`data-rank-code="${esc(r.code)}"`:''}
       title="${hasDetail?'Click para cargar región':''}">
       <div class="rank-pos" style="color:${col};font-size:${medal?'14px':'12px'}">${medal||'#'+(i+1)}</div>
-      <div class="rank-flag">${r.flag}</div>
-      <div class="rank-name" style="font-size:${r.name.length>14?'10px':'12px'}">${r.name}</div>
+      <div class="rank-flag">${esc(r.flag)}</div>
+      <div class="rank-name" style="font-size:${r.name.length>14?'10px':'12px'}">${esc(r.name)}${r.elevado ? `<span class="rank-flecha" title="${esc(r.elevado.motivo)}">↑</span>` : ''}</div>
       <div class="rank-bar-wrap"><div class="rank-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
       <div class="rank-score" style="color:${col}">${r.score}</div>
     </div>`;
@@ -3474,9 +2419,91 @@ const CATS_CFG=[
   {k:'bio',    g:'g-bio',    n:'n-bio',    c:'c-bio',    i:'i-bio',    color:'#B0C8E0'},
 ];
 
+/* T23 · Avisos cuando no hay datos que mostrar.
+
+   Las dos existen por lo mismo: desde que el panel lee data/latest.json
+   puede encontrarse sin datos, y un panel de riesgo que en ese caso pinta
+   ceros, rayas o medias de relleno esta afirmando algo que no sabe. */
+
+/** No se pudo cargar el fichero de datos. */
+function mostrarFalloDeDatos(){
+  const num=document.getElementById('gnum');
+  const est=document.getElementById('gstatus');
+  if(num){ num.textContent='—'; num.style.color='var(--dim)'; }
+  if(est){
+    est.textContent='SIN DATOS';
+    est.style.color='var(--red)';
+    est.title='No se ha podido cargar data/latest.json: '+(DATOS_ESTADO.error||'error desconocido');
+  }
+  for(let i=0;i<16;i++){
+    const el=document.getElementById('gs'+i);
+    if(el){ el.textContent='—'; el.style.color='var(--dim)'; }
+  }
+  CATS_CFG.forEach(({g,n,c,i})=>{
+    const nEl=document.getElementById(n); if(nEl){ nEl.textContent='—'; nEl.style.color='var(--dim)'; }
+    const cEl=document.getElementById(c); if(cEl){ cEl.textContent='SIN DATOS'; cEl.style.color='var(--dim)'; }
+    const iEl=document.getElementById(i); if(iEl) iEl.innerHTML='';
+    drawGauge(g,0,'var(--dim)');
+  });
+  actualizarPieDeDatos();
+}
+
+/** El territorio existe en el selector pero ninguna fuente lo publica. */
+function mostrarSinDatos(d){
+  const num=document.getElementById('gnum');
+  const est=document.getElementById('gstatus');
+  if(num){ num.textContent='—'; num.style.color='var(--dim)'; }
+  if(est){
+    est.textContent='SIN FUENTE OFICIAL';
+    est.style.color='var(--dim)';
+    est.title=d.motivo||'';
+  }
+  for(let i=0;i<16;i++){
+    const el=document.getElementById('gs'+i);
+    if(el){ el.textContent='—'; el.style.color='var(--dim)'; }
+  }
+  CATS_CFG.forEach(({g,n,c,i})=>{
+    const nEl=document.getElementById(n); if(nEl){ nEl.textContent='—'; nEl.style.color='var(--dim)'; }
+    const cEl=document.getElementById(c); if(cEl){ cEl.textContent='—'; cEl.style.color='var(--dim)'; }
+    const iEl=document.getElementById(i);
+    if(iEl) iEl.innerHTML='<div class="ind-row"><span class="ind-name">'+esc(d.motivo||'Sin datos')+'</span></div>';
+    drawGauge(g,0,'var(--dim)');
+  });
+  actualizarPieDeDatos();
+}
+
+/** Fecha de los datos y su procedencia, visible en el panel. */
+function actualizarPieDeDatos(){
+  const el=document.getElementById('datos-pie');
+  if(!el) return;
+  if(!DATOS_ESTADO.ok){
+    el.textContent='DATOS: no disponibles';
+    el.title=DATOS_ESTADO.error||'';
+    return;
+  }
+  const n=DATOS_ESTADO.datos ? Object.keys(DATOS_ESTADO.datos.indicadores).length : 0;
+  const fuentes=DATOS_ESTADO.datos ? Object.keys(DATOS_ESTADO.datos.fuentes).length : 0;
+  el.textContent='DATOS: '+fechaDatos(DATOS_ESTADO.datos)+' · '+n+' indicadores de '+fuentes+' catálogos oficiales'
+    +(DATOS_ESTADO.deCache?' · última lectura guardada':'');
+  el.title=DATOS_ESTADO.deCache
+    ? 'Servidos de la copia del service worker, no recién descargados'
+    : 'Descargados por el trabajo semanal; cada dato lleva su fuente y su año';
+}
+
 function loadRegion(){
   const code=document.getElementById('region-sel').value;
   const d=DATA[code]||DATA.WLD;
+
+  /* T23: si no hay datos del fichero, decirlo. Antes DATA venia escrita en
+     el propio motor y siempre estaba; ahora se descarga, y si falla la
+     descarga el panel tiene que decir que no hay datos en lugar de pintar
+     una lectura de ceros que parece una lectura de verdad. */
+  if(!DATOS_ESTADO.ok){ mostrarFalloDeDatos(); return; }
+
+  /* T23: y si el territorio existe en el selector pero ninguna fuente
+     oficial lo publica (Taiwan es el unico caso), se dice tambien, con el
+     motivo. Antes el selector lo ofrecia con cifras escritas a mano. */
+  if(d && d.sinDatos){ mostrarSinDatos(d); return; }
 
   // ── 1. Cards: gauges + scores + indicadores ──
   CATS_CFG.forEach(({k,g,n,c,i,color})=>{
@@ -3507,23 +2534,60 @@ function loadRegion(){
   });
 
   // ── 2. Banner global ──
+  /* T23: la cifra del banner es la puntuacion compuesta que calcula
+     src/core/scoring.js, y no la media de los enhancedScore de las 16
+     categorias que se hacia aqui.
+
+     Dos motivos. El primero es que esa media rellenaba con 50 las
+     categorias sin dato, de modo que un pais con la mitad de las categorias
+     vacias acababa con una cifra a medio camino que parecia una medicion.
+     El segundo es que el globo tiene que mostrar el MISMO numero, y lo que
+     se calculaba aqui dependia de VELOCITY, que sigue siendo una tabla
+     escrita a mano (la revisa T27). El enhancedScore se mantiene donde
+     estaba, en las tarjetas de cada categoria, con su desglose en el title. */
   const scores=CAT_KEYS.map(k=>{
     const cat=d[k];
-    if(!cat) return 50;
+    if(!cat) return null;
     return typeof enhancedScore==='function' ? enhancedScore(cat.score,k,code) : cat.score;
   });
-  const global=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
-  const[lbl,col]=riskLabel(global);
-  document.getElementById('gnum').textContent=global;
-  document.getElementById('gnum').style.color=col;
-  document.getElementById('gstatus').textContent=lbl;
-  document.getElementById('gstatus').style.color=col;
+  const global=(typeof d.score==='number')
+    ? d.score
+    : Math.round(scores.filter(v=>typeof v==='number').reduce((a,b)=>a+b,0)/Math.max(1,scores.filter(v=>typeof v==='number').length));
+  /* La etiqueta sale del NIVEL CALCULADO, no de un umbral fijo.
+
+     riskLabel() tenia sus propios cortes (30/50/70) heredados de cuando las
+     puntuaciones estaban escritas a mano. Con el indice actual eso dejaba a
+     Espana en "ELEVADO" cuando esta en la mitad con MENOS riesgo del mundo:
+     dos escalas distintas contandole al usuario cosas distintas sobre el
+     mismo numero.
+
+     Ahora la etiqueta es el tramo en el que cae el pais entre los 217, y la
+     interfaz dice que es una clasificacion relativa. */
+  const nivel = d.nivel ? NIVEL_INFO[d.nivel] : null;
+  const col = nivel ? nivel.color : 'var(--dim)';
+  const lbl = nivel ? nivel.etiqueta : '—';
+  const gnumEl = document.getElementById('gnum');
+  const gstatusEl = document.getElementById('gstatus');
+  gnumEl.textContent = global;
+  gnumEl.style.color = col;
+  gstatusEl.textContent = lbl;
+  gstatusEl.style.color = col;
+  if (nivel && d.puesto) {
+    gstatusEl.title = nivel.descripcion + ' · puesto ' + d.puesto + ' de ' + d.deTotal
+      + '. ' + ETIQUETA_RELATIVA;
+  }
+  actualizarPieDeNivel(d);
   for(let i=0;i<16;i++){
     const el=document.getElementById('gs'+i);
     if(el){
-      el.textContent=scores[i];
+      /* T23: una categoria sin ningun indicador con dato vale null, no 50.
+         Se muestra una raya y en gris; antes ese hueco se rellenaba con un
+         50 que no distinguia "riesgo medio" de "no lo sabemos". */
       const s=scores[i];
-      el.style.color=s>=75?'#FF3355':s>=55?'#FF8C00':s>=35?'#FFD700':'#00CC66';
+      const tiene=typeof s==='number';
+      el.textContent=tiene?s:'—';
+      el.title=tiene?'':'Sin ningún indicador con dato en esta categoría';
+      el.style.color=!tiene?'var(--dim)':s>=75?'#FF3355':s>=55?'#FF8C00':s>=35?'#FFD700':'#00CC66';
     }
   }
   const seg=document.getElementById('tsegs');
@@ -3537,6 +2601,7 @@ function loadRegion(){
   }
 
   // ── 3. Resto de módulos ──
+  actualizarPieDeDatos();
   renderEvents(d);
   if(typeof updateAlgoBanner==='function') updateAlgoBanner(code);
   if(typeof renderChains==='function')     renderChains(code);
@@ -4517,6 +3582,16 @@ document.addEventListener('click', function(ev){
   if(action && typeof runShockCascade === 'function'){ runShockCascade(); }
 });
 
+
+/* T23: el pie con la fecha de los datos se rellena al cargar, sin esperar a
+   que se entre en el panel. La portada tambien afirma cosas sobre los datos
+   (cuantos paises, cuantas categorias), asi que tiene que decir de cuando
+   son desde el primer momento. */
+(function(){
+  function pie(){ try { actualizarPieDeDatos(); } catch (err) { /* el DOM aun no esta */ } }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', pie, { once:true });
+  else pie();
+})();
 
 /* T5: comprobacion automatica de la IA local al cargar la pagina. Si no hay
    Ollama escuchando, el panel lo dice desde el principio en vez de esperar a

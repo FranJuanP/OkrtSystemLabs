@@ -1,0 +1,42 @@
+name: Refrescar eventos
+
+# Dispara un despliegue cada media hora para que la web publicada lleve los
+# eventos recientes de Signal.
+#
+# Antes este trabajo DESCARGABA los eventos y los CONFIRMABA en main: hasta
+# 48 commits al día de un fichero que cambia constantemente, engordando el
+# historial con datos que caducan en media hora.
+#
+# Ahora no toca el repositorio. `data/events.json` se genera durante el
+# despliegue (ver deploy-pages.yml) y viaja en el artefacto de Pages, que es
+# donde tiene sentido: es un fichero de salida, no código fuente.
+
+on:
+  schedule:
+    # Cada media hora, en los minutos 7 y 37: en punto y y media es cuando se
+    # acumulan los trabajos programados de todo GitHub.
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: eventos
+  cancel-in-progress: false
+
+jobs:
+  refrescar:
+    name: Lanzar el despliegue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir un despliegue de Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gh workflow run deploy-pages.yml \
+            --repo "${{ github.repository }}" \
+            --ref main
+          echo "despliegue solicitado; los eventos se descargan durante el build"

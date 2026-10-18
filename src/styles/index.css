@@ -157,3 +157,7 @@
 .okrt-data-s{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.35}
 @media (max-width:1200px){.okrt-data-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:760px){.okrt-data-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.okrt-region-shell{min-width:100%;max-width:none}}
+
+/* La flecha del ranking: marca que el nivel lo impuso el umbral de
+   conflicto del UCDP y no el percentil. El motivo va en el title. */
+.rank-flecha{color:var(--red);margin-left:3px;cursor:help;font-size:.9em}

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<!-- © OkrtSystem Labs · AETHER Global Intelligence System · Unauthorized reproduction prohibited · franjuanp.github.io/OkrtSystemLabs -->
+
+<meta charset="UTF-8">
+<!-- T17 · Misma politica que el resto de las paginas. Esta no consulta
+     ninguna fuente externa: solo lee data/latest.json del propio origen,
+     asi que no necesitaria connect-src a terceros, pero se deja identica
+     para que las cuatro paginas tengan una sola politica que revisar. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="X-DNS-Prefetch-Control" content="off">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AETHER — Metodología</title>
+<meta name="description" content="Cómo se obtienen los datos de AETHER, cómo se calculan las puntuaciones de riesgo y qué no se puede concluir de ellas.">
+
+<link rel="stylesheet" href="assets/css/aether.css">
+<link rel="stylesheet" href="assets/css/metodologia.css">
+
+<link rel="manifest" href="manifest.webmanifest?v=okrtv2">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-okrt-v2.png?v=okrtv2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AETHER">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#050A10">
+</head>
+<body>
+
+<div id="app">
+
+  <div class="met-head">
+    <h1>METODOLOGÍA</h1>
+    <div class="sub">Cómo se obtiene cada dato y cómo se calcula cada puntuación</div>
+    <a class="volver" href="index.html">← VOLVER AL PANEL</a>
+  </div>
+
+  <div class="met-sec">
+    <p class="intro">
+      Las puntuaciones de riesgo de AETHER <strong>no son opiniones ni
+      estimaciones propias</strong>: se calculan a partir de datos públicos de
+      cinco instituciones, en el navegador, con el método que describe esta
+      página. Cada dato lleva su fuente, su año y un enlace al original.
+    </p>
+    <p class="nota">
+      Esta página se genera a partir del mismo fichero de datos que usa el
+      panel, de modo que no puede quedarse desfasada respecto de lo que se
+      muestra. El documento largo, con los límites del método, está en
+      <a href="https://github.com/FranJuanP/OkrtSystemLabs/blob/main/METHODOLOGY.md">METHODOLOGY.md</a>.
+    </p>
+    <div id="met-estado">Cargando los datos…</div>
+    <div class="met-cifras" id="met-cifras"></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">01</span>DE DÓNDE SALEN LOS DATOS</h2>
+    <p class="intro">
+      Todas las fuentes son públicas y ninguna requiere clave. El trabajo
+      automático las vuelve a descargar todos los lunes.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-fuentes"></table></div>
+    <p class="nota">
+      <strong>ACLED no está</strong>, aunque es la mejor fuente de datos de
+      conflicto georreferenciados: su API exige clave y sus condiciones no
+      permiten redistribuir los datos descargados, que es exactamente lo que
+      haría esta página al publicarlos.
+    </p>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">02</span>CÓMO SE CALCULA UNA PUNTUACIÓN</h2>
+    <p class="intro">
+      <strong>1.</strong> Cada indicador se convierte en un percentil de riesgo
+      de 0 a 100 comparando el país con todos los que tienen ese dato. Si un
+      valor alto significa menos riesgo, el orden se invierte.
+    </p>
+    <p class="intro">
+      <strong>2.</strong> La puntuación de una categoría es la media de los
+      percentiles de sus indicadores disponibles.
+    </p>
+    <p class="intro">
+      <strong>3.</strong> El índice del país es <strong>mitad la media de sus
+      16 categorías y mitad la media de las tres con más riesgo</strong>.
+    </p>
+    <p class="nota">
+      La media de las 16 sola escondía lo que importa: un país podía tener un
+      dominio en situación crítica y acabar en el centro, porque las otras
+      quince lo arrastraban. Promediar solo los tres peores tendría el defecto
+      contrario: un país con un problema serio y todo lo demás impecable se
+      leería igual que uno con problemas en todas partes.<br><br>
+      Mitad y mitad. Cada país muestra el desglose: cuánto viene del conjunto,
+      cuánto de lo peor, y cuáles son sus tres categorías peores.
+    </p>
+    <p class="nota">
+      Se usan percentiles y no una normalización al rango porque los
+      indicadores no comparten escala: las patentes de residentes van de 1 a
+      más de un millón, y normalizando al rango un solo país quedaría en 100 y
+      el resto por debajo de 2.<br><br>
+      La consecuencia, que conviene tener presente, es que <strong>el percentil
+      solo mira el orden</strong>: si todos los países empeoran a la vez, los
+      percentiles no se mueven. Mide posición relativa, no deterioro absoluto.
+    </p>
+    <p class="intro">
+      Combinar percentiles comprime el resultado hacia el centro: el rango
+      real observado va de <strong id="met-rango">—</strong>, no de 0 a 100.
+      Por eso cada país muestra también su <strong>puesto</strong> y su
+      <strong>categoría de mayor riesgo</strong>.
+    </p>
+
+    <h2 style="margin-top:22px"><span class="num">02b</span>LOS NIVELES SON RELATIVOS</h2>
+    <p class="intro">
+      <strong>CRÍTICO, ALTO, MEDIO y BAJO no son umbrales fijos: son tramos de
+      la distribución.</strong> Un país es «crítico» cuando está entre el 5 %
+      con más riesgo medido, no cuando supera un listón.
+    </p>
+    <p class="nota">
+      Esto tiene una consecuencia que conviene tener presente: <strong>siempre
+      habrá un 5 % en crítico</strong>, incluso si el mundo entero mejorase; y
+      si empeorase, seguiría habiendo una mitad en «bajo». Los niveles dicen
+      dónde está cada país <em>respecto de los demás</em>, no cuánto riesgo hay
+      en términos absolutos.<br><br>
+      Antes eran umbrales fijos heredados del globo, y con el índice comprimido
+      hacia el centro <strong>CRÍTICO no lo alcanzaba ningún país</strong>: la
+      escala decía cuatro niveles teniendo tres.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-niveles"></table></div>
+
+    <h2 style="margin-top:22px"><span class="num">02d</span>NIVEL MÍNIMO POR CONFLICTO ACTIVO</h2>
+    <p class="intro">
+      Una clasificación relativa tiene un punto ciego: un país en guerra cuyos
+      demás indicadores sean razonables puede acabar en mitad de la tabla. Por
+      eso el conflicto armado impone un <strong>suelo</strong>, con los umbrales
+      que usa el propio UCDP.<br><br>
+      Se miden <strong>dos cosas distintas</strong>, y la ficha del país las
+      enseña por separado porque responden a preguntas diferentes:
+      <strong>en el territorio</strong> —qué violencia ocurre dentro del país— y
+      <strong>como parte</strong> —en qué conflictos estatales está metido su
+      gobierno, ocurran donde ocurran—. Rusia tiene 4.412 muertos en su
+      territorio y 93.823 en las guerras en las que es parte; dar solo la
+      primera cifra la describiría mal.<br><br>
+      <strong>Y el periodo no siempre son doce meses.</strong> El fichero del
+      año en curso del UCDP <em>no es acumulativo</em>: la versión vigente trae
+      seis semanas, no el año entero, y entre el final del fichero anual y el
+      principio de ese hay un hueco de siete meses. Con una ventana así, Rusia
+      salía con 266 muertos y Siria con 173: no se habían calmado, les faltaban
+      siete meses. Por eso se publica <strong>el máximo entre la ventana de 12
+      meses y el último año natural cerrado</strong>, y la ficha
+      <strong>dice cuál se ha usado</strong> —«año 2025» o «12 meses»— con las
+      dos cifras en el <em>tooltip</em>. Hoy son 53 países con el año completo y
+      164 con la ventana.<br><br>
+      Y el <em>tipo</em> de violencia importa: el UCDP distingue la estatal
+      —con un gobierno como una de las partes— de la que se dan entre grupos no
+      estatales y de la ejercida contra civiles. Solo la primera es
+      <em>guerra</em> en su clasificación, y solo ella lleva a CRÍTICO:
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-conflicto"></table></div>
+    <p class="nota">
+      <strong>Es un suelo, no un techo:</strong> si el percentil ya sitúa al
+      país más arriba, manda el percentil. Y se aplica a la etiqueta, no al
+      índice: el número sigue siendo la combinación de las categorías.<br><br>
+      Cuando se aplica, la ficha del país lo dice con la cifra y enseña además
+      dónde caería por percentil. En el ranking esos países llevan una
+      <strong>↑</strong> cuyo <em>tooltip</em> da el motivo de la subida.<br><br>
+      <strong>Qué no mide «como parte»:</strong> la cifra sale de los actores
+      que el UCDP identifica como gobiernos con número Gleditsch–Ward. Un
+      territorio sin un gobierno codificado así aparece con 0 aunque haya
+      guerra en él —es el caso de Palestina, cuya cifra informativa es la del
+      territorio—. Y no reparte culpas: contar un muerto a los dos bandos de
+      una guerra responde a «en cuánta violencia está metido este gobierno»,
+      no a quién la causó.<br><br>
+      Tampoco mide la <strong>violencia unilateral contra civiles</strong>, que
+      por definición no tiene partes. Sudán es el caso extremo: de sus 68.210
+      muertos en 2025, el 89 % son civiles asesinados fuera de un conflicto
+      entre partes, y por eso su cifra «como parte» es de 6.806. No es un fallo
+      del cruce: es la diferencia entre una guerra y una matanza.
+    </p>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">02c</span>VELOCIDAD</h2>
+    <p class="intro">
+      Cada categoría lleva además una <strong>velocidad</strong>: hacia dónde
+      se mueven sus indicadores entre sus dos últimos años publicados, con el
+      signo del riesgo y por mediana.
+    </p>
+    <p class="nota">
+      Era una tabla escrita a mano con valores para diez países; los otros 207
+      usaban los del mundo, de modo que la velocidad de Nigeria era la misma
+      que la de Noruega. Ahora sale de los datos.<br><br>
+      Mediana y no media porque basta un indicador que pase de 0,1 a 0,3 para
+      que un cambio del 200 % domine toda la categoría. Y cada categoría dice
+      <strong>de cuántos indicadores</strong> sale su velocidad: con cero, es
+      un cero declarado, no una medición de estabilidad.
+    </p>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">03</span>PESOS</h2>
+    <p class="intro">
+      <strong>Las 16 categorías pesan igual, y es una decisión, no un
+      descuido.</strong> Para poner la economía por encima de los océanos hace
+      falta una fuente que justifique cuánto por encima, y no la hay. Antes que
+      inventar una jerarquía con aire técnico, se deja explícito.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-pesos"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">04</span>CONFIANZA</h2>
+    <p class="intro">
+      Cada puntuación lleva una etiqueta de confianza que depende de cuántos
+      indicadores tenía de verdad y de lo viejos que son.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-confianza"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">05</span>LOS INDICADORES</h2>
+    <p class="intro">
+      Los que están marcados <span class="met-badge ambiguo">NO PUNTÚA</span>
+      se muestran con su valor pero se quedan fuera del cálculo, porque no
+      tienen una dirección de riesgo única: 1,1 hijos por mujer es un problema
+      demográfico y 6,8 también, por motivos opuestos.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-indicadores"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">06</span>LÍMITES DE COMPARABILIDAD</h2>
+    <p class="intro">
+      Indicadores que, por cómo los construye la fuente, no significan lo mismo
+      en todos los países. Se publican con la advertencia en lugar de
+      presentarlos como comparables sin más.
+    </p>
+    <div class="met-scroll"><table class="met-tabla" id="tabla-limites"></table></div>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">06b</span>CITACIÓN</h2>
+    <p class="intro">
+      Las fuentes con licencia CC BY exigen atribución. La de UCDP, que es la
+      que la pide de forma explícita:
+    </p>
+    <p class="nota" id="cita-ucdp">
+      Davies, Shawn, Garoun Engström, Therese Pettersson &amp; Magnus Öberg (2024).
+      <em>Organized violence 1989-2023, and the prevalence of organized crime groups.</em>
+      Journal of Peace Research 61(4).<br><br>
+      Sundberg, Ralph &amp; Erik Melander (2013).
+      <em>Introducing the UCDP Georeferenced Event Dataset.</em>
+      Journal of Peace Research 50(4).<br><br>
+      Datos obtenidos de las descargas directas de
+      <a href="https://ucdp.uu.se/downloads/" target="_blank" rel="noopener noreferrer">ucdp.uu.se/downloads</a>,
+      bajo licencia CC BY 4.0. La versión concreta de cada conjunto aparece en
+      la tabla de fuentes.
+    </p>
+  </div>
+
+  <div class="met-sec">
+    <h2><span class="num">07</span>QUÉ NO ES ESTO</h2>
+    <p class="intro">
+      <strong>No es una predicción:</strong> no hay modelo temporal, son los
+      últimos datos publicados y ordenados.<br>
+      <strong>No es una fuente primaria:</strong> todo viene de las
+      instituciones de la tabla 01, y cada dato enlaza a la suya.<br>
+      <strong>No cubre lo que no se mide:</strong> salud mental tiene un solo
+      indicador comparable, y la ciberseguridad no aparece porque no hay serie
+      pública comparable entre países.
+    </p>
+  </div>
+
+</div>
+
+<script type="module" src="/src/pages/metodologia.js"></script>
+
+</body>
+</html>

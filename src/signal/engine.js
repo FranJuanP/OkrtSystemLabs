@@ -16,6 +16,10 @@
  *    que es lo mismo pero explícito y sin parchear nada.
  */
 import { esc, safeHref, safeUrl } from '../core/escape.js';
+import {
+  normalizarUSGS, normalizarEONET, normalizarGDELT, normalizarWHO,
+  CONSULTAS_GDELT, urlGDELT, URLS, rehidratar,
+} from './normalizar.js';
 
 // ═══════════════════════════════════════════════
 //  AETHER SIGNAL — OkrtSystem Labs
@@ -92,6 +96,7 @@ const SOURCE_LABELS = {
           + 'Se solicita en https://apidoc.reliefweb.int/ y se pone en fetchReliefWeb().',
   },
   nasa:   { name: 'NASA EONET',     row: 'NASA EONET Events' },
+  who:    { name: 'OMS',             row: 'OMS · Brotes (DON)' },
 };
 
 /** Fuentes que no se consultan porque no se puede, con su motivo. */
@@ -115,6 +120,10 @@ function setSrc(id, st, detalle) {
   const label = document.getElementById('srclbl-'+id);
   const meta = SOURCE_LABELS[id];
   if(label && meta){
+    /* Una fuente retirada no esta "sin conexion": no hay nada que
+       reintentar hasta que ReliefWeb apruebe un appname, asi que va en gris
+       y lo dice. `detalle` permite ademas mensajes propios, como el limite
+       de consultas de GDELT. */
     if(detalle) label.textContent = detalle;
     else if(st === 'pendiente') label.textContent = meta.pendiente || (meta.name + ' · pendiente');
     else if(st === 'err') label.textContent = 'Sin conexión con ' + meta.name;
@@ -257,58 +266,18 @@ setInterval(()=>{
 // ── FETCH: USGS Earthquakes ──
 async function fetchUSGS() {
   try {
-    const r = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+    const r = await fetch(URLS.usgs);
     const d = await r.json();
-    const out = (d.features || []).slice(0,30).map(f=>{
-      const p = f.properties;
-      const mag = p.mag || 0;
-      const sev = mag >= 7 ? 'CRITICAL' : mag >= 6 ? 'HIGH' : mag >= 5 ? 'MEDIUM' : 'LOW';
-      return {
-        id: 'usgs_' + f.id,
-        source: 'USGS',
-        cat: 'seismic',
-        title: `M${mag.toFixed(1)} — ${p.place || 'Desconocido'}`,
-        location: p.place || '—',
-        time: new Date(p.time),
-        severity: sev,
-        url: p.url,
-        detail: `Terremoto de magnitud ${mag.toFixed(1)} registrado en ${p.place}. Profundidad: ${(f.geometry?.coordinates?.[2]||0).toFixed(1)} km. Estado USGS: ${p.status||'revisado'}.`,
-        impacts: { 'MAGNITUD': mag.toFixed(1), 'PROFUNDIDAD': (f.geometry?.coordinates?.[2]||0).toFixed(0)+'km',
-                   'ALERTA': p.alert||'verde', 'TSUNAMI': p.tsunami ? 'SÍ' : 'NO' },
-        isNew: (Date.now() - new Date(p.time).getTime()) < 3600000
-      };
-    });
-    return sourceOk('usgs', out, r);
+    return sourceOk('usgs', normalizarUSGS(d), r);
   } catch(e) { return sourceFailed('usgs'); }
 }
 
 // ── FETCH: NASA EONET natural events ──
 async function fetchNASA() {
   try {
-    const r = await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&days=14');
+    const r = await fetch(URLS.eonet);
     const d = await r.json();
-    const catMap = { Wildfires:'climate', Volcanoes:'seismic', 'Severe Storms':'climate',
-                     Floods:'climate', Drought:'climate', 'Sea and Lake Ice':'climate',
-                     Earthquakes:'seismic', 'Dust and Haze':'climate' };
-    const out = (d.events||[]).map(ev=>{
-      const cat = catMap[ev.categories?.[0]?.title] || 'climate';
-      const geo = ev.geometry?.[0];
-      const days = geo ? Math.round((Date.now()-new Date(geo.date).getTime())/86400000) : 0;
-      return {
-        id: 'nasa_' + ev.id,
-        source: 'NASA EONET',
-        cat,
-        title: ev.title,
-        location: ev.categories?.[0]?.title || 'Evento natural',
-        time: geo ? new Date(geo.date) : new Date(),
-        severity: days < 2 ? 'HIGH' : 'MEDIUM',
-        url: ev.sources?.[0]?.url || '',
-        detail: `Evento natural clasificado como "${ev.categories?.[0]?.title}" activo. ${ev.description||'Monitoreo continuo activo por NASA Earth Observatory.'} Duración estimada: ${days} días en seguimiento.`,
-        impacts: { 'DURACIÓN': days+'d', 'ESTADO': 'ACTIVO', 'FUENTE': 'NASA', 'TIPO': ev.categories?.[0]?.title||'—' },
-        isNew: days < 1
-      };
-    });
-    return sourceOk('nasa', out, r);
+    return sourceOk('nasa', normalizarEONET(d), r);
   } catch(e) { return sourceFailed('nasa'); }
 }
 
@@ -319,6 +288,15 @@ async function fetchReliefWeb() {
      que ReliefWeb sirvió cuando todavía respondía, marcados como tales. */
   setSrc('relief', 'pendiente');
   return loadLastReading('relief');
+}
+
+// ── FETCH: OMS · Disease Outbreak News ──
+async function fetchWHO() {
+  try {
+    const r = await fetch(URLS.who);
+    if(!r.ok) return sourceFailed('who');
+    return sourceOk('who', normalizarWHO(await r.json()), r);
+  } catch(e) { return sourceFailed('who'); }
 }
 
 // ── FETCH: GDELT via RSS proxy ──
@@ -341,35 +319,14 @@ async function fetchReliefWeb() {
 const GDELT_ESPERA_MS = 5000;
 const GDELT_REINTENTO_MS = 10000;
 
-const CONSULTAS_GDELT = [
-  { q: 'conflict+war+military',            cat: 'conflict', sev: 'HIGH' },
-  { q: 'sanctions+geopolitical+crisis',    cat: 'geo',      sev: 'MEDIUM' },
-  { q: 'economic+recession+market+crash',  cat: 'eco',      sev: 'MEDIUM' },
-];
+/* La lista de consultas, el constructor de URL y la conversion a senales
+   viven en src/signal/normalizar.js, que es el mismo modulo que usa el
+   trabajo automatico de eventos: si vivieran en dos sitios, un cambio en el
+   formato de GDELT se arreglaria en uno y no en el otro. Lo que si es propio
+   del navegador, y se queda aqui, es el RITMO: cuanto se espera entre
+   consultas y que hacer ante un limite. */
 
 const esperar = (ms) => new Promise(r => setTimeout(r, ms));
-
-const urlGDELT = (q) =>
-  `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=8&format=json&timespan=1d`;
-
-/** Convierte los articulos de una consulta en senales. */
-function senalesGDELT(d, qi){
-  const { cat, sev } = CONSULTAS_GDELT[qi];
-  return (d.articles||[]).map((art,i)=>({
-    id: 'gdelt_' + qi + '_' + i,
-    source: 'GDELT',
-    cat,
-    title: art.title || 'Evento geopolítico detectado',
-    location: art.sourcecountry || art.domain || 'Global',
-    time: art.seendate ? new Date(art.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')) : new Date(),
-    severity: i === 0 ? sev : 'MEDIUM',
-    url: art.url || '',
-    detail: `Evento detectado por sistema GDELT en tiempo real. Fuente: ${art.domain||'múltiples medios'}. Tono analítico: ${art.tone ? parseFloat(art.tone).toFixed(2) : '—'}. Cobertura: ${art.sourcecountry||'global'}.`,
-    impacts: { 'TONO': art.tone ? parseFloat(art.tone).toFixed(1) : '—', 'FUENTE': (art.domain||'—').slice(0,12),
-               'PAÍS': (art.sourcecountry||'GLOBAL').slice(0,10), 'GDELT': 'ACTIVO' },
-    isNew: true
-  }));
-}
 
 /**
  * Una consulta. Devuelve {senales} si fue bien, o {limite:true} si GDELT
@@ -381,7 +338,7 @@ async function consultaGDELT(qi){
     if(r.status === 429) return { limite: true };
     if(!r.ok) return { fallo: 'HTTP ' + r.status };
     const cacheada = r.headers && r.headers.get('X-AETHER-Cache') === 'hit';
-    return { senales: senalesGDELT(await r.json(), qi), respuesta: cacheada ? r : null };
+    return { senales: normalizarGDELT(await r.json(), qi), respuesta: cacheada ? r : null };
   } catch(e) {
     /* No se puede leer la respuesta. El 429 de GDELT no lleva cabecera de
        CORS, asi que este es el aspecto que tiene su limite de consultas
@@ -454,6 +411,38 @@ async function fetchGDELT() {
    las ultimas 18 horas, y ademas pintaban src-who en verde sin existir
    ningun fetch detras. La categoria SALUD se sigue alimentando de
    ReliefWeb (disaster_type 'Epidemic'), que si es una fuente real. */
+
+/* T24 · Lee data/events.json y devuelve los eventos de las fuentes que
+   pide, marcados como ultima lectura del servidor.
+
+   El fichero lo escribe .github/workflows/eventos.yml cada media hora con
+   las mismas funciones de normalizacion que usa esta pagina
+   (src/signal/normalizar.js), para que no puedan divergir. */
+async function cargarEventosDelServidor(ids) {
+  try {
+    const url = new URL('data/events.json', document.baseURI).href;
+    const r = await fetch(url, { credentials: 'omit' });
+    if(!r.ok) return [];
+    const d = await r.json();
+    if(!d || !Array.isArray(d.eventos)) return [];
+    const quiero = new Set(ids);
+    const salida = [];
+    for(const ev of d.eventos){
+      if(!quiero.has(ev.fuente)) continue;
+      salida.push(rehidratar(ev, d.descargado));
+      /* Una fuente pendiente de autorizacion sigue estandolo aunque el
+         servidor tenga eventos suyos de cuando respondia: su punto se queda
+         en gris, no pasa a rojo. */
+      const meta = SOURCE_LABELS[ev.fuente];
+      setSrc(ev.fuente, meta && meta.pendiente ? 'pendiente' : 'err');
+    }
+    return salida;
+  } catch(e) {
+    // Sin fichero y sin red no hay nada que mostrar, y eso ya lo dice la
+    // cabecera: SIN CONEXION con los puntos de fuente en rojo.
+    return [];
+  }
+}
 
 // ── LOAD ALL ──
 /* Fase de la carga, que es lo que faltaba.
@@ -535,12 +524,40 @@ async function loadAll() {
   };
 
   const enCurso = [
-    fetchUSGS(), fetchNASA(), fetchReliefWeb(), fetchGDELT(),
+    fetchUSGS(), fetchNASA(), fetchWHO(), fetchReliefWeb(), fetchGDELT(),
   ].map(promesa => promesa.then(pintar).catch(err => {
     console.warn('AETHER Signal: una fuente ha fallado:', err);
   }));
 
   await Promise.all(enCurso);
+
+  /* Caida al fichero del servidor.
+
+     Si una fuente no ha dado nada desde el navegador, antes solo quedaba la
+     ultima lectura guardada en ESTE navegador: quien entraba por primera vez
+     con la fuente caida no veia nada suyo. Un trabajo automatico descarga los
+     mismos eventos cada media hora y los deja en data/events.json, asi que
+     hay una lectura reciente para todo el mundo.
+
+     Importa mas desde que el service worker dejo de interceptar las fuentes:
+     ya no hay copia en cache de sus respuestas, y este fichero es lo unico
+     que queda. Los eventos entran marcados como ultima lectura, con la hora
+     de la descarga del servidor; no se presentan como si fueran de ahora. */
+  const porFuente = new Map();
+  for(const x of recibidas){
+    const id = String(x && x.source || '').toLowerCase();
+    const clave = id.includes('usgs') ? 'usgs'
+      : id.includes('eonet') || id.includes('nasa') ? 'nasa'
+      : id.includes('gdelt') ? 'gdelt'
+      : id.includes('oms') || id.includes('who') ? 'who'
+      : id.includes('relief') ? 'relief' : null;
+    if(clave) porFuente.set(clave, (porFuente.get(clave) || 0) + 1);
+  }
+  const vacias = ['usgs','nasa','who','gdelt','relief'].filter(id => !porFuente.get(id));
+  if(vacias.length){
+    const delServidor = await cargarEventosDelServidor(vacias);
+    if(delServidor.length) pintar(delServidor);
+  }
 
   // El primer intento ha terminado: a partir de aqui el estado ya no puede
   // ser "cargando", sea cual sea el resultado.

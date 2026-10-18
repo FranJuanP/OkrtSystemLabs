@@ -51,37 +51,48 @@ function countryFiguresIn(file) {
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 45000 });
   await page.waitForTimeout(2500);
 
-  // 1. La constante contra el recuento real del motor.
+  // 1. La constante contra el fichero de datos.
   const real = await page.evaluate(() => {
     // Desde T12 el motor es un módulo: ni AETHER_COVERAGE ni DATA son
     // globales. El asa window.__AETHER__ existe para las pruebas y la consola.
     const handle = window.__AETHER__ || {};
-    const cov = handle.COVERAGE || window.AETHER_COVERAGE;
+    const cov = handle.COVERAGE;
     const data = handle.DATA;
     if (!cov || !data) return { error: 'falta __AETHER__.COVERAGE o __AETHER__.DATA' };
-    const keys = Object.keys(data);
-    const excluded = cov.nonCountryKeys || [];
+    const claves = Object.keys(data);
+    const conPuntuacion = claves.filter((k) => typeof data[k].score === 'number');
+    const sinDatos = claves.filter((k) => data[k].sinDatos);
     return {
       declared: cov.countries,
-      declaredEntries: cov.dataEntries,
-      entries: keys.length,
-      counted: keys.filter((k) => excluded.indexOf(k) === -1).length,
-      excludedPresent: excluded.filter((k) => keys.indexOf(k) !== -1),
-      missingExcluded: excluded.filter((k) => keys.indexOf(k) === -1),
+      withData: cov.withData,
+      onGlobe: cov.onGlobe,
+      dataYear: cov.dataYear,
+      indicators: cov.indicators,
+      sources: cov.sources,
+      entries: claves.length,
+      conPuntuacion: conPuntuacion.length,
+      sinDatos,
+      // WLD y EUU son agregados: tienen puntuación pero no son países.
+      agregados: claves.filter((k) => k === 'WLD' || k === 'EUU').length,
     };
   });
 
   if (real.error) { bad(real.error); }
   else {
-    if (real.declared === real.counted) {
-      ok(`AETHER_COVERAGE.countries = ${real.declared} coincide con DATA (${real.entries} entradas − ${real.excludedPresent.join(', ')})`);
+    // La constante cuenta países; DATA añade los dos agregados.
+    const esperadoEnData = real.declared + real.agregados;
+    if (real.conPuntuacion === esperadoEnData) {
+      ok(`AETHER_COVERAGE.countries = ${real.declared} coincide con los datos (${real.conPuntuacion} con puntuación − ${real.agregados} agregados)`);
     } else {
-      bad(`AETHER_COVERAGE.countries = ${real.declared} pero DATA da ${real.counted}`);
+      bad(`AETHER_COVERAGE.countries = ${real.declared} + ${real.agregados} agregados, pero DATA tiene ${real.conPuntuacion} con puntuación`);
     }
-    if (real.declaredEntries === real.entries) ok(`dataEntries = ${real.entries} coincide`);
-    else bad(`dataEntries = ${real.declaredEntries} pero DATA tiene ${real.entries}`);
-    if (real.missingExcluded.length === 0) ok('las tres claves excluidas existen en DATA');
-    else bad(`claves excluidas que ya no estan en DATA: ${real.missingExcluded.join(', ')}`);
+    if (real.withData >= real.declared) ok(`withData = ${real.withData} países en el fichero, ${real.declared} con puntuación`);
+    else bad(`withData = ${real.withData} es menor que los ${real.declared} con puntuación`);
+    if (real.onGlobe > 0 && real.onGlobe <= real.declared) ok(`onGlobe = ${real.onGlobe} (los que además tienen coordenadas)`);
+    else bad(`onGlobe = ${real.onGlobe} fuera de rango`);
+    if (real.indicators > 0 && real.sources > 0) ok(`${real.indicators} indicadores de ${real.sources} catálogos, datos de ${real.dataYear}`);
+    else bad('la cobertura no declara indicadores ni catálogos');
+    if (real.sinDatos.length) ok(`territorios sin fuente oficial, marcados como tal: ${real.sinDatos.join(', ')}`);
   }
 
   // 2. Ninguna pagina ni el README muestran otra cifra.
@@ -93,7 +104,16 @@ function countryFiguresIn(file) {
     else bad(`${file}: cifras distintas de ${expected}: ${JSON.stringify(wrong)}`);
   }
 
-  // 3. La insignia de robustez no debe verse en pantalla.
+  // 3. El panel dice de cuándo son los datos.
+  const pie = await page.evaluate(() => {
+    const el = document.getElementById('datos-pie');
+    return el ? (el.textContent || '').trim() : null;
+  });
+  if (pie && /DATOS:\s*\d{2}\/\d{2}\/\d{4}/.test(pie)) ok(`la portada publica la fecha de los datos: «${pie}»`);
+  else if (pie) bad(`el pie de datos no trae fecha: «${pie}»`);
+  else bad('no existe el pie con la fecha de los datos (#datos-pie)');
+
+  // 4. La insignia de robustez no debe verse en pantalla.
   const badge = await page.evaluate(() => ({
     enDom: !!document.getElementById('aether-robust-topline'),
     enTexto: /robustez premium/i.test(document.body ? document.body.innerText : ''),

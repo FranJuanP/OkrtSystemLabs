@@ -26,7 +26,7 @@
        src/core/frame-buster.js.
      - Sin upgrade-insecure-requests: convertiria http://localhost:11434 en
        https y romperia la IA local. Los demas origenes ya son https. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' https://earthquake.usgs.gov https://eonet.gsfc.nasa.gov https://api.reliefweb.int https://api.gdeltproject.org https://api.worldbank.org http://localhost:11434 http://127.0.0.1:11434; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' https://earthquake.usgs.gov https://eonet.gsfc.nasa.gov https://www.who.int https://api.gdeltproject.org https://api.worldbank.org http://localhost:11434 http://127.0.0.1:11434; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <!-- T4: Permissions-Policy retirada. Solo es valida como cabecera HTTP;
      en <meta> el navegador la descarta por completo. -->
@@ -119,6 +119,7 @@
         <div class="source-item"><span id="srclbl-gdelt">GDELT Project</span><div class="source-status load" id="src-gdelt"></div></div>
         <div class="source-item"><span id="srclbl-relief">ReliefWeb OCHA</span><div class="source-status load" id="src-relief"></div></div>
         <div class="source-item"><span id="srclbl-nasa">NASA EONET Events</span><div class="source-status load" id="src-nasa"></div></div>
+        <div class="source-item"><span id="srclbl-who">OMS · Brotes (DON)</span><div class="source-status load" id="src-who"></div></div>
       </div>
 
       <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">

@@ -27,6 +27,8 @@ import earthDayUrl from '../../assets/img/earth-day.webp?url';
 import earthNightUrl from '../../assets/img/earth-night.webp?url';
 import earthCloudsUrl from '../../assets/img/earth-clouds.webp?url';
 import * as THREE from 'three';
+import { cargarDatos } from '../core/datos.js';
+import { construirPaisesGlobo, ISO_DE_ARCO } from './datos-globo.js';
 
 /* ── T16 · three.js r128 -> r186 ──────────────────────────────────────────
    Se sube a la version actual y se empaqueta en el repositorio, en vez de
@@ -43,225 +45,39 @@ import * as THREE from 'three';
      visible, y por tanto de John, no mia. */
 THREE.ColorManagement.enabled = false;
 
-const COUNTRIES = [
-  // ── EUROPA ──
-  { name:"Alemania",          lat:51.16, lng:10.45,   risk:"MEDIUM",   cat:"ENERGÍA INDUSTRIAL",  signal:"Reconfiguración de dependencia energética impactando cadena de suministro industrial. Recesión técnica activa." },
-  { name:"Francia",           lat:46.22, lng:2.21,    risk:"LOW",      cat:"TENSIÓN SOCIAL",      signal:"Ciclos de activación social predecibles. Reforma pensiones cataliza episodios periódicos. Monitor preventivo activo." },
-  { name:"Reino Unido",       lat:55.37, lng:-3.43,   risk:"LOW",      cat:"POLÍTICA",            signal:"Fragmentación post-Brexit en fase de estabilización. NHS bajo presión estructural. Sin catalizador inmediato." },
-  { name:"Italia",            lat:41.87, lng:12.56,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Deuda pública al 144% PIB. Prima de riesgo sensible a ciclos políticos. Coalición de gobierno frágil." },
-  { name:"España",            lat:40.41, lng:-3.70,   risk:"LOW",      cat:"POLÍTICA",            signal:"Gobierno de coalición bajo presión. Desempleo juvenil persistente. Tensión territorial Cataluña latente." },
-  { name:"Ucrania",           lat:48.37, lng:31.16,   risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"Línea de frente activa con desplazamientos diarios. Infraestructura energética bajo ataque sistemático." },
-  { name:"Rusia",             lat:61.52, lng:105.31,  risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"Economía de guerra activa. Aislamiento diplomático parcial. Amenaza nuclear como herramienta de disuasión táctica." },
-  { name:"Polonia",           lat:51.91, lng:19.14,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Flanco OTAN reforzado. Mayor presupuesto de defensa de la Alianza en % PIB. Corredor de suministro activo a Ucrania." },
-  { name:"Países Bajos",      lat:52.13, lng:5.29,    risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub logístico europeo con indicadores estables. Tensión por restricciones agrícolas en agenda política interna." },
-  { name:"Bélgica",           lat:50.50, lng:4.46,    risk:"LOW",      cat:"INSTITUCIONAL",       signal:"Dificultades de formación de gobierno crónicas. Sede OTAN y UE con dinámica de seguridad activa." },
-  { name:"Suecia",            lat:60.12, lng:18.64,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Ingreso reciente en OTAN reposiciona la seguridad regional báltica. Transición estratégica en curso." },
-  { name:"Noruega",           lat:60.47, lng:8.46,    risk:"LOW",      cat:"ENERGÍA",             signal:"Proveedor clave de gas para Europa post-Rusia. Fondo soberano en máximos históricos. Estabilidad sostenida." },
-  { name:"Finlandia",         lat:61.92, lng:25.74,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Frontera OTAN-Rusia de 1.340 km. Capacidades de defensa reforzadas. Sin incidentes activos registrados." },
-  { name:"Dinamarca",         lat:56.26, lng:9.50,    risk:"LOW",      cat:"ECONOMÍA",            signal:"Economía de alta competitividad. Participación activa en defensa OTAN. Indicadores estables." },
-  { name:"Suiza",             lat:46.81, lng:8.22,    risk:"LOW",      cat:"FINANZAS",            signal:"Centro financiero global bajo presión post-Credit Suisse. Neutralidad mantenida. Reservas sólidas." },
-  { name:"Austria",           lat:47.51, lng:14.55,   risk:"LOW",      cat:"POLÍTICA",            signal:"Ascenso de partidos de derecha en escenario político. Dependencia energética rusa en proceso de reducción." },
-  { name:"Portugal",          lat:39.39, lng:-8.22,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Crecimiento sostenido. Déficit bajo control. Riesgo climático costero creciente. Estabilidad política mantenida." },
-  { name:"Grecia",            lat:39.07, lng:21.82,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Deuda pública elevada en proceso de consolidación. Tensión migratoria en frontera. Diferendo marítimo con Turquía activo." },
-  { name:"Turquía",           lat:38.96, lng:35.24,   risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Pivote estratégico entre OTAN y Rusia. Inflación estructural descontrolada. Frontera sur en tensión migratoria." },
-  { name:"Rumanía",           lat:45.94, lng:24.96,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Flanco OTAN en Mar Negro. Acoge infraestructura aliada. Corrupción institucional en proceso de reforma." },
-  { name:"República Checa",   lat:49.81, lng:15.47,   risk:"LOW",      cat:"POLÍTICA",            signal:"Economía industrial integrada en cadena de suministro EU. Tensiones internas sobre migración y fondos europeos." },
-  { name:"Hungría",           lat:47.16, lng:19.50,   risk:"MEDIUM",   cat:"INSTITUCIONAL",       signal:"Tensiones con UE por estado de derecho. Posición ambigua sobre Rusia-Ucrania. Bloqueo de fondos europeos activo." },
-  { name:"Serbia",            lat:44.01, lng:21.00,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Candidata UE con relaciones activas con Rusia y China. Tensión con Kosovo sin resolución formal." },
-  { name:"Bielorrusia",       lat:53.70, lng:27.95,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen de Lukashenko dependiente de Moscú. Represión interna sistémica. Base logística para operaciones rusas." },
-  { name:"Moldavia",          lat:47.41, lng:28.36,   risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Transnistria como enclave ruso activo. Presión energética instrumentalizada por Moscú. Candidata UE en proceso." },
-  { name:"Bosnia-Herzegovina",lat:43.91, lng:17.67,   risk:"MEDIUM",   cat:"FRAGMENTACIÓN",       signal:"Entidades sin integración funcional. Narrativas secesionistas activas en Republika Srpska. Sin escalada inmediata." },
-  { name:"Albania",           lat:41.15, lng:20.17,   risk:"LOW",      cat:"POLÍTICA",            signal:"Candidata OTAN y UE con reformas en curso. Crimen organizado y corrupción como obstáculos estructurales." },
-  { name:"Bulgaria",          lat:42.73, lng:25.48,   risk:"LOW",      cat:"POLÍTICA",            signal:"Inestabilidad política con múltiples elecciones recientes. Proceso anticorrupción activo. Economía estable." },
-  { name:"Eslovaquia",        lat:48.66, lng:19.69,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Gobierno con posición crítica hacia apoyo a Ucrania. Tensión con aliados OTAN. Economía vinculada a cadena EU." },
-  { name:"Croacia",           lat:45.10, lng:15.20,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Miembro reciente de zona euro. Turismo como motor. Estabilidad política mantenida con tensiones regionales residuales." },
-  { name:"Eslovenia",         lat:46.15, lng:14.99,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Economía pequeña de alto rendimiento. Estabilidad política consolidada. Integración europea completa." },
-  { name:"Lituania",          lat:55.16, lng:23.88,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Flanco OTAN activo. Posición firme sobre Rusia. Corredor Suwalki como punto de atención estratégica regional." },
-  { name:"Letonia",           lat:56.87, lng:24.60,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Refuerzo de defensa en flanco OTAN báltico. Población rusófona como vector de desinformación potencial." },
-  { name:"Estonia",           lat:58.59, lng:25.01,   risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Mayor gasto de defensa per cápita de OTAN. Ciberdefensa líder global. Frontera con Rusia bajo vigilancia activa." },
-  { name:"Kosovo",            lat:42.60, lng:20.90,   risk:"MEDIUM",   cat:"TENSIÓN TERRITORIAL", signal:"Reconocimiento internacional incompleto. Tensión étnica Norte Kosovo activa. Serbia rechaza soberanía. Sin escalada crítica." },
-  { name:"Macedonia del Norte",lat:41.60, lng:21.74,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Miembro OTAN desde 2020. Candidata UE. Disputa histórica con Bulgaria como obstáculo de integración." },
-  { name:"Montenegro",        lat:42.70, lng:19.37,   risk:"LOW",      cat:"POLÍTICA",            signal:"Miembro OTAN con gobierno inestable. Influencia rusa y serbia activa. Proceso anticorrupción en curso." },
-  { name:"Irlanda",           lat:53.41, lng:-8.24,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub tech europeo con sólida inversión extranjera. Presión inmobiliaria y migratoria como tensiones internas." },
-  { name:"Luxemburgo",        lat:49.81, lng:6.12,    risk:"LOW",      cat:"FINANZAS",            signal:"Centro financiero europeo estable. Mayor PIB per cápita UE. Sin vectores de riesgo activos significativos." },
+/* T23 · Los paises salen de data/latest.json.
 
-  // ── EUROPA DEL ESTE / CAUCASO ──
-  { name:"Ucrania",           lat:48.37, lng:31.16,   risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"Línea de frente activa con desplazamientos diarios. Infraestructura energética bajo ataque sistemático." },
-  { name:"Armenia",           lat:40.06, lng:45.03,   risk:"HIGH",     cat:"CONFLICTO TERRITORIAL",signal:"Pérdida de Nagorno-Karabaj. Presión azerbaiyana en frontera. Alejamiento de Rusia como garante de seguridad." },
-  { name:"Azerbaiyán",        lat:40.14, lng:47.57,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Control total sobre Karabaj tras ofensiva 2023. Régimen autoritario con ingresos petroleros. Ambiciones territoriales." },
-  { name:"Georgia",           lat:42.31, lng:43.35,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"20% del territorio bajo control ruso (Osetia, Abjasia). Gobierno de orientación dual UE-Rusia bajo presión social." },
+   Aqui habia una tabla de 176 entradas escritas a mano con cuatro campos
+   inventados cada una: el nivel de riesgo (LOW/MEDIUM/HIGH/CRITICAL), la
+   categoria destacada, un texto de analisis y las coordenadas.
 
-  // ── ORIENTE MEDIO ──
-  { name:"Israel",            lat:31.04, lng:34.85,   risk:"CRITICAL", cat:"CONFLICTO ACTIVO",    signal:"Operaciones militares Gaza y Líbano simultáneas. Intercambio directo con Irán. Aislamiento diplomático creciente." },
-  { name:"Irán",              lat:32.42, lng:53.68,   risk:"HIGH",     cat:"NUCLEAR / PROXIES",   signal:"Enriquecimiento de uranio al 83.7%. Red de proxies activada en 5 países. Capacidad de represalia asimétrica confirmada." },
-  { name:"Arabia Saudí",      lat:23.88, lng:45.07,   risk:"MEDIUM",   cat:"ENERGÍA / OPEC",      signal:"Ajuste OPEC+ con señales anticipadas al mercado. Normalización con Israel suspendida. Acercamiento a China activo." },
-  { name:"Turquía",           lat:38.96, lng:35.24,   risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Pivote estratégico entre bloques. Inflación estructural. Zona de control en norte de Siria mantenida." },
-  { name:"Iraq",              lat:33.22, lng:43.68,   risk:"HIGH",     cat:"ESTABILIDAD ESTATAL", signal:"Gobierno débil. Milicias pro-iraníes con control territorial efectivo. Ataques a bases US-coalición frecuentes." },
-  { name:"Siria",             lat:34.80, lng:38.99,   risk:"HIGH",     cat:"FRAGMENTACIÓN",       signal:"Tres actores con control territorial sin integración. Reconstrucción bloqueada. Refugiados como vector de presión regional." },
-  { name:"Yemen",             lat:15.55, lng:48.51,   risk:"CRITICAL", cat:"CONFLICTO / HUMANIT.", signal:"Houthis controlan costa Red Sea. Ataques a navegación comercial con impacto en comercio global. Crisis humanitaria." },
-  { name:"Líbano",            lat:33.85, lng:35.86,   risk:"HIGH",     cat:"COLAPSO ESTATAL",     signal:"Estado fallido funcional. Hezbollah con capacidad militar superior al ejército. Bombardeos israelíes activos." },
-  { name:"Jordania",          lat:30.58, lng:36.23,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Presión migratoria palestina e iraquí extrema. Economía dependiente de ayuda exterior. Estabilidad política frágil." },
-  { name:"Palestina",         lat:31.90, lng:35.20,   risk:"CRITICAL", cat:"CONFLICTO ACTIVO",    signal:"Gaza bajo operación militar israelí. Colapso humanitario documentado. West Bank con violencia de colonos creciente." },
-  { name:"Kuwait",            lat:29.31, lng:47.48,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Estabilidad rentista basada en petróleo. Sin conflictos activos. Dependencia de seguridad US en la región." },
-  { name:"Qatar",             lat:25.35, lng:51.18,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub GNL global. Mediador regional activo. Relaciones duales con Irán y OTAN. Indicadores económicos sólidos." },
-  { name:"Emiratos Árabes",   lat:23.42, lng:53.84,   risk:"LOW",      cat:"ECONOMÍA",            signal:"Centro financiero y logístico global. Normalización con Israel (Acuerdos Abraham). Ambiciones regionales activas." },
-  { name:"Omán",              lat:21.51, lng:55.92,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Papel mediador regional reconocido. Transición post-Sultán consolidada. Diversificación económica en curso." },
-  { name:"Bahréin",           lat:26.00, lng:50.55,   risk:"MEDIUM",   cat:"ESTABILIDAD INTERNA", signal:"Minoría chií reprimida. Base naval US Quinta Flota. Tensión sectaria latente instrumentalizada por Irán." },
+   Lo peor no era que no tuvieran fuente, sino que el panel tenia SU PROPIA
+   tabla con sus propios numeros: el mismo pais podia salir MEDIUM en el
+   globo y ALTO en el panel, porque eran dos tablas distintas mantenidas por
+   separado. Ahora las dos leen el mismo fichero y calculan con el mismo
+   modulo, y tests/paridad.mjs lo comprueba pais a pais.
 
-  // ── ASIA CENTRAL ──
-  { name:"Kazajistán",        lat:48.01, lng:66.92,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Distanciamiento cauto de Rusia post-Ucrania. Recursos naturales como vector de influencia china. Reformas limitadas." },
-  { name:"Uzbekistán",        lat:41.37, lng:64.58,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Transición post-Karimov en curso. Reformas económicas activas. Dependencia de remesas de Rusia bajo presión." },
-  { name:"Turkmenistán",      lat:38.97, lng:59.56,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen hermético con recursos de gas masivos. Datos opados. Dependencia económica de China creciente." },
-  { name:"Tayikistán",        lat:38.86, lng:71.27,   risk:"HIGH",     cat:"ESTABILIDAD",         signal:"País más pobre ex-URSS. Tensión fronteriza con Kirguistán. Reclutamiento extremista activo. Base rusa presente." },
-  { name:"Kirguistán",        lat:41.20, lng:74.76,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Inestabilidad política recurrente. Frontera con Tayikistán disputada. Dependencia de remesas rusas crítica." },
-  { name:"Afganistán",        lat:33.93, lng:67.71,   risk:"CRITICAL", cat:"COLAPSO ESTATAL",     signal:"Taliban consolida control total. Crisis humanitaria extrema. 40M personas en inseguridad alimentaria. Retiro total de ayuda." },
-
-  // ── ASIA DEL SUR ──
-  { name:"India",             lat:20.59, lng:78.96,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Hub emergente de capital y manufactura. Tensión fronteriza con China y Pakistán. Potencia regional en ascenso." },
-  { name:"Pakistán",          lat:30.37, lng:69.34,   risk:"HIGH",     cat:"ESTABILIDAD ESTATAL", signal:"Crisis institucional profunda. Militares como árbitro fáctico. Economía al límite. Tensión activa con Afganistán." },
-  { name:"Bangladesh",        lat:23.68, lng:90.35,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Cambio de gobierno tras protestas masivas 2024. Vulnerabilidad climática crítica. Sector textil como ancla económica." },
-  { name:"Nepal",             lat:28.39, lng:84.12,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Inestabilidad política crónica. Dependencia de India y China como competencia geopolítica activa." },
-  { name:"Sri Lanka",         lat:7.87,  lng:80.77,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Post-default en proceso de recuperación. Acuerdo FMI activo. Tensión étnica Tamil residual. Indicadores mejorando." },
-  { name:"Bután",             lat:27.51, lng:90.43,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Monarquía constitucional estable. Disputa fronteriza con China en proceso de negociación. Modelo único de desarrollo." },
-  { name:"Maldivas",          lat:3.20,  lng:73.22,   risk:"LOW",      cat:"CLIMA",               signal:"Existencia amenazada por subida del nivel del mar. Nuevo gobierno pro-China aleja a India. Turismo como ancla." },
-
-  // ── ASIA DEL ESTE ──
-  { name:"China",             lat:35.86, lng:104.19,  risk:"HIGH",     cat:"GEOPOLÍTICA",         signal:"Movimientos de flota en Mar del Sur. Presión sobre Taiwán sostenida. Desacoplamiento económico con Occidente en curso." },
-  { name:"Japón",             lat:36.20, lng:138.25,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Rearme histórico activo. Amenaza balística de RPDC persistente. Disputas marítimas con China frecuentes." },
-  { name:"Corea del Sur",     lat:35.90, lng:127.77,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Amenaza nuclear RPDC como presión permanente. Coordinación trilateral reforzada. Crisis política interna en 2024." },
-  { name:"Corea del Norte",   lat:40.33, lng:127.51,  risk:"CRITICAL", cat:"NUCLEAR / BALÍSTICO", signal:"Arsenal nuclear en expansión. Test de misiles frecuentes. Tropas desplegadas en Rusia. Sin canal diplomático." },
-  { name:"Mongolia",          lat:46.86, lng:103.84,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Enclavada entre Rusia y China. Dependencia de ambas potencias. Recursos mineros como vector de autonomía." },
-  { name:"Taiwán",            lat:23.69, lng:120.96,  risk:"HIGH",     cat:"TENSIÓN GEOPOLÍTICA", signal:"Punto de fricción China-EEUU más crítico del Indo-Pacífico. Incursiones militares chinas frecuentes en zona ADIZ." },
-
-  // ── SUDESTE ASIÁTICO ──
-  { name:"Vietnam",           lat:14.05, lng:108.27,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Disputa Mar del Sur con China activa. Crecimiento económico robusto. Beneficiario de deslocalización de China." },
-  { name:"Tailandia",         lat:15.87, lng:100.99,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Inestabilidad política recurrente. Poder militar influyente. Economía de turismo en recuperación post-COVID." },
-  { name:"Myanmar",           lat:21.91, lng:95.95,   risk:"HIGH",     cat:"CONFLICTO CIVIL",     signal:"Junta militar vs resistencia armada. 2M de desplazados internos. Tráfico de personas en zonas de control escasa." },
-  { name:"Filipinas",         lat:12.87, lng:121.77,  risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Disputas Mar del Sur con China escalando. Alianza reforzada con EEUU. Elecciones con tensión interna." },
-  { name:"Indonesia",         lat:-0.78, lng:113.92,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub manufacturero en expansión. Capital asiático en reubicación activa. Mayor democracia islámica estable." },
-  { name:"Malasia",           lat:4.21,  lng:101.97,  risk:"LOW",      cat:"POLÍTICA",            signal:"Coalición gubernamental compleja. Economía diversificada. Disputas Mar del Sur con China gestionadas diplomáticamente." },
-  { name:"Singapur",          lat:1.35,  lng:103.82,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Hub financiero y logístico de Asia estable. Transición de liderazgo política consolidada. Indicadores excelentes." },
-  { name:"Camboya",           lat:12.56, lng:104.99,  risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Régimen Hun Sen consolidado en su hijo. Influencia china dominante. Democracia formal sin competencia real." },
-  { name:"Laos",              lat:17.96, lng:102.49,  risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Trampa de deuda china. Infraestructura en concesión. Economía bajo presión severa. Emigración de jóvenes acelerada." },
-  { name:"Brunéi",            lat:4.53,  lng:114.72,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Sultanato rentista basado en hidrocarburos. Sin conflictos activos. Reservas en declive a largo plazo." },
-  { name:"Timor-Leste",       lat:-8.87, lng:125.72,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Joven democracia en consolidación. Dependencia del petróleo de Timor Sea. Instituciones en proceso de maduración." },
-
-  // ── OCEANÍA ──
-  { name:"Australia",         lat:-25.27,lng:133.77,  risk:"LOW",      cat:"GEOPOLÍTICA",         signal:"Tensiones con China gestionadas diplomáticamente. AUKUS activo. Liderazgo regional del Indo-Pacífico." },
-  { name:"Nueva Zelanda",     lat:-40.90,lng:172.68,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada. Preocupaciones por influencia china en región. Relaciones Five Eyes activas." },
-  { name:"Papua Nueva Guinea",lat:-6.31, lng:143.95,  risk:"MEDIUM",   cat:"ESTABILIDAD INTERNA", signal:"Violencia tribal persistente. Recursos naturales con tensión por reparto. Disputa de influencia EEUU-China-Australia." },
-  { name:"Fiyi",              lat:-17.71,lng:178.06,  risk:"LOW",      cat:"POLÍTICA",            signal:"Post-golpe de estado en proceso de normalización democrática. Vulnerabilidad climática creciente." },
-  { name:"Islas Salomón",     lat:-9.64, lng:160.15,  risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Acuerdo de seguridad con China generó alarma regional. EEUU y Australia respondieron con presencia reforzada." },
-  { name:"Vanuatu",           lat:-15.37,lng:166.96,  risk:"LOW",      cat:"CLIMA",               signal:"Alta vulnerabilidad a ciclones. Dependencia de ayuda exterior. Cambio climático como amenaza existencial." },
-
-  // ── ASIA DEL SUR: Pacifico ──
-  { name:"Samoa",             lat:-13.76,lng:-172.10, risk:"LOW",      cat:"CLIMA",               signal:"Vulnerabilidad climática crítica. Economía pequeña dependiente de remesas y turismo. Sin conflictos activos." },
-  { name:"Tonga",             lat:-21.17,lng:-175.20, risk:"LOW",      cat:"CLIMA",               signal:"Erupciones volcánicas y tsunamis como riesgo natural. Vulnerabilidad climática. Estabilidad política aceptable." },
-
-  // ── AFRICA DEL NORTE ──
-  { name:"Marruecos",         lat:31.79, lng:-7.09,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Disputa Sahara Occidental con Argelia. Tensión migratoria con Europa instrumentalizada. Normalización Israel activa." },
-  { name:"Argelia",           lat:28.03, lng:1.65,    risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Régimen sin apertura política real. Ingresos de gas redirigidos para estabilidad social. Relación tensa con Marruecos." },
-  { name:"Túnez",             lat:33.88, lng:9.53,    risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Retroceso democrático bajo Said. Economía en crisis. Punto de salida migratorio del Sahel hacia Europa." },
-  { name:"Libia",             lat:26.33, lng:17.22,   risk:"HIGH",     cat:"FRAGMENTACIÓN",       signal:"Dos gobiernos paralelos sin reunificación. Milicias tribales con control territorial. Flujo migratorio incontrolado." },
-  { name:"Egipto",            lat:26.82, lng:30.80,   risk:"MEDIUM",   cat:"ESTABILIDAD ESTATAL", signal:"Deuda externa en niveles críticos. FMI como soporte. Crisis Gaza impacta en turismo y Canal de Suez." },
-  { name:"Sudán",             lat:12.86, lng:30.21,   risk:"CRITICAL", cat:"CONFLICTO CIVIL",     signal:"Guerra civil entre SAF y RSF. Mayor crisis de desplazamiento global. 25M personas sin acceso a alimentos." },
-  { name:"Sudán del Sur",     lat:6.87,  lng:31.30,   risk:"CRITICAL", cat:"CONFLICTO / HUMANIT.",signal:"Estado fallido recurrente. Violencia étnica. Dependencia total de petróleo. Crisis humanitaria crónica permanente." },
-
-  // ── AFRICA OCCIDENTAL ──
-  { name:"Nigeria",           lat:9.08,  lng:8.67,    risk:"HIGH",     cat:"SEGURIDAD REGIONAL",  signal:"Boko Haram / ISWAP activos en noreste. Secesionismo Biafra residual. Inflación crítica. Presidente Tinubu bajo presión." },
-  { name:"Ghana",             lat:7.94,  lng:-1.02,   risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Default técnico 2022. Reestructuración deuda en curso. Referente democrático regional bajo presión fiscal." },
-  { name:"Senegal",           lat:14.49, lng:-14.45,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Transición política 2024 con tensión. Nuevos recursos de petróleo y gas como factor de cambio estructural." },
-  { name:"Mali",              lat:17.57, lng:-3.99,   risk:"CRITICAL", cat:"CONFLICTO / YIHADISMO",signal:"Junta militar. Expulsión de Francia y MINUSMA. Wagner activo. Yihadismo en expansión hacia sur. Sin perspectiva de estabilidad." },
-  { name:"Burkina Faso",      lat:12.36, lng:-1.56,   risk:"CRITICAL", cat:"CONFLICTO / YIHADISMO",signal:"Junta golpista. Wagner presente. Pérdida de 40% del territorio al control estatal. Crisis humanitaria acelerada." },
-  { name:"Níger",             lat:17.61, lng:8.08,    risk:"CRITICAL", cat:"CONFLICTO / GOLPE",   signal:"Golpe militar 2023. Expulsión de tropas francesas y US. Wagner desplegado. Corredor yihadista Sahel confirmado." },
-  { name:"Mauritania",        lat:21.00, lng:-10.94,  risk:"HIGH",     cat:"SEGURIDAD",           signal:"Frontera con Mali como zona de infiltración yihadista. Estabilidad relativa mantenida con esfuerzo militar." },
-  { name:"Guinea",            lat:11.00, lng:-10.94,  risk:"HIGH",     cat:"GOLPE MILITAR",       signal:"Junta militar post-golpe 2021. Recursos de bauxita bajo control. Sin transición democrática visible." },
-  { name:"Guinea-Bisáu",      lat:11.80, lng:-15.18,  risk:"HIGH",     cat:"ESTABILIDAD ESTATAL", signal:"Estado frágil con historial de golpes. Narcotráfico como economía paralela dominante. Instituciones débiles." },
-  { name:"Sierra Leona",      lat:8.46,  lng:-11.78,  risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Post-conflicto con instituciones frágiles. Intento de golpe reciente. Economía en recuperación lenta." },
-  { name:"Liberia",           lat:6.43,  lng:-9.43,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Post-guerra en proceso de reconstrucción institucional. Corrupción estructural. Dependencia de ayuda exterior." },
-  { name:"Costa de Marfil",   lat:7.54,  lng:-5.54,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Mayor economía de África Occidental relativa. Tensión post-electoral latente. Cacao como ancla económica." },
-  { name:"Togo",              lat:8.61,  lng:0.82,    risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Familia Gnassingbé en el poder décadas. Represión moderada. Corredor yihadista norteño en vigilancia." },
-  { name:"Benín",             lat:9.30,  lng:2.31,    risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Infiltración yihadista desde norte de Mali y Burkina aumentando. Turismo como sector emergente bajo amenaza." },
-  { name:"Cabo Verde",        lat:16.00, lng:-24.01,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia insular estable. Sin conflictos. Economía de turismo en crecimiento. Referente de gobernanza regional." },
-  { name:"Gambia",            lat:13.44, lng:-15.31,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Post-Jammeh en transición democrática. Instituciones débiles. Economía pequeña dependiente de turismo y remesas." },
-
-  // ── AFRICA CENTRAL ──
-  { name:"RDC",               lat:-4.03, lng:21.75,   risk:"CRITICAL", cat:"CONFLICTO ARMADO",    signal:"M23/Rwanda activos en este. 6M de desplazados. Recursos mineros financian múltiples actores armados. Sin resolución." },
-  { name:"República Centroafricana",lat:6.61,lng:20.93,risk:"CRITICAL",cat:"CONFLICTO / WAGNER",  signal:"Wagner controla rutas de diamantes y oro. Gobierno simbólico. Violencia civil estructural sin perspectiva de paz." },
-  { name:"Camerún",           lat:3.85,  lng:11.50,   risk:"HIGH",     cat:"CONFLICTO INTERNO",   signal:"Guerra Ambazonia anglófona activa. Boko Haram norte activo. Longevo régimen Biya sin sucesión visible." },
-  { name:"Chad",              lat:15.45, lng:18.73,   risk:"HIGH",     cat:"ESTABILIDAD",         signal:"Post-golpe 2021. Transición dirigida por hijo de Déby. Corredor de conflictos Sahel-Lago Chad. Refugiados sudaneses." },
-  { name:"Congo-Brazzaville", lat:-0.22, lng:15.82,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Sassou-Nguesso desde 1979. Petróleo agotándose. Sin oposición real. Tensión con RDC en río Congo." },
-  { name:"Gabón",             lat:-0.80, lng:11.60,   risk:"MEDIUM",   cat:"GOLPE MILITAR",       signal:"Golpe 2023 pone fin a familia Bongo. Junta en proceso de transición. Recursos petrolíferos como factor clave." },
-  { name:"Guinea Ecuatorial", lat:1.65,  lng:10.27,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Obiang entre los más longevos del mundo. Petróleo en declive. Sin apertura política ni civil." },
-  { name:"Burundi",           lat:-3.37, lng:29.91,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen represivo post-2015. Crisis humanitaria. Tensión con Rwanda. Sin mecanismos de rendición de cuentas." },
-  { name:"Ruanda",            lat:-1.94, lng:29.87,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Apoyo acusado a M23 en RDC. Crecimiento económico sólido bajo Kagame. Modelo de gobernanza cuestionado." },
-
-  // ── AFRICA ORIENTAL ──
-  { name:"Etiopía",           lat:9.14,  lng:40.48,   risk:"HIGH",     cat:"CONFLICTO / HUMANIT.",signal:"Tigray post-acuerdo frágil. Conflicto Amhara-Oromia activo. 20M personas en necesidad humanitaria." },
-  { name:"Somalia",           lat:5.15,  lng:46.19,   risk:"CRITICAL", cat:"ESTADO FALLIDO",      signal:"Al-Shabaab controla vastas áreas rurales. Gobierno central simbólico. Piratería marítima emergiendo de nuevo." },
-  { name:"Kenia",             lat:-0.02, lng:37.90,   risk:"MEDIUM",   cat:"POLÍTICA / ECONOMÍA", signal:"Protestas masivas 2024. Deuda elevada. Al-Shabaab cruzando frontera norte. Hub regional de estabilidad bajo presión." },
-  { name:"Tanzania",          lat:-6.37, lng:34.88,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Gobierno de partido único reforzado. Tensión con oposición. Zanzibar como vector de inestabilidad residual." },
-  { name:"Uganda",            lat:1.37,  lng:32.29,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Museveni entorpece sucesión. Leyes anti-LGBT extremas con impacto diplomático. LRA residual activa." },
-  { name:"Eritrea",           lat:15.17, lng:39.78,   risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen más hermético de Africa. Servicio militar indefinido. Apoyo a Tigray en conflicto etíope. Sin prensa libre." },
-  { name:"Yibuti",            lat:11.82, lng:42.59,   risk:"MEDIUM",   cat:"GEOPOLÍTICA",         signal:"Bases militares de EEUU, Francia, China y Japón simultáneas. Corredor marítimo crítico en crisis Yemen-Mar Rojo." },
-  { name:"Mozambique",        lat:-18.66,lng:35.53,   risk:"HIGH",     cat:"CONFLICTO YIHADISTA", signal:"ISIS-Mozambique activo en Cabo Delgado. Gas natural como recurso en disputa. Inversión internacional frenada." },
-  { name:"Madagascar",        lat:-18.77,lng:46.87,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Inestabilidad política recurrente. Crisis humanitaria sur por sequía. Recursos naturales explotados sin beneficio local." },
-  { name:"Comoras",           lat:-11.87,lng:43.87,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Golpes de estado frecuentes históricamente. Régimen Azali sin alternancia. Vulnerabilidad climática." },
-
-  // ── AFRICA AUSTRAL ──
-  { name:"Sudáfrica",         lat:-30.55,lng:22.93,   risk:"MEDIUM",   cat:"POLÍTICA / ECONOMÍA", signal:"Coalición de unidad nacional inestable. Apagones eléctricos estructurales. Crimen organizado e inequidad extrema." },
-  { name:"Zimbabwe",          lat:-19.01,lng:29.15,   risk:"HIGH",     cat:"ECONOMÍA",            signal:"Hiperinflación recurrente. Régimen post-Mugabe sin apertura real. Economía informal dominante." },
-  { name:"Zambia",            lat:-13.13,lng:27.84,   risk:"MEDIUM",   cat:"DEUDA SOBERANA",      signal:"Default 2020 en proceso de reestructuración. Cobre como ancla. Nuevo gobierno pro-reforma bajo presión." },
-  { name:"Angola",            lat:-11.20,lng:17.87,   risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Dependencia del petróleo en declive. Deuda china significativa. Reformas económicas en curso bajo MPLA." },
-  { name:"Namibia",           lat:-22.95,lng:18.49,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia funcional estable. Yacimientos de petróleo offshore como nuevo factor económico." },
-  { name:"Botsuana",          lat:-22.32,lng:24.68,   risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada. Diamantes como motor económico con diversificación en curso. Referente de gobernanza." },
-  { name:"Malaui",            lat:-13.25,lng:34.30,   risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Uno de los países más pobres del mundo. Crisis de divisas. Dependencia de tabaco. Cambio climático crítico." },
-  { name:"Tanzania",          lat:-6.37, lng:34.88,   risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Apertura democrática limitada. Hub turístico estable. Crecimiento económico sostenido sin apertura política." },
-  { name:"Eswatini",          lat:-26.52,lng:31.46,   risk:"MEDIUM",   cat:"AUTORITARISMO",       signal:"Última monarquía absoluta de Africa. Protestas prodemocráticas reprimidas. Sin perspectiva de cambio político." },
-  { name:"Lesoto",            lat:-29.61,lng:28.23,   risk:"MEDIUM",   cat:"ESTABILIDAD",         signal:"Dependencia total de Sudáfrica. Inestabilidad política recurrente. Agua como único recurso exportable." },
-
-  // ── AMERICAS DEL NORTE ──
-  { name:"EE.UU.",            lat:37.09, lng:-95.71,  risk:"MEDIUM",   cat:"POLÍTICA INTERNA",    signal:"Polarización política histórica. Deuda federal en máximos. Inflación controlada pero presiones estructurales activas." },
-  { name:"Canadá",            lat:56.13, lng:-106.35, risk:"LOW",      cat:"POLÍTICA",            signal:"Tensión comercial con EEUU bajo Trump. Crisis vivienda crítica. Economía resiliente con vulnerabilidades sectoriales." },
-  { name:"México",            lat:23.63, lng:-102.55, risk:"MEDIUM",   cat:"SEGURIDAD INTERNA",   signal:"Cartelización de seguridad pública acelerada. Presión US sobre migración y fentanilo. Reforma judicial cuestionada." },
-
-  // ── CARIBE ──
-  { name:"Cuba",              lat:21.52, lng:-77.78,  risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Crisis económica severa. Apagones masivos. Migración histórica. Régimen sin apertura. Sanciones US mantenidas." },
-  { name:"Haití",             lat:18.97, lng:-72.28,  risk:"CRITICAL", cat:"ESTADO FALLIDO",      signal:"Bandas controlan 85% de Puerto Príncipe. Sin gobierno funcional. Crisis humanitaria extrema. Misión Kenia desplegada." },
-  { name:"República Dominicana",lat:18.73,lng:-70.16, risk:"LOW",      cat:"ECONOMÍA",            signal:"Economía en crecimiento sostenido. Destino turístico clave. Tensión migratoria con Haití permanente." },
-  { name:"Jamaica",           lat:18.10, lng:-77.29,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Alta tasa de homicidios. Crimen organizado vinculado a EEUU. Economía de turismo resiliente." },
-  { name:"Trinidad y Tobago", lat:10.69, lng:-61.22,  risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Economía de hidrocarburos en declive. Crimen organizado creciente. Influencia venezolana en migración." },
-
-  // ── CENTROAMÉRICA ──
-  { name:"Guatemala",         lat:15.78, lng:-90.23,  risk:"HIGH",     cat:"SEGURIDAD",           signal:"Crimen organizado estructural. Nuevo gobierno Arévalo bajo presión del sistema. Migración masiva hacia EEUU." },
-  { name:"Honduras",          lat:15.19, lng:-86.24,  risk:"HIGH",     cat:"SEGURIDAD",           signal:"Pandillas con control territorial urbano. Economía frágil. Presidenta Xiomara Castro bajo presión institucional." },
-  { name:"El Salvador",       lat:13.79, lng:-88.89,  risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Bukele con plenos poderes. Bitcoin como experimento. Derechos civiles comprometidos. Modelo replicado con atención." },
-  { name:"Nicaragua",         lat:12.86, lng:-85.20,  risk:"HIGH",     cat:"AUTORITARISMO",       signal:"Régimen Ortega-Murillo consolidado. Oposición en el exilio. Relación con Rusia y China como alineamiento estratégico." },
-  { name:"Costa Rica",        lat:9.74,  lng:-83.75,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada sin ejército. Hub tech regional. Deuda pública en proceso de consolidación fiscal." },
-  { name:"Panamá",            lat:8.99,  lng:-79.52,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Canal como activo estratégico. Nuevo gobierno. Tensión migratoria Darién. Economía de servicios financieros activa." },
-  { name:"Belice",            lat:17.19, lng:-88.49,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Crimen organizado transfronterizo. Disputa territorial con Guatemala latente. Economía pequeña y vulnerable." },
-
-  // ── AMERICA DEL SUR ──
-  { name:"Colombia",          lat:4.57,  lng:-74.29,  risk:"HIGH",     cat:"CONFLICTO INTERNO",   signal:"Guerrillas residuales activas. Tráfico de drogas estructural. Paz total de Petro bajo presión. Migración venezolana." },
-  { name:"Venezuela",         lat:6.42,  lng:-66.58,  risk:"HIGH",     cat:"HUMANITARIA",         signal:"8M de emigrantes en éxodo sostenido. Economía petrolera en mínimos. Régimen Maduro sin perspectiva de cambio." },
-  { name:"Ecuador",           lat:-1.83, lng:-78.18,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Narco-violencia escalando históricamente. 2 presidentes asesinados/renunciados. Militarización de seguridad pública." },
-  { name:"Perú",              lat:-9.19, lng:-75.01,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Inestabilidad presidencial crónica. Conflictos mineros. Congreso paralizado. Economía macro estable pese al ruido." },
-  { name:"Bolivia",           lat:-16.29,lng:-63.58,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Tensión Arce vs Morales fracturando MAS. Recursos de litio como foco geopolítico. Intento de golpe en 2024." },
-  { name:"Brasil",            lat:-14.23,lng:-51.92,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Polarización Lula-Bolsonaro persistente. Deuda creciente. Amazonia como vector diplomático. Economía en crecimiento." },
-  { name:"Argentina",         lat:-38.41,lng:-63.61,  risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Experimento Milei de ajuste extremo activo. Inflación en descenso desde máximos. Acuerdo FMI en negociación." },
-  { name:"Chile",             lat:-35.67,lng:-71.54,  risk:"LOW",      cat:"POLÍTICA",            signal:"Proceso constitucional fallido dos veces. Economía sólida. Litio como activo estratégico. Crimen organizado creciente." },
-  { name:"Uruguay",           lat:-32.52,lng:-55.76,  risk:"LOW",      cat:"ESTABILIDAD",         signal:"Democracia consolidada y referente regional. Economía de servicios diversificada. Cambio político ordenado." },
-  { name:"Paraguay",          lat:-23.44,lng:-58.44,  risk:"MEDIUM",   cat:"POLÍTICA",            signal:"Colorado Party hegemónico. Reconocimiento de Taiwán como vector político. Economía agropecuaria dependiente." },
-  { name:"Guyana",            lat:4.86,  lng:-58.93,  risk:"LOW",      cat:"ECONOMÍA",            signal:"Boom petrolero Exxon convierte a Guyana en mayor PIB per cápita en crecimiento. Tensión con Venezuela por Essequibo." },
-  { name:"Surinam",           lat:3.92,  lng:-56.02,  risk:"MEDIUM",   cat:"ECONOMÍA",            signal:"Post-default con nuevo petróleo offshore como esperanza. Crimen organizado narco activo. Instituciones débiles." },
-  { name:"Belize",            lat:17.19, lng:-88.49,  risk:"MEDIUM",   cat:"SEGURIDAD",           signal:"Crimen organizado transfronterizo. Economía pequeña dependiente de turismo y remesas." },
-];
+   Igual que en el panel, el await es deliberado: el globo no empieza a
+   construir marcadores hasta que los datos estan. */
+const { lista: COUNTRIES, fuera: PAISES_FUERA } = await (async () => {
+  try {
+    const { datos, calculo } = await cargarDatos();
+    return construirPaisesGlobo(datos, calculo);
+  } catch (err) {
+    console.error('AETHER Globe: no se han podido cargar los datos:', err);
+    return { lista: [], fuera: [] };
+  }
+})();
 
 // ── Deduplicar por nombre
 const seen = new Set();
+/* T23: se deduplica por ISO3, no por nombre. Antes hacia falta porque la
+   tabla escrita a mano tenia paises repetidos (Macedonia y Mexico aparecian
+   dos veces); el fichero de datos no puede repetirlos, porque esta indexado
+   por ISO3, asi que esto es ya solo una red de seguridad. */
 const COUNTRIES_DEDUP = COUNTRIES.filter(c => {
-  if(seen.has(c.name)) return false;
-  seen.add(c.name); return true;
+  if(seen.has(c.iso)) return false;
+  seen.add(c.iso); return true;
 });
 
 // ── TENSION ARCS
@@ -408,7 +224,7 @@ function updateStats() {
     // T9: la cifra de referencia es la cobertura real del motor (201). El
     // globo dibuja hoy menos marcadores, asi que se dicen las dos: lo que
     // pinta y sobre cuantos. T23 unifica las dos tablas y esto se simplifica.
-    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} DE ${AETHER_COVERAGE.countries} PAÍSES · 16 CATEGORÍAS`;
+    `SEÑAL ACTIVA — ${COUNTRIES_DEDUP.length} DE ${AETHER_COVERAGE.countries} PAÍSES · ${AETHER_COVERAGE.categories} CATEGORÍAS`;
 }
 
 // ── RENDERER ──
@@ -611,8 +427,8 @@ const ARC_CFG_DEFAULT = { convoy:3, speedBase:0.22, speedJitter:0.10, pSize:0.00
 
 function buildArcs(){
   TENSION_ARCS.forEach((arc,idx)=>{
-    const from = COUNTRIES_DEDUP.find(c=>c.name===arc.a);
-    const to   = COUNTRIES_DEDUP.find(c=>c.name===arc.b);
+    const from = COUNTRIES_DEDUP.find(c=>c.iso===isoDeExtremo(arc.a));
+    const to   = COUNTRIES_DEDUP.find(c=>c.iso===isoDeExtremo(arc.b));
     if(!from||!to) return;
 
     const cfg = ARC_CFG[arc.type] || ARC_CFG_DEFAULT;
@@ -670,9 +486,17 @@ function deactivateAllArcs(){
   });
 }
 
-function activateArcsForCountry(name){
+/* T23 · Los arcos siguen nombrando a los paises como lo hacian ("Rusia",
+   "EE.UU."), porque es texto editorial y es lo que se muestra. Lo que ya no
+   se puede hacer es emparejarlos por ese nombre con la lista de paises: los
+   nombres vienen ahora del Banco Mundial y no coinciden ("Federacion de
+   Rusia"). El emparejamiento pasa por el ISO3. */
+function isoDeExtremo(nombre){ return ISO_DE_ARCO[nombre] || null; }
+function arcoToca(arc, iso){ return isoDeExtremo(arc.a)===iso || isoDeExtremo(arc.b)===iso; }
+
+function activateArcsForCountry(iso){
   deactivateAllArcs();
-  arcObjects.filter(ao=>ao.data.a===name||ao.data.b===name).forEach((ao,i)=>{
+  arcObjects.filter(ao=>arcoToca(ao.data, iso)).forEach((ao,i)=>{
     const t=setTimeout(()=>{
       ao.line.visible=true; ao.glow.visible=true;
       ao.animating=true; ao.progress=0;
@@ -707,7 +531,7 @@ function w2s(localPos){
 function drawReticle(dt){
   if(!reticle.active) return;
   // find screen pos of selected country
-  const c = COUNTRIES_DEDUP.find(x=>x.name===selectedCountry);
+  const c = COUNTRIES_DEDUP.find(x=>x.iso===selectedCountry);
   if(!c) return;
   const sc = w2s(ll2v(c.lat,c.lng,1.025));
   if(!sc){ reticle.alpha=Math.max(0,reticle.alpha-dt*3); }
@@ -825,7 +649,7 @@ function drawLabels(){
     const sc=w2s(pos); if(!sc) return;
     const a=Math.min(1,(sc.f-.1)/.35);
     const col=RISK_HEX[c.risk];
-    const isSel=c.name===selectedCountry;
+    const isSel=c.iso===selectedCountry;
     if(isSel){
       lctx.beginPath(); lctx.arc(sc.x,sc.y,9,0,Math.PI*2);
       lctx.strokeStyle=col; lctx.lineWidth=1; lctx.globalAlpha=a*.35; lctx.stroke();
@@ -850,7 +674,7 @@ function showPanel(c){
 }
 
 function showPanelBase(c){
-  selectedCountry=c.name;
+  selectedCountry=c.iso;
   // activate reticle
   reticle.active=true; reticle.scanT=0; reticle.alpha=0;
   reticle.lat=c.lat; reticle.lng=c.lng;
@@ -863,13 +687,13 @@ function showPanelBase(c){
   const lat=c.lat>0?c.lat.toFixed(2)+'°N':Math.abs(c.lat).toFixed(2)+'°S';
   const lng=c.lng>0?c.lng.toFixed(2)+'°E':Math.abs(c.lng).toFixed(2)+'°W';
   document.getElementById('pCoords').textContent=lat+'   '+lng;
-  const related=TENSION_ARCS.filter(a=>a.a===c.name||a.b===c.name);
+  const related=TENSION_ARCS.filter(a=>arcoToca(a, c.iso));
   const sec=document.getElementById('arcSection'), lst=document.getElementById('arcList');
   lst.replaceChildren(); activeArcIndex=-1;
   if(related.length>0){
     sec.hidden=false;
     related.forEach((arc,i)=>{
-      const other=arc.a===c.name?arc.b:arc.a;
+      const other=isoDeExtremo(arc.a)===c.iso?arc.b:arc.a;
       const row=document.createElement('div'); row.className='arc-row';
 
       const head=document.createElement('div');
@@ -909,7 +733,7 @@ function showPanelBase(c){
   // Desactivar modo global cuando se selecciona un país
   globalArcMode = false;
   document.querySelector('.arc-fbtn[data-type="GLOBAL"]')?.classList.remove('active');
-  activateArcsForCountry(c.name);
+  activateArcsForCountry(c.iso);
 }
 
 function closePanel(){
@@ -1368,14 +1192,16 @@ function renderDesktopHotspots(){
 
   const priorityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
   const labelMap = { CRITICAL: 'CRITICAL', HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' };
-  const preferredNames = ['Rusia', 'China', 'EE.UU.', 'Irán', 'Israel'];
+  /* T23: los cinco destacados se eligen por ISO3; antes era por nombre, y
+     el nombre lo pone ahora el Banco Mundial. */
+  const preferidos = ['RUS', 'CHN', 'USA', 'IRN', 'ISR'];
 
-  const byName = new Map(COUNTRIES.map(c => [c.name, c]));
-  let selected = preferredNames.map(n => byName.get(n)).filter(Boolean);
+  const porIso = new Map(COUNTRIES.map(c => [c.iso, c]));
+  let selected = preferidos.map(i => porIso.get(i)).filter(Boolean);
 
   if(selected.length < 5){
     const extras = COUNTRIES
-      .filter(c => !selected.some(s => s.name === c.name))
+      .filter(c => !selected.some(s => s.iso === c.iso))
       .sort((a,b) => {
         const ra = priorityOrder[a.risk] ?? 99;
         const rb = priorityOrder[b.risk] ?? 99;
@@ -1387,7 +1213,7 @@ function renderDesktopHotspots(){
   }
 
   list.innerHTML = selected.slice(0,5).map((c, idx) => `
-    <button class="dh-item" type="button" data-country="${c.name}" aria-label="Abrir detalle de ${c.name}">
+    <button class="dh-item" type="button" data-country="${c.iso}" aria-label="Abrir detalle de ${c.name}">
       <div class="dh-rank">${String(idx + 1).padStart(2,'0')}</div>
       <div class="dh-name">${c.name}</div>
       <div class="dh-risk">${labelMap[c.risk] || c.risk}</div>
@@ -1398,8 +1224,8 @@ function renderDesktopHotspots(){
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const countryName = btn.getAttribute('data-country');
-      const country = COUNTRIES_DEDUP.find(c => c.name === countryName) || COUNTRIES.find(c => c.name === countryName);
+      const iso = btn.getAttribute('data-country');
+      const country = COUNTRIES_DEDUP.find(c => c.iso === iso);
       if(country) showPanel(country);
     });
   });
@@ -1498,4 +1324,17 @@ onVisibilityChange((hidden) => {
   if (hidden) { stopRenderLoop(); return; }
   clock3.getDelta();
   startRenderLoop();
+});
+
+/* T23 · Asa de depuracion, igual que la del panel.
+
+   El globo ya no tiene tabla propia: sus paises salen de data/latest.json.
+   Las pruebas necesitan poder comprobar que son los mismos que los del panel
+   (tests/paridad.mjs), asi que se expone una referencia congelada y marcada
+   como tal. Ningun modulo la usa. */
+window.__AETHER_GLOBE__ = Object.freeze({
+  COUNTRIES: COUNTRIES_DEDUP,
+  PAISES_FUERA,
+  TENSION_ARCS,
+  ISO_DE_ARCO,
 });

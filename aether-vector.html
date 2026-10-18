@@ -67,7 +67,7 @@
         <div class="ctrl-title">// TIPO DE FLUJO</div>
         <button class="flow-btn active" data-flow="all">
           <div class="flow-dot" style="background:linear-gradient(135deg,#00FFC8,#60BFFF)"></div>
-          <span>TODOS LOS FLUJOS</span>
+          <span>FLUJOS ANUALES</span>
           <span class="flow-vol" id="vol-all">—</span>
         </button>
         <button class="flow-btn" data-flow="debt">
@@ -113,8 +113,8 @@
       <div class="ctrl-section">
         <div class="ctrl-title">// UMBRAL MÍNIMO (B USD)</div>
         <div class="threshold-wrap">
-          <div class="threshold-label"><span>Filtrar flujos menores a:</span><span id="thresh-val">50B</span></div>
-          <input type="range" min="0" max="500" step="10" value="50" id="threshold"
+          <div class="threshold-label"><span>Ocultar enlaces menores a:</span><span id="thresh-val">0B</span></div>
+          <input type="range" min="0" max="500" step="10" value="0" id="threshold"
            >
         </div>
       </div>
@@ -148,7 +148,13 @@
     <div class="leg-item"><div class="leg-dot" style="background:#A060FF"></div><span class="leg-text">REMESAS</span></div>
     <div class="leg-item"><div class="leg-dot" style="background:#60BFFF"></div><span class="leg-text">RESERVAS</span></div>
     <div class="leg-sep"></div>
-    <div class="leg-total">FUENTE: World Bank 2023 · FMI Balance of Payments · BIS Debt Statistics</div>
+    <!-- T25: la linea de fuentes estaba escrita a mano y nombraba al BIS,
+         que no se consultaba. Ahora la rellena el motor con el bloque que se
+         esta mostrando: si es un saldo o un flujo anual, de que periodo, de
+         quien, y si el bloque cuadra. -->
+    <div class="leg-total" id="vector-pie">CARGANDO DATOS…</div>
+    <!-- T22 -->
+    <a class="leg-text" href="metodologia.html" style="color:var(--cyan);text-decoration:none;margin-left:14px">METODOLOGÍA</a>
   </div>
 </div>
 
