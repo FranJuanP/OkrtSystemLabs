@@ -225,6 +225,74 @@ const TERCEROS = /earthquake\.usgs\.gov|eonet\.gsfc\.nasa\.gov|api\.reliefweb\.i
 
      Es lo único de lo que depende todo el panel, y un 404 aquí se vería como
      «SIN DATOS» en los 217 países sin un solo error de consola. */
+  /* El botón GLOBE del panel, pulsado de verdad.
+
+     Que las dos páginas carguen por separado no dice nada sobre el botón que
+     lleva de una a otra, y ese botón ya se quedó muerto una vez sin que
+     ninguna prueba se enterase: `syncAetherGlobeBridge()` lanzaba antes de
+     `window.open` y la pestaña no llegaba a abrirse. Aquí se pulsa y se
+     comprueba que el globo RENDERIZA, no solo que la URL cambió. */
+  console.log('\n--- el botón GLOBE abre el globo ---');
+  {
+    const ctxBoton = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctxBoton.newPage();
+    const d = diagnosticos(page);
+    try {
+      await page.goto(`${BASE}/index.html`, { waitUntil: 'load', timeout: 60000 });
+      await page.waitForTimeout(3000);
+      // El panel vive detrás de la portada; se entra como entra una persona.
+      await page.evaluate(() => document.querySelector('.nav-cta[data-launch-aether]')?.click());
+      await page.waitForTimeout(3000);
+
+      const boton = await page.$('[data-action="open-globe"]');
+      if (!boton) {
+        mal('el botón GLOBE no existe en el panel publicado');
+      } else {
+        const antes = ctxBoton.pages().length;
+        const urlAntes = page.url();
+        await boton.click();
+        // La pestaña nueva tarda en aparecer; si está bloqueada, navega aquí.
+        await page.waitForTimeout(9000);
+
+        const paginas = ctxBoton.pages();
+        const nueva = paginas.length > antes ? paginas[paginas.length - 1] : null;
+        const destino = nueva || (page.url() !== urlAntes ? page : null);
+
+        if (!destino) {
+          mal('el botón GLOBE no abre nada: ni pestaña nueva ni navegación');
+        } else {
+          const comoAbrio = nueva ? 'en una pestaña nueva' : 'en la misma pestaña';
+          if (!/aether-globe-v3\.html/.test(destino.url())) {
+            mal(`el botón GLOBE lleva a ${destino.url()}`);
+          } else {
+            await destino.waitForLoadState('load', { timeout: 60000 }).catch(() => {});
+            await destino.waitForTimeout(9000);
+            const pintado = await destino.evaluate(() => {
+              const cs = [...document.querySelectorAll('canvas')];
+              const webgl = cs.find((c) => {
+                try { return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; }
+              });
+              return { canvas: cs.length, webgl: !!webgl, w: webgl ? webgl.width : 0 };
+            });
+            if (pintado.canvas >= 2 && pintado.webgl && pintado.w > 100) {
+              ok(`el botón GLOBE abre el globo ${comoAbrio} y renderiza (${pintado.canvas} canvas, WebGL ${pintado.w}px)`);
+            } else {
+              mal(`el botón GLOBE abre el globo ${comoAbrio} pero NO renderiza (${JSON.stringify(pintado)})`);
+            }
+            const archivo = path.join(SALIDA, 'boton-globe.png');
+            await destino.screenshot({ path: archivo });
+          }
+        }
+      }
+      if (d.pageErrors.length) {
+        mal(`el panel da ${d.pageErrors.length} pageerror al abrir el globo · ${d.pageErrors.slice(0, 2).join(' | ')}`);
+      }
+    } catch (err) {
+      mal(`el botón GLOBE: ${err.message.split('\n')[0]}`);
+    }
+    await ctxBoton.close();
+  }
+
   console.log('\n--- data/latest.json ---');
   try {
     const r = await fetch(`${BASE}/data/latest.json`);

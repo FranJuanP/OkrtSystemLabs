@@ -60,10 +60,62 @@ window.syncAetherGlobeBridge = function(){
   safeSet('aether_horizon', ctx.horizon);
   return ctx;
 };
+/** La página del globo, con una marca de tiempo para no servir una copia. */
+function urlDelGlobo(){
+  return 'aether-globe-v3.html?ctx=' + Date.now();
+}
+
+/**
+ * Abre el globo. Pase lo que pase.
+ *
+ * Tenía dos formas de no hacer nada, las dos silenciosas:
+ *
+ * 1. `syncAetherGlobeBridge()` se llamaba SIN proteger. Si lanzaba —y puede:
+ *    lee `window.computeRegionProfile`, que vive en el motor del panel— la
+ *    excepción salía de aquí y `window.open` no llegaba a ejecutarse. El
+ *    botón quedaba muerto y la única pista era un error de consola que nadie
+ *    relaciona con el botón. Pasar el contexto es una MEJORA: que falle
+ *    justifica abrir el globo sin contexto, no no abrirlo.
+ *
+ * 2. Si el navegador bloquea la ventana emergente, `window.open` devuelve
+ *    `null` y no lanza nada. Ahí no había ni error de consola: el usuario
+ *    pulsaba y no ocurría absolutamente nada. Ahora se navega en la misma
+ *    pestaña, que es lo que la persona pidió.
+ */
 export function openAetherGlobe(){
-  window.syncAetherGlobeBridge();
-  const w = window.open('aether-globe-v3.html?ctx=' + Date.now(), '_blank', 'noopener');
-  if (w) { try { w.opener = null; } catch(e){} }
+  try {
+    window.syncAetherGlobeBridge();
+  } catch (err) {
+    console.error('[AETHER] el contexto para el globo no se pudo preparar; '
+      + 'se abre igualmente, sin él:', err);
+  }
+
+  /* Sin 'noopener' en las opciones, A PROPOSITO.
+
+     Con esa opcion `window.open` devuelve `null` SIEMPRE, por especificacion,
+     haya abierto la pestaña o no. Es decir: no hay forma de distinguir el
+     exito del bloqueo, y el primer intento de este arreglo acababa navegando
+     la pestaña actual ADEMAS de abrir la nueva, en todos los casos.
+
+     El aislamiento se consigue igual poniendo `opener` a null a continuacion,
+     que es lo que ya intentaba el codigo anterior —y que con 'noopener' nunca
+     llegaba a ejecutarse, porque `w` era null—. La pagina de destino es una
+     nuestra y del mismo origen, asi que no hay nada que aislar de un tercero. */
+  let w = null;
+  try {
+    w = window.open(urlDelGlobo(), '_blank');
+  } catch (err) {
+    console.error('[AETHER] window.open ha fallado:', err);
+  }
+
+  if (w) { try { w.opener = null; } catch(e){} return w; }
+
+  /* Emergente bloqueada. Antes el botón no hacía nada; ahora el globo se abre
+     en esta misma pestaña, que es peor que una pestaña nueva pero
+     incomparablemente mejor que nada. */
+  console.warn('[AETHER] ventana emergente bloqueada; el globo se abre en esta pestaña.');
+  window.location.href = urlDelGlobo();
+  return null;
 }
 function installBridgeHooks(){
   try { window.syncAetherGlobeBridge(); } catch(e){}

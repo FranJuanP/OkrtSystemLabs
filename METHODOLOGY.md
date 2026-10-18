@@ -578,6 +578,19 @@ La barra de cada fila sigue midiendo el **índice**, que es lo que mide: en un
 país elevado se ve corta a propósito, y la flecha explica por qué está donde
 está.
 
+El panel **HOTSPOTS PRIORITARIOS** del globo sigue la misma regla. Hasta ahora
+enseñaba cinco países fijos escritos a mano —Rusia, China, EE. UU., Irán e
+Israel—, elegidos por interés geopolítico y no por lo que midieran sus datos.
+El resultado se contradecía solo: un panel titulado «prioritarios» que mostraba
+a **China como BAJO**, que es cierto —está en el puesto 181 de 217— pero deja
+en evidencia que la lista no tenía nada que ver con el riesgo medido. Y lo
+etiquetaba en inglés, HIGH y LOW, mientras el resto de la aplicación dice ALTO
+y BAJO.
+
+Ahora salen los cinco primeros del mismo orden que el ranking, con las mismas
+etiquetas. Los datos ya venían de `latest.json`; lo escrito a mano era **quiénes
+aparecían**.
+
 ---
 
 ## 4. Confianza
