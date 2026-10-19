@@ -1,6 +1,6 @@
 {
  "esquema": 1,
- "generado": "2026-10-17T19:50:14.608Z",
+ "generado": "2026-10-19T10:56:09.627Z",
  "porDefecto": [
   "remesas",
   "ied",
@@ -369,7 +369,7 @@
    "publicado": null,
    "source": "Banco Mundial · WDI",
    "url": "https://data.worldbank.org/indicator/BX.TRF.PWKR.CD.DT",
-   "nota": "Flujo anual: transferencias personales recibidas en un año, no un saldo acumulado. Suma de 198 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "nota": "Flujo anual: transferencias personales recibidas en un año, no un saldo acumulado. Suma de 197 países con dato; el año puede variar de uno a otro y va en cada enlace.",
    "total": 990.6,
    "nodos": [
     {
@@ -525,7 +525,7 @@
     {
      "s": "TOTAL_remesas",
      "t": "RESTO_remesas",
-     "v": 542.9,
+     "v": 542.8,
      "type": "remit",
      "unit": "B USD",
      "year": "2025",
@@ -721,8 +721,8 @@
    "publicado": null,
    "source": "Banco Mundial · WDI",
    "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
-   "nota": "Flujo anual. Al sumar países se cuenta el comercio intermedio más de una vez, así que el total es mayor que el comercio mundial neto. Suma de 194 países con dato; el año puede variar de uno a otro y va en cada enlace.",
-   "total": 33570,
+   "nota": "Flujo anual. Al sumar países se cuenta el comercio intermedio más de una vez, así que el total es mayor que el comercio mundial neto. Suma de 193 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "total": 33569.6,
    "nodos": [
     {
      "id": "TOTAL_exportaciones",
@@ -877,13 +877,13 @@
     {
      "s": "TOTAL_exportaciones",
      "t": "RESTO_exportaciones",
-     "v": 18695.1,
+     "v": 18694.7,
      "type": "trade",
      "unit": "B USD",
      "year": "2025",
      "source": "Banco Mundial · WDI",
      "url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.CD",
-     "detail": "Diferencia entre el total de la fuente (33570 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+     "detail": "Diferencia entre el total de la fuente (33569.6 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
     }
    ]
   },
@@ -897,8 +897,8 @@
    "publicado": null,
    "source": "Banco Mundial · WDI",
    "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
-   "nota": "Saldo, oro incluido. No es lo mismo que COFER: aquí se reparte por país tenedor y allí por moneda. Suma de 181 países con dato; el año puede variar de uno a otro y va en cada enlace.",
-   "total": 17874.4,
+   "nota": "Saldo, oro incluido. No es lo mismo que COFER: aquí se reparte por país tenedor y allí por moneda. Suma de 180 países con dato; el año puede variar de uno a otro y va en cada enlace.",
+   "total": 17866.7,
    "nodos": [
     {
      "id": "TOTAL_reservas_pais",
@@ -1053,13 +1053,13 @@
     {
      "s": "TOTAL_reservas_pais",
      "t": "RESTO_reservas_pais",
-     "v": 7907.3,
+     "v": 7899.6,
      "type": "reserves",
      "unit": "B USD",
      "year": "2025",
      "source": "Banco Mundial · WDI",
      "url": "https://data.worldbank.org/indicator/FI.RES.TOTL.CD",
-     "detail": "Diferencia entre el total de la fuente (17874.4 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
+     "detail": "Diferencia entre el total de la fuente (17866.7 B USD) y los 8 que se muestran. No es una estimación: sale por resta."
     }
    ]
   }
@@ -1084,8 +1084,8 @@
   {
    "bloque": "remesas",
    "total": 990.6,
-   "suma_enlaces": 990.7,
-   "residuo": 0.1,
+   "suma_enlaces": 990.6,
+   "residuo": 0,
    "tolerancia": 0.5,
    "ok": true
   },
@@ -1099,16 +1099,16 @@
   },
   {
    "bloque": "exportaciones",
-   "total": 33570,
-   "suma_enlaces": 33570.1,
+   "total": 33569.6,
+   "suma_enlaces": 33569.7,
    "residuo": 0.1,
    "tolerancia": 0.5,
    "ok": true
   },
   {
    "bloque": "reservas_pais",
-   "total": 17874.4,
-   "suma_enlaces": 17874.4,
+   "total": 17866.7,
+   "suma_enlaces": 17866.7,
    "residuo": 0,
    "tolerancia": 0.5,
    "ok": true
