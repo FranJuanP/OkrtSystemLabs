@@ -177,20 +177,20 @@
   <h2 class="section-title">Inteligencia que lo<br><em>impregna todo</em></h2>
   <div class="what-grid">
     <div class="what-text">
-      <p><strong>AETHER</strong> es un sistema de inteligencia de riesgos globales que corre completamente en local, sin servidor, sin base de datos, sin dependencias de backend. Un único archivo HTML con todo el motor analítico embebido — e instalable como <strong>PWA</strong> en cualquier dispositivo móvil con soporte offline completo.</p>
-      <p>El algoritmo de <strong>cinco capas</strong> combina scores base calibrados con 15+ organismos internacionales, vectores de velocidad por categoría, una matriz de correlación 16×16, propagación de shocks en cascada con lag y decaimiento configurables, y <strong>400 simulaciones Monte Carlo</strong> que generan bandas de confianza p10/p50/p90. Cada shock se propaga generando impactos de segundo y tercer orden. El <strong>Shock Simulator</strong> permite introducir perturbaciones manuales o usar 8 escenarios predefinidos — Pandemia, Recesión Global, Guerra Regional, Colapso Climático y más.</p>
-      <p>La visualización es <strong>dual</strong>: mapa coroplético clásico D3.js y <strong>globo 3D interactivo Three.js</strong> con 92 arcos geopolíticos en 5 tipos — alianzas, tensiones, flujos comerciales, rutas energéticas y migraciones masivas. Completamente responsivo con soporte táctil, con puente en tiempo real entre ambas vistas. Las <strong>Señales de Alerta</strong> monitorizan 64 fuentes oficiales — OMS, FAO, ACLED, GDELT, SIPRI, NOAA, IMF — ponderadas dinámicamente por el score activo de cada categoría.</p>
+      <p><strong>AETHER</strong> es un sistema de inteligencia de riesgos globales que corre completamente en local, sin servidor, sin base de datos, sin dependencias de backend. Páginas estáticas con todo el motor analítico en el navegador, instalables como <strong>PWA</strong> en cualquier dispositivo móvil con soporte offline completo.</p>
+      <p>El motor de <strong>cinco capas</strong> parte de <strong>63 indicadores oficiales de 8 catálogos</strong> (Banco Mundial, INFORM Risk del JRC, UCDP, ND-GAIN, FMI y Tesoro de EEUU) convertidos en percentiles de riesgo; les suma la tendencia medida en sus dos últimos años publicados, una correlación entre categorías medida en los 217 países, una cascada de shocks con retardo y decaimiento, y <strong>400 simulaciones Monte Carlo</strong> que generan bandas de confianza p10/p50/p90. El <strong>Shock Simulator</strong> aplica perturbaciones manuales o 8 escenarios predefinidos (Pandemia, Recesión global, Guerra regional, Colapso climático y más) y las propaga a las categorías que dependen de ellas. La cascada es un modelo ilustrativo: sus pesos son supuestos explícitos, no estimaciones.</p>
+      <p>El <strong>globo 3D Three.js</strong> muestra el riesgo de cada país, 92 arcos geopolíticos en 6 tipos (conflicto, tensión, sanción, energía, alianza y proxy) que aparecen cuando se piden, y los <strong>eventos de las últimas 72 horas</strong> de USGS, NASA EONET, OMS y GDACS, cada uno con su país. <strong>Signal</strong> reúne esos eventos en un feed junto con GDELT. Las señales del panel son temas de vigilancia por categoría, cada uno enlazado a su fuente institucional. Completamente responsivo, con soporte táctil.</p>
       <p>La IA no es un chatbot genérico. Es <strong>Mistral corriendo en tu máquina</strong>, con contexto completo de la región activa, generando predicciones estructuradas, escenarios Optimista/Base/Pesimista y análisis sin enviar datos a ningún servidor externo. Once módulos interactivos, 217 países, 16 dimensiones de riesgo.</p>
       <div class="what-tags">
         <span class="tag">Ollama / Mistral</span>
-        <span class="tag">D3.js · TopoJSON</span>
+        <span class="tag">D3 · Red de correlaciones</span>
         <span class="tag">Three.js · Globo 3D</span>
         <span class="tag">92 Arcos Geopolíticos</span>
         <span class="tag">Monte Carlo · 400 sim</span>
         <span class="tag">Cascada Temporal</span>
         <span class="tag">Shock Simulator</span>
-        <span class="tag">World Bank API</span>
-        <span class="tag">64 Fuentes de Alerta</span>
+        <span class="tag">8 catálogos oficiales</span>
+        <span class="tag">Eventos · 72 h</span>
         <span class="tag">PWA · Offline</span>
         <span class="tag">Mobile Responsive</span>
         <span class="tag">Zero Backend</span>
@@ -225,40 +225,40 @@
         <div class="layer-num-wrap"><div class="layer-num-inner">01</div></div>
         <div class="layer-body">
           <div class="layer-title">Score <span>Base</span></div>
-          <div class="layer-desc">Datos históricos calibrados con World Bank, Freedom House, Fragile States Index, GHS Index y 15+ organismos internacionales. Actualizable en tiempo real vía World Bank API.</div>
-          <div class="layer-formula">score_base = f(HDI, FSI, Freedom, SIPRI, GHS, WB_indicators)</div>
+          <div class="layer-desc">63 indicadores de 8 catálogos oficiales: Banco Mundial (WDI, WGI y UHC), INFORM Risk del JRC, UCDP, ND-GAIN, FMI COFER y Tesoro de EEUU TIC. Cada indicador se convierte en el percentil de riesgo del país entre 217; la categoría es su media y el índice mezcla el conjunto con los tres dominios peores. Se descargan y validan cada semana.</div>
+          <div class="layer-formula">categoría = media(percentil de riesgo) &nbsp;|&nbsp; índice = ½·media + ½·media(3 peores)</div>
         </div>
       </div>
       <div class="layer">
         <div class="layer-num-wrap"><div class="layer-num-inner">02</div></div>
         <div class="layer-body">
           <div class="layer-title">Vector de <span>Velocidad</span></div>
-          <div class="layer-desc">Cada categoría por país tiene un vector de tendencia — no solo el estado actual sino la dirección y magnitud del cambio. Un país con score 45 subiendo a +0.8/semana es más peligroso que uno con 65 estable.</div>
-          <div class="layer-formula">score_vel = base + (base × velocity × 0.28)</div>
+          <div class="layer-desc">La tendencia de cada categoría sale de sus propios indicadores: cuántos puntos de riesgo ha ganado o perdido el país por año entre sus dos últimos datos publicados. Un país con 45 que sube 5 puntos al año preocupa más que uno con 65 estable.</div>
+          <div class="layer-formula">ritmo = mediana[(pct(v₁) − pct(v₀)) / (año₁ − año₀)], en puntos por año</div>
         </div>
       </div>
       <div class="layer">
         <div class="layer-num-wrap"><div class="layer-num-inner">03</div></div>
         <div class="layer-body">
           <div class="layer-title">Boost de <span>Correlación</span></div>
-          <div class="layer-desc">Matriz de correlación 16×16. Cuando categorías fuertemente correladas están simultáneamente en zona de riesgo, el score se amplifica. Economía + Finanzas elevadas = más peligroso que cada una por separado.</div>
-          <div class="layer-formula">score += Σ(CORR[i][j] × score_j × weight) if score_j > threshold</div>
+          <div class="layer-desc">Matriz 16×16 medida: la correlación entre las puntuaciones de cada par de categorías en los 217 países. Cuando dos categorías que suelen ir juntas están las dos en zona de riesgo, la tarjeta añade un ajuste que se muestra aparte de la base. Indica qué riesgos coinciden, no que uno cause el otro.</div>
+          <div class="layer-formula">ajuste = Σ (r<sub>ij</sub> − 0,5) × (score<sub>j</sub> − 50) × 0,06 &nbsp; si r<sub>ij</sub> ≥ 0,5</div>
         </div>
       </div>
       <div class="layer">
         <div class="layer-num-wrap"><div class="layer-num-inner">04</div></div>
         <div class="layer-body">
           <div class="layer-title">Propagación en <span>Cascada</span></div>
-          <div class="layer-desc">Cada par de categorías tiene {strength, lag (semanas), decay}. Un shock climático tarda 4 semanas en impactar la seguridad alimentaria con 80% de intensidad, atenuándose 5%/semana. La cascada genera impactos de segundo y tercer orden.</div>
-          <div class="layer-formula">shock[t+lag] = magnitude × strength × (1 − resilience×0.4) × (1−decay)^t</div>
+          <div class="layer-desc">Cada par de categorías tiene fuerza, retardo en semanas y fracción que se pierde por semana. Un shock climático llega a la seguridad alimentaria a las 4 semanas con el 80 % de su intensidad y pierde un 5 % cada semana. Al llegar genera impactos de segundo y tercer orden. La matriz es un supuesto explícito, no una estimación.</div>
+          <div class="layer-formula">shock(t) = Δ × fuerza × (1 − 0,6·R) × (1 − 0,4·R) × (1 − d)<sup>t − retardo</sup></div>
         </div>
       </div>
       <div class="layer">
         <div class="layer-num-wrap"><div class="layer-num-inner">05</div></div>
         <div class="layer-body">
           <div class="layer-title">Monte Carlo &amp; <span>Resiliencia</span></div>
-          <div class="layer-desc">400 simulaciones con ruido gaussiano (Box-Muller) generan bandas de confianza p10/p25/p50/p75/p90. El Resilience Index modela la capacidad de amortiguación — países con alta ciencia, buena gobernanza y diversificación energética absorben mejor los shocks.</div>
-          <div class="layer-formula">P(score_T ∈ [p10,p90]) = 0.80 &nbsp;|&nbsp; resilience = Σ(cat_strength_inv × weight)</div>
+          <div class="layer-desc">400 simulaciones con semilla y ruido gaussiano: el estado inicial varía según la confianza de cada dato (más ancho si hay pocos indicadores o son antiguos) y la tendencia según su dispersión. Salen bandas p10/p25/p50/p75/p90. La resiliencia del país, una media ponderada de sus puntuaciones, amortigua los shocks.</div>
+          <div class="layer-formula">σ<sub>estado</sub> = 3 · 7 · 12 · 15 según confianza &nbsp;|&nbsp; R = Σ (1 − score/100) × peso</div>
         </div>
       </div>
     </div>
@@ -272,15 +272,15 @@
   <div class="section-label">03 — Módulos</div>
   <h2 class="section-title">Once módulos<br><em>interactivos</em></h2>
   <div class="feat-grid">
-    <div class="feat-card"><span class="feat-num">01</span><span class="feat-icon">🌍</span><div class="feat-title">Mapa Mundial</div><div class="feat-desc">Coropletas en 7 niveles de riesgo sobre proyección Natural Earth D3.js. Pulso animado en países críticos. Tooltip con top 4 categorías. Click para cargar cualquier país en el dashboard.</div><div class="feat-tag">D3.js · TopoJSON · 217 países</div></div>
+    <div class="feat-card"><span class="feat-num">01</span><span class="feat-icon">🌍</span><div class="feat-title">Eventos por País</div><div class="feat-desc">Lo ocurrido en las últimas 72 horas en el país elegido, junto a su puntuación: sismos, volcanes, incendios, tormentas, brotes y alertas de desastre, con fuente y enlace.</div><div class="feat-tag">USGS · EONET · OMS · GDACS</div></div>
     <div class="feat-card"><span class="feat-num">02</span><span class="feat-icon">⚡</span><div class="feat-title">Shock Simulator</div><div class="feat-desc">Introduce shocks manuales en cualquier categoría y observa la propagación en cascada. 8 escenarios predefinidos: Pandemia, Recesión global, Guerra regional, Colapso climático...</div><div class="feat-tag">Cascada · Baseline vs Shock</div></div>
     <div class="feat-card"><span class="feat-num">03</span><span class="feat-icon">📈</span><div class="feat-title">Proyección Temporal</div><div class="feat-desc">Gráfica Canvas con bandas de confianza Monte Carlo p10/p50/p90. Trayectoria base y top 4 categorías. Horizonte configurable a 6, 12 o 24 meses con simulación dinámica.</div><div class="feat-tag">Monte Carlo · 400 simulaciones</div></div>
     <div class="feat-card"><span class="feat-num">04</span><span class="feat-icon">🕸️</span><div class="feat-title">Red de Correlaciones</div><div class="feat-desc">Diagrama force-directed D3 con 16 nodos arrastrables. Al hover, se iluminan las conexiones del nodo y se atenúan las demás. Panel con top 5 correlaciones activas y cadenas de riesgo.</div><div class="feat-tag">D3 Force · Arrastrable</div></div>
     <div class="feat-card"><span class="feat-num">05</span><span class="feat-icon">🤖</span><div class="feat-title">IA Local — Ollama</div><div class="feat-desc">Mistral 7B corriendo en tu máquina. Predicciones estructuradas, escenarios Optimista/Base/Pesimista y chat libre con contexto completo de la región activa. Sin APIs externas. Sin costes.</div><div class="feat-tag">Ollama · Mistral · Zero Cloud</div></div>
-    <div class="feat-card"><span class="feat-num">06</span><span class="feat-icon">🌡️</span><div class="feat-title">Termómetro Live</div><div class="feat-desc">Top 8 categorías de mayor riesgo mostradas como tubos de temperatura animados. Actualización automática cada 30 segundos con fluctuación calibrada por vectores de velocidad.</div><div class="feat-tag">Live · 30s refresh</div></div>
+    <div class="feat-card"><span class="feat-num">06</span><span class="feat-icon">🌡️</span><div class="feat-title">Termómetro de Riesgo</div><div class="feat-desc">Top 8 categorías de mayor riesgo como tubos de temperatura. Muestran la estimación de los datos y solo cambian cuando llega un dato nuevo: sin fluctuación simulada.</div><div class="feat-tag">Datos medidos</div></div>
     <div class="feat-card"><span class="feat-num">07</span><span class="feat-icon">🏆</span><div class="feat-title">Ranking Mundial</div><div class="feat-desc">Todos los países ordenados con 4 filtros: región geográfica, categoría, Top N y orden. Scroll interno independiente. Click en fila para cargar el país en el dashboard completo.</div><div class="feat-tag">Filtros · Regiones · Top N</div></div>
-    <div class="feat-card"><span class="feat-num">08</span><span class="feat-icon">📰</span><div class="feat-title">Señales de Alerta</div><div class="feat-desc">Feed de eventos con 64 fuentes oficiales enlazadas: OMS, FAO, ACLED, GDELT, SIPRI, NOAA, IMF, IIF, NTI Bio. Ponderadas dinámicamente según el score activo de cada categoría.</div><div class="feat-tag">64 fuentes · Tiempo real</div></div>
-    <div class="feat-card"><span class="feat-num">09</span><span class="feat-icon">🌐</span><div class="feat-title">Globo 3D Interactivo</div><div class="feat-desc">Esfera Three.js con 92 arcos geopolíticos en 5 tipologías: conflictos, alianzas, sanciones, rutas comerciales y flujos migratorios. Filtros por tipo de relación, tooltips hover y bridge bidireccional con el dashboard vía localStorage.</div><div class="feat-tag">Three.js · 92 arcos · 5 tipologías</div></div>
+    <div class="feat-card"><span class="feat-num">08</span><span class="feat-icon">📰</span><div class="feat-title">Señales de Alerta</div><div class="feat-desc">Temas de vigilancia por categoría, cada uno enlazado a su fuente institucional (OMS, FAO, SIPRI, NOAA, FMI y otras), ordenados según la puntuación de la región activa. Los eventos en vivo están en Signal y en el globo.</div><div class="feat-tag">Fuentes enlazadas</div></div>
+    <div class="feat-card"><span class="feat-num">09</span><span class="feat-icon">🌐</span><div class="feat-title">Globo 3D Interactivo</div><div class="feat-desc">Esfera Three.js con textura NASA y el riesgo de cada país. 92 arcos geopolíticos en 6 tipos (conflicto, tensión, sanción, energía, alianza y proxy) que se muestran a demanda, y los eventos de 72 horas como rombos con su ficha.</div><div class="feat-tag">Three.js · 92 arcos · Eventos</div></div>
     <div class="feat-card"><span class="feat-num">10</span><span class="feat-icon">🧠</span><div class="feat-title">Brief · Explainabilidad · Watchlist</div><div class="feat-desc">Panel de contexto narrativo por región activa, barras de explainabilidad por categoría con contribución porcentual al score, y lista de seguimiento personalizable para monitorizar múltiples países en paralelo.</div><div class="feat-tag">Explainabilidad IA · Watchlist · Brief</div></div>
     <div class="feat-card"><span class="feat-num">11</span><span class="feat-icon">📱</span><div class="feat-title">PWA &amp; Mobile First</div><div class="feat-desc">Instalable como app nativa en iOS y Android vía Web App Manifest. Service Worker con caché offline, soporte completo táctil y diseño responsive adaptado a todos los tamaños de pantalla.</div><div class="feat-tag">PWA · Offline · iOS · Android</div></div>
   </div>
@@ -952,7 +952,7 @@ python -m http.server 8080</pre>
     <div class="ctitle">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" fill="var(--cyan)"/><circle cx="2" cy="4" r="1.5" fill="var(--cyan)" opacity=".7"/><circle cx="14" cy="4" r="1.5" fill="var(--cyan)" opacity=".7"/><circle cx="2" cy="12" r="1.5" fill="var(--cyan)" opacity=".7"/><circle cx="14" cy="12" r="1.5" fill="var(--cyan)" opacity=".7"/><path d="M2 4l6 4M14 4l-6 4M2 12l6-4M14 12l-6-4" stroke="var(--cyan)" stroke-width=".8" opacity=".5"/></svg>
       RED DE CORRELACIONES DE RIESGO
-      <span style="margin-left:6px;font-size:9px;color:var(--dim)">— pasa el ratón sobre un nodo para explorar —</span>
+      <span id="net-origen" style="margin-left:6px;font-size:9px;color:var(--dim)" title="Correlación de Pearson entre las puntuaciones de cada par de categorías en todos los países. Indica qué riesgos suelen ir juntos, no que uno cause el otro.">· medida entre países · pasa el ratón sobre un nodo</span>
       <div style="margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace">
           <div style="width:24px;height:2px;background:rgba(255,51,85,.08);border-radius:1px"></div>MUY ALTA (&gt;0.7)
