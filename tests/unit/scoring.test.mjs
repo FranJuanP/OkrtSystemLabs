@@ -530,3 +530,16 @@ describe('calcular', () => {
     expect(() => calcular({})).toThrow();
   });
 });
+
+describe('ritmoDeIndicador (puntos por año)', async () => {
+  const { ritmoDeIndicador } = await import('../../src/core/scoring.js');
+  const pct = (v) => v; // percentil = valor, para ver la aritmética
+  it('es la diferencia de percentil entre los dos años, por año', () => {
+    expect(ritmoDeIndicador({ value: 60, year: 2024, prev_value: 50, prev_year: 2022 }, 'mas_riesgo', pct)).toBe(5);
+  });
+  it('sin valor anterior, ambiguo o con más de diez años de hueco, no hay ritmo', () => {
+    expect(ritmoDeIndicador({ value: 60, year: 2024 }, 'mas_riesgo', pct)).toBeNull();
+    expect(ritmoDeIndicador({ value: 60, year: 2024, prev_value: 50, prev_year: 2022 }, 'ambiguo', pct)).toBeNull();
+    expect(ritmoDeIndicador({ value: 60, year: 2024, prev_value: 50, prev_year: 2010 }, 'mas_riesgo', pct)).toBeNull();
+  });
+});
