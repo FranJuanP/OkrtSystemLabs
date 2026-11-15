@@ -10,9 +10,9 @@
 [![Categories](https://img.shields.io/badge/risk_categories-16-FF3355?style=flat-square&labelColor=0D1B2E)]()
 [![Modules](https://img.shields.io/badge/modules-4-A259FF?style=flat-square&labelColor=0D1B2E)]()
 [![No Server](https://img.shields.io/badge/backend-none-00FF88?style=flat-square&labelColor=0D1B2E)]()
-[![AI](https://img.shields.io/badge/AI-Ollama%20%2F%20Mistral-FFD700?style=flat-square&labelColor=0D1B2E)]()
+[![AI](https://img.shields.io/badge/AI-Ollama%20%C2%B7%20clave%20propia-FFD700?style=flat-square&labelColor=0D1B2E)]()
 
-*Sistema de inteligencia predictiva de riesgos globales. 217 países. 16 categorías. Globo 3D interactivo. Feed de alertas en tiempo real. Análisis de flujos financieros globales. Todo en archivos HTML independientes, sin servidor, sin backend.*
+*Sistema público de inteligencia de riesgos globales. 217 países y 16 categorías calculados con 63 indicadores oficiales, globo 3D con eventos de las últimas 72 horas, feed de alertas y flujos financieros. Sin servidor y sin backend.*
 
 **[→ Ver en vivo](https://franjuanp.github.io/OkrtSystemLabs/)**
 
@@ -22,205 +22,204 @@
 
 ## ¿Qué es AETHER?
 
-AETHER es un ecosistema modular de inteligencia de riesgos globales que corre **completamente en local**, sin servidor, sin base de datos, sin dependencias de backend. Cuatro módulos HTML independientes que se abren desde el dashboard principal, cada uno especializado en una dimensión del análisis geopolítico y económico global.
+AETHER es un ecosistema modular de inteligencia de riesgos globales. Son páginas estáticas, servidas desde GitHub Pages e instalables como PWA, con todo el motor analítico en el navegador: sin servidor, sin base de datos y sin backend.
+
+Los datos se descargan de fuentes públicas con trabajos de GitHub Actions: los indicadores cada semana y los eventos cada media hora. Cada dato lleva su valor, año, fuente y enlace, y la metodología está publicada en [`METHODOLOGY.md`](METHODOLOGY.md) y en la página de metodología de la web.
 
 ---
 
 ## Arquitectura del ecosistema
 
 ```
-OkrtSystem Labs — AETHER v2.0
+OkrtSystem Labs · AETHER v2.0
 │
-├── index.html              — Dashboard principal (217 países · 16 categorías)
-├── aether-globe-v3.html    — Globo 3D interactivo con datos de riesgo
-├── aether-signal.html      — Feed de alertas en tiempo real
-└── aether-vector.html      — Análisis de flujos financieros globales
+├── index.html              Panel principal (217 países · 16 categorías)
+├── aether-globe-v3.html    Globo 3D con riesgo, arcos y eventos
+├── aether-signal.html      Feed de alertas y eventos
+├── aether-vector.html      Flujos financieros globales
+├── metodologia.html        Metodología y procedencia de los datos
+│
+├── data/latest.json        Indicadores (trabajo semanal, en el repositorio)
+├── data/events.json        Eventos, conflicto y mercados (cada despliegue)
+├── data/vector.json        Flujos de Vector
+│
+└── mcp/aether-mcp.mjs      Servidor MCP local para agentes
 ```
 
-Todos los módulos se abren desde los botones del **header del dashboard** (⬡ SIGNAL · ⬡ VECTOR · 🌐 GLOBE) sin necesidad de navegación adicional.
+Todos los módulos se abren desde la cabecera del panel (⬡ SIGNAL · ⬡ VECTOR · 🌐 GLOBE).
 
 ---
 
 ## Módulos
 
-### 🌍 Dashboard Principal — `index.html`
+### 🌍 Panel principal · `index.html`
 
-El núcleo analítico del sistema. Motor completo de inteligencia de riesgos con:
-
-- **217 países** con scoring en **16 categorías** de riesgo
-- **Motor de propagación en cascada** con simulación Monte Carlo (400 iteraciones)
-- **Shock Simulator** — 8 escenarios predefinidos + sliders manuales por categoría
-- **Mapa mundial D3.js** — coropletas en 7 niveles, filtrable por categoría, con arcos de tensión geopolítica
-- **Red de correlaciones** force-directed con 16 nodos arrastrables
-- **Proyección temporal** con bandas de confianza p10/p50/p90
-- **Termómetro Live** — top 8 categorías actualizadas cada 30 segundos
+- **217 países** con puntuación en **16 categorías** de riesgo, calculada con datos oficiales
+- **Eventos recientes por país**: lo ocurrido en las últimas 72 horas, el conflicto según GDELT y los mercados de predicción que preguntan por el país
+- **Shock Simulator**: 8 escenarios predefinidos o perturbaciones manuales que se propagan por la cascada
+- **Proyección temporal** con 400 simulaciones Monte Carlo y bandas p10/p50/p90
+- **Red de correlaciones** medida entre los 217 países, con cadenas de riesgo
+- **Termómetro de riesgo** con las 8 categorías más altas
 - **Ranking mundial** filtrable por región, categoría y orden
-- **Señales de alerta** con 64 fuentes oficiales enlazadas
-- **IA local** con Ollama/Mistral — predicciones, escenarios y chat contextual
+- **Capa operativa**: brief, explicabilidad por categoría y watchlist persistente
+- **Exportación** de los eventos de un territorio (CSV y GeoJSON) y de la watchlist (CSV)
+- **IA** con Ollama en local o con un proveedor y tu propia clave: predicciones, escenarios y chat con el contexto del país
 
 ---
 
-### 🌐 Globe 3D — `aether-globe-v3.html`
+### 🌐 Globo 3D · `aether-globe-v3.html`
 
-Globo terrestre interactivo de máxima fidelidad visual construido sobre **Three.js**:
+Construido sobre **Three.js**:
 
-- **Textura NASA Blue Marble** real — Day/Night blend con shader GLSL personalizado
-- **Ciclo día/noche en tiempo real** — el sol orbita el planeta con transición en el terminador
-- **Luces de ciudades reales** en la zona nocturna (NASA Earth at Night)
-- **Capa de nubes** animada con rotación independiente
-- **155+ países con marcadores** codificados por nivel de riesgo (CRITICAL / HIGH / MEDIUM / LOW)
-- **18 arcos de tensión geopolítica** animados con convoy de partículas
-- **Panel de análisis** al click — señal de inteligencia, arcos relacionados, coordenadas
-- **Retícula de targeting** animada al seleccionar un país
-- **5.000 estrellas** procedurales en el fondo
-- **Etiquetas de países** en canvas 2D sobreimpuestas con visibilidad por ángulo
+- **Textura NASA Blue Marble** con mezcla día/noche en un shader GLSL y luces de ciudades en la cara nocturna
+- **Capa de nubes** animada y 5.000 estrellas de fondo
+- **217 países** con marcadores por nivel de riesgo, los mismos números que el panel
+- **Eventos de las últimas 72 horas** como rombos, con color por tipo (sismo, volcán, incendio, tormenta, inundación, sequía, salud, conflicto) y tamaño por severidad. Al pulsar uno se abre su ficha con fuente, cifras y enlace
+- **92 arcos geopolíticos** en 6 tipos (conflicto, tensión, sanción, energía, alianza y proxy). Empiezan ocultos y se muestran con GLOBAL o con un tipo
+- **Panel del país**: puntuación, categoría dominante, eventos recientes, conflicto GDELT y tensiones relacionadas
 
-**Controles:** arrastrar para rotar · scroll para zoom · click en marcador para análisis
+**Controles:** arrastrar para rotar · scroll para zoom · pulsar un país o un evento para ver su detalle
 
 ---
 
-### ⬡ Signal — `aether-signal.html`
+### ⬡ Signal · `aether-signal.html`
 
-Feed de alertas globales en tiempo real conectado a **APIs públicas reales**:
+Feed de alertas con fuentes públicas reales:
 
-| Fuente | Contenido | Actualización |
-|--------|-----------|---------------|
-| **USGS** | Terremotos M4.5+ en los últimos 7 días | Tiempo real |
-| **NASA EONET** | Eventos naturales activos (incendios, volcanes, tormentas) | Diaria |
-| **ReliefWeb OCHA** | Alertas humanitarias de Naciones Unidas | Diaria |
-| **GDELT Project** | Eventos geopolíticos, conflictos y economía en noticias | Cada 15 min |
-| **WHO / OMS** | Alertas de salud global y brotes epidémicos | Curada |
+| Fuente | Contenido | Cómo llega |
+|--------|-----------|------------|
+| **USGS** | Terremotos M4,5+ de los últimos 7 días, con alerta PAGER | Navegador y proceso periódico |
+| **NASA EONET** | Eventos naturales activos (incendios, volcanes, tormentas) | Navegador y proceso periódico |
+| **OMS** | Brotes notificados (Disease Outbreak News) | Navegador y proceso periódico |
+| **GDELT** | Noticias de conflicto, geopolítica y economía | Navegador y proceso periódico |
+| **GDELT · eventos** | Sucesos violentos con el lugar donde ocurrieron | Proceso periódico |
+| **GDACS** | Alertas de desastre de la ONU y la Comisión Europea | Proceso periódico |
+| **NOAA SWPC** | Clima espacial: escalas G, S y R activas | Proceso periódico |
+| **ReliefWeb** | Pendiente: su API exige un `appname` aprobado | No se consulta |
 
-**Funcionalidades:**
-- Filtros por categoría: Conflicto · Geopolítica · Economía · Sismología · Clima · Humanitaria · Salud
-- Ordenación por recencia, severidad o categoría
-- Panel de detalle con análisis de impacto por evento
-- Ticker inferior con las últimas alertas en bucle continuo
-- Indicador de estado por fuente en tiempo real
-- Refresco automático cada 5 minutos
+**Funcionalidades:** filtros por categoría (incluida clima espacial), ordenación por recencia, severidad o categoría, ficha de detalle por evento, ticker, estado de cada fuente y refresco cada 5 minutos.
 
 ---
 
-### ⬡ Vector — `aether-vector.html`
+### ⬡ Vector · `aether-vector.html`
 
-Visualización **Sankey interactiva** de flujos financieros globales con datos reales 2022-23 (World Bank / IMF / BIS):
+Visualización **Sankey** de flujos financieros globales con datos de Banco Mundial, FMI y BIS:
 
-**5 tipos de flujo:**
-- 🔴 **Deuda soberana** — tenencias de bonos entre países y regiones
-- 🟡 **Comercio exterior** — flujos de exportación e importación
-- 🟢 **Inversión Directa (IED)** — capital productivo entre economías
-- 🟣 **Remesas** — transferencias de trabajadores emigrantes
-- 🔵 **Reservas de divisas** — acumulación y distribución de reservas
-
-**Funcionalidades:**
-- Filtros por tipo de flujo y región de origen
-- Umbral mínimo de volumen ajustable (slider)
-- Click en nodo → detalle de entradas/salidas con barras comparativas
-- Click en flujo → análisis del corredor financiero con contexto geopolítico
-- Top 6 flujos activos en panel lateral
-- Tooltips en hover con volumen y % del total global
+- 🔴 **Deuda soberana** · 🟡 **Comercio exterior** · 🟢 **Inversión directa** · 🟣 **Remesas** · 🔵 **Reservas de divisas**
+- Filtros por tipo de flujo y región, umbral de volumen, detalle por nodo y por corredor
 
 ---
 
-## Las 16 Categorías de Riesgo
+## Las 16 categorías de riesgo
 
-| # | Categoría | Descripción |
-|---|-----------|-------------|
-| 1 | 💰 **Económico** | PIB, inflación, desempleo, deuda |
-| 2 | 🌐 **Geopolítico** | Conflictos, alianzas, tensiones regionales |
-| 3 | 🏥 **Sanitario** | Esperanza de vida, cobertura, mortalidad |
-| 4 | 🌡️ **Climático** | Temperatura, eventos extremos, estrés hídrico |
-| 5 | 👥 **Cohesión Social** | Desigualdad, polarización, libertades |
-| 6 | 💻 **Tecnológico** | Ciberataques, brecha digital, innovación |
-| 7 | 🌽 **Seg. Alimentaria** | Autosuficiencia, importaciones, hambre |
-| 8 | 🧠 **Salud Mental** | Depresión, suicidio, recursos disponibles |
-| 9 | ⚡ **Energético** | Dependencia, mix renovable, reservas |
-| 10 | 📊 **Demográfico** | Natalidad, envejecimiento, migración |
-| 11 | 🏙️ **Urbano/Infra.** | Vivienda, transporte, saneamiento |
-| 12 | 🔬 **Ciencia/I+D** | Inversión, talento, patentes |
-| 13 | ⚖️ **Justicia/DDHH** | Estado de derecho, corrupción, libertades |
-| 14 | 💳 **Financiero** | Reservas, deuda, estabilidad monetaria |
-| 15 | 🌊 **Océanos/Marina** | Biodiversidad, acidificación, pesca |
-| 16 | 🦠 **Bioseguridad** | Preparación pandémica, vigilancia, GHS Index |
+| # | Categoría | | # | Categoría |
+|---|-----------|---|---|-----------|
+| 1 | 💰 Económico | | 9 | ⚡ Energético |
+| 2 | 🌐 Geopolítico | | 10 | 📊 Demográfico |
+| 3 | 🏥 Sanitario | | 11 | 🏙️ Urbano/Infra. |
+| 4 | 🌡️ Climático | | 12 | 🔬 Ciencia/I+D |
+| 5 | 👥 Cohesión social | | 13 | ⚖️ Justicia/DDHH |
+| 6 | 💻 Tecnológico | | 14 | 💳 Financiero |
+| 7 | 🌽 Seg. alimentaria | | 15 | 🌊 Océanos |
+| 8 | 🧠 Salud mental | | 16 | 🦠 Bioseguridad |
+
+Los indicadores de cada categoría, su fuente y su dirección de riesgo están en [`METHODOLOGY.md`](METHODOLOGY.md).
+
+---
+
+## Motor analítico: cinco capas
+
+1. **Score base.** Cada indicador se convierte en el percentil de riesgo del país entre 217. La categoría es la media de sus indicadores y el índice mezcla, a partes iguales, la media de las categorías y la de las tres peores.
+2. **Tendencia.** El ritmo de cada categoría, en puntos de riesgo por año, medido entre los dos últimos datos publicados de sus indicadores.
+3. **Correlación.** Matriz 16×16 medida entre los 217 países. Cuando dos categorías que suelen ir juntas están las dos altas, la tarjeta añade un ajuste que se muestra aparte de la base.
+4. **Cascada.** Los shocks se propagan entre categorías con fuerza, retardo y decaimiento, con impactos de segundo y tercer orden. **Es un modelo ilustrativo**: su matriz y los pesos de resiliencia son supuestos explícitos, no estimaciones.
+5. **Monte Carlo.** 400 simulaciones con semilla. El ruido del estado inicial depende de la confianza de cada dato y el de la tendencia de su dispersión.
+
+La formulación completa está en [`METHODOLOGY.md`](METHODOLOGY.md).
+
+**Componentes:** `src/core/scoring.js` (puntuación, ritmo y correlación), `src/dashboard/sim-core.js` (cascada y Monte Carlo, también en un Web Worker), `src/dashboard/engine.js` (panel).
+
+---
+
+## Fuentes de datos
+
+**Indicadores** (semanal, sin clave): Banco Mundial (WDI, WGI y UHC) · INFORM Risk del JRC · UCDP · ND-GAIN · FMI COFER · Tesoro de EEUU TIC · Natural Earth.
+
+**Eventos** (cada despliegue, sin clave): USGS · NASA EONET · OMS · GDACS · GDELT (noticias y exportación de eventos) · NOAA SWPC.
+
+**Mercados de predicción** (cada despliegue, sin clave): Polymarket · Manifold.
+
+**Vector:** Banco Mundial · FMI · BIS.
+
+Licencias y detalle de cada fuente en [`METHODOLOGY.md`](METHODOLOGY.md).
 
 ---
 
 ## Instalación y uso
 
-### Requisitos
-- Navegador moderno (Chrome, Firefox, Edge — recomendado Chrome)
-- Conexión a internet para cargar librerías CDN y APIs en tiempo real
-- [Ollama](https://ollama.ai) con Mistral instalado *(solo para funciones de IA)*
-
-### Despliegue
-
-El sitio se construye con Vite y se publica desde
-`.github/workflows/deploy-pages.yml` en cada empujón a `main`.
-
-> **Hay que cambiar un ajuste una sola vez:** en
-> *Settings → Pages → Build and deployment → Source*, pasar de
-> «Deploy from a branch» a **«GitHub Actions»**. Ese ajuste no se puede
-> cambiar desde el repositorio; hasta que se haga, el workflow construye
-> correctamente y falla en el paso de publicación.
-
-### Uso directo en GitHub Pages
+### Uso directo
 
 ```
 https://franjuanp.github.io/OkrtSystemLabs/
 ```
 
-### Uso local (sin IA)
+### Desarrollo local
+
 ```bash
-# Servir con Python
-python -m http.server 8080
-# → http://localhost:8080
+npm ci
+npm run dev            # servidor de desarrollo de Vite
+npm run build          # construir dist/
+npm run preview        # servir dist/ en http://localhost:8080
+
+npm run datos          # descargar los indicadores (data/latest.json)
+npm run eventos        # descargar eventos, conflicto y mercados (data/events.json)
+npm run test:unit      # pruebas unitarias
+npm run test:todo      # unitarias, build y pruebas de navegador
 ```
 
-### Uso local (con IA — Ollama/Mistral)
+### Despliegue
 
-> **Por qué no `OLLAMA_ORIGINS="*"` ni `OLLAMA_HOST=0.0.0.0`:** con `*`
-> cualquier web que visites puede hablar con tu Ollama desde tu propio
-> navegador —leer tus modelos y lanzarles peticiones—, y con `0.0.0.0` lo
-> expones además a toda tu red local, sin autenticación de ningún tipo.
-> Por eso se listan solo los dos orígenes desde los que se sirve AETHER y se
-> deja Ollama escuchando únicamente en `127.0.0.1`, que es lo que hace por
-> defecto.
+El sitio se construye con Vite y se publica desde `.github/workflows/deploy-pages.yml` en cada push a `main`. El trabajo `eventos.yml` lanza un despliegue cada media hora para refrescar los eventos.
+
+> **Ajuste que hay que hacer una sola vez:** en *Settings → Pages → Build and deployment → Source*, elegir **«GitHub Actions»** en lugar de «Deploy from a branch».
+
+### IA con Ollama en local
+
+> **Por qué no `OLLAMA_ORIGINS="*"` ni `OLLAMA_HOST=0.0.0.0`:** con `*` cualquier web que visites puede hablar con tu Ollama desde tu propio navegador (leer tus modelos y lanzarles peticiones), y con `0.0.0.0` lo expones además a toda tu red local, sin autenticación. Por eso se listan solo los dos orígenes desde los que se sirve AETHER y Ollama escucha únicamente en `127.0.0.1`, que es lo que hace por defecto.
 
 ```powershell
 # Windows PowerShell
 taskkill /F /IM ollama.exe
 $env:OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080"
 ollama serve
-
-# En otra terminal
-python -m http.server 8080
 ```
 
 ```bash
 # Linux / macOS
-OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080" ollama serve &
-python3 -m http.server 8080
+OLLAMA_ORIGINS="https://franjuanp.github.io,http://localhost:8080" ollama serve
 ```
 
 ```bash
-# Instalar modelo Mistral
 ollama pull mistral
 ```
 
-### Uso con IA y tu propia clave
+### IA con tu propia clave
 
-En la barra de IA del panel se puede elegir Anthropic, OpenAI, Google Gemini u
-OpenRouter en lugar de Ollama, y escribir **tu propia clave**. La clave se
-guarda solo en tu navegador (en la sesión, o recordada si lo marcas), se envía
-solo al proveedor elegido en una cabecera y nunca pasa por ningún servidor de
-AETHER, que no tiene. El repositorio no contiene ninguna clave. Cada consulta
-la paga tu cuenta del proveedor.
+En la barra de IA del panel se puede elegir **Anthropic, OpenAI, Google Gemini u OpenRouter** y escribir tu propia clave:
+
+- La clave se guarda **solo en tu navegador**: en la sesión, o recordada si marcas *Recordar*. *Olvidar* la borra.
+- Se envía **solo al proveedor elegido**, en una cabecera y nunca en la URL. AETHER no tiene servidor y no la ve.
+- No se escribe en consola, no entra en ninguna exportación y se borra de los mensajes de error.
+- La política de seguridad de la página solo permite conectar con esos cuatro proveedores y con Ollama en local.
+- **El repositorio no contiene ninguna clave.** Cada consulta la paga la cuenta del proveedor de quien la hace.
 
 ### Servidor MCP
 
-`mcp/aether-mcp.mjs` deja que un agente (Claude Desktop, Claude Code, Cursor)
-consulte los datos de AETHER. Sin dependencias ni claves: ver
-[`mcp/README.md`](mcp/README.md).
+`mcp/aether-mcp.mjs` permite que un agente (Claude Desktop, Claude Code, Cursor) consulte AETHER: riesgo de un país, ranking, tendencias, eventos recientes y conflicto. Sin dependencias ni claves. Instrucciones en [`mcp/README.md`](mcp/README.md).
+
+```bash
+npm run mcp
+```
 
 ---
 
@@ -228,110 +227,42 @@ consulte los datos de AETHER. Sin dependencias ni claves: ver
 
 | Capa | Tecnología |
 |------|-----------|
-| **Visualización 3D** | Three.js r128 · GLSL Shaders · WebGL |
-| **Visualización 2D** | D3.js v7 · TopoJSON · Canvas API |
-| **Geodatos** | Natural Earth 110m · NASA Blue Marble · NASA EONET |
-| **APIs en tiempo real** | USGS Earthquake · GDELT · ReliefWeb · WHO |
-| **Datos financieros** | World Bank · IMF BOP · BIS Debt Statistics |
-| **IA local** | Ollama REST API · Mistral 7B |
-| **Sin frameworks** | Vanilla JS · CSS custom properties |
-| **Sin build** | Archivos HTML independientes · sin npm · sin bundler |
+| **Visualización 3D** | Three.js · shaders GLSL · WebGL |
+| **Visualización 2D** | D3 (selección, arrastre y fuerzas) · Canvas |
+| **Build** | Vite · vite-plugin-pwa (service worker y manifiesto) |
+| **Datos** | GitHub Actions · JSON validado con esquema (Ajv) |
+| **Pruebas** | Vitest (unitarias) · Playwright con Chromium y WebKit (navegador) |
+| **IA** | Ollama en local · Anthropic, OpenAI, Gemini u OpenRouter con clave propia |
+| **Agentes** | Servidor MCP por stdio, sin dependencias |
 
 ---
 
-## Motor analítico
+## Limitaciones conocidas
 
-```
-Score final = Base histórico (World Bank, Freedom House, SIPRI, GHS...)
-            + Ajuste por velocidad de cambio (tendencia actual)
-            + Boost por correlación cruzada entre categorías
-            + Propagación en cascada temporal
-            ± Shock manual (Shock Simulator)
-```
-
-**Componentes del motor:**
-- `enhancedScore()` — scoring base con correlación cruzada
-- `simulateCascade()` — propagación temporal semana a semana
-- `runMonteCarlo()` — 400 simulaciones, ruido gaussiano Box-Muller → bandas p10/p50/p90
-- `computeResilienceIndex()` — capacidad de amortiguación sistémica por país
-- `detectInflections()` — detección de aceleración del deterioro (segunda derivada)
-- `runShockCascade()` — propagación de shocks manuales con overrides por categoría
-
----
-
-## Fuentes de datos
-
-`World Bank` · `Freedom House` · `Fragile States Index (FSI)` · `SIPRI` · `GHS Index (NTI)` · `UN HDI` · `FAO` · `WHO` · `IMF WEO` · `IIF` · `ACLED` · `NOAA` · `NASA` · `USGS` · `GDELT` · `ReliefWeb OCHA` · `BIS` · `Transparency International` · `V-Dem` · `Our World in Data`
-
----
-
-<a id="metodologia"></a>
-
-## Metodología y procedencia de los datos
-
-> **Estado actual: estimaciones con datos base ~2023.** Esta sección es
-> provisional y se sustituirá por `METHODOLOGY.md` y una página de metodología
-> dentro de la web cuando el pipeline de datos esté en marcha.
-
-### Qué son las cifras que ves
-
-Las puntuaciones por país y categoría del dashboard y del globo son
-**estimaciones con base aproximada en 2023**, no lecturas en vivo. Están
-escritas en la tabla `DATA` del motor y no llevan, hoy por hoy, ni año ni
-fuente por indicador.
-
-Lo que sí es dato en vivo:
-
-| Módulo | Qué muestra | Procedencia |
-|---|---|---|
-| Signal | eventos | USGS, NASA EONET, ReliefWeb OCHA y GDELT, consultados desde el navegador |
-| Dashboard · termómetro | estimación por categoría | tabla `DATA`, base ~2023 |
-| Dashboard · panel de temas | temas de seguimiento con enlace a la fuente | lista editorial, sin fecha propia |
-| Globe | niveles de riesgo por país | tabla propia del globo, base ~2023 |
-| Vector | flujos financieros | cifras con fuente anotada caso por caso |
-
-### Cómo se calcula la puntuación
-
-```
-Score final = Base histórico
-            + Ajuste por velocidad de cambio (VELOCITY)
-            + Boost por correlación cruzada entre categorías (CORR_MATRIX)
-            + Propagación en cascada temporal (PROP_MATRIX)
-            ± Shock manual (Shock Simulator)
-```
-
-### Limitaciones conocidas
-
-- La base `DATA` no tiene año ni fuente por indicador.
-- El termómetro no se refresca: muestra la estimación base y no se mueve
-  mientras no haya un dato nuevo medido.
-- El panel de temas no lleva hora, porque sus entradas no tienen fecha propia.
-- La imagen de portada es una captura real del dashboard, hecha con
-  Playwright sobre la aplicación servida (`npm run build:hero`). Sustituye a
-  un montaje anterior que tenía texto ilegible y un país inexistente.
-- Las cifras del globo y del dashboard proceden hoy de tablas distintas.
+- Las puntuaciones son **relativas** entre 217 países: un CRÍTICO dice que el país está entre los peores, no que haya cruzado un umbral absoluto.
+- Los indicadores tienen años distintos según la fuente; cada dato muestra el suyo.
+- La cascada es un modelo ilustrativo; sirve para explorar cómo se encadenan los riesgos, no para predecir cifras.
+- GDELT mide cobertura de prensa, no víctimas. Los mercados de predicción son el precio de preguntas concretas, no una medida del riesgo.
+- Los 92 arcos del globo y los temas de vigilancia del panel son capas editoriales escritas a mano.
+- ReliefWeb no se consulta hasta tener un `appname` aprobado.
 
 ---
 
 ## Autoría y licencia
 
-**© OkrtSystem Labs. Todos los derechos reservados.** La reproducción,
-distribución o uso comercial no autorizado está prohibido.
+**© OkrtSystem Labs. Todos los derechos reservados.** La reproducción, distribución o uso comercial no autorizado está prohibido.
 
 ### Aviso de copia no oficial
 
-Cuando AETHER se abre desde un host que no es `franjuanp.github.io`,
-`localhost` o `127.0.0.1`, muestra un aviso discreto de copyright en una
-esquina. La aplicación sigue funcionando con normalidad.
+Cuando AETHER se abre desde un host que no es `franjuanp.github.io`, `localhost` o `127.0.0.1`, muestra un aviso discreto de copyright en una esquina. La aplicación sigue funcionando con normalidad.
 
-> **Esto no es una medida de seguridad y no debe tomarse como tal.** Todo el
-> código se ejecuta en el navegador de quien visita la página: cualquiera
-> puede borrar `assets/js/domain-notice.js` de una copia y el aviso
-> desaparece. Es, exactamente, un aviso de autoría. Lo mismo vale para la
-> ofuscación del motor, que dificulta la lectura pero no impide copiar nada.
+> **Esto no es una medida de seguridad.** Todo el código se ejecuta en el navegador de quien visita la página y cualquiera puede quitar el aviso de una copia. Es, exactamente, un aviso de autoría. La protección real de la obra es la legal: el copyright y los términos de uso.
 
-La protección real de la obra es la legal: el copyright y los términos de
-uso, no el código del navegador.
+### Seguridad
+
+- Política de seguridad de contenido (CSP) por página, con la lista exacta de orígenes a los que se conecta.
+- `referrer` en `no-referrer`.
+- Todo texto que llega de fuentes externas se escapa antes de pintarse; hay pruebas de XSS en cada cambio.
 
 ---
 
@@ -346,12 +277,3 @@ Los análisis son estimaciones orientativas y no deben usarse como única fuente
 *[franjuanp.github.io/OkrtSystemLabs](https://franjuanp.github.io/OkrtSystemLabs)*
 
 </div>
-
-
-## Security hardening applied (non-disruptive)
-
-This package includes a static hardening layer intended not to alter the functional behavior of the site:
-- Per-page CSP meta policy adapted to current external dependencies.
-- Referrer policy set to `no-referrer`.
-- Permissions Policy set to disable unused browser features.
-- Runtime hardening for `window.open`, external `_blank` links, and unsafe `javascript:` / `data:text/html` URLs.
