@@ -450,8 +450,53 @@ export function fueraDuplicadosGeo(nuevos, previos, margen = MARGEN_DUPLICADO) {
 }
 
 /** URLs de las fuentes, en un solo sitio para que el trabajo y la página coincidan. */
+/* ── NOAA SWPC · clima espacial ───────────────────────────────────────
+
+   Las escalas de la NOAA para el tiempo espacial, que publica el Space
+   Weather Prediction Center sin clave:
+     G  tormenta geomagnética (redes eléctricas, satélites, GPS)
+     S  tormenta de radiación solar (satélites, vuelos polares)
+     R  apagón de radio (comunicaciones HF, navegación)
+   Cada una va de 0 a 5. Se convierte en evento solo lo que está activo
+   ahora (nivel 1 o más). Es global: no tiene país ni coordenadas. */
+export const ESCALAS_SWPC = {
+  G: { nombre: 'Tormenta geomagnética', efecto: 'redes eléctricas, satélites y GPS' },
+  S: { nombre: 'Tormenta de radiación solar', efecto: 'satélites y vuelos polares' },
+  R: { nombre: 'Apagón de radio', efecto: 'comunicaciones de alta frecuencia y navegación' },
+};
+const NIVEL_SWPC = ['', 'menor', 'moderada', 'fuerte', 'severa', 'extrema'];
+
+export function normalizarSWPC(d, ahora = Date.now()) {
+  const actual = d && (d['0'] || d[0]);
+  if (!actual) return [];
+  const fecha = actual.DateStamp && actual.TimeStamp
+    ? new Date(`${actual.DateStamp}T${actual.TimeStamp}Z`)
+    : new Date(ahora);
+  const out = [];
+  for (const [clave, meta] of Object.entries(ESCALAS_SWPC)) {
+    const nivel = Number(actual[clave] && actual[clave].Scale) || 0;
+    if (nivel < 1) continue;
+    out.push({
+      id: `swpc_${clave}${nivel}_${actual.DateStamp || ''}`,
+      source: 'NOAA SWPC',
+      cat: 'tech',
+      familia: 'espacial',
+      title: `${meta.nombre} ${clave}${nivel} (${NIVEL_SWPC[nivel] || ''})`,
+      location: 'Global',
+      time: isNaN(fecha.getTime()) ? new Date(ahora) : fecha,
+      severity: nivel >= 4 ? 'CRITICAL' : nivel === 3 ? 'HIGH' : nivel === 2 ? 'MEDIUM' : 'LOW',
+      url: 'https://www.swpc.noaa.gov/noaa-scales-explanation',
+      detail: `Escala NOAA ${clave}${nivel} activa. Afecta sobre todo a ${meta.efecto}.`,
+      impacts: { 'ESCALA': `${clave}${nivel}`, 'NIVEL': (NIVEL_SWPC[nivel] || '').toUpperCase(), 'ALCANCE': 'GLOBAL', 'FUENTE': 'NOAA' },
+      isNew: true,
+    });
+  }
+  return out;
+}
+
 export const URLS = {
   usgs: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson',
+  swpc: 'https://services.swpc.noaa.gov/products/noaa-scales.json',
   eonet: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&days=14',
   /* OData de la propia web de la OMS. Se piden los campos que se usan y los
      20 más recientes; sin `$select` la respuesta pasa de 270 KB. */

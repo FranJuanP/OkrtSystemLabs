@@ -31,6 +31,7 @@ import { proyectar, enMemoria, estadisticas as statsSim } from './sim-cliente.js
 import { simularCascada, monteCarlo as monteCarloLocal } from './sim-core.js';
 import {
   cargarEventos, agruparPorPais, recientesConPais, haceCuanto, etiquetaFuente, HORAS_POR_DEFECTO,
+  textoConflicto, porcentaje,
 } from '../core/eventos-pais.js';
 
 const d3 = {
@@ -669,10 +670,59 @@ function renderEventosPais(code, d){
       <div class="ev-text">${esc(ev.title||'—')}</div>
     </div>`).join('')
       : '<div class="ev-text" style="color:var(--dim)">Ningún evento con este país en las últimas '+HORAS_POR_DEFECTO+' h en USGS, NASA EONET, OMS ni GDACS.</div>';
+    pintarConflicto(code, lectura.conflicto);
+    pintarMercados(code, lectura.mercados);
     if(pie) pie.textContent=(lectura.descargado
       ? 'Lectura de '+lectura.descargado.toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' · '
-      : '')+'GDELT no se asigna a países: su país es el del medio que publica, no el del suceso.';
+      : '')+'GDELT cuenta cobertura de prensa, no víctimas. Los mercados son el precio de preguntas concretas, no una medida del riesgo.';
   });
+}
+
+/* Conflicto en las ultimas horas segun GDELT. Para el mundo, los cinco
+   paises con mas conflicto material; para la UE, la suma de sus miembros. */
+function pintarConflicto(code, conflicto){
+  const el=document.getElementById('pais-ev-conflicto');
+  if(!el) return;
+  if(!conflicto){ el.textContent=''; return; }
+  const P=conflicto.paises||{};
+  if(code==='WLD'){
+    const top=Object.entries(P).sort((a,b)=>b[1].conflicto_material-a[1].conflicto_material).slice(0,5);
+    el.textContent=top.length ? 'GDELT '+(conflicto.horas||24)+' h · más conflicto material: '
+      + top.map(([iso,r])=>((DATA[iso]&&DATA[iso].name)||iso)+' '+r.conflicto_material).join(' · ') : '';
+    return;
+  }
+  if(code==='EUU'){
+    let m=0,v=0;
+    for(const [iso,r] of Object.entries(P)) if(MIEMBROS_UE.has(iso)){ m+=r.conflicto_material; v+=r.conflicto_verbal; }
+    el.textContent='GDELT '+(conflicto.horas||24)+' h en la UE: '+m+' eventos de conflicto material y '+v+' de conflicto verbal';
+    return;
+  }
+  el.textContent=textoConflicto(conflicto, code) || ('GDELT '+(conflicto.horas||24)+' h: sin eventos codificados en este país');
+}
+
+/* Mercados de prediccion que preguntan por el pais. */
+function pintarMercados(code, mercados){
+  const el=document.getElementById('pais-ev-mercados');
+  if(!el) return;
+  if(!mercados){ el.innerHTML=''; return; }
+  const P=mercados.paises||{};
+  let lista;
+  if(code==='WLD'||code==='EUU'){
+    const vistos=new Set(); lista=[];
+    for(const [iso,ms] of Object.entries(P)){
+      if(code==='EUU' && !MIEMBROS_UE.has(iso)) continue;
+      for(const m of ms){ if(!vistos.has(m.url+m.pregunta)){ vistos.add(m.url+m.pregunta); lista.push(m); } }
+    }
+    lista=lista.sort((a,b)=>b.volumen-a.volumen).slice(0,6);
+  } else lista=P[code]||[];
+  if(!lista.length){ el.innerHTML='<div class="ev-text" style="color:var(--dim);font-size:11px">Sin mercados de predicción abiertos que pregunten por este territorio.</div>'; return; }
+  el.innerHTML='<div style="font-size:9px;letter-spacing:2px;color:var(--dim);font-family:\'Share Tech Mono\',monospace;margin-bottom:6px">MERCADOS DE PREDICCIÓN</div>'
+    + lista.map(m=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;background:rgba(5,10,16,.4)">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);min-width:54px;text-align:right">${esc(porcentaje(m.probabilidad))}</span>
+      <span class="ev-text" style="flex:1">${esc(m.pregunta)}</span>
+      <a href="${safeHref(m.url)}" target="_blank" rel="noopener noreferrer" style="font-size:9px;font-family:'Share Tech Mono',monospace;color:var(--dim);text-decoration:none;white-space:nowrap">${esc(m.plataforma)} ↗</a>
+    </div>`).join('');
 }
 
 function onRegionChange(){loadRegion();}

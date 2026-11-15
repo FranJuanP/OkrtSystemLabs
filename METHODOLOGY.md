@@ -718,6 +718,26 @@ worker tiene que estar controlando la página para decidir qué se sirve.
 
 ---
 
+### GDELT geolocalizado, mercados de predicción y clima espacial
+
+Tres fuentes más se descargan en cada despliegue y viajan en
+`data/events.json`, sin clave:
+
+- **GDELT 2.0, exportación de eventos.** Las exportaciones de 15 minutos de
+  las últimas 24 horas. Cada evento CAMEO lleva el lugar donde ocurrió, y su
+  país se toma del final de ese nombre con el mismo diccionario que el resto
+  de eventos. Se publica un resumen por país (conflicto material, conflicto
+  verbal, cooperación) y, como eventos, los sucesos violentos más cubiertos
+  (raíces CAMEO 18, 19 y 20 con al menos dos fuentes). **Mide cobertura de
+  prensa, no víctimas**: un país con más medios genera más eventos por el
+  mismo hecho. No sustituye al UCDP.
+- **Mercados de predicción.** Preguntas abiertas de Polymarket (geopolítica)
+  y Manifold, asignadas a los países que nombran. Se descartan las casi
+  decididas y las de poco volumen. Es el precio de una pregunta concreta, no
+  una medida del riesgo del país.
+- **NOAA SWPC.** Las escalas G, S y R de clima espacial activas ahora. Es
+  una señal global y aparece en Signal.
+
 ## 4. Confianza
 
 Cada puntuación lleva una etiqueta de confianza, y la interfaz dice **por

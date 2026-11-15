@@ -32,6 +32,10 @@ import {
   fueraDuplicadosGeo, ATRIBUCION_GDACS,
 } from '../src/signal/normalizar.js';
 import { crearDiccionario, paisesDeEvento } from '../src/signal/paises.js';
+import { normalizarSWPC } from '../src/signal/normalizar.js';
+import { resumirPorPais, eventosDestacados } from '../src/signal/gdelt-geo.js';
+import { parsearPolymarket, parsearManifold, mercadosPorPais } from '../src/signal/mercados.js';
+import { descargarGdelt } from './data/gdelt.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SALIDA = path.join(ROOT, 'data', 'events.json');
@@ -146,6 +150,55 @@ async function main() {
     return out;
   });
 
+  /* Clima espacial: las escalas NOAA activas ahora. Global, sin país. */
+  await intentar('swpc', 'NOAA SWPC · clima espacial', async () =>
+    normalizarSWPC(await pedir(URLS.swpc, { timeoutMs: 30000 }), ahora));
+
+  /* GDELT 2.0, eventos geolocalizados: el resumen por país va aparte y
+     los sucesos violentos más cubiertos entran como eventos con su país y
+     sus coordenadas. Ver src/signal/gdelt-geo.js. */
+  const dic = crearDiccionario(leerPaises());
+  let conflicto = null;
+  await intentar('gdeltgeo', 'GDELT · eventos geolocalizados', async () => {
+    const r = await descargarGdelt(dic, { horas: HORAS_GDELT });
+    conflicto = {
+      horas: HORAS_GDELT,
+      exportaciones: r.leidas,
+      desde: r.desde,
+      hasta: r.hasta,
+      aviso: 'Eventos codificados por GDELT a partir de prensa: miden cobertura mediática, no víctimas.',
+      paises: resumirPorPais(r.filas),
+    };
+    return eventosDestacados(r.filas);
+  });
+
+  /* Mercados de predicción: no son eventos, van en su propia sección. */
+  let mercados = null;
+  try {
+    const todos = [];
+    let fallos = 0;
+    for (const url of URLS_POLYMARKET) {
+      try { todos.push(...parsearPolymarket(await pedir(url, { timeoutMs: 30000 }))); } catch (_e) { fallos++; }
+    }
+    for (const term of TERMINOS_MANIFOLD) {
+      const url = 'https://api.manifold.markets/v0/search-markets?filter=open&contractType=BINARY&sort=liquidity&limit=100&term=' + encodeURIComponent(term);
+      try { todos.push(...parsearManifold(await pedir(url, { timeoutMs: 30000 }))); } catch (_e) { fallos++; }
+    }
+    if (todos.length) {
+      mercados = {
+        descargado: momento,
+        aviso: 'Precio de preguntas concretas en mercados de predicción. No es una medida del riesgo del país.',
+        paises: mercadosPorPais(todos, dic),
+      };
+      fuentes.mercados = { estado: 'ok', eventos: 0, etiqueta: 'Polymarket · Manifold', mercados: todos.length, fallos };
+    } else {
+      fuentes.mercados = { estado: 'error', eventos: 0, etiqueta: 'Polymarket · Manifold', error: 'ninguna respuesta útil' };
+    }
+    console.log(`  mercados ${String(todos.length).padStart(3)} preguntas, ${fallos} peticiones fallidas`);
+  } catch (err) {
+    fuentes.mercados = { estado: 'error', eventos: 0, etiqueta: 'Polymarket · Manifold', error: err.message };
+  }
+
   // Mismo criterio de deduplicación que la página, para que la copia no
   // traiga repetidos que en vivo no se ven.
   const vistos = new Set();
@@ -186,6 +239,8 @@ async function main() {
     descargado: momento,
     fuentes,
     eventos: unicos,
+    conflicto,
+    mercados,
   };
 
   if (enSeco) { console.log('--dry: no se escribe nada.'); return; }
@@ -195,19 +250,34 @@ async function main() {
   console.log(`escrito data/events.json (${Math.round(JSON.stringify(salida).length / 1024)} KB)`);
 }
 
-/** Añade `paises` a cada evento y devuelve cuántos tienen alguno. */
-function asignarPaises(eventos) {
-  let paises = {};
+/** Horas de exportaciones de GDELT que se leen en cada despliegue. */
+const HORAS_GDELT = 24;
+
+/** Mercados de Polymarket: los eventos abiertos de geopolítica y de política mundial. */
+const URLS_POLYMARKET = [
+  'https://gamma-api.polymarket.com/events?closed=false&active=true&limit=200&tag_slug=geopolitics',
+  'https://gamma-api.polymarket.com/events?closed=false&active=true&limit=200&tag_slug=world',
+];
+/** Búsquedas en Manifold: los temas que AETHER mide. */
+const TERMINOS_MANIFOLD = ['war', 'ceasefire', 'invasion', 'coup', 'sanctions', 'election', 'famine', 'pandemic'];
+
+/** Los países de latest.json, o vacío si no está. */
+function leerPaises() {
   try {
-    paises = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'latest.json'), 'utf8')).paises || {};
+    return JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'latest.json'), 'utf8')).paises || {};
   } catch (err) {
-    // Sin latest.json los eventos se publican igual, solo que sin país.
     console.log('  sin data/latest.json: los eventos van sin país · ' + err.message);
+    return {};
   }
-  const dic = crearDiccionario(paises);
+}
+
+/** Añade `paises` a cada evento que no lo traiga ya y devuelve cuántos tienen alguno. */
+function asignarPaises(eventos) {
+  const dic = crearDiccionario(leerPaises());
   let n = 0;
   for (const ev of eventos) {
-    ev.paises = paisesDeEvento(ev, dic);
+    // GDELT geolocalizado ya trae el país del suceso.
+    if (!Array.isArray(ev.paises)) ev.paises = paisesDeEvento(ev, dic);
     if (ev.paises.length) n++;
   }
   return n;
