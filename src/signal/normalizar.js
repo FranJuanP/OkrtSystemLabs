@@ -18,12 +18,41 @@
  * mostrarlo. Además hace que las pruebas sean deterministas.
  */
 
+/**
+ * Severidad de un terremoto: por impacto cuando USGS lo ha estimado.
+ *
+ * La magnitud sola no dice cuánto daño hace un terremoto: un M6 en una
+ * fosa oceánica y un M6 bajo una ciudad tienen la misma magnitud y nada
+ * que ver. USGS publica para los sismos relevantes su alerta PAGER
+ * (verde, amarilla, naranja, roja), que estima víctimas y pérdidas
+ * económicas a partir de la población expuesta.
+ *
+ *   PAGER roja / naranja / amarilla   CRITICAL / HIGH / MEDIUM
+ *   PAGER verde                       la de la magnitud, como mucho MEDIUM:
+ *                                     USGS ha mirado y no espera daños graves
+ *   sin PAGER                         la de la magnitud, como antes
+ *
+ * Un aviso de tsunami sube la severidad al menos a HIGH, con o sin PAGER.
+ */
+const ORDEN_SEV = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const SEV_PAGER = { red: 'CRITICAL', orange: 'HIGH', yellow: 'MEDIUM' };
+export function severidadSismo(mag, alerta, tsunami) {
+  const m = Number(mag) || 0;
+  const porMagnitud = m >= 7 ? 'CRITICAL' : m >= 6 ? 'HIGH' : m >= 5 ? 'MEDIUM' : 'LOW';
+  const a = String(alerta || '').toLowerCase();
+  let sev = porMagnitud;
+  if (SEV_PAGER[a]) sev = SEV_PAGER[a];
+  else if (a === 'green' && ORDEN_SEV.indexOf(porMagnitud) > 1) sev = 'MEDIUM';
+  if (tsunami && ORDEN_SEV.indexOf(sev) < 2) sev = 'HIGH';
+  return sev;
+}
+
 /** Terremotos de USGS (GeoJSON del resumen semanal de magnitud ≥ 4,5). */
 export function normalizarUSGS(d, ahora = Date.now()) {
   return (d.features || []).slice(0, 30).map((f) => {
     const p = f.properties || {};
     const mag = p.mag || 0;
-    const sev = mag >= 7 ? 'CRITICAL' : mag >= 6 ? 'HIGH' : mag >= 5 ? 'MEDIUM' : 'LOW';
+    const sev = severidadSismo(mag, p.alert, p.tsunami);
     const coords = (f.geometry && f.geometry.coordinates) || [];
     const prof = coords[2] || 0;
     return {
@@ -45,7 +74,8 @@ export function normalizarUSGS(d, ahora = Date.now()) {
       impacts: {
         'MAGNITUD': mag.toFixed(1),
         'PROFUNDIDAD': prof.toFixed(0) + 'km',
-        'ALERTA': p.alert || 'verde',
+        // Sin PAGER no es «verde»: es que USGS no ha estimado el impacto.
+        'PAGER': ({ green: 'VERDE', yellow: 'AMARILLA', orange: 'NARANJA', red: 'ROJA' })[String(p.alert || '').toLowerCase()] || '—',
         'TSUNAMI': p.tsunami ? 'SÍ' : 'NO',
       },
       isNew: (ahora - new Date(p.time).getTime()) < 3600000,

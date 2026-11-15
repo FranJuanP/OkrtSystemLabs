@@ -824,6 +824,9 @@ function showPanel(c){
 }
 
 function showPanelBase(c){
+  // Al abrir el primer país se guarda si los arcos globales estaban
+  // visibles; al pasar de un país a otro, se conserva lo guardado.
+  if(!document.getElementById('panel').classList.contains('open')) globalAntesDePanel = globalArcMode;
   selectedCountry=c.iso;
   // activate reticle
   reticle.active=true; reticle.scanT=0; reticle.alpha=0;
@@ -880,7 +883,7 @@ function showPanelBase(c){
     });
   } else { sec.hidden=true; }
   document.getElementById('panel').classList.add('open');
-  // Desactivar modo global cuando se selecciona un país
+  // Desactivar modo global cuando se selecciona un país.
   globalArcMode = false;
   document.querySelector('.arc-fbtn[data-type="GLOBAL"]')?.classList.remove('active');
   activateArcsForCountry(c.iso);
@@ -890,10 +893,11 @@ function closePanel(){
   document.getElementById('panel').classList.remove('open');
   deactivateAllArcs(); selectedCountry=null;
   reticle.active=false; reticle.alpha=0;
-  // Restaurar modo global
-  globalArcMode = true;
-  document.querySelector('.arc-fbtn[data-type="GLOBAL"]')?.classList.add('active');
-  setTimeout(showGlobalArcs, 200);
+  // Volver a como estaba antes de abrir el país: si el usuario no había
+  // pedido los arcos, se quedan ocultos.
+  globalArcMode = globalAntesDePanel;
+  actualizarEstadoArcos();
+  if(globalArcMode) setTimeout(showGlobalArcs, 200);
 }
 document.getElementById('pClose').addEventListener('click', closePanel);
 window.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
@@ -943,7 +947,12 @@ window.addEventListener('mouseup',()=>{ isDrag=false; resumeTimer=setTimeout(()=
 window.addEventListener('wheel',e=>{ camera.position.z=Math.max(1.55,Math.min(6.0,camera.position.z+e.deltaY*.003)); },{passive:true});
 window.addEventListener('click',e=>{
   if(didDrag) return;
+  // Los clics sobre paneles y botones no son clics en el globo.
+  if(e.target && e.target.closest && e.target.closest('button, a, #panel, #ev-ficha, #arc-controls, #desktop-hotspots')) return;
   raycaster.setFromCamera(mouse,camera);
+  // Las capas extra (eventos) van por delante de los países: están encima.
+  const capa = capaBajoElPuntero();
+  if(capa){ capa.capa.abrir(capa.item, e); return; }
   const idx = paisBajoElPuntero();
   if(idx >= 0) showPanel(markerData[idx]);
 });
@@ -960,6 +969,20 @@ function paisBajoElPuntero(){
 }
 
 let hayQueRaycast = false;
+
+/* Capas que se pueden pulsar además de los países (los eventos de Signal).
+   Cada una da `tocar(raycaster)`, que devuelve lo que hay bajo el puntero o
+   null, y `abrir(item, evento)`. */
+const capasPulsables = [];
+function capaBajoElPuntero(){
+  for (const capa of capasPulsables) {
+    try {
+      const item = capa.tocar(raycaster);
+      if (item != null) return { capa, item };
+    } catch (_e) { /* una capa rota no debe bloquear los países */ }
+  }
+  return null;
+}
 
 // ── ANIMATE ──
 let globeMat;
@@ -1003,7 +1026,7 @@ function animate(){
   if(hayQueRaycast){
     hayQueRaycast = false;
     raycaster.setFromCamera(mouse,camera);
-    document.body.style.cursor = paisBajoElPuntero() >= 0 ? 'pointer' : 'crosshair';
+    document.body.style.cursor = (capaBajoElPuntero() || paisBajoElPuntero() >= 0) ? 'pointer' : 'crosshair';
   }
   updateArcs(dt);
   drawLabels();
@@ -1109,7 +1132,12 @@ window.addEventListener('resize',()=>{
 // ══════════════════════════════════════════════════
 
 // ── Estado global modo arcos ──
-let globalArcMode   = true;    // GLOBAL activo por defecto
+/* Los arcos empiezan OCULTOS. Con los 92 a la vez el globo se veía
+   saturado nada más abrirlo; ahora los muestra el usuario con GLOBAL o con
+   un tipo, y los de un país salen al abrir su panel. */
+let globalArcMode   = false;
+/** Si los arcos globales estaban visibles antes de abrir un país. */
+let globalAntesDePanel = false;
 let currentArcFilter = null;   // null = todos los tipos
 const TYPE_COLORS = {
   CRITICAL:'#FF4060', HIGH:'#FF8030', SANCTION:'#4499FF',
@@ -1131,7 +1159,20 @@ function setArcFilter(type){
     ? document.querySelector('.arc-fbtn[data-type="ALL"]')
     : document.querySelector(`.arc-fbtn[data-type="${type}"]`);
   if(target) target.classList.add('active');
+  actualizarEstadoArcos();
   showGlobalArcs();
+}
+
+/** Botón GLOBAL y rótulo del bloque, al día con el modo. */
+function actualizarEstadoArcos(){
+  document.querySelector('.arc-fbtn[data-type="GLOBAL"]')?.classList.toggle('active', globalArcMode);
+  const rotulo = document.querySelector('#arc-controls .arc-ctrl-label');
+  if(rotulo) rotulo.textContent = globalArcMode
+    ? '// CONEXIONES · VISIBLES'
+    : '// CONEXIONES · OCULTAS';
+  if(!globalArcMode){
+    document.querySelectorAll('.arc-fbtn[data-type]:not([data-type="GLOBAL"])').forEach(b=>b.classList.remove('active'));
+  }
 }
 
 // ── Modo global: todos los arcos visibles ──
@@ -1139,6 +1180,7 @@ function toggleGlobalMode(){
   globalArcMode = !globalArcMode;
   const btn = document.querySelector('.arc-fbtn[data-type="GLOBAL"]');
   if(btn) btn.classList.toggle('active', globalArcMode);
+  actualizarEstadoArcos();
   if(globalArcMode){
     // Cerrar panel si estaba abierto en modo país
     if(document.getElementById('panel').classList.contains('open')){
@@ -1351,19 +1393,10 @@ function startDynamicSync(){
   }, 30000);
 }
 
-// ── Inicializar modo global al arrancar ──
+// ── Al arrancar: sincronización dinámica, sin mostrar arcos ──
 function initArcControls(){
   startDynamicSync();
-  // Esperar a que arcObjects esté poblado antes de activar arcos globales
-  let _arcWait = 0;
-  const _arcPoll = setInterval(()=>{
-    if(typeof arcObjects !== 'undefined' && arcObjects.length > 0){
-      clearInterval(_arcPoll);
-      showGlobalArcs();
-    } else if(++_arcWait > 60){ // máx ~6s de espera
-      clearInterval(_arcPoll);
-    }
-  }, 100);
+  actualizarEstadoArcos();
 }
 
 
@@ -1454,6 +1487,10 @@ export function registerAfterShowPanel(fn){ if (typeof fn === 'function') afterS
 /** Hooks que corren al principio de cada fotograma. */
 const beforeFrameHooks = [];
 export function registerBeforeFrame(fn){ if (typeof fn === 'function') beforeFrameHooks.push(fn); }
+/** Añade una capa pulsable (ver capasPulsables). */
+export function registerPickLayer(capa){
+  if (capa && typeof capa.tocar === 'function' && typeof capa.abrir === 'function') capasPulsables.push(capa);
+}
 
 /* ── T12 · API de puntero ──────────────────────────────────────────────────
    touch.js necesitaba escribir el estado de arrastre del motor. Antes lo
@@ -1489,7 +1526,7 @@ export const pointer = {
 };
 
 export {
-  COUNTRIES, COUNTRIES_DEDUP, TENSION_ARCS,
+  COUNTRIES, COUNTRIES_DEDUP, TENSION_ARCS, globeGroup, ll2v,
   arcObjects, pulseMeshes, markerData, activationTimers,
   animate, showPanel, showGlobalArcs, deactivateAllArcs,
   setArcFilter, toggleGlobalMode,
@@ -1517,7 +1554,7 @@ onVisibilityChange((hidden) => {
    Las pruebas necesitan poder comprobar que son los mismos que los del panel
    (tests/paridad.mjs), asi que se expone una referencia congelada y marcada
    como tal. Ningun modulo la usa. */
-window.__AETHER_GLOBE_DIAG__ = { renderer, scene, globeGroup, dotMeshes, pulseMeshes, lblCanvas,
+window.__AETHER_GLOBE_DIAG__ = { renderer, scene, camera, globeGroup, dotMeshes, pulseMeshes, lblCanvas,
   get dotInstances(){ return dotInstances; },
   get info(){ return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
                        geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,

@@ -54,6 +54,20 @@ describe('USGS', () => {
     expect(uno(4.6).severity).toBe('LOW');
   });
 
+  it('con alerta PAGER manda el impacto, no la magnitud', () => {
+    const con = (mag, alert, tsunami = 0) => normalizarUSGS({
+      features: [{ id: 'x', properties: { mag, alert, tsunami, place: 'Sitio', time: AHORA }, geometry: { coordinates: [0, 0, 10] } }],
+    }, AHORA)[0];
+    expect(con(5.6, 'red').severity).toBe('CRITICAL');      // poco magnitud, mucho impacto
+    expect(con(5.6, 'orange').severity).toBe('HIGH');
+    expect(con(4.8, 'yellow').severity).toBe('MEDIUM');
+    expect(con(7.1, 'green').severity).toBe('MEDIUM');      // grande pero sin daños esperados
+    expect(con(4.7, 'green').severity).toBe('LOW');
+    expect(con(5.2, null, 1).severity).toBe('HIGH');        // aviso de tsunami
+    expect(con(5.6, 'red').impacts.PAGER).toBe('ROJA');
+    expect(con(5.6, null).impacts.PAGER).toBe('—');
+  });
+
   it('pone la magnitud en el título con un decimal', () => {
     const ev = normalizarUSGS({
       features: [{ id: 'x', properties: { mag: 6, place: 'Chile', time: AHORA }, geometry: { coordinates: [0, 0, 5] } }],
