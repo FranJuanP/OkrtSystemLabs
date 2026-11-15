@@ -44,3 +44,37 @@ a.gsb-title:hover{ color:rgba(0,255,200,.95); text-decoration:underline; }
 @media (max-width: 480px){
   #globe-hotspots{ display:none !important; }
 }
+
+/* ── Capa de eventos: ficha y leyenda ─────────────────────────────── */
+#ev-ficha{
+  position:fixed; z-index:40; width:300px; max-width:calc(100vw - 24px);
+  padding:14px 14px 12px; display:none;
+  background:rgba(0,6,10,.92); border:1px solid rgba(0,255,200,.22);
+  box-shadow:0 0 30px rgba(0,255,200,.10); backdrop-filter:blur(10px);
+  color:#F0EDE8; font-family:'Share Tech Mono',monospace;
+}
+#ev-ficha.open{ display:block; }
+.evf-cerrar{ position:absolute; top:8px; right:8px; background:none; border:0; color:rgba(255,255,255,.5); cursor:pointer; font:inherit; font-size:11px; }
+.evf-cab{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+.evf-tipo{ font-size:8px; letter-spacing:.2em; border:1px solid; padding:2px 6px; }
+.evf-sev{ font-size:8px; letter-spacing:.2em; padding:2px 6px; border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.7); }
+.evf-sev-critical{ color:#FF3355; border-color:rgba(255,51,85,.5); }
+.evf-sev-high{ color:#FF8C00; border-color:rgba(255,140,0,.5); }
+.evf-sev-medium{ color:#FFD700; border-color:rgba(255,215,0,.4); }
+.evf-sev-low{ color:#00CC66; border-color:rgba(0,204,102,.4); }
+.evf-titulo{ font-family:Inter,sans-serif; font-size:13px; line-height:1.35; margin-bottom:6px; padding-right:14px; }
+.evf-meta{ font-size:8px; letter-spacing:.12em; color:rgba(255,255,255,.45); }
+.evf-datos{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; }
+.evf-datos div{ display:flex; flex-direction:column; gap:2px; border-left:1px solid rgba(0,255,200,.2); padding-left:6px; }
+.evf-datos span{ font-size:7px; letter-spacing:.16em; color:rgba(255,255,255,.4); }
+.evf-datos b{ font-size:10px; font-weight:400; color:rgba(0,255,200,.9); }
+.evf-acciones{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.evf-btn{ font:inherit; font-size:8px; letter-spacing:.16em; padding:5px 9px; cursor:pointer;
+  color:rgba(0,255,200,.9); background:rgba(0,255,200,.06); border:1px solid rgba(0,255,200,.25); text-decoration:none; }
+.evf-btn:hover{ background:rgba(0,255,200,.14); }
+#leg-eventos{ position:absolute; left:190px; bottom:34px; display:flex; flex-direction:column; gap:7px; pointer-events:none; }
+.leg-ev-fila{ display:grid; grid-template-columns:auto auto; gap:6px 14px; }
+.leg-ev{ font-size:9px; letter-spacing:.16em; }
+@media (max-width: 900px){ #leg-eventos{ display:none; } }
+#btn-capa-eventos{ color:rgba(255,255,255,.4); }
+#btn-capa-eventos.active{ background:rgba(255,61,203,.12); border-color:rgba(255,61,203,.7); color:#FF7ADF !important; font-weight:400; }

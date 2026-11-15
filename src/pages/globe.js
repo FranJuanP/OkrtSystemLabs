@@ -17,24 +17,12 @@ import '../core/pwa-register.js';
 // sin esto no habria forma de volver al panel.
 import '../core/volver.js';
 
-import { setArcFilter, toggleGlobalMode } from '../globe/engine.js';
+import '../globe/engine.js';
 import '../globe/touch.js';
 import '../globe/functional-boost.js';
+import '../globe/eventos-capa.js';
 
-/** Engancha los botones de filtro de tipo de arco. */
-function bindArcFilters() {
-  document.querySelectorAll('.arc-fbtn[data-type]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const type = btn.getAttribute('data-type');
-      if (type === 'GLOBAL') toggleGlobalMode();
-      else setArcFilter(type);
-    });
-  });
-}
-
-function onReady(fn) {
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
-  else fn();
-}
-
-onReady(bindArcFilters);
+/* Los botones de filtro de arco los engancha el propio motor
+   (bindArcControlButtons). Aquí se enganchaban otra vez, así que cada
+   clic en GLOBAL llamaba dos veces a toggleGlobalMode y el modo volvía a
+   quedar como estaba. */
