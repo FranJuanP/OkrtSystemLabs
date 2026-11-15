@@ -31,6 +31,7 @@ import {
   CONSULTAS_GDELT, urlGDELT, urlGDACS, LIMITES_GDACS, URLS, FUENTES_PENDIENTES,
   fueraDuplicadosGeo, ATRIBUCION_GDACS,
 } from '../src/signal/normalizar.js';
+import { crearDiccionario, paisesDeEvento } from '../src/signal/paises.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SALIDA = path.join(ROOT, 'data', 'events.json');
@@ -156,6 +157,13 @@ async function main() {
   });
   unicos.sort((a, b) => new Date(b.time) - new Date(a.time));
 
+  /* Fase eventos por país: cada evento lleva los ISO3 de los países que
+     nombra, para que el globo y el panel puedan ponerlos junto a la
+     puntuación del país sin repetir la búsqueda en el navegador. El criterio
+     está en src/signal/paises.js; GDELT se queda sin país a propósito. */
+  const conPais = asignarPaises(unicos);
+  console.log(`países: ${conPais} de ${unicos.length} eventos con país reconocido`);
+
   const caidas = Object.values(fuentes).filter((f) => f.estado !== 'ok').length;
   console.log(`total: ${unicos.length} eventos (${eventos.length - unicos.length} repetidos fuera), ${caidas} fuentes caídas`);
 
@@ -185,6 +193,24 @@ async function main() {
   fs.mkdirSync(path.dirname(SALIDA), { recursive: true });
   fs.writeFileSync(SALIDA, JSON.stringify(salida, null, 1));
   console.log(`escrito data/events.json (${Math.round(JSON.stringify(salida).length / 1024)} KB)`);
+}
+
+/** Añade `paises` a cada evento y devuelve cuántos tienen alguno. */
+function asignarPaises(eventos) {
+  let paises = {};
+  try {
+    paises = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'latest.json'), 'utf8')).paises || {};
+  } catch (err) {
+    // Sin latest.json los eventos se publican igual, solo que sin país.
+    console.log('  sin data/latest.json: los eventos van sin país · ' + err.message);
+  }
+  const dic = crearDiccionario(paises);
+  let n = 0;
+  for (const ev of eventos) {
+    ev.paises = paisesDeEvento(ev, dic);
+    if (ev.paises.length) n++;
+  }
+  return n;
 }
 
 main().catch((err) => {
