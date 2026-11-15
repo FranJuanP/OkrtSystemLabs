@@ -29,6 +29,11 @@ import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rn
 import { proyectarAPSD, normalizarPesos, comprobarCorrelacion } from './matrices.js';
 import { proyectar, enMemoria, estadisticas as statsSim } from './sim-cliente.js';
 import { simularCascada, monteCarlo as monteCarloLocal } from './sim-core.js';
+import { aCSV, COLUMNAS_EVENTOS, eventosAGeoJSON, descargar, nombreFichero } from '../core/exportar.js';
+import {
+  PROVEEDORES, configuracion as configIA, guardarConfiguracion as guardarConfigIA,
+  hayClave, claveRecordada, guardarClave, olvidarClave, preguntar,
+} from '../core/llm.js';
 import {
   cargarEventos, agruparPorPais, recientesConPais, haceCuanto, etiquetaFuente, HORAS_POR_DEFECTO,
   textoConflicto, porcentaje,
@@ -114,6 +119,20 @@ function getModel(){return document.getElementById('model-sel').value;}
  */
 async function checkOllama(silent){
   const st=document.getElementById('api-status');
+  /* Con un proveedor de pago no hay nada que sondear sin gastar: basta con
+     saber si el visitante ha guardado su clave. */
+  const conf=configIA();
+  if(conf.proveedor!=='ollama'){
+    const ok=hayClave(conf.proveedor);
+    if(st){
+      st.textContent=ok
+        ? '● '+PROVEEDORES[conf.proveedor].nombre.toUpperCase()+' · CLAVE '+(claveRecordada(conf.proveedor)?'RECORDADA':'DE ESTA SESIÓN')
+        : '● FALTA TU CLAVE';
+      st.style.color=ok?'var(--green)':'var(--yellow)';
+    }
+    setAiAvailability(ok, silent);
+    return ok;
+  }
   if(!silent && st){ st.textContent='● VERIFICANDO...'; st.style.color='var(--yellow)'; }
   try{
     const url=getOllamaURL();
@@ -158,6 +177,8 @@ function setAiAvailability(available, silent){
     '<div><strong style="color:var(--bright)">IA local no detectada</strong><br/><br/>'+
     '<span style="color:var(--text)">AETHER funciona sin IA: el motor analitico, el termometro, '+
     'el ranking y la cascada no la necesitan. El panel de prediccion y el chat si.</span><br/><br/>'+
+    '<span style="color:var(--text)">Puedes arrancar Ollama en tu equipo o elegir un proveedor en la barra de IA '+
+    'y usar tu propia clave, que se queda en este navegador.</span><br/><br/>'+
     '<a href="#install" class="ai-help-link" style="color:var(--cyan);text-decoration:none;'+
     'border-bottom:1px solid rgba(0,255,200,.3)">Ver como arrancar Ollama en local &darr;</a>'+
     '&nbsp;&nbsp;<a href="https://github.com/FranJuanP/OkrtSystemLabs#uso-local-con-ia--ollamamistral" '+
@@ -640,6 +661,25 @@ function eventosParaRegion(code, eventos){
   return agruparPorPais(eventos).get(code) || [];
 }
 
+let exportablesPais={ code:null, eventos:[] };
+function exportarEventosPais(formato){
+  const { code, eventos } = exportablesPais;
+  if(!eventos.length) return;
+  if(formato==='geojson'){
+    descargar(nombreFichero('eventos', code)+'.geojson', JSON.stringify(eventosAGeoJSON(eventos), null, 1), 'application/geo+json');
+  } else {
+    descargar(nombreFichero('eventos', code)+'.csv', aCSV(eventos, COLUMNAS_EVENTOS), 'text/csv;charset=utf-8');
+  }
+}
+(function(){
+  function enganchar(){
+    document.getElementById('pais-ev-csv')?.addEventListener('click',()=>exportarEventosPais('csv'));
+    document.getElementById('pais-ev-geojson')?.addEventListener('click',()=>exportarEventosPais('geojson'));
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', enganchar, { once:true });
+  else enganchar();
+})();
+
 function renderEventosPais(code, d){
   const feed=document.getElementById('pais-ev-feed');
   if(!feed) return;
@@ -658,6 +698,8 @@ function renderEventosPais(code, d){
       return;
     }
     const lista=eventosParaRegion(code, lectura.eventos);
+    // Lo que se ve es lo que se exporta: los eventos de esta region.
+    exportablesPais={ code, eventos: lista };
     if(cuenta) cuenta.textContent=lista.length+' · '+HORAS_POR_DEFECTO+' H';
     feed.innerHTML=lista.length ? lista.slice(0,12).map(ev=>`
     <div class="ev" style="flex-direction:column;gap:4px;padding:8px;background:rgba(5,10,16,.4);border-radius:6px;border:1px solid var(--border)">
@@ -781,22 +823,13 @@ Genera una predicción estructurada en español con este formato EXACTO:
 Sé específico, técnico y basado en los indicadores reales. Menciona causalidades concretas entre indicadores. Máximo 400 palabras.`;
 
   try{
-    const ollamaURL=getOllamaURL();
-    const model=getModel();
-    document.getElementById('model-tag').textContent=model.toUpperCase();
-    const res=await fetch(ollamaURL+'/api/chat',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:model,
-        stream:false,
-        messages:[{role:'user',content:prompt}]
-      })
+    const conf=configIA();
+    const model=conf.proveedor==='ollama'?getModel():conf.modelo;
+    document.getElementById('model-tag').textContent=String(model).toUpperCase();
+    const txt=await preguntar({
+      ollamaURL:getOllamaURL(), modelo:model,
+      messages:[{role:'user',content:prompt}],
     });
-    if(!res.ok){const e=await res.text();throw new Error('HTTP '+res.status+': '+e.slice(0,120));}
-    const data=await res.json();
-    if(data.error){throw new Error(data.error);}
-    const txt=data.message?.content||'Sin respuesta';
 
     out.innerHTML='';
     const blocks=txt.split('\n\n').filter(s=>s.trim());
@@ -1926,12 +1959,11 @@ Responde EXACTAMENTE en este formato JSON (solo JSON, sin texto extra, sin markd
 Las probabilidades deben sumar 100. Sé específico y usa los datos reales.`;
 
   try{
-    const res=await fetch(getOllamaURL()+'/api/chat',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:getModel(),stream:false,messages:[{role:'user',content:prompt}]})
+    let txt=await preguntar({
+      ollamaURL:getOllamaURL(), modelo:configIA().proveedor==='ollama'?getModel():undefined,
+      messages:[{role:'user',content:prompt}],
     });
-    const data=await res.json();
-    let txt=data.message?.content||'{}';
+    txt=txt||'{}';
     // Limpiar posible markdown del modelo
     txt=txt.replace(/```json|```/g,'').trim();
     const idx=txt.indexOf('{'), end=txt.lastIndexOf('}');
@@ -2001,22 +2033,18 @@ async function sendChat(){
   const top5=CAT_KEYS.map((k,i)=>({k,s:enhancedScore(d[k]?.score||50,k,code),l:CAT_LABELS[i]}))
     .sort((a,b)=>b.s-a.s).slice(0,5).map(x=>`${x.l}(${x.s})`).join(', ');
 
-  const systemCtx=`Eres AETHER, asistente de inteligencia de riesgo global de OkrtSystem Labs. Tienes acceso a datos de riesgo de 10 países en 16 categorías.
+  const systemCtx=`Eres AETHER, asistente de inteligencia de riesgo global de OkrtSystem Labs. Tienes acceso a datos de riesgo de 217 países en 16 categorías.
 Región actual: ${d.name} | Score global: ${gScore}/100 | Top riesgos: ${top5}
 Responde en español, de forma concisa y técnica. Máximo 120 palabras.`;
 
   chatHistory.push({role:'user',content:msg});
   _chatBusy=true;
   try{
-    const res=await fetch(getOllamaURL()+'/api/chat',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:getModel(),stream:false,
-        messages:[{role:'system',content:systemCtx},...chatHistory.slice(-6)]
-      })
-    });
-    const data=await res.json();
-    const reply=data.message?.content||'Sin respuesta.';
+    const reply=await preguntar({
+      ollamaURL:getOllamaURL(), modelo:configIA().proveedor==='ollama'?getModel():undefined,
+      system:systemCtx,
+      messages:chatHistory.slice(-6).filter(m=>m.role==='user'||m.role==='assistant'),
+    }) || 'Sin respuesta.';
     chatHistory.push({role:'assistant',content:reply});
     const _r1=reply.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const _r2=_r1.replace(/\n/g,'<br>');
@@ -3304,11 +3332,55 @@ document.addEventListener('click', function(ev){
   else pie();
 })();
 
+/* Fase IA con clave propia · la barra de IA: proveedor, modelo y clave. */
+function initPanelIA(){
+  const sel=document.getElementById('ia-proveedor');
+  if(!sel || sel.dataset.listo) return;
+  sel.dataset.listo='1';
+  const nube=document.getElementById('ia-nube'), local=document.getElementById('ia-ollama');
+  const modelo=document.getElementById('ia-modelo'), lista=document.getElementById('ia-modelos');
+  const clave=document.getElementById('ia-clave'), recordar=document.getElementById('ia-recordar');
+  const aviso=document.getElementById('ia-aviso'), ayuda=document.getElementById('ia-ayuda');
+  function pintar(){
+    const conf=configIA(), meta=PROVEEDORES[conf.proveedor];
+    sel.value=conf.proveedor;
+    const esNube=!!meta.clave;
+    if(nube) nube.style.display=esNube?'flex':'none';
+    if(local) local.style.display=esNube?'none':'contents';
+    if(aviso) aviso.style.display=esNube?'block':'none';
+    if(esNube){
+      modelo.value=conf.modelo;
+      lista.replaceChildren(...meta.modelos.map(m=>{const o=document.createElement('option');o.value=m;return o;}));
+      clave.value='';
+      clave.placeholder=hayClave(conf.proveedor)?'clave guardada ✓':'pega tu clave';
+      recordar.checked=claveRecordada(conf.proveedor);
+      ayuda.href=meta.ayuda||'#';
+    }
+    checkOllama(true);
+  }
+  sel.addEventListener('change',()=>{ guardarConfigIA(sel.value); pintar(); });
+  modelo.addEventListener('change',()=>{ guardarConfigIA(sel.value, modelo.value.trim()); });
+  document.getElementById('ia-guardar').addEventListener('click',()=>{
+    guardarConfigIA(sel.value, modelo.value.trim());
+    if(clave.value.trim()) guardarClave(sel.value, clave.value, recordar.checked);
+    else if(hayClave(sel.value)){
+      // Cambiar solo «recordar»: se mueve la clave de un almacen a otro sin pedirla otra vez.
+      const k=(function(){ try{ return sessionStorage.getItem('aether.llm.clave.'+sel.value)||localStorage.getItem('aether.llm.clave.'+sel.value); }catch(e){ return null; } })();
+      if(k) guardarClave(sel.value, k, recordar.checked);
+    }
+    clave.value='';
+    pintar();
+  });
+  document.getElementById('ia-olvidar').addEventListener('click',()=>{ olvidarClave(sel.value); clave.value=''; pintar(); });
+  clave.addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('ia-guardar').click(); });
+  pintar();
+}
+
 /* T5: comprobacion automatica de la IA local al cargar la pagina. Si no hay
    Ollama escuchando, el panel lo dice desde el principio en vez de esperar a
    que el usuario pulse y reciba un error de CORS. */
 (function(){
-  function probe(){ if(typeof checkOllama==='function') checkOllama(true); }
+  function probe(){ try{ initPanelIA(); }catch(e){ console.warn('AETHER: barra de IA', e && e.message); } if(typeof checkOllama==='function') checkOllama(true); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(probe,1200));
   else setTimeout(probe,1200);
 })();

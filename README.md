@@ -207,6 +207,21 @@ python3 -m http.server 8080
 ollama pull mistral
 ```
 
+### Uso con IA y tu propia clave
+
+En la barra de IA del panel se puede elegir Anthropic, OpenAI, Google Gemini u
+OpenRouter en lugar de Ollama, y escribir **tu propia clave**. La clave se
+guarda solo en tu navegador (en la sesión, o recordada si lo marcas), se envía
+solo al proveedor elegido en una cabecera y nunca pasa por ningún servidor de
+AETHER, que no tiene. El repositorio no contiene ninguna clave. Cada consulta
+la paga tu cuenta del proveedor.
+
+### Servidor MCP
+
+`mcp/aether-mcp.mjs` deja que un agente (Claude Desktop, Claude Code, Cursor)
+consulte los datos de AETHER. Sin dependencias ni claves: ver
+[`mcp/README.md`](mcp/README.md).
+
 ---
 
 ## Stack tecnológico

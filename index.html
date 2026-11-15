@@ -22,7 +22,7 @@
        src/core/frame-buster.js.
      - Sin upgrade-insecure-requests: convertiria http://localhost:11434 en
        https y romperia la IA local. Los demas origenes ya son https. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' https://earthquake.usgs.gov https://eonet.gsfc.nasa.gov https://api.reliefweb.int https://api.gdeltproject.org https://api.worldbank.org http://localhost:11434 http://127.0.0.1:11434; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' https://earthquake.usgs.gov https://eonet.gsfc.nasa.gov https://api.reliefweb.int https://api.gdeltproject.org https://api.worldbank.org http://localhost:11434 http://127.0.0.1:11434 https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://openrouter.ai; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <!-- inline enhancements/robustness build for GitHub Pages -->
 <title>AETHER — Global Intelligence System · OkrtSystem Labs</title>
 
@@ -502,7 +502,15 @@ python -m http.server 8080</pre>
 
   <!-- OLLAMA BAR -->
   <div id="apibar">
-    <label>🤖 OLLAMA LOCAL</label>
+    <label>🤖 IA</label>
+    <select id="ia-proveedor" style="font-size:12px;padding:6px 10px" aria-label="Proveedor de IA">
+      <option value="ollama">Ollama (local)</option>
+      <option value="anthropic">Anthropic · tu clave</option>
+      <option value="openai">OpenAI · tu clave</option>
+      <option value="gemini">Google Gemini · tu clave</option>
+      <option value="openrouter">OpenRouter · tu clave</option>
+    </select>
+    <span id="ia-ollama" style="display:contents">
     <span class="clabel">MODELO</span>
     <select id="model-sel" style="font-size:12px;padding:6px 10px">
       <option value="llama3.2">llama3.2</option>
@@ -518,7 +526,28 @@ python -m http.server 8080</pre>
     <input id="ollama-url" value="http://localhost:11434"
       style="width:180px;background:rgba(5,10,16,.8);color:var(--bright);border:1px solid var(--dim);border-radius:6px;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px"/>
     <button class="btn sec" style="padding:6px 12px;font-size:11px" id="check-ollama-btn">⚡ VERIFICAR</button>
+    </span>
+    <!-- Clave propia del visitante: se queda en su navegador y va solo al
+         proveedor. Ver src/core/llm.js. -->
+    <span id="ia-nube" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="clabel">MODELO</span>
+      <input id="ia-modelo" list="ia-modelos" autocomplete="off" spellcheck="false"
+        style="width:190px;background:rgba(5,10,16,.8);color:var(--bright);border:1px solid var(--dim);border-radius:6px;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px"/>
+      <datalist id="ia-modelos"></datalist>
+      <span class="clabel">CLAVE</span>
+      <input id="ia-clave" type="password" autocomplete="off" spellcheck="false" placeholder="pega tu clave"
+        style="width:170px;background:rgba(5,10,16,.8);color:var(--bright);border:1px solid var(--dim);border-radius:6px;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px"/>
+      <label style="font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px;font-family:'Share Tech Mono',monospace;cursor:pointer">
+        <input id="ia-recordar" type="checkbox"/> RECORDAR
+      </label>
+      <button class="btn sec" style="padding:6px 12px;font-size:11px" id="ia-guardar">GUARDAR</button>
+      <button class="btn sec" style="padding:6px 12px;font-size:11px" id="ia-olvidar">OLVIDAR</button>
+      <a id="ia-ayuda" href="#" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:var(--cyan);font-family:'Share Tech Mono',monospace;text-decoration:none">OBTENER CLAVE ↗</a>
+    </span>
     <span id="api-status" style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:11px">● SIN VERIFICAR</span>
+    <div id="ia-aviso" style="display:none;flex-basis:100%;font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-top:4px">
+      Tu clave se guarda solo en este navegador (en esta sesión, o recordada si lo marcas) y se envía solo al proveedor elegido. AETHER no tiene servidor y no la ve. Cada consulta la paga tu cuenta del proveedor.
+    </div>
   </div>
 
   <!-- T2: aviso permanente sobre la naturaleza de los datos del panel. -->
@@ -1229,6 +1258,8 @@ python -m http.server 8080</pre>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" fill="var(--cyan)" opacity=".85"/><circle cx="8" cy="8" r="6.5" stroke="var(--cyan)" stroke-width="1" opacity=".4"/></svg>
       <span id="pais-ev-titulo">EVENTOS RECIENTES</span>
       <span id="pais-ev-count" style="margin-left:auto;background:rgba(0,255,200,.1);color:var(--cyan);padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px">—</span>
+      <button class="btn sec" id="pais-ev-csv" style="padding:3px 9px;font-size:9px" title="Descargar los eventos de este territorio en CSV">CSV</button>
+      <button class="btn sec" id="pais-ev-geojson" style="padding:3px 9px;font-size:9px" title="Descargar los eventos con coordenadas en GeoJSON">GEOJSON</button>
     </div>
     <div id="pais-ev-feed" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px"></div>
     <div id="pais-ev-conflicto" style="margin-top:10px;font-size:11px;color:var(--text);font-family:'Share Tech Mono',monospace"></div>

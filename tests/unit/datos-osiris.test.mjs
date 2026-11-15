@@ -115,3 +115,22 @@ describe('clima espacial NOAA', () => {
     expect(normalizarSWPC({})).toEqual([]);
   });
 });
+
+describe('exportar', async () => {
+  const { celda, aCSV, eventosAGeoJSON, COLUMNAS_EVENTOS } = await import('../../src/core/exportar.js');
+  it('escapa comillas, separadores y fórmulas', () => {
+    expect(celda('a,b')).toBe('"a,b"');
+    expect(celda('di "hola"')).toBe('"di ""hola"""');
+    expect(celda('=HYPERLINK("x")')).toBe('"\'=HYPERLINK(""x"")"');
+    expect(celda(null)).toBe('');
+  });
+  it('CSV con cabecera y GeoJSON solo con lo que tiene coordenadas', () => {
+    const ev = [{ time: 't', paises: ['SDN', 'TCD'], source: 'GDACS', severity: 'HIGH', title: 'Sequía', lat: 13, lng: 30, url: 'https://x' }, { title: 'Sin sitio' }];
+    const csv = aCSV(ev, COLUMNAS_EVENTOS);
+    expect(csv.split('\r\n')[0]).toBe('﻿fecha,paises,fuente,severidad,titulo,lugar,lat,lng,url');
+    expect(csv).toContain('SDN TCD');
+    const g = eventosAGeoJSON(ev);
+    expect(g.features).toHaveLength(1);
+    expect(g.features[0].geometry.coordinates).toEqual([30, 13]);
+  });
+});
