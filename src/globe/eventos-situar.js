@@ -12,6 +12,7 @@ export const TIPOS = {
   inundacion: { color: '#2EE6FF', nombre: 'INUNDACIÓN' },
   sequia:     { color: '#E6C35C', nombre: 'SEQUÍA' },
   salud:      { color: '#B8FF3D', nombre: 'SALUD' },
+  conflicto:  { color: '#E0245E', nombre: 'CONFLICTO' },
   otro:       { color: '#C9D3E0', nombre: 'EVENTO' },
 };
 
@@ -24,6 +25,7 @@ export function tipoDe(ev) {
   if (ev.familia && TIPOS[ev.familia]) return ev.familia;
   if (ev.cat === 'health') return 'salud';
   if (ev.cat === 'seismic') return 'sismo';
+  if (ev.cat === 'conflict') return 'conflicto';
   return 'otro';
 }
 

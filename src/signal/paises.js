@@ -171,8 +171,9 @@ export function paisesEnTexto(texto, dic) {
   }
 
   /* Georgia es un país y un estado de EEUU. En EONET los incendios de EEUU
-     llevan «County»; si lo hay, es el estado. */
-  const esEEUU = /\bcounty\b|\bunited states\b|\busa\b/.test(t);
+     llevan «County», y en los mercados las preguntas de política de EEUU
+     hablan de senado, gobernador o partidos; si lo hay, es el estado. */
+  const esEEUU = /\bcounty\b|\bunited states\b|\busa\b|\bsenate\b|\bgovernor\b|\bdemocrats?\b|\brepublicans?\b|\bgop\b/.test(t);
 
   for (const clave of clavesPorLongitud(dic)) {
     const aguja = ' ' + clave + ' ';

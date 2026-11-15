@@ -10,7 +10,8 @@ describe('tipoDe', () => {
     expect(tipoDe({ familia: 'sismo' })).toBe('sismo');
     expect(tipoDe({ cat: 'health' })).toBe('salud');
     expect(tipoDe({ cat: 'seismic' })).toBe('sismo');
-    expect(tipoDe({ familia: 'inventada', cat: 'conflict' })).toBe('otro');
+    expect(tipoDe({ familia: 'inventada', cat: 'geo' })).toBe('otro');
+    expect(tipoDe({ cat: 'conflict' })).toBe('conflicto');
   });
   it('todo tipo tiene color y nombre, y toda severidad una escala', () => {
     for (const t of Object.values(TIPOS)) expect(t.color).toMatch(/^#[0-9A-F]{6}$/i);

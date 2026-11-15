@@ -18,7 +18,7 @@ import {
 import { ISO_DE_ARCO } from './datos-globo.js';
 import { safeUrl } from '../core/escape.js';
 import {
-  cargarEventos, agruparPorPais, haceCuanto, etiquetaFuente, HORAS_POR_DEFECTO,
+  cargarEventos, agruparPorPais, haceCuanto, etiquetaFuente, HORAS_POR_DEFECTO, textoConflicto,
 } from '../core/eventos-pais.js';
 
 function ready(fn){
@@ -250,6 +250,13 @@ function pintarEventosDelPais(c, selected){
   if(!selected){
     cab.textContent = 'SIN EVENTOS EN LAS ÚLTIMAS ' + HORAS_POR_DEFECTO + ' H';
     box.appendChild(cab);
+    const conf0 = textoConflicto(lectura.conflicto, c.iso);
+    if(conf0){
+      const lc = document.createElement('div');
+      lc.className = 'gsb-foot';
+      lc.textContent = conf0;
+      box.appendChild(lc);
+    }
     return;
   }
   cab.textContent = 'EVENTOS · ' + HORAS_POR_DEFECTO + ' H: ' + selected.count
@@ -273,12 +280,19 @@ function pintarEventosDelPais(c, selected){
   }
   box.appendChild(lista);
 
+  const conf = textoConflicto(lectura.conflicto, c.iso);
+  if(conf){
+    const lc = document.createElement('div');
+    lc.className = 'gsb-foot';
+    lc.textContent = conf;
+    box.appendChild(lc);
+  }
   if(lectura.descargado){
     const pie = document.createElement('div');
     pie.className = 'gsb-foot';
     pie.textContent = 'Lectura de ' + lectura.descargado.toLocaleString('es-ES', {
       day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-    }) + ' · GDELT no se asigna a países';
+    }) + ' · GDELT mide cobertura de prensa, no víctimas';
     box.appendChild(pie);
   }
 }

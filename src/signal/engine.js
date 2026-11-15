@@ -61,12 +61,12 @@ const SEV = {
 const CAT_COLOR = {
   conflict:'#FF4060', geo:'#FF8030', eco:'#FFB020',
   seismic:'#60BFFF', climate:'#00FFC8', humanitarian:'#C060FF',
-  health:'#FF60A0', other:'#888'
+  health:'#FF60A0', tech:'#7A9CFF', other:'#888'
 };
 const CAT_LABEL = {
   conflict:'CONFLICTO', geo:'GEOPOLÍTICA', eco:'ECONOMÍA',
   seismic:'SISMOLOGÍA', climate:'CLIMA', humanitarian:'HUMANITARIA',
-  health:'SALUD', other:'OTRO'
+  health:'SALUD', tech:'ESPACIAL', other:'OTRO'
 };
 
 /* ── T1 · estado real de las fuentes y ultima lectura ──────────────────────
@@ -110,6 +110,23 @@ const SOURCE_LABELS = {
     servidor: true,
     motivo: 'Alertas automáticas de GDACS (ONU y Comisión Europea), sin revisión humana previa. '
           + 'Se descargan en el proceso periódico, no desde el navegador.',
+  },
+  /* Fase datos de OSIRIS. Las dos se descargan en el proceso periódico.
+     GDELT geolocalizado son sucesos violentos con el país donde ocurrieron;
+     SWPC, las escalas de clima espacial de la NOAA activas ahora (sin
+     eventos cuando no hay ninguna: es buena noticia, no un fallo). */
+  gdeltgeo: {
+    name: 'GDELT eventos',
+    row: 'GDELT · Eventos geolocalizados',
+    servidor: true,
+    motivo: 'Sucesos violentos codificados por GDELT a partir de prensa, con el lugar donde ocurrieron. '
+          + 'Miden cobertura mediática, no víctimas.',
+  },
+  swpc: {
+    name: 'NOAA SWPC',
+    row: 'NOAA SWPC · Clima espacial',
+    servidor: true,
+    motivo: 'Escalas NOAA G, S y R activas: tormentas geomagnéticas, de radiación y apagones de radio.',
   },
 };
 
@@ -434,6 +451,16 @@ async function fetchGDELT() {
    El fichero lo escribe .github/workflows/eventos.yml cada media hora con
    las mismas funciones de normalizacion que usa esta pagina
    (src/signal/normalizar.js), para que no puedan divergir. */
+/** Estado de una fuente en data/events.json (o null si no hay fichero). */
+async function estadoFuenteServidor(id) {
+  try {
+    const r = await fetch(new URL('data/events.json', document.baseURI).href, { credentials: 'omit' });
+    if(!r.ok) return null;
+    const d = await r.json();
+    return (d && d.fuentes && d.fuentes[id]) || null;
+  } catch(e) { return null; }
+}
+
 async function cargarEventosDelServidor(ids) {
   try {
     const url = new URL('data/events.json', document.baseURI).href;
@@ -564,6 +591,20 @@ async function loadAll() {
       if(!evs.length) setSrc('gdacs', 'err', 'GDACS: sin lectura del proceso periódico');
       return evs;
     }),
+    cargarEventosDelServidor(['gdeltgeo']).then((evs) => {
+      if(!evs.length) setSrc('gdeltgeo', 'err', 'GDELT eventos: sin lectura del proceso periódico');
+      return evs;
+    }),
+    cargarEventosDelServidor(['swpc']).then(async (evs) => {
+      /* Sin eventos de SWPC puede ser que no haya ninguna escala activa.
+         Lo dice el estado de la fuente en el fichero. */
+      if(!evs.length){
+        const f = await estadoFuenteServidor('swpc');
+        if(f && f.estado === 'ok') setSrc('swpc', 'ok', 'NOAA SWPC: sin tormentas activas');
+        else setSrc('swpc', 'err', 'NOAA SWPC: sin lectura del proceso periódico');
+      }
+      return evs;
+    }),
   ].map(promesa => promesa.then(pintar).catch(err => {
     console.warn('AETHER Signal: una fuente ha fallado:', err);
   }));
@@ -587,6 +628,7 @@ async function loadAll() {
     const id = String(x && x.source || '').toLowerCase();
     const clave = id.includes('usgs') ? 'usgs'
       : id.includes('eonet') || id.includes('nasa') ? 'nasa'
+      : id.includes('gdelt · eventos') ? 'gdeltgeo'
       : id.includes('gdelt') ? 'gdelt'
       : id.includes('oms') || id.includes('who') ? 'who'
       : id.includes('relief') ? 'relief'
@@ -622,7 +664,7 @@ function applyFilter(){
 }
 
 function updateCounts(){
-  const cats = ['all','conflict','geo','eco','seismic','climate','humanitarian','health'];
+  const cats = ['all','conflict','geo','eco','seismic','climate','humanitarian','health','tech'];
   cats.forEach(cat=>{
     const count = cat==='all' ? allSignals.length : allSignals.filter(s=>s.cat===cat).length;
     const el = document.getElementById('cnt-'+cat);

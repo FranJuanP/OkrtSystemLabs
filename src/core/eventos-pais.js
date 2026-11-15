@@ -19,6 +19,7 @@
 export const HORAS_POR_DEFECTO = 72;
 
 const RUTA = 'data/events.json';
+const VACIO = Object.freeze({ ok: false, eventos: [], descargado: null, conflicto: null, mercados: null });
 let promesa = null;
 
 /**
@@ -74,7 +75,8 @@ export function recientesConPais(eventos, opciones) {
  * despliegue en el que falló la descarga) devuelve `ok: false` y la
  * interfaz lo dice en vez de enseñar «0 eventos» como si fuera un dato.
  *
- * @returns {Promise<{ok: boolean, eventos: object[], descargado: Date|null}>}
+ * @returns {Promise<{ok: boolean, eventos: object[], descargado: Date|null,
+ *   conflicto: object|null, mercados: object|null}>}
  */
 export function cargarEventos() {
   if (promesa) return promesa;
@@ -82,18 +84,21 @@ export function cargarEventos() {
     try {
       const url = new URL(RUTA, document.baseURI).href;
       const r = await fetch(url, { credentials: 'omit' });
-      if (!r.ok) return { ok: false, eventos: [], descargado: null };
+      if (!r.ok) return VACIO;
       const d = await r.json();
-      if (!d || !Array.isArray(d.eventos)) return { ok: false, eventos: [], descargado: null };
+      if (!d || !Array.isArray(d.eventos)) return VACIO;
       const descargado = d.descargado ? new Date(d.descargado) : null;
       return {
         ok: true,
         eventos: d.eventos,
         descargado: descargado && !isNaN(descargado.getTime()) ? descargado : null,
+        // Fase datos de OSIRIS: resumen de GDELT por país y mercados.
+        conflicto: d.conflicto && d.conflicto.paises ? d.conflicto : null,
+        mercados: d.mercados && d.mercados.paises ? d.mercados : null,
       };
     } catch (_e) {
       promesa = null; // un fallo de red no se memoriza
-      return { ok: false, eventos: [], descargado: null };
+      return VACIO;
     }
   })();
   return promesa;
@@ -117,6 +122,22 @@ export function etiquetaFuente(ev) {
   if (f === 'nasa' || f.startsWith('nasa')) return 'NASA EONET';
   if (f === 'who' || f.startsWith('oms')) return 'OMS';
   if (f === 'gdacs') return 'GDACS';
+  if (f === 'gdeltgeo') return 'GDELT';
+  if (f === 'swpc') return 'NOAA SWPC';
   if (f === 'relief') return 'ReliefWeb';
   return (ev && ev.source) || f.toUpperCase() || '—';
+}
+
+/** «38 eventos de conflicto material · 12 verbal», o '' si no hay resumen. */
+export function textoConflicto(conflicto, iso) {
+  const r = conflicto && conflicto.paises && conflicto.paises[iso];
+  if (!r) return '';
+  return `GDELT ${conflicto.horas || 24} h: ${r.conflicto_material} eventos de conflicto material, `
+    + `${r.conflicto_verbal} de conflicto verbal y ${r.cooperacion} de cooperación`;
+}
+
+/** «18 %» para una probabilidad 0..1. */
+export function porcentaje(p) {
+  const v = Math.round(Number(p) * 1000) / 10;
+  return (v < 1 ? v.toFixed(1) : Math.round(v)).toString().replace('.', ',') + ' %';
 }
