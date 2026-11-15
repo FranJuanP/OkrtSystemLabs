@@ -787,6 +787,16 @@ originan el ritmo de cada categoría y, en el Shock Simulator, el escenario
 aplicado. La incertidumbre del Monte Carlo sobre el estado inicial es de
 medida y no se propaga.
 
+### La correlación entre categorías
+
+La matriz 16×16 que usan el ajuste de las tarjetas y la red de correlaciones
+se **mide**: es la correlación de Pearson entre las puntuaciones de cada par
+de categorías en los países (pares completos), proyectada a semidefinida
+positiva. Sustituye a una tabla escrita a mano que discrepaba mucho de los
+datos (decía +0,6 entre DEMOGRÁFICO y URBANO; los datos dan −0,83). Es una
+correlación **entre países**: dice qué riesgos suelen coincidir en el mapa,
+no que uno cause el otro dentro de un país.
+
 **Es un modelo ilustrativo.** La matriz de propagación y los pesos de
 resiliencia están escritos a mano y no salen de ninguna estimación: sirven
 para explorar cómo se encadenan los riesgos, no para predecir cifras.

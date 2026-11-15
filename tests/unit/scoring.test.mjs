@@ -543,3 +543,28 @@ describe('ritmoDeIndicador (puntos por año)', async () => {
     expect(ritmoDeIndicador({ value: 60, year: 2024, prev_value: 50, prev_year: 2010 }, 'mas_riesgo', pct)).toBeNull();
   });
 });
+
+describe('correlacionCategorias', async () => {
+  const { correlacionCategorias } = await import('../../src/core/scoring.js');
+  const pais = (a, b, c) => ({ categorias: { a: { score: a }, b: { score: b }, c: { score: c } } });
+  it('mide Pearson entre países, con diagonal 1 y simétrica', () => {
+    const { matriz, paresMinimos } = correlacionCategorias({
+      X: pais(10, 20, 90), Y: pais(20, 40, 80), Z: pais(30, 60, 70), W: pais(40, 80, null),
+    }, ['a', 'b', 'c']);
+    expect(matriz[0][0]).toBe(1);
+    expect(matriz[0][1]).toBeCloseTo(1, 6);       // b = 2a
+    expect(matriz[0][2]).toBeCloseTo(-1, 6);      // c baja cuando a sube
+    expect(matriz[2][0]).toBe(matriz[0][2]);
+    expect(paresMinimos).toBe(3);                 // W no tiene c
+  });
+  it('con los datos reales: 16 categorías, valores en [-1, 1] y al menos 150 países por par', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const { calcular } = await import('../../src/core/scoring.js');
+    const datos = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/latest.json'), 'utf8'));
+    const { correlacion } = calcular(datos);
+    expect(correlacion.matriz).toHaveLength(16);
+    for (const fila of correlacion.matriz) for (const r of fila) expect(Math.abs(r)).toBeLessThanOrEqual(1);
+    expect(correlacion.paresMinimos).toBeGreaterThanOrEqual(150);
+  });
+});

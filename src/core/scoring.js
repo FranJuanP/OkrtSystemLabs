@@ -392,6 +392,57 @@ export function ritmoDeIndicador(dato, direccion, percentilDe) {
 /** Tope del ritmo, en puntos por año: ninguna categoría se mueve 25 puntos de percentil al año salvo por ruido de un indicador. */
 export const RITMO_MAXIMO = 25;
 
+/**
+ * Correlación de Pearson entre las puntuaciones de las categorías, medida
+ * entre los países (fase correlación empírica).
+ *
+ * Sustituye a la matriz 16×16 escrita a mano. Cada par usa los países que
+ * tienen las dos categorías (pares completos), así que la matriz resultante
+ * puede no ser semidefinida positiva y quien la use como correlación la
+ * proyecta (src/dashboard/matrices.js).
+ *
+ * Es una correlación ENTRE PAÍSES: dice qué riesgos suelen ir juntos en el
+ * mapa, no que uno cause el otro dentro de un país.
+ *
+ * @param {Record<string, {categorias: Record<string, {score:number|null}>}>} paises
+ * @param {string[]} categorias
+ * @returns {{matriz: number[][], paresMinimos: number}}
+ */
+export function correlacionCategorias(paises, categorias) {
+  const lista = Object.values(paises || {});
+  const k = categorias.length;
+  const matriz = Array.from({ length: k }, () => new Array(k).fill(0));
+  let paresMinimos = Infinity;
+  for (let i = 0; i < k; i++) {
+    matriz[i][i] = 1;
+    for (let j = i + 1; j < k; j++) {
+      const xs = [];
+      const ys = [];
+      for (const p of lista) {
+        const x = p.categorias && p.categorias[categorias[i]] && p.categorias[categorias[i]].score;
+        const y = p.categorias && p.categorias[categorias[j]] && p.categorias[categorias[j]].score;
+        if (Number.isFinite(x) && Number.isFinite(y)) { xs.push(x); ys.push(y); }
+      }
+      const n = xs.length;
+      paresMinimos = Math.min(paresMinimos, n);
+      let r = 0;
+      if (n >= 3) {
+        const mx = xs.reduce((a, b) => a + b, 0) / n;
+        const my = ys.reduce((a, b) => a + b, 0) / n;
+        let sxy = 0, sx = 0, sy = 0;
+        for (let t = 0; t < n; t++) {
+          sxy += (xs[t] - mx) * (ys[t] - my);
+          sx += (xs[t] - mx) ** 2;
+          sy += (ys[t] - my) ** 2;
+        }
+        r = sx > 0 && sy > 0 ? sxy / Math.sqrt(sx * sy) : 0;
+      }
+      matriz[i][j] = matriz[j][i] = Math.round(r * 1000) / 1000;
+    }
+  }
+  return { matriz, paresMinimos: Number.isFinite(paresMinimos) ? paresMinimos : 0 };
+}
+
 /** La mediana de una lista de números. */
 function mediana(xs) {
   if (!xs.length) return null;
@@ -859,5 +910,7 @@ export function calcular(datos) {
     niveles: NIVELES,
     cortes,
     etiquetaRelativa: ETIQUETA_RELATIVA,
+    // Solo países: los agregados son medias y duplicarían información.
+    correlacion: Object.assign({ categorias }, correlacionCategorias(paises, categorias)),
   };
 }

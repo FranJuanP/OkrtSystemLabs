@@ -864,10 +864,31 @@ if (DATOS_ESTADO.ok && DATOS_ESTADO.calculo) {
    INFORME_CORR lleva el detalle y window.__AETHER__ lo expone. */
 const CORR_DECLARADA=[[1.0, 0.6, 0.3, 0.3, 0.7, 0.4, 0.5, 0.4, 0.6, 0.2, 0.4, 0.3, 0.4, 0.8, 0.2, 0.2], [0.6, 1.0, 0.2, 0.3, 0.6, 0.5, 0.4, 0.3, 0.5, 0.3, 0.3, 0.2, 0.8, 0.4, 0.3, 0.3], [0.3, 0.2, 1.0, 0.5, 0.3, 0.2, 0.5, 0.6, 0.2, 0.4, 0.4, 0.3, 0.2, 0.2, 0.3, 0.8], [0.3, 0.3, 0.5, 1.0, 0.4, 0.2, 0.8, 0.3, 0.5, 0.3, 0.5, 0.2, 0.2, 0.2, 0.8, 0.4], [0.7, 0.6, 0.3, 0.4, 1.0, 0.4, 0.4, 0.8, 0.3, 0.6, 0.5, 0.3, 0.7, 0.5, 0.2, 0.3], [0.4, 0.5, 0.2, 0.2, 0.4, 1.0, 0.2, 0.3, 0.4, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2, 0.2], [0.5, 0.4, 0.5, 0.8, 0.4, 0.2, 1.0, 0.4, 0.4, 0.3, 0.4, 0.2, 0.3, 0.3, 0.6, 0.4], [0.4, 0.3, 0.6, 0.3, 0.8, 0.3, 0.4, 1.0, 0.2, 0.4, 0.4, 0.3, 0.4, 0.3, 0.2, 0.2], [0.6, 0.5, 0.2, 0.5, 0.3, 0.4, 0.4, 0.2, 1.0, 0.2, 0.4, 0.3, 0.2, 0.5, 0.4, 0.2], [0.2, 0.3, 0.4, 0.3, 0.6, 0.2, 0.3, 0.4, 0.2, 1.0, 0.6, 0.2, 0.3, 0.2, 0.2, 0.3], [0.4, 0.3, 0.4, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.6, 1.0, 0.3, 0.3, 0.4, 0.3, 0.3], [0.3, 0.2, 0.3, 0.2, 0.3, 0.7, 0.2, 0.3, 0.3, 0.2, 0.3, 1.0, 0.2, 0.3, 0.2, 0.4], [0.4, 0.8, 0.2, 0.2, 0.7, 0.3, 0.3, 0.4, 0.2, 0.3, 0.3, 0.2, 1.0, 0.4, 0.2, 0.2], [0.8, 0.4, 0.2, 0.2, 0.5, 0.5, 0.3, 0.3, 0.5, 0.2, 0.4, 0.3, 0.4, 1.0, 0.2, 0.2], [0.2, 0.3, 0.3, 0.8, 0.2, 0.2, 0.6, 0.2, 0.4, 0.2, 0.3, 0.2, 0.2, 0.2, 1.0, 0.4], [0.2, 0.3, 0.8, 0.4, 0.3, 0.2, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.2, 0.2, 0.4, 1.0]];
 
+/* Fase correlacion empirica · La matriz ya no es la tabla de arriba.
+
+   Se mide en src/core/scoring.js como la correlacion de Pearson entre las
+   puntuaciones de cada par de categorias en los 217 paises, y aqui se
+   proyecta a semidefinida positiva (los pares completos pueden romperlo).
+   La tabla escrita a mano se queda solo como referencia y como respaldo si
+   el calculo no llega. Diferia mucho de los datos: decia +0,6 entre
+   DEMOGRAFICO y URBANO y los datos dan -0,83. */
+const CORR_EMPIRICA = (() => {
+  const c = DATOS_ESTADO.ok && DATOS_ESTADO.calculo && DATOS_ESTADO.calculo.correlacion;
+  if (!c || !Array.isArray(c.matriz) || !Array.isArray(c.categorias)) return null;
+  // Reordenar al orden de CAT_KEYS por si el fichero trae otro.
+  const idx = CAT_KEYS.map((k) => c.categorias.indexOf(k));
+  if (idx.some((i) => i < 0)) return null;
+  return { matriz: idx.map((i) => idx.map((j) => c.matriz[i][j])), paresMinimos: c.paresMinimos };
+})();
+
 const INFORME_CORR = (() => {
-  const antes = comprobarCorrelacion(CORR_DECLARADA);
-  const r = proyectarAPSD(CORR_DECLARADA);
+  const origen = CORR_EMPIRICA ? 'datos' : 'declarada';
+  const fuente = CORR_EMPIRICA ? CORR_EMPIRICA.matriz : CORR_DECLARADA;
+  const antes = comprobarCorrelacion(fuente);
+  const r = proyectarAPSD(fuente);
   return {
+    origen,
+    paresMinimos: CORR_EMPIRICA ? CORR_EMPIRICA.paresMinimos : null,
     antes,
     despues: comprobarCorrelacion(r.matriz),
     valoresPropios: r.valoresPropios,
@@ -1116,7 +1137,7 @@ const ISO_MAP={
 
      base   el percentil que sale de los datos, con su fuente y su anio
      vel    un ajuste que depende de VELOCITY, una tabla escrita a mano
-     corr   un ajuste que depende de CORR_MATRIX, otra tabla escrita a mano
+     corr   un ajuste que depende de CORR_MATRIX, medida entre los paises
 
    Ahora se devuelven separados y la tarjeta ensena la base como numero
    principal con el ajuste al lado, para que se vea cuanto del numero viene
@@ -1265,6 +1286,15 @@ function initNetworkGraph(){
 
   // Limpiar svg previo
   d3.select('#net-wrap svg').remove();
+
+  // De donde sale la matriz, dicho junto al grafico.
+  const origen=document.getElementById('net-origen');
+  if(origen){
+    const nPaises=DATOS_ESTADO.calculo ? Object.keys(DATOS_ESTADO.calculo.paises||{}).length : 0;
+    origen.textContent = INFORME_CORR.origen==='datos'
+      ? '· medida entre '+nPaises+' países · pasa el ratón sobre un nodo'
+      : '· tabla de referencia (sin datos) · pasa el ratón sobre un nodo';
+  }
 
   const svg=d3.select('#net-wrap').append('svg')
     .attr('viewBox',`0 0 ${W} ${H}`)
