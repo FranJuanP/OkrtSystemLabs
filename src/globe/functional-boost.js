@@ -13,8 +13,13 @@
 import {
   setGlobalArcsStrategy, registerAfterShowPanel, registerBeforeFrame,
   deactivateAllArcs, arcObjects, activationTimers, currentArcFilter,
+  COUNTRIES_DEDUP, TENSION_ARCS, pulseMeshes, markerData, showPanel,
 } from './engine.js';
-import { AETHER_STORAGE } from '../core/storage.js';
+import { ISO_DE_ARCO } from './datos-globo.js';
+import { safeUrl } from '../core/escape.js';
+import {
+  cargarEventos, agruparPorPais, haceCuanto, etiquetaFuente, HORAS_POR_DEFECTO,
+} from '../core/eventos-pais.js';
 
 function ready(fn){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true});
@@ -24,92 +29,78 @@ function ready(fn){
 const SEV_W = {critical:40, high:28, medium:18, low:10};
 const RISK_W = {CRITICAL:26, HIGH:18, MEDIUM:10, LOW:4};
 const TYPE_W = {CRITICAL:30, HIGH:22, SANCTION:16, ENERGY:14, ALLIANCE:12, PROXY:18};
-const COUNTRY_ALIASES = {
-  'usa':'EE.UU.', 'united states':'EE.UU.', 'united states of america':'EE.UU.', 'us':'EE.UU.',
-  'uk':'Reino Unido', 'united kingdom':'Reino Unido',
-  'russia':'Rusia', 'china':'China', 'iran':'Irán', 'israel':'Israel', 'gaza':'Israel',
-  'south korea':'Corea del Sur', 'north korea':'Corea del Norte', 'ivory coast':'Costa de Marfil',
-  'drc':'República Democrática del Congo', 'dr congo':'República Democrática del Congo',
-  'congo, democratic republic of the':'República Democrática del Congo',
-  'czechia':'República Checa', 'uae':'Emiratos Árabes Unidos', 'turkiye':'Turquía'
-};
 
-function normalizeCountry(name){
-  if(!name || typeof name !== 'string') return null;
-  const raw = name.trim();
-  const key = raw.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9\s.-]/g,'')
-    .replace(/\s+/g,' ');
-  if(COUNTRY_ALIASES[key]) return COUNTRY_ALIASES[key];
-  if(typeof COUNTRIES_DEDUP !== 'undefined'){
-    const match = COUNTRIES_DEDUP.find(c => {
-      const ck = c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s.-]/g,'').replace(/\s+/g,' ');
-      return ck === key;
-    });
-    if(match) return match.name;
-  }
-  return raw;
+/* ── Eventos recientes por país (fase eventos por país) ─────────────────
+
+   Antes se leían de localStorage, de la clave 'aether_signal_events', que
+   ningún módulo escribe: el mapa de señales salía siempre vacío. Además
+   COUNTRIES_DEDUP, TENSION_ARCS y showPanel se consultaban como globales
+   con `typeof`, y el motor ya es un módulo ES que no las publica en
+   window, así que este refuerzo no llegaba a hacer nada.
+
+   Ahora los eventos salen de data/events.json, con su país asignado en el
+   despliegue (src/signal/paises.js), y las tablas se importan del motor. */
+let porPais = new Map();
+let lectura = { ok: false, eventos: [], descargado: null };
+
+/** Nombres con los que se busca un país: el del Banco Mundial y los de los arcos. */
+const NOMBRES_DE_ISO = new Map();
+for (const c of COUNTRIES_DEDUP) NOMBRES_DE_ISO.set(c.iso, [c.name]);
+for (const [nombre, iso] of Object.entries(ISO_DE_ARCO)) {
+  if (!NOMBRES_DE_ISO.has(iso)) NOMBRES_DE_ISO.set(iso, []);
+  if (!NOMBRES_DE_ISO.get(iso).includes(nombre)) NOMBRES_DE_ISO.get(iso).push(nombre);
 }
 
-function readSignalEvents(){
-  try{
-    // Con contrato llega ya parseado; sin el, hay que parsear la cadena.
-    const stored = window.AETHER_STORAGE
-      ? window.AETHER_STORAGE.get('aether_signal_events', null)
-      : localStorage.getItem('aether_signal_events');
-    if(!stored) return [];
-    const arr = Array.isArray(stored) ? stored : JSON.parse(stored);
-    if(!Array.isArray(arr)) return [];
-    const now = Date.now();
-    return arr.filter(ev => ev && (ev.country || ev.location) && ev.ts && (now - Number(ev.ts)) < 48*60*60*1000)
-      .map(ev => ({
-        country: normalizeCountry(ev.country || ev.location || ''),
-        severity: String(ev.severity || 'medium').toLowerCase(),
-        cat: ev.cat || ev.category || 'general',
-        title: ev.title || ev.label || '',
-        ts: Number(ev.ts) || now
-      }))
-      .filter(ev => ev.country);
-  }catch(_e){ return []; }
+async function refrescarEventos(){
+  lectura = await cargarEventos();
+  porPais = agruparPorPais(lectura.eventos);
 }
 
 function buildCountrySignalMap(){
-  const events = readSignalEvents();
   const map = new Map();
-  events.forEach(ev => {
-    const entry = map.get(ev.country) || {count:0, maxSeverity:0, latest:0, cats:new Set(), headlines:[]};
-    entry.count += 1;
-    entry.maxSeverity = Math.max(entry.maxSeverity, SEV_W[ev.severity] || 12);
-    entry.latest = Math.max(entry.latest, ev.ts || 0);
-    if(ev.cat) entry.cats.add(ev.cat);
-    if(ev.title && entry.headlines.length < 3) entry.headlines.push(ev.title);
-    map.set(ev.country, entry);
-  });
+  for (const [iso, eventos] of porPais) {
+    const entry = { iso, count: eventos.length, maxSeverity: 0, latest: 0, cats: new Set(), eventos };
+    for (const ev of eventos) {
+      entry.maxSeverity = Math.max(entry.maxSeverity, SEV_W[String(ev.severity || '').toLowerCase()] || 12);
+      entry.latest = Math.max(entry.latest, new Date(ev.time).getTime() || 0);
+      if (ev.cat) entry.cats.add(ev.cat);
+    }
+    for (const nombre of NOMBRES_DE_ISO.get(iso) || []) map.set(nombre, entry);
+  }
   return map;
 }
 
+/* En escritorio la lista va dentro del bloque PRIORITARIOS, debajo de su
+   lista: antes se añadía a #arc-controls y en escritorio quedaba encima de
+   ese bloque. En pantallas estrechas PRIORITARIOS se oculta, y entonces
+   vuelve a #arc-controls como antes. */
 function ensureHotspotBox(){
-  if(document.getElementById('globe-hotspots')) return document.getElementById('globe-hotspots');
-  const host = document.getElementById('arc-controls') || document.body;
-  const box = document.createElement('div');
-  box.id = 'globe-hotspots';
-  box.innerHTML = '<div class="gh-title">// HOTSPOTS PRIORITARIOS</div><div id="globe-hotspots-list"></div>';
-  host.appendChild(box);
+  const desk = document.getElementById('desktop-hotspots');
+  const enEscritorio = !!(desk && desk.offsetParent !== null);
+  const host = enEscritorio ? desk : (document.getElementById('arc-controls') || document.body);
+  let box = document.getElementById('globe-hotspots');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'globe-hotspots';
+    box.innerHTML = '<div class="gh-title">// EVENTOS RECIENTES · ' + HORAS_POR_DEFECTO + ' H</div><div id="globe-hotspots-list"></div>';
+  }
+  if(box.parentNode !== host) host.appendChild(box);
+  box.classList.toggle('gh-en-prioritarios', enEscritorio);
   return box;
 }
 
 function computeCountryPriority(name, signalMap){
-  const country = (typeof COUNTRIES_DEDUP !== 'undefined') ? COUNTRIES_DEDUP.find(c => c.name === name) : null;
   const sig = signalMap.get(name);
+  const country = COUNTRIES_DEDUP.find(c => c.name === name)
+    || (ISO_DE_ARCO[name] ? COUNTRIES_DEDUP.find(c => c.iso === ISO_DE_ARCO[name]) : null);
   const baseRisk = country ? (RISK_W[country.risk] || 0) : 0;
-  const connected = (typeof TENSION_ARCS !== 'undefined') ? TENSION_ARCS.filter(a => a.a===name || a.b===name).length : 0;
+  const nombres = country ? (NOMBRES_DE_ISO.get(country.iso) || [name]) : [name];
+  const connected = TENSION_ARCS.filter(a => nombres.includes(a.a) || nombres.includes(a.b)).length;
   const freshness = sig ? Math.max(0, 12 - Math.min(12, (Date.now() - sig.latest)/(60*60*1000))) : 0;
   return baseRisk + connected * 2 + (sig ? sig.count * 10 + sig.maxSeverity + freshness : 0);
 }
 
 function renderHotspots(){
-  if(typeof COUNTRIES_DEDUP === 'undefined') return;
   const signalMap = buildCountrySignalMap();
   const box = ensureHotspotBox();
   const list = document.getElementById('globe-hotspots-list');
@@ -120,9 +111,13 @@ function renderHotspots(){
     signals: signalMap.get(c.name)?.count || 0,
     cats: signalMap.get(c.name)?.cats.size || 0
   }))
-  .filter(r => r.score > 10)
+  /* Solo los que tienen eventos: el nivel de riesgo ya lo enseña la
+     lista PRIORITARIOS del motor, y repetirla aquí no añade nada. */
+  .filter(r => r.signals > 0)
   .sort((a,b)=>b.score-a.score)
-  .slice(0,5);
+  /* Dentro de PRIORITARIOS el espacio lo marca la leyenda de abajo: con
+     menos de 960 px de alto solo caben dos filas sin pisarla. */
+  .slice(0, !box.classList.contains('gh-en-prioritarios') ? 5 : innerHeight >= 960 ? 3 : 2);
 
   list.replaceChildren();
   rows.forEach((row, idx) => {
@@ -131,12 +126,10 @@ function renderHotspots(){
     item.className = 'gh-item';
     item.innerHTML = '<span class="gh-rank">0'+(idx+1)+'</span>'+
       '<span class="gh-name">'+row.name.toUpperCase()+'</span>'+
-      '<span class="gh-meta">'+(row.signals ? row.signals+' señales' : row.risk)+'</span>';
+      '<span class="gh-meta">'+(row.signals === 1 ? '1 evento' : row.signals+' eventos')+'</span>';
     item.addEventListener('click', function(){
-      if(typeof showPanel === 'function'){
-        const country = COUNTRIES_DEDUP.find(c => c.name === row.name);
-        if(country) showPanel(country);
-      }
+      const country = COUNTRIES_DEDUP.find(c => c.name === row.name);
+      if(country) showPanel(country);
     });
     list.appendChild(item);
   });
@@ -156,7 +149,7 @@ function installGlobalArcsStrategy(){
   setGlobalArcsStrategy(function(){
     deactivateAllArcs();
     const signalMap = buildCountrySignalMap();
-    const filtered = (typeof arcObjects !== 'undefined' ? arcObjects : []).filter(ao => !currentArcFilter || ao.data.type === currentArcFilter)
+    const filtered = arcObjects.filter(ao => !currentArcFilter || ao.data.type === currentArcFilter)
       .sort((a,b)=>corridorPriority(b, signalMap)-corridorPriority(a, signalMap));
     filtered.forEach((ao, i) => {
       const t = setTimeout(() => {
@@ -190,19 +183,7 @@ function installPanelEnrichment(){
         }).forEach(row => arcList.appendChild(row));
       }
 
-      const coords = document.getElementById('pCoords');
-      if(coords && selected){
-        let badge = document.getElementById('globe-signal-badge');
-        if(!badge){
-          badge = document.createElement('div');
-          badge.id = 'globe-signal-badge';
-          badge.className = 'globe-signal-badge';
-          coords.parentNode.insertBefore(badge, coords.nextSibling);
-        }
-        badge.textContent = 'SEÑALES ACTIVAS: '+selected.count+' · CATEGORÍAS: '+selected.cats.size;
-      } else {
-        document.getElementById('globe-signal-badge')?.remove();
-      }
+      pintarEventosDelPais(c, selected);
 
       Array.from(document.querySelectorAll('#arcList .arc-row')).forEach(row => {
         const other = (row.querySelector('.arc-name')?.textContent || '').replace('↔','').trim();
@@ -211,7 +192,7 @@ function installPanelEnrichment(){
         if(data){
           const badge = document.createElement('span');
           badge.className = 'arc-heat-badge';
-          badge.textContent = data.count+' señal'+(data.count>1?'es':'');
+          badge.textContent = data.count+(data.count>1?' eventos':' evento');
           row.querySelector('.arc-head')?.appendChild(badge);
         }
       });
@@ -221,7 +202,6 @@ function installPanelEnrichment(){
 
 function pulseHotCountries(){
   const signalMap = buildCountrySignalMap();
-  if(typeof pulseMeshes === 'undefined' || typeof markerData === 'undefined') return;
   pulseMeshes.forEach((mesh, idx) => {
     const country = markerData[idx];
     if(!mesh || !country) return;
@@ -245,26 +225,76 @@ function installHotspotRefresh(){
   });
 }
 
+/* Bloque del panel con los eventos del país: cuántos, de qué fuentes y los
+   cinco más recientes con su enlace. Todo con textContent: los títulos
+   vienen de fuentes externas. */
+function pintarEventosDelPais(c, selected){
+  const coords = document.getElementById('pCoords');
+  if(!coords) return;
+  let box = document.getElementById('globe-signal-badge');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'globe-signal-badge';
+    box.className = 'globe-signal-badge';
+    coords.parentNode.insertBefore(box, coords.nextSibling);
+  }
+  box.replaceChildren();
+
+  const cab = document.createElement('div');
+  cab.className = 'gsb-head';
+  if(!lectura.ok){
+    cab.textContent = 'EVENTOS · SIN LECTURA DEL PROCESO PERIÓDICO';
+    box.appendChild(cab);
+    return;
+  }
+  if(!selected){
+    cab.textContent = 'SIN EVENTOS EN LAS ÚLTIMAS ' + HORAS_POR_DEFECTO + ' H';
+    box.appendChild(cab);
+    return;
+  }
+  cab.textContent = 'EVENTOS · ' + HORAS_POR_DEFECTO + ' H: ' + selected.count
+    + ' · CATEGORÍAS: ' + selected.cats.size;
+  box.appendChild(cab);
+
+  const lista = document.createElement('ul');
+  lista.className = 'gsb-list';
+  for (const ev of selected.eventos.slice(0, 5)) {
+    const li = document.createElement('li');
+    const meta = document.createElement('span');
+    meta.className = 'gsb-meta';
+    meta.textContent = etiquetaFuente(ev) + ' · ' + haceCuanto(ev.time);
+    const url = safeUrl(ev.url);
+    const titulo = document.createElement(url ? 'a' : 'span');
+    titulo.className = 'gsb-title';
+    titulo.textContent = ev.title || '—';
+    if(url){ titulo.href = url; titulo.target = '_blank'; titulo.rel = 'noopener noreferrer'; }
+    li.append(meta, titulo);
+    lista.appendChild(li);
+  }
+  box.appendChild(lista);
+
+  if(lectura.descargado){
+    const pie = document.createElement('div');
+    pie.className = 'gsb-foot';
+    pie.textContent = 'Lectura de ' + lectura.descargado.toLocaleString('es-ES', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    }) + ' · GDELT no se asigna a países';
+    box.appendChild(pie);
+  }
+}
+
 function boot(){
   installGlobalArcsStrategy();
   installPanelEnrichment();
   installHotspotRefresh();
   renderHotspots();
   pulseHotCountries();
-  window.addEventListener('storage', function(e){
-    if(e.key === 'aether_signal_events'){
-      renderHotspots();
-      pulseHotCountries();
-    }
+  // Los datos del país ya están (el motor espera a latest.json); los
+  // eventos llegan después y se repintan al llegar.
+  refrescarEventos().then(() => {
+    renderHotspots();
+    pulseHotCountries();
   });
 }
 
-ready(function(){
-  const wait = setInterval(function(){
-    if(typeof showPanel === 'function' && typeof showGlobalArcs === 'function' && typeof COUNTRIES_DEDUP !== 'undefined'){
-      clearInterval(wait);
-      boot();
-    }
-  }, 200);
-  setTimeout(function(){ clearInterval(wait); boot(); }, 8000);
-});
+ready(boot);

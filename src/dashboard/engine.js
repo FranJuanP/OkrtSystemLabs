@@ -29,6 +29,9 @@ import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rn
 import { proyectarAPSD, normalizarPesos, comprobarCorrelacion } from './matrices.js';
 import { proyectar, enMemoria, estadisticas as statsSim } from './sim-cliente.js';
 import { simularCascada, monteCarlo as monteCarloLocal } from './sim-core.js';
+import {
+  cargarEventos, agruparPorPais, recientesConPais, haceCuanto, etiquetaFuente, HORAS_POR_DEFECTO,
+} from '../core/eventos-pais.js';
 
 const d3 = {
   select, drag,
@@ -607,6 +610,69 @@ function renderEvents(d){
       <div class="ev-text">${esc(e.tx)}</div>
     </div>`).join('');
   document.getElementById('ev-count').textContent=picked.length+' TEMAS';
+}
+
+/* ── Eventos recientes del país (fase eventos por país) ──────────────────
+
+   Lo que ha pasado en las últimas 72 h en el territorio seleccionado, junto
+   a su puntuación: la puntuación dice cuánto riesgo estructural tiene, esto
+   dice qué está ocurriendo ahora. Sale de data/events.json, que regenera el
+   despliegue cada media hora, con el país asignado por
+   src/signal/paises.js. Para el mundo se muestran los más recientes de
+   todos los países, y para la UE los de sus 27 miembros. */
+const MIEMBROS_UE = new Set(['AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','FRA',
+  'DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK',
+  'SVN','ESP','SWE']);
+const SEV_COLOR = {CRITICAL:'255,51,85',HIGH:'255,140,0',MEDIUM:'255,215,0',LOW:'0,204,102'};
+const SEV_ES = {CRITICAL:'CRÍTICO',HIGH:'ALTO',MEDIUM:'MEDIO',LOW:'BAJO'};
+
+function eventosParaRegion(code, eventos){
+  if(code==='WLD') return recientesConPais(eventos);
+  if(code==='EUU'){
+    const vistos=new Set(), salida=[];
+    for(const [iso,lista] of agruparPorPais(eventos)){
+      if(!MIEMBROS_UE.has(iso)) continue;
+      for(const ev of lista){ const id=ev.id||ev.title; if(!vistos.has(id)){vistos.add(id); salida.push(ev);} }
+    }
+    return salida.sort((a,b)=>new Date(b.time)-new Date(a.time));
+  }
+  return agruparPorPais(eventos).get(code) || [];
+}
+
+function renderEventosPais(code, d){
+  const feed=document.getElementById('pais-ev-feed');
+  if(!feed) return;
+  const titulo=document.getElementById('pais-ev-titulo');
+  const cuenta=document.getElementById('pais-ev-count');
+  const pie=document.getElementById('pais-ev-pie');
+  const nombre=(d && d.name) || code;
+  if(titulo) titulo.textContent='EVENTOS RECIENTES · '+String(nombre).toUpperCase();
+  cargarEventos().then(lectura=>{
+    // El usuario puede haber cambiado de región mientras llegaba el fichero.
+    if(document.getElementById('region-sel')?.value!==code) return;
+    if(!lectura.ok){
+      feed.innerHTML='<div class="ev-text" style="color:var(--dim)">Sin lectura de eventos: el proceso periódico no ha publicado data/events.json en este despliegue.</div>';
+      if(cuenta) cuenta.textContent='SIN LECTURA';
+      if(pie) pie.textContent='';
+      return;
+    }
+    const lista=eventosParaRegion(code, lectura.eventos);
+    if(cuenta) cuenta.textContent=lista.length+' · '+HORAS_POR_DEFECTO+' H';
+    feed.innerHTML=lista.length ? lista.slice(0,12).map(ev=>`
+    <div class="ev" style="flex-direction:column;gap:4px;padding:8px;background:rgba(5,10,16,.4);border-radius:6px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="ev-badge" style="background:rgba(${SEV_COLOR[ev.severity]||'255,215,0'},.1);color:rgb(${SEV_COLOR[ev.severity]||'255,215,0'});border:1px solid rgba(${SEV_COLOR[ev.severity]||'255,215,0'},.25)">${esc(SEV_ES[ev.severity]||'—')}</span>
+        <span style="font-size:9px;font-family:'Share Tech Mono',monospace;color:var(--dim)">${esc(etiquetaFuente(ev))} · ${esc(haceCuanto(ev.time))}</span>
+        ${safeUrl(ev.url)?`<a href="${safeHref(ev.url)}" target="_blank" rel="noopener noreferrer" class="ev-src-link"
+          style="margin-left:auto;font-size:9px;font-family:'Share Tech Mono',monospace;color:var(--cyan);background:rgba(0,255,200,.06);border:1px solid rgba(0,255,200,.2);padding:2px 7px;border-radius:3px;text-decoration:none;white-space:nowrap">FUENTE ↗</a>`:''}
+      </div>
+      <div class="ev-text">${esc(ev.title||'—')}</div>
+    </div>`).join('')
+      : '<div class="ev-text" style="color:var(--dim)">Ningún evento con este país en las últimas '+HORAS_POR_DEFECTO+' h en USGS, NASA EONET, OMS ni GDACS.</div>';
+    if(pie) pie.textContent=(lectura.descargado
+      ? 'Lectura de '+lectura.descargado.toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' · '
+      : '')+'GDELT no se asigna a países: su país es el del medio que publica, no el del suceso.';
+  });
 }
 
 function onRegionChange(){loadRegion();}
@@ -2148,6 +2214,7 @@ function loadRegion(){
   actualizarPieDeDatos();
   actualizarTarjetaGlobo();
   renderEvents(d);
+  renderEventosPais(code, d);
   if(typeof updateAlgoBanner==='function') updateAlgoBanner(code);
   if(typeof renderChains==='function')     renderChains(code);
   if(typeof initThermo==='function')       initThermo(code);

@@ -168,7 +168,12 @@ export function collectDiagnostics(page, baseUrl) {
       // ERR_CONNECTION_REFUSED y el service worker ERR_FAILED, de modo que
       // contarlo convertia un cambio de capa en una regresion aparente.
       const esRuidoDeRed = /^Failed to load resource: net::ERR_/.test(text);
-      if (!esRuidoDeRed) consoleErrors.push(text);
+      // data/events.json solo existe en el artefacto de Pages: se genera en
+      // cada despliegue y no se confirma en el repositorio. Fuera de ahi su
+      // 404 es el estado esperado, y las paginas ya dicen «sin lectura».
+      const url = (msg.location && msg.location().url) || '';
+      const esEventosOpcional = /status of 404/.test(text) && /\/data\/events\.json(\?|$)/.test(url);
+      if (!esRuidoDeRed && !esEventosOpcional) consoleErrors.push(text);
       if (/Content Security Policy|Refused to/i.test(text)) cspViolations.push(text);
     } else if (msg.type() === 'warning') {
       consoleWarnings.push(text);
