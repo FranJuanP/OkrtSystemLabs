@@ -74,15 +74,15 @@ function modeloDePrueba(extra = {}) {
     catKeys: ['eco', 'geo'],
     scores: { eco: 50, geo: 40 },
     sigmas: { eco: 3, geo: 3 },
-    vel: { eco: 0, geo: 0 },
+    ritmo: { eco: 0, geo: 0 },
     resiliencia: 0.5,
-    sigmaVelocidad: 0.05,
-    prop: { eco: { geo: { s: 0.8, l: 3, d: 0.6 } } },
+    sigmaRitmo: 1,
+    prop: { eco: { geo: { s: 0.8, l: 3, d: 0.1 } } },
   }, extra);
 }
 
 describe('simularCascada', () => {
-  it('sin velocidades no pasa nada', () => {
+  it('sin ritmo ni shocks no pasa nada', () => {
     const h = simularCascada(modeloDePrueba(), 10);
     expect(h).toHaveLength(11);
     for (const cuadro of h) {
@@ -91,29 +91,42 @@ describe('simularCascada', () => {
     }
   });
 
-  it('una velocidad en eco propaga un shock a geo en la semana que dice la latencia', () => {
-    const h = simularCascada(modeloDePrueba({ vel: { eco: 0.6, geo: 0 } }), 12);
-    // Antes de la semana 3 geo solo se mueve por su propia deriva, que es 0.
+  it('el ritmo va en puntos por año: en 52 semanas se suma el ritmo anual (sin resiliencia)', () => {
+    const h = simularCascada(modeloDePrueba({ ritmo: { eco: 5.2, geo: 0 }, resiliencia: 0, prop: {} }), 52);
+    expect(h[52].eco - 50).toBeCloseTo(5.2, 6);
+  });
+
+  it('un ritmo en eco manda un shock a geo en la semana que dice el retardo', () => {
+    const h = simularCascada(modeloDePrueba({ ritmo: { eco: 8, geo: 0 } }), 12);
     expect(h[2].geo).toBeCloseTo(40, 6);
-    // En la semana 3 llega el shock.
-    expect(h[3].geo).toBeGreaterThan(40);
+    expect(h[3].geo).toBeGreaterThan(40.5);
   });
 
-  it('el shock DECAE: geo vuelve hacia su nivel en las semanas siguientes (T26)', () => {
-    const h = simularCascada(modeloDePrueba({ vel: { eco: 0.6, geo: 0 } }), 20);
-    const serie = h.map((f) => f.geo);
-    const pico = Math.max(...serie);
-    const alFinal = serie[serie.length - 1];
-    expect(pico).toBeGreaterThan(40);
-    // Sin decaimiento, el final sería igual al pico: era un escalón.
-    expect(alFinal).toBeLessThan(pico);
+  it('el shock llega ENTERO y pierde la fracción d cada semana a partir de la siguiente', () => {
+    // Shock limpio: sin resiliencia, sin ritmo, solo el salto inicial de eco.
+    const m = modeloDePrueba({ resiliencia: 0, prop: { eco: { geo: { s: 1, l: 2, d: 0.1 } } } });
+    const h = simularCascada(m, 6, { eco: 70 }, null, { propagar: true });
+    const g = h.map((f) => f.geo - 40);
+    expect(g[1]).toBeCloseTo(0, 6);
+    expect(g[2]).toBeCloseTo(20, 6);        // llega +20 entero
+    expect(g[3]).toBeCloseTo(18, 6);        // conserva el 90 %
+    expect(g[4]).toBeCloseTo(16.2, 6);
+    expect(g[6]).toBeLessThan(g[2]);
   });
 
-  it('las velocidades perturbadas CAMBIAN la trayectoria, que es lo que T26 arregló', () => {
+  it('sin propagar, el estado inicial alterado NO viaja (Monte Carlo); con propagar, sí (Shock Simulator)', () => {
+    const m = modeloDePrueba({ resiliencia: 0 });
+    const quieto = simularCascada(m, 6, { eco: 80 });
+    const viaja = simularCascada(m, 6, { eco: 80 }, null, { propagar: true });
+    expect(quieto[6].geo).toBeCloseTo(40, 6);
+    expect(viaja[6].geo).toBeGreaterThan(50);
+    expect(viaja[0].eco).toBe(80);
+  });
+
+  it('los ritmos perturbados cambian la trayectoria', () => {
     const m = modeloDePrueba();
-    const arriba = simularCascada(m, 12, {}, { eco: 0.5, geo: 0.5 });
-    const abajo = simularCascada(m, 12, {}, { eco: -0.5, geo: -0.5 });
-    expect(arriba[12].eco).not.toBeCloseTo(abajo[12].eco, 3);
+    const arriba = simularCascada(m, 12, {}, { eco: 6, geo: 6 });
+    const abajo = simularCascada(m, 12, {}, { eco: -6, geo: -6 });
     expect(arriba[12].eco).toBeGreaterThan(abajo[12].eco);
   });
 
@@ -123,7 +136,7 @@ describe('simularCascada', () => {
   });
 
   it('las puntuaciones se quedan entre 0 y 100', () => {
-    const h = simularCascada(modeloDePrueba({ vel: { eco: 5, geo: 5 }, resiliencia: 0 }), 60);
+    const h = simularCascada(modeloDePrueba({ ritmo: { eco: 25, geo: 25 }, resiliencia: 0 }), 200, { eco: 99 }, null, { propagar: true });
     for (const cuadro of h) {
       for (const k of ['eco', 'geo']) {
         expect(cuadro[k]).toBeGreaterThanOrEqual(0);
@@ -133,8 +146,8 @@ describe('simularCascada', () => {
   });
 
   it('más resiliencia amortigua más', () => {
-    const blando = simularCascada(modeloDePrueba({ vel: { eco: 0.6, geo: 0 }, resiliencia: 0.05 }), 12);
-    const duro = simularCascada(modeloDePrueba({ vel: { eco: 0.6, geo: 0 }, resiliencia: 0.9 }), 12);
+    const blando = simularCascada(modeloDePrueba({ resiliencia: 0.05 }), 12, { eco: 75 }, null, { propagar: true });
+    const duro = simularCascada(modeloDePrueba({ resiliencia: 0.9 }), 12, { eco: 75 }, null, { propagar: true });
     const subeBlando = Math.max(...blando.map((f) => f.geo)) - 40;
     const subeDuro = Math.max(...duro.map((f) => f.geo)) - 40;
     expect(subeDuro).toBeLessThan(subeBlando);

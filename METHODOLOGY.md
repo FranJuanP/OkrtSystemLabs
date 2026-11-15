@@ -764,6 +764,33 @@ velocidad y no lo es. Y las dimensiones de INFORM y ND-GAIN no traen valor
 anterior —vienen de una sola publicación—, así que las categorías que dependen
 mucho de ellas tienen velocidades apoyadas en pocos indicadores.
 
+### Ritmo: la velocidad en puntos por año
+
+La velocidad es un cambio relativo de los indicadores **brutos** y no se puede
+sumar a una puntuación de 0 a 100. Para la proyección se calcula además el
+**ritmo**: el valor anterior de cada indicador se sitúa en la distribución
+actual de los países (el mismo percentil con el que se puntúa) y se mide
+cuántos puntos de riesgo ha ganado o perdido el país por año. El ritmo de la
+categoría es la mediana de los de sus indicadores, recortada a ±25 puntos por
+año. Mide el movimiento del país **respecto de sus pares de hoy**, no frente
+a una escala fija.
+
+La cascada suma cada semana ritmo / 52.
+
+### La cascada
+
+Una categoría manda shocks a las que dependen de ella según una matriz de
+propagación con fuerza, retardo en semanas y fracción que se pierde cada
+semana. Un shock llega entero en su semana y desde la siguiente pierde esa
+fracción. Al llegar genera shocks de segundo orden a mitad de fuerza. Los
+originan el ritmo de cada categoría y, en el Shock Simulator, el escenario
+aplicado. La incertidumbre del Monte Carlo sobre el estado inicial es de
+medida y no se propaga.
+
+**Es un modelo ilustrativo.** La matriz de propagación y los pesos de
+resiliencia están escritos a mano y no salen de ninguna estimación: sirven
+para explorar cómo se encadenan los riesgos, no para predecir cifras.
+
 ---
 
 ## 5. Límites de comparabilidad

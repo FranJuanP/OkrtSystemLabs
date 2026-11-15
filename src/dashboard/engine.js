@@ -834,14 +834,16 @@ const CAT_COLORS=[
    sale esa velocidad: con cero, es un cero declarado y no una medicion de
    estabilidad. */
 const VELOCITY = {};
+/** Ritmo de cada categoria en puntos por ano: lo que usa la cascada. */
+const RITMO = {};
 
 /* Se rellena aqui y no junto a DATA: en el modulo, `const VELOCITY` esta en
    su zona muerta hasta esta linea, y asignarle antes lanzaba
    "Cannot set properties of undefined", dejaba DATOS_ESTADO en fallo y el
    panel entero decia SIN DATOS teniendo los datos cargados. */
 if (DATOS_ESTADO.ok && DATOS_ESTADO.calculo) {
-  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.paises)) VELOCITY[iso] = p.velocidades;
-  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.agregados || {})) VELOCITY[iso] = p.velocidades;
+  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.paises)) { VELOCITY[iso] = p.velocidades; RITMO[iso] = p.ritmos || {}; }
+  for (const [iso, p] of Object.entries(DATOS_ESTADO.calculo.agregados || {})) { VELOCITY[iso] = p.velocidades; RITMO[iso] = p.ritmos || {}; }
 }
 /* T27 · CORR_MATRIX no era una matriz de correlacion.
 
@@ -2386,7 +2388,8 @@ function detectInflections(code) {
  * @param {string} code
  * @param {number} horizonWeeks
  * @param {object} [shockOverrides]  estado inicial alterado por categoria
- * @param {object} [velOverrides]    T26: velocidades alteradas por categoria.
+ * @param {object} [ritmoOverrides]  ritmos alterados por categoria (antes
+ *   velOverrides, con la velocidad relativa; ver sim-core.js).
  *   El Monte Carlo las perturbaba y las dejaba en una variable que NO SE
  *   PASABA aqui, asi que las 400 simulaciones usaban todas la misma
  *   velocidad y la unica variacion venia del estado inicial. Ahora entran.
@@ -2412,22 +2415,22 @@ function modeloDe(code){
     catKeys: CAT_KEYS.slice(),
     scores,
     sigmas,
-    vel: Object.assign({}, VELOCITY[code] || VELOCITY.WLD),
+    ritmo: Object.assign({}, RITMO[code] || RITMO.WLD),
     resiliencia: computeResilienceIndex(code),
     prop: PROP_MATRIX,
-    sigmaVelocidad: SIGMA_VELOCIDAD,
+    sigmaRitmo: SIGMA_RITMO,
   };
 }
 
-function simulateCascade(code, horizonWeeks, shockOverrides = {}, velOverrides = null) {
+function simulateCascade(code, horizonWeeks, shockOverrides = {}, ritmoOverrides = null, opciones = {}) {
   /* T28 · El calculo vive en src/dashboard/sim-core.js, que no lee nada de
      fuera y por tanto puede correr tambien dentro de un Web Worker. Esta
      funcion se queda como la puerta de entrada que el resto del motor ya
      usaba: construye el modelo del pais y delega. */
-  return simularCascada(modeloDe(code), horizonWeeks, shockOverrides, velOverrides);
+  return simularCascada(modeloDe(code), horizonWeeks, shockOverrides, ritmoOverrides, opciones);
 }
 // ══════════════════════════════════════════════════
-//  MONTE CARLO — 500 simulaciones con ruido
+//  MONTE CARLO — 400 simulaciones con ruido
 // ══════════════════════════════════════════════════
 /**
  * Incertidumbre de cada categoria, en puntos de score (T26).
@@ -2450,8 +2453,9 @@ function sigmaDeCategoria(d, k) {
   return SIGMA_POR_CONFIANZA[conf] != null ? SIGMA_POR_CONFIANZA[conf] : SIGMA_POR_CONFIANZA.media;
 }
 
-/** Dispersion de la velocidad. Fija, porque VELOCITY no tiene confianza. */
-const SIGMA_VELOCIDAD = 0.05;
+/** Dispersion del ritmo, en puntos por ano. Es del orden de la mediana de
+    |ritmo| entre todos los paises y categorias (1,2 puntos/ano). */
+const SIGMA_RITMO = 1.0;
 
 function runMonteCarlo(code, horizonWeeks, nSims = 400) {
   /* T28 · Igual que simulateCascade: el calculo esta en sim-core.js para que
@@ -2973,7 +2977,9 @@ function runShockCascade() {
   const horizonWeeks = horizon * 4.3;
 
   // Simulación con shocks
-  ShockSim.history   = simulateCascade(code, Math.round(horizonWeeks), overrides);
+  // Con propagar: los shocks del simulador viajan por la matriz a las
+  // categorias que dependen de ellos, no solo cambian el punto de partida.
+  ShockSim.history   = simulateCascade(code, Math.round(horizonWeeks), overrides, null, { propagar: true });
   // Simulación baseline (sin shocks)
   ShockSim.baseline  = simulateCascade(code, Math.round(horizonWeeks));
   ShockSim.week      = 0;

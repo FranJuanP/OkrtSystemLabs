@@ -367,6 +367,31 @@ export function velocidadDeIndicador(dato, direccion) {
   return direccion === 'menos_riesgo' ? -cambio : cambio;
 }
 
+/**
+ * Ritmo de un indicador: puntos de riesgo por año (0 a 100), con el
+ * percentil del valor anterior en la distribución actual.
+ *
+ * Mismos filtros que la velocidad: sin valor anterior, dirección ambigua,
+ * años no crecientes o más de diez años de hueco, no hay ritmo.
+ *
+ * @param {object} dato
+ * @param {string} direccion
+ * @param {(valor:number)=>number|null} percentilDe  percentil de riesgo de un valor
+ */
+export function ritmoDeIndicador(dato, direccion, percentilDe) {
+  if (!dato || dato.prev_value == null || dato.prev_year == null) return null;
+  if (direccion === 'ambiguo') return null;
+  const anios = dato.year - dato.prev_year;
+  if (!(anios > 0) || anios > 10) return null;
+  const ahora = percentilDe(dato.value);
+  const antes = percentilDe(dato.prev_value);
+  if (!Number.isFinite(ahora) || !Number.isFinite(antes)) return null;
+  return (ahora - antes) / anios;
+}
+
+/** Tope del ritmo, en puntos por año: ninguna categoría se mueve 25 puntos de percentil al año salvo por ruido de un indicador. */
+export const RITMO_MAXIMO = 25;
+
 /** La mediana de una lista de números. */
 function mediana(xs) {
   if (!xs.length) return null;
@@ -458,24 +483,44 @@ export function calcular(datos) {
    * contarse entre ellos, porque el mundo es la media de todos y meterlo en
    * la muestra desplazaría el centro de todas las comparaciones.
    */
+  /* La muestra de cada indicador, ya con el signo del riesgo y ordenada, se
+     prepara una sola vez: el ritmo pide dos percentiles por indicador y por
+     país, y recorrer los 217 países en cada llamada multiplicaba por seis el
+     tiempo de cálculo. El resultado es idéntico (búsqueda binaria de los
+     menores y los iguales). */
+  const muestras = new Map();
+  function muestraOrdenada(id) {
+    if (muestras.has(id)) return muestras.get(id);
+    const meta = datos.indicadores[id];
+    const signo = meta.direccion === 'menos_riesgo' ? -1 : 1;
+    const m = [];
+    for (const pais of Object.values(datos.paises)) {
+      const d = pais.indicadores && pais.indicadores[id];
+      if (d && Number.isFinite(d.value)) m.push(signo * d.value);
+    }
+    m.sort((a, b) => a - b);
+    const r = { signo, m };
+    muestras.set(id, r);
+    return r;
+  }
+  /** Primer índice con m[i] >= x (o > x si `estricto`). */
+  function cota(m, x, estricto) {
+    let lo = 0, hi = m.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (estricto ? m[mid] <= x : m[mid] < x) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
   function percentilExterno(id, valor) {
     const meta = datos.indicadores[id];
     if (!meta || meta.direccion === 'ambiguo' || !Number.isFinite(valor)) return null;
-    const signo = meta.direccion === 'menos_riesgo' ? -1 : 1;
-    const muestra = [];
-    for (const pais of Object.values(datos.paises)) {
-      const d = pais.indicadores && pais.indicadores[id];
-      if (d && Number.isFinite(d.value)) muestra.push(signo * d.value);
-    }
-    if (!muestra.length) return null;
+    const { signo, m } = muestraOrdenada(id);
+    if (!m.length) return null;
     const r = signo * valor;
-    let menores = 0;
-    let iguales = 0;
-    for (const v of muestra) {
-      if (v < r) menores++;
-      else if (v === r) iguales++;
-    }
-    return ((menores + iguales / 2) / muestra.length) * 100;
+    const menores = cota(m, r, false);
+    const iguales = cota(m, r, true) - menores;
+    return ((menores + iguales / 2) / m.length) * 100;
   }
 
   /** Calcula las 16 categorías y la puntuación de una entrada cualquiera. */
@@ -527,6 +572,26 @@ export function calcular(datos) {
         const v = velocidadDeIndicador(d, meta.direccion);
         if (v !== null && Number.isFinite(v)) velocidades.push(v);
       }
+      /* Ritmo: lo mismo, pero en PUNTOS DE PUNTUACIÓN POR AÑO.
+
+         La velocidad es un cambio relativo de los indicadores brutos (un
+         0,05 es un 5 % al año en la unidad del indicador), y la cascada la
+         sumaba a la puntuación cada semana como si fueran puntos: unidades
+         distintas. El ritmo sitúa el valor anterior de cada indicador en
+         la distribución actual de los países (el mismo percentil con el
+         que se puntúa) y mide cuántos puntos de riesgo ha ganado o perdido
+         el país por año. Eso sí se puede sumar a una puntuación. */
+      const ritmos = [];
+      for (const [id, meta] of delCat) {
+        const d = entrada.indicadores && entrada.indicadores[id];
+        const r = ritmoDeIndicador(d, meta.direccion, (v) => percentilExterno(id, v));
+        if (r !== null && Number.isFinite(r)) ritmos.push(r);
+      }
+      const rit = mediana(ritmos);
+      const ritmo = rit === null
+        ? 0
+        : Math.max(-RITMO_MAXIMO, Math.min(RITMO_MAXIMO, Math.round(rit * 100) / 100));
+
       const vel = mediana(velocidades);
       const velocidad = vel === null
         ? 0
@@ -538,6 +603,8 @@ export function calcular(datos) {
         // Cuántos indicadores respaldan esa velocidad: con cero, es un cero
         // declarado, no una medición de estabilidad.
         velocidadDe: velocidades.length,
+        ritmo,
+        ritmoDe: ritmos.length,
         confianza: confianzaDe(anios.length, puntuables.length, anios, anioActual),
         indicadores: detalle,
       };
@@ -584,10 +651,13 @@ export function calcular(datos) {
 
     const velocidades = {};
     for (const cat of categorias) velocidades[cat] = resultadoCats[cat].velocidad;
+    const ritmos = {};
+    for (const cat of categorias) ritmos[cat] = resultadoCats[cat].ritmo;
 
     return {
       nombre: entrada.nombre,
       velocidades,
+      ritmos,
       iso2: entrada.iso2,
       region: entrada.region,
       lat: entrada.lat != null ? entrada.lat : null,

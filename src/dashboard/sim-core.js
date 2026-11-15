@@ -39,62 +39,100 @@ function gaussianaCon(aleatorio) {
 }
 
 /**
- * Una pasada de la cascada.
+ * Una pasada de la cascada, semana a semana.
  *
- * @param {object} modelo  {catKeys, scores, vel, resiliencia, prop}
+ * Unidades: las puntuaciones van de 0 a 100 y el `ritmo` de cada categoría
+ * en PUNTOS POR AÑO (src/core/scoring.js). Cada semana se suma ritmo/52.
+ * Antes se sumaba `velocidad × 0,4` cada semana, con la velocidad como
+ * cambio relativo anual de los indicadores brutos: otra unidad.
+ *
+ * Shocks. Una categoría manda shocks a las que dependen de ella según
+ * PROP_MATRIX: {s: fuerza, l: semanas de retardo, d: fracción que se pierde
+ * cada semana}. Los origina:
+ *   - su ritmo: lo que se mueve en un año empuja a las dependientes;
+ *   - con `opciones.propagar`, la diferencia entre el estado inicial y la
+ *     puntuación del país: es lo que hace el Shock Simulator. Antes esos
+ *     shocks solo cambiaban el punto de partida y NO se propagaban; una
+ *     pandemia subía SALUD y BIOSEG pero no llegaba a la economía.
+ * Al llegar, un shock de segundo orden sale hacia las dependientes del
+ * destino con la mitad de fuerza, y así sucesivamente mientras supere 1,5.
+ *
+ * Decaimiento (T26, corregido). Un shock que llega se mantiene entero esa
+ * semana y a partir de la siguiente pierde la fracción `d` cada semana:
+ * con d = 0,05 conserva el 95 %. Antes se conservaba `d` (el 5 %) y desde
+ * la misma semana de llegada, así que un shock de +20 se veía como +1
+ * durante una semana y desaparecía.
+ *
+ * @param {object} modelo  {catKeys, scores, ritmo, resiliencia, prop}
  * @param {number} semanas
- * @param {object} [overrides]     estado inicial alterado
- * @param {object} [velOverrides]  velocidades alteradas
+ * @param {object} [overrides]       estado inicial alterado
+ * @param {object} [ritmoOverrides]  ritmos alterados (Monte Carlo)
+ * @param {{propagar?: boolean}} [opciones]
  */
-export function simularCascada(modelo, semanas, overrides = {}, velOverrides = null) {
+export function simularCascada(modelo, semanas, overrides = {}, ritmoOverrides = null, opciones = {}) {
   const { catKeys, scores, prop, resiliencia } = modelo;
-  const vel = velOverrides || modelo.vel;
+  const ritmo = ritmoOverrides || modelo.ritmo || {};
 
   const estado = {};
   for (const k of catKeys) estado[k] = scores[k] != null ? scores[k] : 50;
+  const base = Object.assign({}, estado);
   Object.assign(estado, overrides);
 
   const historia = [Object.assign({}, estado, { week: 0 })];
   const pendientes = [];
   const residuos = [];
 
-  // Shocks iniciales a partir de las velocidades.
-  for (const origen of catKeys) {
+  const lanzar = (origen, magnitud) => {
     const props = prop[origen];
-    if (!props) continue;
-    const v = vel[origen] || 0;
-    if (Math.abs(v) < 0.05) continue;
-    const s0 = estado[origen];
+    if (!props) return;
     for (const [destino, par] of Object.entries(props)) {
-      const magnitud = s0 * v * par.s * (1 - resiliencia * 0.6);
-      if (Math.abs(magnitud) < 0.3) continue;
-      pendientes.push({
-        target: destino,
-        delta: magnitud,
-        arrivalWeek: Math.round(par.l),
-        decay: par.d,
-        source: origen,
-      });
+      const delta = magnitud * par.s * (1 - resiliencia * 0.6);
+      if (Math.abs(delta) < 0.3) continue;
+      pendientes.push({ target: destino, delta, arrivalWeek: Math.max(1, Math.round(par.l)), decay: par.d, source: origen });
+    }
+  };
+
+  // Shocks iniciales: por el ritmo de cada categoría y, si se pide, por el
+  // estado inicial alterado.
+  for (const origen of catKeys) {
+    const r = ritmo[origen] || 0;
+    if (Math.abs(r) >= 0.25) lanzar(origen, r);
+    if (opciones.propagar) {
+      const salto = estado[origen] - base[origen];
+      if (Math.abs(salto) >= 1) lanzar(origen, salto);
     }
   }
 
   for (let semana = 1; semana <= semanas; semana++) {
     const nuevo = Object.assign({}, estado);
 
-    // Tendencia secular.
+    // Decaimiento de lo que llegó en semanas anteriores.
+    for (let i = residuos.length - 1; i >= 0; i--) {
+      const r = residuos[i];
+      const d = (typeof r.decay === 'number' && r.decay > 0 && r.decay < 1) ? r.decay : 0.08;
+      const siguiente = r.delta * (1 - d);
+      nuevo[r.target] = Math.max(0, Math.min(100, nuevo[r.target] - (r.delta - siguiente)));
+      r.delta = siguiente;
+      if (Math.abs(r.delta) < 0.1) residuos.splice(i, 1);
+    }
+
+    // Tendencia: el ritmo anual repartido por semanas.
     for (const k of catKeys) {
-      const deriva = (vel[k] || 0) * 0.4 * (1 - resiliencia * 0.5);
+      const deriva = ((ritmo[k] || 0) / 52) * (1 - resiliencia * 0.5);
       nuevo[k] = Math.max(0, Math.min(100, nuevo[k] + deriva));
     }
 
-    // Shocks que llegan.
+    // Shocks que llegan esta semana.
     for (const shock of pendientes) {
       if (shock.arrivalWeek !== semana) continue;
       const amortiguado = shock.delta * (1 - resiliencia * 0.4);
-      nuevo[shock.target] = Math.max(0, Math.min(100, nuevo[shock.target] + amortiguado));
-      residuos.push({ target: shock.target, delta: amortiguado, decay: shock.decay });
+      const antes = nuevo[shock.target];
+      nuevo[shock.target] = Math.max(0, Math.min(100, antes + amortiguado));
+      // Lo que de verdad ha entrado, por si el tope de 0 o 100 lo ha recortado.
+      const efectivo = nuevo[shock.target] - antes;
+      if (Math.abs(efectivo) >= 0.1) residuos.push({ target: shock.target, delta: efectivo, decay: shock.decay });
 
-      // Segundo orden.
+      // Segundo orden y siguientes.
       const props2 = prop[shock.target];
       if (props2 && Math.abs(amortiguado) > 1.5) {
         for (const [destino2, par] of Object.entries(props2)) {
@@ -102,22 +140,12 @@ export function simularCascada(modelo, semanas, overrides = {}, velOverrides = n
           pendientes.push({
             target: destino2,
             delta: amortiguado * par.s * 0.5,
-            arrivalWeek: semana + Math.round(par.l * 0.7),
+            arrivalWeek: semana + Math.max(1, Math.round(par.l * 0.7)),
             decay: par.d,
             source: shock.target,
           });
         }
       }
-    }
-
-    // Decaimiento de lo que ya llegó (T26).
-    for (let i = residuos.length - 1; i >= 0; i--) {
-      const r = residuos[i];
-      const dec = (typeof r.decay === 'number' && r.decay > 0 && r.decay < 1) ? r.decay : 0.8;
-      const siguiente = r.delta * dec;
-      nuevo[r.target] = Math.max(0, Math.min(100, nuevo[r.target] - (r.delta - siguiente)));
-      r.delta = siguiente;
-      if (Math.abs(r.delta) < 0.1) residuos.splice(i, 1);
     }
 
     for (const k of catKeys) estado[k] = nuevo[k];
@@ -141,7 +169,8 @@ export const fotogramas = (semanas) => [
  * perturbadas, y los percentiles de la puntuación media por semana clave.
  */
 export function monteCarlo(modelo, semanas, nSims, semilla) {
-  const { catKeys, scores, sigmas, vel } = modelo;
+  const { catKeys, scores, sigmas } = modelo;
+  const ritmo = modelo.ritmo || {};
   const resultados = [];
   const claves = fotogramas(semanas);
 
@@ -154,10 +183,12 @@ export function monteCarlo(modelo, semanas, nSims, semilla) {
       overrides[k] = Math.max(0, Math.min(100, base + gaussiana(0, sigmas[k])));
     }
 
-    const velPerturbada = {};
-    for (const k of catKeys) velPerturbada[k] = (vel[k] || 0) + gaussiana(0, modelo.sigmaVelocidad);
+    // La incertidumbre del estado inicial es de MEDIDA, no un suceso: no se
+    // propaga como shock. La del ritmo sí cambia la trayectoria.
+    const ritmoPerturbado = {};
+    for (const k of catKeys) ritmoPerturbado[k] = (ritmo[k] || 0) + gaussiana(0, modelo.sigmaRitmo || 0);
 
-    const historia = simularCascada(modelo, semanas, overrides, velPerturbada);
+    const historia = simularCascada(modelo, semanas, overrides, ritmoPerturbado);
     const uno = {};
     for (const w of claves) {
       const cuadro = historia[Math.min(w, historia.length - 1)];
