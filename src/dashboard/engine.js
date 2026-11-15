@@ -29,6 +29,7 @@ import { semilla, fijarSemilla, generadorDeSimulacion, gaussianaCon } from './rn
 import { proyectarAPSD, normalizarPesos, comprobarCorrelacion } from './matrices.js';
 import { proyectar, enMemoria, estadisticas as statsSim } from './sim-cliente.js';
 import { simularCascada, monteCarlo as monteCarloLocal } from './sim-core.js';
+import { aCSV, COLUMNAS_EVENTOS, eventosAGeoJSON, descargar, nombreFichero } from '../core/exportar.js';
 import {
   PROVEEDORES, configuracion as configIA, guardarConfiguracion as guardarConfigIA,
   hayClave, claveRecordada, guardarClave, olvidarClave, preguntar,
@@ -660,6 +661,25 @@ function eventosParaRegion(code, eventos){
   return agruparPorPais(eventos).get(code) || [];
 }
 
+let exportablesPais={ code:null, eventos:[] };
+function exportarEventosPais(formato){
+  const { code, eventos } = exportablesPais;
+  if(!eventos.length) return;
+  if(formato==='geojson'){
+    descargar(nombreFichero('eventos', code)+'.geojson', JSON.stringify(eventosAGeoJSON(eventos), null, 1), 'application/geo+json');
+  } else {
+    descargar(nombreFichero('eventos', code)+'.csv', aCSV(eventos, COLUMNAS_EVENTOS), 'text/csv;charset=utf-8');
+  }
+}
+(function(){
+  function enganchar(){
+    document.getElementById('pais-ev-csv')?.addEventListener('click',()=>exportarEventosPais('csv'));
+    document.getElementById('pais-ev-geojson')?.addEventListener('click',()=>exportarEventosPais('geojson'));
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', enganchar, { once:true });
+  else enganchar();
+})();
+
 function renderEventosPais(code, d){
   const feed=document.getElementById('pais-ev-feed');
   if(!feed) return;
@@ -678,6 +698,8 @@ function renderEventosPais(code, d){
       return;
     }
     const lista=eventosParaRegion(code, lectura.eventos);
+    // Lo que se ve es lo que se exporta: los eventos de esta region.
+    exportablesPais={ code, eventos: lista };
     if(cuenta) cuenta.textContent=lista.length+' · '+HORAS_POR_DEFECTO+' H';
     feed.innerHTML=lista.length ? lista.slice(0,12).map(ev=>`
     <div class="ev" style="flex-direction:column;gap:4px;padding:8px;background:rgba(5,10,16,.4);border-radius:6px;border:1px solid var(--border)">

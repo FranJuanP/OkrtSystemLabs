@@ -1258,6 +1258,8 @@ python -m http.server 8080</pre>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" fill="var(--cyan)" opacity=".85"/><circle cx="8" cy="8" r="6.5" stroke="var(--cyan)" stroke-width="1" opacity=".4"/></svg>
       <span id="pais-ev-titulo">EVENTOS RECIENTES</span>
       <span id="pais-ev-count" style="margin-left:auto;background:rgba(0,255,200,.1);color:var(--cyan);padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px">—</span>
+      <button class="btn sec" id="pais-ev-csv" style="padding:3px 9px;font-size:9px" title="Descargar los eventos de este territorio en CSV">CSV</button>
+      <button class="btn sec" id="pais-ev-geojson" style="padding:3px 9px;font-size:9px" title="Descargar los eventos con coordenadas en GeoJSON">GEOJSON</button>
     </div>
     <div id="pais-ev-feed" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px"></div>
     <div id="pais-ev-conflicto" style="margin-top:10px;font-size:11px;color:var(--text);font-family:'Share Tech Mono',monospace"></div>

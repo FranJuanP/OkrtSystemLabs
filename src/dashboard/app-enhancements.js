@@ -7,6 +7,7 @@
 import { DATA, CAT_KEYS, CAT_LABELS, ShockSim, scoreToColor, onRegionChange } from './engine.js';
 import { AETHER_STORAGE } from '../core/storage.js';
 import { esc } from '../core/escape.js';
+import { aCSV, descargar, nombreFichero } from '../core/exportar.js';
 const WATCHLIST_KEY = 'aether_watchlist_v3';
 const HISTORY_KEY = 'aether_brief_history_v3';
 const SNAPSHOT_KEY = 'aether_region_snapshots_v3';
@@ -437,13 +438,29 @@ function injectPanel(){
             <div class="aether-enh-kicker" style="margin-bottom:2px">Watchlist persistente</div>
             <div id="aether-watch-summary" style="font-size:11px;color:var(--dim)">Ancla regiones clave y vuelve a ellas en un clic.</div>
           </div>
-          <button class="aether-mini-btn" id="aether-watch-add">+ Añadir actual</button>
+          <div style="display:flex;gap:6px">
+            <button class="aether-mini-btn" id="aether-watch-csv" title="Descargar la watchlist en CSV">CSV</button>
+            <button class="aether-mini-btn" id="aether-watch-add">+ Añadir actual</button>
+          </div>
         </div>
         <div class="aether-watchlist" id="aether-watchlist"></div>
       </div>
     </div>`;
   controls.insertAdjacentElement('afterend', card);
   $('aether-watch-add')?.addEventListener('click', addCurrentRegion);
+  $('aether-watch-csv')?.addEventListener('click', exportarWatchlist);
+}
+
+/** La watchlist, con sus métricas al día, en CSV. */
+function exportarWatchlist(){
+  const items = syncWatchlistMetrics(loadWatchlist());
+  if (!items.length) return;
+  descargar(nombreFichero('watchlist') + '.csv', aCSV(items, [
+    { clave: 'code', titulo: 'codigo' }, { clave: 'name', titulo: 'territorio' },
+    { clave: 'score', titulo: 'score' }, { clave: 'band', titulo: 'banda' },
+    { clave: 'dominant', titulo: 'dominante' }, { clave: 'delta', titulo: 'cambio' },
+    { clave: 'confidence', titulo: 'confianza' },
+  ]), 'text/csv;charset=utf-8');
 }
 
 function persistSnapshot(profile){
